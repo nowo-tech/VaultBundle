@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="{{ app.request.locale|default('en') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ 'vault.title'|trans({}, 'NowoVaultBundle') }}{% endblock %}</title>
+    {% block styles %}
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+        <link rel="stylesheet" href="{{ asset('vault.css', 'nowo_vault') }}">
+        <style>
+            body { background: #f6f8fb; }
+            .container-narrow { max-width: 960px; }
+        </style>
+    {% endblock %}
+</head>
+<body>
+<div class="page">
+    <div class="container container-narrow py-4">
+        {% block body %}{% endblock %}
+    </div>
+</div>
+{% block javascripts %}
+    <script type="module" src="{{ asset('vault.js', 'nowo_vault') }}"></script>
+{% endblock %}
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+    "bundles": {
+        "Nowo\\VaultBundle\\VaultBundle": ["all"]
+    },
+    "copy-from-recipe": {
+        "nowo-tech/vault-bundle/1.0.0": {
+            "config/packages/": "%CONFIG_DIR%/packages/",
+            "config/routes/": "%CONFIG_DIR%/routes/"
+        }
+    },
+    "env": {
+        "VAULT_ENCRYPTION_KEY": "Generate with: php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'"
+    }
+}

@@ -1,0 +1,8 @@
+# CODEOWNERS for YopassBundle
+* @HecFranco
+
+/.github/ @HecFranco
+/src/ @HecFranco
+/tests/ @HecFranco
+/.scripts/ @HecFranco
+/bin/ @HecFranco

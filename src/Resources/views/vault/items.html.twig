@@ -1,0 +1,154 @@
+{% extends layout %}
+
+{% block title %}{{ 'vault.home.items.title'|trans({}, 'NowoVaultBundle') }}{% endblock %}
+
+{% block body %}
+    {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
+        pageTitle: 'vault.home.items.title'|trans({}, 'NowoVaultBundle'),
+        pageSubtitle: 'vault.home.items.description'|trans({}, 'NowoVaultBundle'),
+    } %}
+
+    {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form class="row g-3 align-items-end" method="get" action="{{ path(routes.items.name) }}">
+                <div class="col-md-8">
+                    <label class="form-label" for="vault-search">{{ 'vault.search.placeholder'|trans({}, 'NowoVaultBundle') }}</label>
+                    <input id="vault-search" type="search" name="q" class="form-control" value="{{ searchQuery|default('') }}" placeholder="{{ 'vault.search.placeholder'|trans({}, 'NowoVaultBundle') }}">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">{{ 'vault.action.search'|trans({}, 'NowoVaultBundle') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h3 class="card-title mb-0">{{ 'vault.nav.folders'|trans({}, 'NowoVaultBundle') }}</h3>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-vault-folder-toggle>
+                {{ 'vault.folder.add'|trans({}, 'NowoVaultBundle') }}
+            </button>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ path(routes.folder_create.name) }}" class="row g-2 mb-3" data-vault-folder-form hidden>
+                <div class="col">
+                    <input type="text" name="name" class="form-control" placeholder="{{ 'vault.folder.name_placeholder'|trans({}, 'NowoVaultBundle') }}" required>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">{{ 'vault.action.save'|trans({}, 'NowoVaultBundle') }}</button>
+                </div>
+            </form>
+            <div class="d-flex flex-wrap align-items-center gap-2 vault-folder-list">
+                <a href="{{ path(routes.items.name, searchQuery|default('') ? {q: searchQuery} : {}) }}"
+                   class="btn btn-sm {% if activeFolder|default(null) is null %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    {{ 'vault.folder.all'|trans({}, 'NowoVaultBundle') }}
+                </a>
+                {% for folder in folders %}
+                    {% set folderActive = activeFolder|default(null) == folder.id %}
+                    {% set folderItemCount = folderItemCounts[folder.id]|default(0) %}
+                    {% set trashFolderConfirm = folderItemCount > 0
+                        ? 'vault.confirm.trash_folder_with_items'|trans({'%count%': folderItemCount}, 'NowoVaultBundle')
+                        : 'vault.confirm.trash_folder'|trans({}, 'NowoVaultBundle') %}
+                    <div class="btn-group vault-folder-actions" role="group" aria-label="{{ folder.name }}">
+                        <a href="{{ path(routes.items.name, {folder: folder.id}) }}"
+                           class="btn btn-sm {% if folderActive %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                            {{ folder.name }}
+                        </a>
+                        <a href="{{ path(routes.folder_share.name, {id: folder.id}) }}"
+                           class="btn btn-sm btn-icon {% if folderActive %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                           title="{{ 'vault.share.manage'|trans({}, 'NowoVaultBundle') }}">
+                            <i class="ti ti-share" aria-hidden="true"></i>
+                        </a>
+                        <form method="post"
+                              action="{{ path(routes.folder_trash.name, {id: folder.id}) }}"
+                              class="vault-folder-action-form"
+                              onsubmit="return confirm('{{ trashFolderConfirm|e('js') }}');">
+                            <button type="submit"
+                                    class="btn btn-sm btn-icon {% if folderActive %}btn-primary{% else %}btn-outline-secondary{% endif %} text-danger"
+                                    title="{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}">
+                                <i class="ti ti-trash" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h3 class="card-title mb-0">{{ 'vault.home.items.title'|trans({}, 'NowoVaultBundle') }}</h3>
+            <div class="d-flex flex-wrap gap-2">
+                {% for type in itemTypes %}
+                    {% set newItemParams = {type: type.value} %}
+                    {% if activeFolder|default(null) %}
+                        {% set newItemParams = newItemParams|merge({folder: activeFolder}) %}
+                    {% endif %}
+                    <a href="{{ path(routes.item_new.name, newItemParams) }}" class="btn btn-sm btn-outline-primary">
+                        {{ ('vault.type.' ~ type.value)|trans({}, 'NowoVaultBundle') }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if items is empty %}
+                <p class="text-secondary p-4 mb-0">{{ 'vault.empty.items'|trans({}, 'NowoVaultBundle') }}</p>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table table-vcenter card-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ 'vault.list.type'|trans({}, 'NowoVaultBundle') }}</th>
+                                <th>{{ 'vault.form.title'|trans({}, 'NowoVaultBundle') }}</th>
+                                <th>{{ 'vault.list.folder'|trans({}, 'NowoVaultBundle') }}</th>
+                                <th class="w-1"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                                <tr>
+                                    <td class="text-secondary">{{ ('vault.type.' ~ item.itemType.value)|trans({}, 'NowoVaultBundle') }}</td>
+                                    <td>
+                                        <a href="{{ path(routes.item_edit.name, {id: item.id}) }}">
+                                            {{ item.title }}
+                                        </a>
+                                        {% if readOnlyMap[item.id]|default(false) %}
+                                            <span class="badge bg-azure-lt ms-1">{{ 'vault.badge.read_only'|trans({}, 'NowoVaultBundle') }}</span>
+                                        {% endif %}
+                                        {% if grantCounts[item.id]|default(0) > 0 %}
+                                            <span class="badge bg-green-lt ms-1">{{ 'vault.access.shared_badge'|trans({}, 'NowoVaultBundle') }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-secondary">
+                                        {% if item.folder %}
+                                            <a href="{{ path(routes.items.name, {folder: item.folder.id}) }}">{{ item.folder.name }}</a>
+                                        {% else %}
+                                            {{ 'vault.form.no_folder'|trans({}, 'NowoVaultBundle') }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if not readOnlyMap[item.id]|default(false) %}
+                                            <form method="post" action="{{ path(routes.item_trash.name, {id: item.id}) }}" class="d-inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('vault_trash_' ~ item.id) }}">
+                                                <button type="submit" class="btn btn-sm btn-icon btn-outline-danger" title="{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}" onclick="return confirm('{{ 'vault.confirm.trash'|trans({}, 'NowoVaultBundle')|e('js') }}');">
+                                                    <i class="ti ti-trash"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>window.VAULT_PASSWORD_URL = {{ path(routes.password_generate.name)|json_encode|raw }};</script>
+{% endblock %}

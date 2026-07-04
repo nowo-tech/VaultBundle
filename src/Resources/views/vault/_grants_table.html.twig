@@ -1,0 +1,45 @@
+{% if grants is not empty %}
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table mb-0">
+            <thead>
+                <tr>
+                    <th>{{ 'vault.share.grantee_type'|trans({}, 'NowoVaultBundle') }}</th>
+                    <th>{{ 'vault.share.grantee_id'|trans({}, 'NowoVaultBundle') }}</th>
+                    <th>{{ 'vault.share.permission'|trans({}, 'NowoVaultBundle') }}</th>
+                    {% if canManageAccess|default(false) %}
+                        <th class="w-1"></th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for grant in grants %}
+                    {% set grantKey = grant.granteeType.value ~ ':' ~ grant.granteeId %}
+                    <tr>
+                        <td>{{ ('vault.grantee_type.' ~ grant.granteeType.value)|trans({}, 'NowoVaultBundle') }}</td>
+                        <td>
+                            {% if granteeLabels[grantKey]|default('') %}
+                                {{ granteeLabels[grantKey] }}
+                                <span class="text-secondary small"><code>{{ grant.granteeId }}</code></span>
+                            {% else %}
+                                <code>{{ grant.granteeId }}</code>
+                            {% endif %}
+                        </td>
+                        <td>{{ ('vault.permission.' ~ grant.permission.value)|trans({}, 'NowoVaultBundle') }}</td>
+                        {% if canManageAccess|default(false) %}
+                            <td class="text-end">
+                                <form method="post" action="{{ path(grantRevokeRoute, {id: resourceId, grantId: grant.id}) }}" class="d-inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('vault_revoke_grant_' ~ grant.id) }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('{{ 'vault.confirm.revoke_access'|trans({}, 'NowoVaultBundle')|e('js') }}');">
+                                        {{ 'vault.action.revoke_access'|trans({}, 'NowoVaultBundle') }}
+                                    </button>
+                                </form>
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <p class="text-secondary mb-0">{{ 'vault.access.empty'|trans({}, 'NowoVaultBundle') }}</p>
+{% endif %}

@@ -1,0 +1,84 @@
+{% extends layout %}
+
+{% block title %}{{ 'vault.title'|trans({}, 'NowoVaultBundle') }}{% endblock %}
+
+{% block body %}
+    {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
+        pageTitle: 'vault.title'|trans({}, 'NowoVaultBundle'),
+        pageSubtitle: 'vault.home.intro'|trans({}, 'NowoVaultBundle'),
+        showVaultHomeLink: false,
+    } %}
+
+    {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
+
+    <div class="row row-cards">
+        <div class="col-md-6 col-lg-4">
+            <a href="{{ path(routes.items.name) }}" class="card card-link">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="avatar bg-primary-lt me-3"><i class="ti ti-lock"></i></span>
+                        <h2 class="card-title mb-0">{{ 'vault.home.items.title'|trans({}, 'NowoVaultBundle') }}</h2>
+                    </div>
+                    <p class="text-secondary mb-0">{{ 'vault.home.items.description'|trans({}, 'NowoVaultBundle') }}</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <a href="{{ path(routes.shared.name) }}" class="card card-link">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="avatar bg-green-lt me-3"><i class="ti ti-users"></i></span>
+                        <h2 class="card-title mb-0">{{ 'vault.nav.shared'|trans({}, 'NowoVaultBundle') }}</h2>
+                    </div>
+                    <p class="text-secondary mb-0">{{ 'vault.home.shared.description'|trans({}, 'NowoVaultBundle') }}</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <a href="{{ path(routes.trash.name) }}" class="card card-link">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="avatar bg-secondary-lt me-3"><i class="ti ti-trash"></i></span>
+                        <h2 class="card-title mb-0">{{ 'vault.nav.trash'|trans({}, 'NowoVaultBundle') }}</h2>
+                    </div>
+                    <p class="text-secondary mb-0">{{ 'vault.home.trash.description'|trans({}, 'NowoVaultBundle') }}</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h3 class="card-title">{{ 'vault.home.create.title'|trans({}, 'NowoVaultBundle') }}</h3>
+        </div>
+        <div class="card-body">
+            <p class="text-secondary">{{ 'vault.home.create.description'|trans({}, 'NowoVaultBundle') }}</p>
+            <div class="d-flex flex-wrap gap-2">
+                {% for type in itemTypes %}
+                    <a href="{{ path(routes.item_new.name, {type: type.value}) }}" class="btn btn-outline-primary">
+                        {{ ('vault.type.' ~ type.value)|trans({}, 'NowoVaultBundle') }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <h3 class="card-title mb-1">{{ 'vault.nav.password_generator'|trans({}, 'NowoVaultBundle') }}</h3>
+                <p class="text-secondary mb-0">{{ 'vault.home.generator.description'|trans({}, 'NowoVaultBundle') }}</p>
+            </div>
+            <button type="button" class="btn btn-primary" data-vault-password-generator>
+                {{ 'vault.nav.password_generator'|trans({}, 'NowoVaultBundle') }}
+            </button>
+        </div>
+    </div>
+
+    {% include '@NowoVaultBundle/vault/_password_generator.html.twig' %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>window.VAULT_PASSWORD_URL = {{ path(routes.password_generate.name)|json_encode|raw }};</script>
+{% endblock %}

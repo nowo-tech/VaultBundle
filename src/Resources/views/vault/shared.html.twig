@@ -1,0 +1,44 @@
+{% extends layout %}
+
+{% block title %}{{ 'vault.nav.shared'|trans({}, 'NowoVaultBundle') }}{% endblock %}
+
+{% block body %}
+    {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
+        pageTitle: 'vault.nav.shared'|trans({}, 'NowoVaultBundle'),
+        pageSubtitle: 'vault.shared.hint'|trans({}, 'NowoVaultBundle'),
+    } %}
+
+    {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
+
+    <div class="card">
+        <div class="card-body p-0">
+            {% if items is empty %}
+                <p class="text-secondary p-4 mb-0">{{ 'vault.empty.shared'|trans({}, 'NowoVaultBundle') }}</p>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table table-vcenter card-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ 'vault.form.title'|trans({}, 'NowoVaultBundle') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ path(routes.item_edit.name, {id: item.id}) }}">
+                                            {{ item.title }}
+                                        </a>
+                                        {% if readOnlyMap[item.id]|default(false) %}
+                                            <span class="badge bg-azure-lt ms-1">{{ 'vault.badge.read_only'|trans({}, 'NowoVaultBundle') }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

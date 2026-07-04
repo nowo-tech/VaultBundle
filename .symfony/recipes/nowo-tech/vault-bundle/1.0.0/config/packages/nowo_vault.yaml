@@ -1,0 +1,3 @@
+nowo_vault:
+    user_class: App\Entity\User
+    encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'

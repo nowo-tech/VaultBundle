@@ -1,0 +1,16 @@
+# Vault Bundle — demo configuration (Symfony 8.1)
+nowo_vault:
+    # Doctrine User entity used as vault item/folder creator and grant subject
+    user_class: App\Entity\User
+
+    # Table prefix for vault_items, vault_folders, vault_grants
+    table_prefix: vault_
+
+    # Base64-encoded 32-byte libsodium key (see .env VAULT_ENCRYPTION_KEY)
+    encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
+
+    routes:
+        # Public URL of the vault home (manage UI entry point)
+        index:
+            path: /tools/vault
+            name: nowo_vault_index

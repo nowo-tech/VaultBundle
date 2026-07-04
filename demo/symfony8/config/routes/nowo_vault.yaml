@@ -1,0 +1,3 @@
+nowo_vault:
+    resource: .
+    type: nowo_vault

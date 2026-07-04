@@ -1,0 +1,140 @@
+vault:
+    title: Vault
+    home:
+        intro: Secure storage for logins, cards, documents, and notes. Pick a section below to get started.
+        items:
+            title: My items
+            description: Browse, search, and organize your vault entries.
+        shared:
+            description: Entries shared with you or your teams.
+        trash:
+            description: Restore or permanently delete trashed entries.
+        create:
+            title: Create new entry
+            description: Choose the type of secret you want to store.
+        generator:
+            description: Generate a strong password without leaving the vault.
+    nav:
+        vault: Vault
+        shared: Shared items
+        trash: Trash
+        folders: Folders
+        password_generator: Password Generator
+    folder:
+        add: Add folder
+        all: All items
+        name_placeholder: Folder name
+        empty_hint: 'No folders yet. Create one from the items page to organize entries:'
+    search:
+        placeholder: Search all items
+    type:
+        login: Login
+        secure_note: Secure Note
+        credit_card: Credit Card
+        contact: Contact
+        id_card: ID Card
+        drivers_license: Driver's License
+        passport: Passport
+        document: Document
+    share:
+        title: Share access
+        grantee_type: Grantee type
+        grantee: User or team / group
+        grantee_placeholder: Select a user or team / group
+        grantee_id: User or team id
+        grantee_id_help: Enter the user id (e.g. UUID) or team/group id configured in your application.
+        permission: Permission
+        submit: Grant access
+        existing: Current grants
+        manage: Manage sharing
+    access:
+        title: Access
+        intro: Share this resource with other users or teams (groups). Each grant defines who can read, write, or administer it.
+        add: Add access
+        empty: No users or teams have been granted access yet.
+        shared_badge: Shared
+    grantee_type:
+        user: User
+        team: Team / group
+    permission:
+        read: Read
+        write: Write
+        admin: Admin
+    form:
+        title: Title (required)
+        attachment: Document attachment
+        username: Email or Username
+        password: Password
+        websites: Website Address
+        secure_note: Secure Note
+        cardholder: Cardholder Name
+        card_number: Card Number
+        expiry: Expiration Date
+        cvv: CVV
+        card_pin: Card PIN
+        full_name: Full Name
+        email: Email
+        phone: Phone
+        address1: Address Line 1
+        address2: Address Line 2
+        city: City
+        state: State or Province
+        postal_code: ZIP or Postal Code
+        country: Country or Region
+        document_number: Document Number
+        issued_by: Issued By
+        issued_date: Issued Date
+        expiry_date: Expiry Date
+        note: Note
+        folder: Folder
+        no_folder: No folder
+    action:
+        save: Save
+        cancel: Cancel
+        back: Back
+        search: Search
+        trash: Move to trash
+        restore: Restore
+        purge: Delete permanently
+        revoke_access: Remove access
+    badge:
+        read_only: Read-only
+    read_only:
+        notice: This item is read-only. You can view it but not modify or delete it.
+    generator:
+        title: Password Generator
+        regenerate: Regenerate
+        copy: Copy
+        fill: Fill Password
+        length: Length
+        mode_characters: Characters
+        mode_words: Words
+        inline: Generate Password
+    empty:
+        items: No items yet. Create your first entry.
+        trash: Trash is empty.
+        shared: No shared items yet.
+    list:
+        type: Type
+        folder: Folder
+    shared:
+        hint: Items shared with you or your teams appear here. Extend access via VaultGrantService and ITEM_LIST_QUERY events.
+    confirm:
+        trash: Move this item to trash?
+        trash_folder: Move this folder to trash?
+        trash_folder_with_items: 'This folder contains %count% item(s). Delete the folder? The items will remain without a folder.'
+        purge: Permanently delete this item?
+        revoke_access: Remove this access grant?
+    flash:
+        item_created: Item saved.
+        item_updated: Item updated.
+        item_trashed: Item moved to trash.
+        item_restored: Item restored.
+        item_purged: Item permanently deleted.
+        folder_created: Folder created.
+        folder_name_required: Folder name is required.
+        folder_trashed: Folder moved to trash.
+        folder_trashed_items_detached: Folder moved to trash. %count% item(s) are now without a folder.
+        share_created: Access granted.
+        grant_revoked: Access removed.
+        grantee_not_allowed: The selected user or team is not allowed for this resource.

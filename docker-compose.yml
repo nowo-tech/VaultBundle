@@ -1,0 +1,20 @@
+name: vault-bundle
+
+services:
+  php:
+    build: .
+    volumes:
+      - .:/app
+      - coverage-data:/app/coverage
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    environment:
+      GIT_CONFIG_COUNT: 1
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /app
+      # MongoDB is require-dev only; CI and local dev may resolve deps without ext-mongodb loaded.
+      COMPOSER_IGNORE_PLATFORM_REQ: ext-mongodb
+
+volumes:
+  coverage-data:

@@ -1,0 +1,49 @@
+{% extends layout %}
+
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+
+{% block title %}{{ 'vault.share.title'|trans({}, 'NowoVaultBundle') }}{% endblock %}
+
+{% block body %}
+    {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
+        pageTitle: 'vault.share.title'|trans({}, 'NowoVaultBundle') ~ ': ' ~ resourceLabel,
+    } %}
+
+    {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title mb-0">{{ 'vault.access.add'|trans({}, 'NowoVaultBundle') }}</h3>
+        </div>
+        <div class="card-body">
+            <p class="text-secondary">{{ 'vault.access.intro'|trans({}, 'NowoVaultBundle') }}</p>
+            {{ form_start(form, {attr: {class: 'vault-form'}}) }}
+            <div class="row g-3">
+                {% include '@NowoVaultBundle/vault/_share_form_fields.html.twig' with {form: form} %}
+            </div>
+            {% if not form.vars.grantee_picker %}
+                <p class="text-secondary small mb-3">{{ 'vault.share.grantee_id_help'|trans({}, 'NowoVaultBundle') }}</p>
+            {% endif %}
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">{{ 'vault.share.submit'|trans({}, 'NowoVaultBundle') }}</button>
+                <a href="{{ path(backRoute, backParams) }}" class="btn btn-outline-secondary">{{ 'vault.action.back'|trans({}, 'NowoVaultBundle') }}</a>
+            </div>
+            {{ form_end(form, {render_rest: false}) }}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title mb-0">{{ 'vault.share.existing'|trans({}, 'NowoVaultBundle') }}</h3>
+        </div>
+        <div class="card-body">
+            {% include '@NowoVaultBundle/vault/_grants_table.html.twig' with {
+                grants: grants,
+                resourceId: resourceId,
+                grantRevokeRoute: grantRevokeRoute,
+                canManageAccess: true,
+                granteeLabels: granteeLabels|default({}),
+            } %}
+        </div>
+    </div>
+{% endblock %}

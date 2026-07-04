@@ -1,0 +1,32 @@
+# Dependencies
+/vendor
+/node_modules
+/.pnpm-store
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+/demo/symfony8/.env.s3.local
+/demo/symfony8/var/vault-storage/*
+!/demo/symfony8/var/vault-storage/.gitkeep
+
+# Test coverage
+/coverage
+/coverage.xml
+/coverage-ts
+/coverage-php.txt
+/coverage-ts.txt
+
+# PHP tool caches
+/.php-cs-fixer.cache
+/.phpunit.cache
+/.phpunit.result.cache
+
+# Archives / compressed
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z

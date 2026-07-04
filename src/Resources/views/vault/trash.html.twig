@@ -1,0 +1,48 @@
+{% extends layout %}
+
+{% block title %}{{ 'vault.nav.trash'|trans({}, 'NowoVaultBundle') }}{% endblock %}
+
+{% block body %}
+    {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
+        pageTitle: 'vault.nav.trash'|trans({}, 'NowoVaultBundle'),
+        pageSubtitle: 'vault.home.trash.description'|trans({}, 'NowoVaultBundle'),
+    } %}
+
+    {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
+
+    <div class="card">
+        <div class="card-body p-0">
+            {% if items is empty %}
+                <p class="text-secondary p-4 mb-0">{{ 'vault.empty.trash'|trans({}, 'NowoVaultBundle') }}</p>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table table-vcenter card-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ 'vault.form.title'|trans({}, 'NowoVaultBundle') }}</th>
+                                <th class="w-1"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                                <tr>
+                                    <td>{{ item.title }}</td>
+                                    <td class="text-end text-nowrap">
+                                        <form method="post" action="{{ path(routes.item_restore.name, {id: item.id}) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">{{ 'vault.action.restore'|trans({}, 'NowoVaultBundle') }}</button>
+                                        </form>
+                                        <form method="post" action="{{ path(routes.item_purge.name, {id: item.id}) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('{{ 'vault.confirm.purge'|trans({}, 'NowoVaultBundle')|e('js') }}');">
+                                                {{ 'vault.action.purge'|trans({}, 'NowoVaultBundle') }}
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

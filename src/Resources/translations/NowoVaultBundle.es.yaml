@@ -1,0 +1,140 @@
+vault:
+    title: Vault
+    home:
+        intro: Almacenamiento seguro para accesos, tarjetas, documentos y notas. Elige una sección para empezar.
+        items:
+            title: Mis elementos
+            description: Consulta, busca y organiza las entradas de tu vault.
+        shared:
+            description: Elementos compartidos contigo o con tus equipos.
+        trash:
+            description: Restaura o elimina permanentemente entradas en la papelera.
+        create:
+            title: Crear nueva entrada
+            description: Elige el tipo de secreto que quieres guardar.
+        generator:
+            description: Genera una contraseña segura sin salir del vault.
+    nav:
+        vault: Vault
+        shared: Elementos compartidos
+        trash: Papelera
+        folders: Carpetas
+        password_generator: Generador de contraseñas
+    folder:
+        add: Añadir carpeta
+        all: Todos los elementos
+        name_placeholder: Nombre de la carpeta
+        empty_hint: 'Aún no hay carpetas. Crea una desde la página de elementos para organizar entradas:'
+    search:
+        placeholder: Buscar en todos los elementos
+    type:
+        login: Acceso
+        secure_note: Nota segura
+        credit_card: Tarjeta de crédito
+        contact: Contacto
+        id_card: DNI / ID
+        drivers_license: Carnet de conducir
+        passport: Pasaporte
+        document: Documento
+    share:
+        title: Compartir acceso
+        grantee_type: Tipo de destinatario
+        grantee: Usuario o equipo / grupo
+        grantee_placeholder: Selecciona un usuario o equipo / grupo
+        grantee_id: Id de usuario o equipo
+        grantee_id_help: Introduce el id de usuario (p. ej. UUID) o el id de equipo/grupo configurado en tu aplicación.
+        permission: Permiso
+        submit: Conceder acceso
+        existing: Permisos actuales
+        manage: Gestionar compartición
+    access:
+        title: Acceso
+        intro: Comparte este recurso con otros usuarios o equipos (grupos). Cada permiso define quién puede leer, escribir o administrarlo.
+        add: Añadir acceso
+        empty: Aún no hay usuarios ni equipos con acceso concedido.
+        shared_badge: Compartido
+    grantee_type:
+        user: Usuario
+        team: Equipo / grupo
+    permission:
+        read: Lectura
+        write: Escritura
+        admin: Administración
+    form:
+        title: Título (obligatorio)
+        attachment: Adjunto del documento
+        username: Email o usuario
+        password: Contraseña
+        websites: Sitio web
+        secure_note: Nota segura
+        cardholder: Titular de la tarjeta
+        card_number: Número de tarjeta
+        expiry: Fecha de caducidad
+        cvv: CVV
+        card_pin: PIN de la tarjeta
+        full_name: Nombre completo
+        email: Email
+        phone: Teléfono
+        address1: Dirección línea 1
+        address2: Dirección línea 2
+        city: Ciudad
+        state: Provincia
+        postal_code: Código postal
+        country: País
+        document_number: Número de documento
+        issued_by: Emitido por
+        issued_date: Fecha de emisión
+        expiry_date: Fecha de caducidad
+        note: Nota
+        folder: Carpeta
+        no_folder: Sin carpeta
+    action:
+        save: Guardar
+        cancel: Cancelar
+        back: Volver
+        search: Buscar
+        trash: Mover a la papelera
+        restore: Restaurar
+        purge: Eliminar permanentemente
+        revoke_access: Quitar acceso
+    badge:
+        read_only: Solo lectura
+    read_only:
+        notice: Este elemento es de solo lectura. Puedes verlo pero no modificarlo ni eliminarlo.
+    generator:
+        title: Generador de contraseñas
+        regenerate: Regenerar
+        copy: Copiar
+        fill: Rellenar contraseña
+        length: Longitud
+        mode_characters: Caracteres
+        mode_words: Palabras
+        inline: Generar contraseña
+    empty:
+        items: Aún no hay elementos. Crea el primero.
+        trash: La papelera está vacía.
+        shared: No hay elementos compartidos.
+    list:
+        type: Tipo
+        folder: Carpeta
+    shared:
+        hint: Los elementos compartidos contigo o con tus equipos aparecen aquí. Extiende el acceso con VaultGrantService y eventos ITEM_LIST_QUERY.
+    confirm:
+        trash: ¿Mover este elemento a la papelera?
+        trash_folder: ¿Mover esta carpeta a la papelera?
+        trash_folder_with_items: 'Esta carpeta contiene %count% elemento(s). ¿Eliminar la carpeta? Los elementos quedarán sin carpeta asociada.'
+        purge: ¿Eliminar permanentemente este elemento?
+        revoke_access: ¿Quitar este permiso de acceso?
+    flash:
+        item_created: Elemento guardado.
+        item_updated: Elemento actualizado.
+        item_trashed: Elemento movido a la papelera.
+        item_restored: Elemento restaurado.
+        item_purged: Elemento eliminado permanentemente.
+        folder_created: Carpeta creada.
+        folder_name_required: El nombre de la carpeta es obligatorio.
+        folder_trashed: Carpeta movida a la papelera.
+        folder_trashed_items_detached: Carpeta movida a la papelera. %count% elemento(s) han quedado sin carpeta asociada.
+        share_created: Acceso concedido.
+        grant_revoked: Acceso eliminado.
+        grantee_not_allowed: El usuario o equipo seleccionado no está permitido para este recurso.
