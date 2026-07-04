@@ -1,0 +1,16 @@
+parameters:
+    level: 8
+    paths:
+        - src
+    excludePaths:
+        - src/Resources/assets/*
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        -
+            message: '#Parameter \$repositoryClass of attribute class Doctrine\\ORM\\Mapping\\Entity constructor expects#'
+        -
+            message: '#Parameter \$targetEntity of attribute class Doctrine\\ORM\\Mapping\\ManyToOne constructor expects#'
+        -
+            message: '#Method Nowo\\VaultBundle\\Doctrine\\VaultMetadataListener::remapUserAssociation\(\) has parameter \$metadata with generic class Doctrine\\ORM\\Mapping\\ClassMetadata#'
+        -
+            message: '#Instanceof between Doctrine\\ORM\\Mapping\\.* and Doctrine\\ORM\\Mapping\\AssociationMapping will always evaluate to true#'

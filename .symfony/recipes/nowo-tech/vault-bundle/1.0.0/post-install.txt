@@ -1,0 +1,7 @@
+VaultBundle installed.
+
+- Configure nowo_vault.user_class and VAULT_ENCRYPTION_KEY in .env
+- Run doctrine migrations for vault_items, vault_folders, vault_grants tables
+- Manage UI: /tools/vault (configurable via nowo_vault.routes)
+
+See docs/INSTALLATION.md and docs/CONFIGURATION.md.

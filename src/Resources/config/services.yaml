@@ -1,0 +1,39 @@
+# Bundle service definitions.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    Nowo\VaultBundle\:
+        resource: '../../'
+        exclude:
+            - '../../DependencyInjection/'
+            - '../../VaultBundle.php'
+            - '../../Repository/'
+            - '../../Doctrine/'
+            - '../../Security/'
+
+    Nowo\VaultBundle\Form\VaultItemFormType:
+        arguments:
+            $passwordFieldConfig: '%nowo_vault.password_field%'
+
+    Nowo\VaultBundle\Controller\:
+        resource: '../../Controller/'
+        public: true
+
+    Nowo\VaultBundle\Routing\VaultRouteLoader:
+        arguments:
+            $routes: '%nowo_vault.routes%'
+            $routePrefix: '%nowo_vault.route_prefix%'
+        tags:
+            - { name: routing.loader }
+
+    Nowo\VaultBundle\Controller\VaultManageController:
+        public: true
+        arguments:
+            $routes: '%nowo_vault.routes%'
+            $templates: '%nowo_vault.templates%'
+            $dashboardRoute: '%nowo_vault.dashboard_route%'
+            $maxAttachmentBytes: '%nowo_vault.max_attachment_bytes%'
+            $passwordStrengthEnabled: '%nowo_vault.password_strength_enabled%'

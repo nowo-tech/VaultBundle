@@ -1,0 +1,20 @@
+<div class="page-header d-print-none mb-4">
+    <div class="row align-items-center">
+        <div class="col">
+            {% if showVaultHomeLink|default(true) %}
+                <div class="text-secondary small mb-1">
+                    <a href="{{ path(routes.index.name) }}" class="text-reset">{{ 'vault.title'|trans({}, 'NowoVaultBundle') }}</a>
+                </div>
+            {% endif %}
+            <h1 class="page-title">{{ pageTitle }}</h1>
+            {% if pageSubtitle|default(null) %}
+                <p class="text-secondary mb-0">{{ pageSubtitle }}</p>
+            {% endif %}
+        </div>
+        {% if dashboardRoute %}
+            <div class="col-auto">
+                <a href="{{ path(dashboardRoute) }}" class="btn btn-outline-secondary">{{ 'vault.action.back'|trans({}, 'NowoVaultBundle') }}</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
