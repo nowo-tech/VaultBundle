@@ -88,7 +88,7 @@ final class VaultItemFormType extends AbstractType
         $level = (string) ($this->passwordFieldConfig['level'] ?? 'medium');
 
         if (PasswordStrengthIntegration::isAvailable()) {
-            $passwordType = PasswordStrengthIntegration::PASSWORD_STRENGTH_TYPE;
+            $passwordType   = PasswordStrengthIntegration::PASSWORD_STRENGTH_TYPE;
             $validatorClass = PasswordStrengthIntegration::PASSWORD_STRENGTH_VALIDATOR;
 
             // @phpstan-ignore argument.type (optional PasswordStrengthBundle form type resolved at runtime)
