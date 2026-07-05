@@ -12,12 +12,20 @@
         <testsuite name="integration">
             <directory>tests/Integration</directory>
         </testsuite>
+        <testsuite name="e2e">
+            <directory>tests/E2E</directory>
+        </testsuite>
     </testsuites>
+    <php>
+        <env name="APP_ENV" value="test"/>
+        <env name="VAULT_ENCRYPTION_KEY" value="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="/>
+    </php>
     <source>
         <include>
             <directory>src</directory>
         </include>
         <exclude>
+            <!-- Controllers/forms/repos are covered by E2E; excluded from the 100% release gate -->
             <directory>src/Resources</directory>
             <directory>src/Controller</directory>
             <directory>src/Repository</directory>

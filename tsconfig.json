@@ -7,5 +7,5 @@
         "skipLibCheck": true,
         "noEmit": true
     },
-    "include": ["src/Resources/assets/src/**/*"]
+    "include": ["src/Resources/assets/src/**/*", "extension/src/**/*"]
 }

@@ -28,4 +28,10 @@ final class VaultEvents
      * Listeners add allowed users and teams (groups) via VaultGrantListQueryEvent::addGrantee().
      */
     public const GRANT_LIST_QUERY = 'nowo_vault.grant_list_query';
+
+    /**
+     * Fired before the default browser-extension login authenticator runs.
+     * Listeners may call VaultBrowserExtensionAuthEvent::setResult() to handle auth.
+     */
+    public const BROWSER_EXTENSION_AUTH = 'nowo_vault.browser_extension_auth';
 }

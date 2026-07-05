@@ -47,10 +47,16 @@
             "migrations/.gitignore"
         ]
     },
+    "nowo-tech/doctrine-encrypt-bundle": {
+        "version": "dev-main"
+    },
     "nowo-tech/password-strength-bundle": {
         "version": "dev-main"
     },
     "nowo-tech/password-toggle-bundle": {
+        "version": "dev-main"
+    },
+    "nowo-tech/tag-input-bundle": {
         "version": "dev-main"
     },
     "nowo-tech/twig-inspector-bundle": {

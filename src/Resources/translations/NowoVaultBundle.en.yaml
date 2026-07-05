@@ -14,6 +14,9 @@ vault:
             description: Choose the type of secret you want to store.
         generator:
             description: Generate a strong password without leaving the vault.
+        runtime_config:
+            title: Runtime configuration (database)
+            description: 'Manage encryption key, attachment limit, and password strength level in vault_settings.'
     nav:
         vault: Vault
         shared: Shared items
@@ -27,6 +30,10 @@ vault:
         empty_hint: 'No folders yet. Create one from the items page to organize entries:'
     search:
         placeholder: Search all items
+        placeholder_tags: Search by title or tag
+    tags:
+        filter: Tags
+        all: All tags
     type:
         login: Login
         secure_note: Secure Note
@@ -88,11 +95,19 @@ vault:
         note: Note
         folder: Folder
         no_folder: No folder
+        tags: Tags
+        tag_placeholder: e.g. work, personal
+        tags_help: Type a tag and press Enter. Tags are reused across your items.
     action:
         save: Save
         cancel: Cancel
         back: Back
         search: Search
+        view: View
+        edit: Edit
+        access: Access
+        delete_tag: Delete tag
+        open_settings: Open settings
         trash: Move to trash
         restore: Restore
         purge: Delete permanently
@@ -117,12 +132,14 @@ vault:
     list:
         type: Type
         folder: Folder
+        actions: Actions
     shared:
         hint: Items shared with you or your teams appear here. Extend access via VaultGrantService and ITEM_LIST_QUERY events.
     confirm:
         trash: Move this item to trash?
         trash_folder: Move this folder to trash?
         trash_folder_with_items: 'This folder contains %count% item(s). Delete the folder? The items will remain without a folder.'
+        delete_tag: 'Delete tag "%name%"? Items will keep their other tags; this label will be removed from them.'
         purge: Permanently delete this item?
         revoke_access: Remove this access grant?
     flash:
@@ -135,6 +152,27 @@ vault:
         folder_name_required: Folder name is required.
         folder_trashed: Folder moved to trash.
         folder_trashed_items_detached: Folder moved to trash. %count% item(s) are now without a folder.
+        tag_deleted: Tag deleted. Items no longer show this label.
         share_created: Access granted.
         grant_revoked: Access removed.
         grantee_not_allowed: The selected user or team is not allowed for this resource.
+        runtime_config:
+            saved: Settings saved to the database.
+            key_stored: Settings saved to the database. Encryption key stored.
+            key_generated: Vault encryption key generated and saved to the database (encrypted at rest).
+            key_exists: A vault encryption key is already stored in the database.
+            max_attachment_invalid: max_attachment_bytes must be zero or greater.
+    runtime_config:
+        title: Runtime configuration
+        intro: Database settings for vault encryption key, attachment size limit, and password strength level.
+        section: Database settings
+        last_update: 'Last update: %datetime%'
+        encryption_key: Vault encryption key
+        encryption_key_stored_help: Stored in vault_settings.encryption_key (encrypted at rest). This value cannot be changed from this screen.
+        encryption_key_empty_help: No encryption key in the database yet. Generate one or paste a base64 key, then save.
+        encryption_key_placeholder: Paste a base64 key or generate one below
+        encryption_key_configured: "Configured (hidden for security)"
+        encryption_key_one_time_warning: "Copy this key now. It will not be shown again after you leave this page."
+        generate_key: Generate VAULT_ENCRYPTION_KEY
+        max_attachment_bytes: Max attachment size (bytes)
+        password_level: Password strength level

@@ -4,6 +4,7 @@ import { fetchGeneratedPassword, readGeneratorOptionsFromDom } from './vault-pas
 declare global {
     interface Window {
         VAULT_PASSWORD_URL?: string;
+        VAULT_PASSWORD_CSRF_TOKEN?: string;
     }
 }
 
@@ -13,7 +14,7 @@ async function generatePassword(): Promise<{ password: string; strength: string 
         throw new Error('Password generator URL is not configured.');
     }
 
-    return fetchGeneratedPassword(url, readGeneratorOptionsFromDom(document));
+    return fetchGeneratedPassword(url, readGeneratorOptionsFromDom(document), window.VAULT_PASSWORD_CSRF_TOKEN);
 }
 
 function bindPasswordModal(): void {

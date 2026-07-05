@@ -1,0 +1,7 @@
+# Encrypts vault_settings.encryption_key at rest (bootstrap key stays in env).
+nowo_doctrine_encrypt:
+    default_config: vault_settings
+    configs:
+        vault_settings:
+            encryptor_class: Halite
+            secret_key_env_var: '%env(DOCTRINE_ENCRYPT_KEY)%'

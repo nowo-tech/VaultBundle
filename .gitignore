@@ -17,6 +17,8 @@
 /coverage-ts
 /coverage-php.txt
 /coverage-ts.txt
+/extension/build
+/tests/**/var/
 
 # PHP tool caches
 /.php-cs-fixer.cache

@@ -32,6 +32,7 @@ final readonly class VaultItemLister
         bool $trashOnly = false,
         bool $sharedOnly = false,
         ?string $searchQuery = null,
+        ?string $tagId = null,
     ): array {
         $queryEvent = new VaultItemListQueryEvent($viewer, $viewer, $folderId, $trashOnly, $sharedOnly);
         $this->eventDispatcher->dispatch($queryEvent, VaultEvents::ITEM_LIST_QUERY);
@@ -46,7 +47,10 @@ final readonly class VaultItemLister
             $items = $this->itemRepository->findDeletedByCreator($queryEvent->getListSubject());
             $total = count($items);
         } elseif ($searchQuery !== null && $searchQuery !== '') {
-            $items = $this->itemRepository->searchByTitle($queryEvent->getListSubject(), $searchQuery);
+            $items = $this->itemRepository->searchByTitleOrTag($queryEvent->getListSubject(), $searchQuery);
+            $total = count($items);
+        } elseif ($tagId !== null && $tagId !== '') {
+            $items = $this->itemRepository->findByCreatorAndTag($queryEvent->getListSubject(), $tagId, $folderId);
             $total = count($items);
         } elseif ($folderId !== null) {
             $items = $this->itemRepository->findByCreatorAndFolder($queryEvent->getListSubject(), $folderId);

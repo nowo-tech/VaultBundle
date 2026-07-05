@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Service;
 
+use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
@@ -38,5 +39,23 @@ final readonly class VaultSharedItemResolver
         }
 
         return $this->itemRepository->findByIdsForViewer($itemIds, $viewer);
+    }
+
+    /**
+     * @return list<\Nowo\VaultBundle\Entity\VaultItem>
+     */
+    public function resolveByItemType(UserInterface $viewer, VaultItemType $itemType): array
+    {
+        $itemIds = $this->grantRepository->findGrantedResourceIds(
+            $viewer,
+            VaultResourceType::Item,
+            $this->teamMembershipResolver->getTeamIdsForUser($viewer),
+        );
+
+        if ($itemIds === []) {
+            return [];
+        }
+
+        return $this->itemRepository->findByIdsForViewerAndItemType($itemIds, $viewer, $itemType);
     }
 }

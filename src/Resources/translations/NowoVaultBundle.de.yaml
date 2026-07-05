@@ -1,0 +1,178 @@
+vault:
+    title: Vault
+    home:
+        intro: Sicherer Speicher für Zugangsdaten, Karten, Dokumente und Notizen. Wählen Sie einen Bereich, um zu beginnen.
+        items:
+            title: Meine Elemente
+            description: Durchsuchen, suchen und organisieren Sie Ihre Vault-Einträge.
+        shared:
+            description: Mit Ihnen oder Ihren Teams geteilte Elemente.
+        trash:
+            description: Einträge im Papierkorb wiederherstellen oder dauerhaft löschen.
+        create:
+            title: Neuen Eintrag erstellen
+            description: Wählen Sie die Art des zu speichernden Geheimnisses.
+        generator:
+            description: Generieren Sie ein sicheres Passwort, ohne den Vault zu verlassen.
+        runtime_config:
+            title: Laufzeitkonfiguration (Datenbank)
+            description: 'Verwalten Sie Verschlüsselungsschlüssel, Anhangslimit und Passwortstärke in vault_settings.'
+    nav:
+        vault: Vault
+        shared: Geteilte Elemente
+        trash: Papierkorb
+        folders: Ordner
+        password_generator: Passwortgenerator
+    folder:
+        add: Ordner hinzufügen
+        all: Alle Elemente
+        name_placeholder: Ordnername
+        empty_hint: 'Noch keine Ordner. Erstellen Sie einen auf der Elementseite, um Einträge zu organisieren:'
+    search:
+        placeholder: Alle Elemente durchsuchen
+        placeholder_tags: Nach Titel oder Tag suchen
+    tags:
+        filter: Schlagwörter
+        all: Alle Schlagwörter
+    type:
+        login: Anmeldung
+        secure_note: Sichere Notiz
+        credit_card: Kreditkarte
+        contact: Kontakt
+        id_card: Personalausweis
+        drivers_license: Führerschein
+        passport: Reisepass
+        document: Dokument
+    share:
+        title: Zugriff teilen
+        grantee_type: Empfängertyp
+        grantee: Benutzer oder Team / Gruppe
+        grantee_placeholder: Benutzer oder Team / Gruppe auswählen
+        grantee_id: Benutzer- oder Team-ID
+        grantee_id_help: Geben Sie die Benutzer-ID (z. B. UUID) oder die in Ihrer Anwendung konfigurierte Team-/Gruppen-ID ein.
+        permission: Berechtigung
+        submit: Zugriff gewähren
+        existing: Aktuelle Berechtigungen
+        manage: Freigabe verwalten
+    access:
+        title: Zugriff
+        intro: Teilen Sie diese Ressource mit anderen Benutzern oder Teams (Gruppen). Jede Berechtigung legt fest, wer lesen, schreiben oder verwalten darf.
+        add: Zugriff hinzufügen
+        empty: Noch keinem Benutzer oder Team wurde Zugriff gewährt.
+        shared_badge: Geteilt
+    grantee_type:
+        user: Benutzer
+        team: Team / Gruppe
+    permission:
+        read: Lesen
+        write: Schreiben
+        admin: Verwaltung
+    form:
+        title: Titel (erforderlich)
+        attachment: Dokumentanhang
+        username: E-Mail oder Benutzername
+        password: Passwort
+        websites: Website-Adresse
+        secure_note: Sichere Notiz
+        cardholder: Name des Karteninhabers
+        card_number: Kartennummer
+        expiry: Ablaufdatum
+        cvv: CVV
+        card_pin: Karten-PIN
+        full_name: Vollständiger Name
+        email: E-Mail
+        phone: Telefon
+        address1: Adresszeile 1
+        address2: Adresszeile 2
+        city: Stadt
+        state: Bundesland oder Provinz
+        postal_code: PLZ oder Postleitzahl
+        country: Land oder Region
+        document_number: Dokumentnummer
+        issued_by: Ausgestellt von
+        issued_date: Ausstellungsdatum
+        expiry_date: Ablaufdatum
+        note: Notiz
+        folder: Ordner
+        no_folder: Kein Ordner
+        tags: Schlagwörter
+        tag_placeholder: z. B. Arbeit, privat
+        tags_help: Tag eingeben und Enter drücken. Tags werden über Ihre Elemente hinweg wiederverwendet.
+    action:
+        save: Speichern
+        cancel: Abbrechen
+        back: Zurück
+        search: Suchen
+        view: Anzeigen
+        edit: Bearbeiten
+        access: Zugriff
+        delete_tag: Tag löschen
+        open_settings: Einstellungen öffnen
+        trash: In Papierkorb verschieben
+        restore: Wiederherstellen
+        purge: Dauerhaft löschen
+        revoke_access: Zugriff entfernen
+    badge:
+        read_only: Nur Lesen
+    read_only:
+        notice: Dieses Element ist schreibgeschützt. Sie können es anzeigen, aber nicht ändern oder löschen.
+    generator:
+        title: Passwortgenerator
+        regenerate: Neu generieren
+        copy: Kopieren
+        fill: Passwort einfügen
+        length: Länge
+        mode_characters: Zeichen
+        mode_words: Wörter
+        inline: Passwort generieren
+    empty:
+        items: Noch keine Elemente. Erstellen Sie Ihren ersten Eintrag.
+        trash: Der Papierkorb ist leer.
+        shared: Keine geteilten Elemente.
+    list:
+        type: Typ
+        folder: Ordner
+        actions: Aktionen
+    shared:
+        hint: Mit Ihnen oder Ihren Teams geteilte Elemente erscheinen hier. Erweitern Sie den Zugriff über VaultGrantService und ITEM_LIST_QUERY-Ereignisse.
+    confirm:
+        trash: Dieses Element in den Papierkorb verschieben?
+        trash_folder: Diesen Ordner in den Papierkorb verschieben?
+        trash_folder_with_items: 'Dieser Ordner enthält %count% Element(e). Ordner löschen? Die Elemente bleiben ohne Ordner.'
+        delete_tag: 'Tag „%name%“ löschen? Elemente behalten ihre anderen Tags; nur dieses Label wird entfernt.'
+        purge: Dieses Element dauerhaft löschen?
+        revoke_access: Diese Zugriffsberechtigung entfernen?
+    flash:
+        item_created: Element gespeichert.
+        item_updated: Element aktualisiert.
+        item_trashed: Element in Papierkorb verschoben.
+        item_restored: Element wiederhergestellt.
+        item_purged: Element dauerhaft gelöscht.
+        folder_created: Ordner erstellt.
+        folder_name_required: Ordnername ist erforderlich.
+        folder_trashed: Ordner in Papierkorb verschoben.
+        folder_trashed_items_detached: Ordner in Papierkorb verschoben. %count% Element(e) sind jetzt ohne Ordner.
+        tag_deleted: Tag gelöscht. Elemente zeigen dieses Label nicht mehr an.
+        share_created: Zugriff gewährt.
+        grant_revoked: Zugriff entfernt.
+        grantee_not_allowed: Der ausgewählte Benutzer oder das Team ist für diese Ressource nicht zulässig.
+        runtime_config:
+            saved: Einstellungen in der Datenbank gespeichert.
+            key_stored: Einstellungen in der Datenbank gespeichert. Verschlüsselungsschlüssel gespeichert.
+            key_generated: Vault-Verschlüsselungsschlüssel generiert und in der Datenbank gespeichert (verschlüsselt at rest).
+            key_exists: Ein Vault-Verschlüsselungsschlüssel ist bereits in der Datenbank gespeichert.
+            max_attachment_invalid: max_attachment_bytes muss null oder größer sein.
+    runtime_config:
+        title: Laufzeitkonfiguration
+        intro: Datenbankeinstellungen für Vault-Verschlüsselungsschlüssel, Anhangsgrößenlimit und Passwortstärke.
+        section: Datenbankeinstellungen
+        last_update: 'Letzte Aktualisierung: %datetime%'
+        encryption_key: Vault-Verschlüsselungsschlüssel
+        encryption_key_stored_help: Gespeichert in vault_settings.encryption_key (verschlüsselt at rest). Dieser Wert kann auf diesem Bildschirm nicht geändert werden.
+        encryption_key_empty_help: Noch kein Verschlüsselungsschlüssel in der Datenbank. Generieren Sie einen oder fügen Sie einen Base64-Schlüssel ein und speichern Sie.
+        encryption_key_placeholder: Base64-Schlüssel einfügen oder unten generieren
+        encryption_key_configured: "Konfiguriert (aus Sicherheitsgründen ausgeblendet)"
+        encryption_key_one_time_warning: "Kopieren Sie diesen Schlüssel jetzt. Er wird nach dem Verlassen dieser Seite nicht erneut angezeigt."
+        generate_key: VAULT_ENCRYPTION_KEY generieren
+        max_attachment_bytes: Max. Anhangsgröße (Bytes)
+        password_level: Passwortstärke

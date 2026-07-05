@@ -1,9 +1,27 @@
 /** Client-side password generator API call. */
-export async function fetchGeneratedPassword(url: string, options: PasswordGeneratorRequest): Promise<PasswordGeneratorResponse> {
+export async function fetchGeneratedPassword(
+    url: string,
+    options: PasswordGeneratorRequest,
+    csrfToken?: string,
+): Promise<PasswordGeneratorResponse> {
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+
+    if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+    }
+
+    const body: PasswordGeneratorRequest & { _token?: string } = { ...options };
+    if (csrfToken) {
+        body._token = csrfToken;
+    }
+
     const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(options),
+        headers,
+        body: JSON.stringify(body),
     });
 
     if (!response.ok) {

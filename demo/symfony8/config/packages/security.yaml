@@ -19,6 +19,7 @@ security:
                 - App\Security\DemoAutoLoginAuthenticator
 
     access_control:
+        - { path: ^/api/vault/extension, roles: PUBLIC_ACCESS }
         - { path: ^/tools/vault, roles: ROLE_USER }
 
 when@test:

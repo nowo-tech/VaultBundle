@@ -13,9 +13,15 @@
     <div class="card mb-4">
         <div class="card-body">
             <form class="row g-3 align-items-end" method="get" action="{{ path(routes.items.name) }}">
+                {% if activeFolder|default(null) %}
+                    <input type="hidden" name="folder" value="{{ activeFolder }}">
+                {% endif %}
+                {% if activeTag|default(null) %}
+                    <input type="hidden" name="tag" value="{{ activeTag }}">
+                {% endif %}
                 <div class="col-md-8">
                     <label class="form-label" for="vault-search">{{ 'vault.search.placeholder'|trans({}, 'NowoVaultBundle') }}</label>
-                    <input id="vault-search" type="search" name="q" class="form-control" value="{{ searchQuery|default('') }}" placeholder="{{ 'vault.search.placeholder'|trans({}, 'NowoVaultBundle') }}">
+                    <input id="vault-search" type="search" name="q" class="form-control" value="{{ searchQuery|default('') }}" placeholder="{{ 'vault.search.placeholder_tags'|trans({}, 'NowoVaultBundle') }}">
                 </div>
                 <div class="col-md-4">
                     <button type="submit" class="btn btn-primary w-100">{{ 'vault.action.search'|trans({}, 'NowoVaultBundle') }}</button>
@@ -23,6 +29,60 @@
             </form>
         </div>
     </div>
+
+    {% if tags is not empty %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="text-secondary small">{{ 'vault.tags.filter'|trans({}, 'NowoVaultBundle') }}:</span>
+                    {% set allTagsParams = searchQuery|default('') ? {q: searchQuery} : {} %}
+                    {% if activeFolder|default(null) %}
+                        {% set allTagsParams = allTagsParams|merge({folder: activeFolder}) %}
+                    {% endif %}
+                    <a href="{{ path(routes.items.name, allTagsParams) }}"
+                       class="btn btn-sm {% if activeTag|default(null) is null %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                        {{ 'vault.tags.all'|trans({}, 'NowoVaultBundle') }}
+                    </a>
+                    {% for tag in tags %}
+                        {% set tagParams = {tag: tag.id} %}
+                        {% if activeFolder|default(null) %}
+                            {% set tagParams = tagParams|merge({folder: activeFolder}) %}
+                        {% endif %}
+                        {% if searchQuery|default('') %}
+                            {% set tagParams = tagParams|merge({q: searchQuery}) %}
+                        {% endif %}
+                        {% set tagActive = activeTag|default(null) == tag.id %}
+                        <div class="btn-group vault-tag-actions" role="group" aria-label="{{ tag.name }}">
+                            <a href="{{ path(routes.items.name, tagParams) }}"
+                               class="btn btn-sm {% if tagActive %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                                {{ tag.name }}
+                            </a>
+                            <form method="post"
+                                  action="{{ path(routes.tag_delete.name, {id: tag.id}) }}"
+                                  class="vault-tag-action-form"
+                                  onsubmit="return confirm('{{ 'vault.confirm.delete_tag'|trans({'%name%': tag.name}, 'NowoVaultBundle')|e('js') }}');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('vault_tag_delete_' ~ tag.id) }}">
+                                {% if activeFolder|default(null) %}
+                                    <input type="hidden" name="folder" value="{{ activeFolder }}">
+                                {% endif %}
+                                {% if searchQuery|default('') %}
+                                    <input type="hidden" name="q" value="{{ searchQuery }}">
+                                {% endif %}
+                                {% if activeTag|default(null) %}
+                                    <input type="hidden" name="tag" value="{{ activeTag }}">
+                                {% endif %}
+                                <button type="submit"
+                                        class="btn btn-sm btn-icon {% if tagActive %}btn-primary{% else %}btn-outline-secondary{% endif %} text-danger"
+                                        title="{{ 'vault.action.delete_tag'|trans({}, 'NowoVaultBundle') }}">
+                                    <i class="ti ti-trash" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
 
     <div class="card mb-4">
         <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
@@ -33,6 +93,7 @@
         </div>
         <div class="card-body">
             <form method="post" action="{{ path(routes.folder_create.name) }}" class="row g-2 mb-3" data-vault-folder-form hidden>
+                <input type="hidden" name="_token" value="{{ csrf_token('vault_folder_create') }}">
                 <div class="col">
                     <input type="text" name="name" class="form-control" placeholder="{{ 'vault.folder.name_placeholder'|trans({}, 'NowoVaultBundle') }}" required>
                 </div>
@@ -65,6 +126,7 @@
                               action="{{ path(routes.folder_trash.name, {id: folder.id}) }}"
                               class="vault-folder-action-form"
                               onsubmit="return confirm('{{ trashFolderConfirm|e('js') }}');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('vault_folder_trash_' ~ folder.id) }}">
                             <button type="submit"
                                     class="btn btn-sm btn-icon {% if folderActive %}btn-primary{% else %}btn-outline-secondary{% endif %} text-danger"
                                     title="{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}">
@@ -102,8 +164,9 @@
                             <tr>
                                 <th>{{ 'vault.list.type'|trans({}, 'NowoVaultBundle') }}</th>
                                 <th>{{ 'vault.form.title'|trans({}, 'NowoVaultBundle') }}</th>
+                                <th>{{ 'vault.form.tags'|trans({}, 'NowoVaultBundle') }}</th>
                                 <th>{{ 'vault.list.folder'|trans({}, 'NowoVaultBundle') }}</th>
-                                <th class="w-1"></th>
+                                <th class="w-1">{{ 'vault.list.actions'|trans({}, 'NowoVaultBundle') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -111,7 +174,7 @@
                                 <tr>
                                     <td class="text-secondary">{{ ('vault.type.' ~ item.itemType.value)|trans({}, 'NowoVaultBundle') }}</td>
                                     <td>
-                                        <a href="{{ path(routes.item_edit.name, {id: item.id}) }}">
+                                        <a href="{{ path(routes.item_view.name, {id: item.id}) }}">
                                             {{ item.title }}
                                         </a>
                                         {% if readOnlyMap[item.id]|default(false) %}
@@ -119,6 +182,21 @@
                                         {% endif %}
                                         {% if grantCounts[item.id]|default(0) > 0 %}
                                             <span class="badge bg-green-lt ms-1">{{ 'vault.access.shared_badge'|trans({}, 'NowoVaultBundle') }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.tags is empty %}
+                                            <span class="text-secondary">—</span>
+                                        {% else %}
+                                            <div class="d-flex flex-wrap gap-1">
+                                                {% for tag in item.tags %}
+                                                    {% set tagLinkParams = {tag: tag.id} %}
+                                                    {% if activeFolder|default(null) %}
+                                                        {% set tagLinkParams = tagLinkParams|merge({folder: activeFolder}) %}
+                                                    {% endif %}
+                                                    <a href="{{ path(routes.items.name, tagLinkParams) }}" class="badge bg-azure-lt text-azure">{{ tag.name }}</a>
+                                                {% endfor %}
+                                            </div>
                                         {% endif %}
                                     </td>
                                     <td class="text-secondary">
@@ -129,14 +207,11 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
-                                        {% if not readOnlyMap[item.id]|default(false) %}
-                                            <form method="post" action="{{ path(routes.item_trash.name, {id: item.id}) }}" class="d-inline">
-                                                <input type="hidden" name="_token" value="{{ csrf_token('vault_trash_' ~ item.id) }}">
-                                                <button type="submit" class="btn btn-sm btn-icon btn-outline-danger" title="{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}" onclick="return confirm('{{ 'vault.confirm.trash'|trans({}, 'NowoVaultBundle')|e('js') }}');">
-                                                    <i class="ti ti-trash"></i>
-                                                </button>
-                                            </form>
-                                        {% endif %}
+                                        {% include '@NowoVaultBundle/vault/_item_row_actions.html.twig' with {
+                                            item: item,
+                                            readOnlyMap: readOnlyMap,
+                                            routes: routes,
+                                        } %}
                                     </td>
                                 </tr>
                             {% endfor %}

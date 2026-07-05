@@ -2,6 +2,77 @@
 
 This document describes how to upgrade between versions of Vault Bundle.
 
+## 1.1.0 (2026-07-05)
+
+### Summary
+
+Adds browser extension API, item tags, optional database-backed runtime config, encryption key rotation command, CSRF on manage POST actions, and extension login rate limiting.
+
+### Upgrade steps
+
+```bash
+composer update nowo-tech/vault-bundle
+php bin/console doctrine:migrations:migrate   # or doctrine:schema:update --force
+php bin/console assets:install
+php bin/console cache:clear
+```
+
+New tables (when using default `table_prefix: vault_`):
+
+| Table | When |
+|-------|------|
+| `vault_tags`, `vault_item_tag` | Always (tags feature) |
+| `vault_settings` | When `config_storage.enabled: true` |
+| `vault_extension_tokens` | When `browser_extension.enabled: true` |
+
+### CSRF on manage UI (breaking for custom integrations)
+
+All state-changing POST actions in the manage UI now require a valid CSRF token (`_token` form field, `X-CSRF-Token` header, or JSON `_token`). Custom forms or JavaScript that POST to vault manage routes must include the token from the rendered page or Symfony CSRF service.
+
+The browser extension API uses Bearer tokens and is **not** affected by manage CSRF.
+
+### Browser extension (optional)
+
+To enable the extension API:
+
+```yaml
+nowo_vault:
+    browser_extension:
+        enabled: true
+        user_provider: security.user.provider.concrete.app_user_provider
+```
+
+Add firewall rule for `^/api/vault/extension` with `PUBLIC_ACCESS` (Bearer auth is enforced by the bundle). Schedule token cleanup:
+
+```bash
+php bin/console nowo:vault:extension-tokens:purge
+```
+
+See [BROWSER-EXTENSION.md](BROWSER-EXTENSION.md).
+
+### Runtime config (optional)
+
+```yaml
+nowo_vault:
+    config_storage:
+        enabled: true
+```
+
+Creates `{table_prefix}_settings` for runtime overrides (e.g. encryption key stored in DB). See [CONFIGURATION.md](CONFIGURATION.md#database-backed-runtime-configuration).
+
+### Encryption key rotation
+
+Use `nowo:vault:reencrypt` — see [ENCRYPTION-KEY-ROTATION.md](ENCRYPTION-KEY-ROTATION.md). Demo walkthrough: `make -C demo/symfony8 vault-rotation-demo`.
+
+### Template overrides
+
+If you copied `@NowoVaultBundle/vault/_item_access.html.twig`, switch to `_item_row_actions.html.twig` (the former was removed).
+
+### Suggested packages
+
+- `nowo-tech/tag-input-bundle` — tag input in item forms
+- `nowo-tech/doctrine-encrypt-bundle` — encrypt `vault_settings.encryption_key` at rest
+
 ## 1.0.0 (2026-07-04)
 
 Initial release of **VaultBundle** (password and secrets vault). If you previously used **YopassBundle** from the same repository lineage, treat this as a new package:
@@ -46,4 +117,5 @@ Optional listeners for listing, grants, teams, and read-only items:
 
 See [examples/AccessControl.md](examples/AccessControl.md).
 
+[1.1.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.0
 [1.0.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.0.0

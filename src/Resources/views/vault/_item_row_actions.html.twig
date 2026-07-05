@@ -1,0 +1,32 @@
+<div class="btn-list flex-nowrap justify-content-end">
+    <a href="{{ path(routes.item_view.name, {id: item.id}) }}"
+       class="btn btn-sm btn-icon btn-outline-secondary"
+       title="{{ 'vault.action.view'|trans({}, 'NowoVaultBundle') }}">
+        <i class="ti ti-eye" aria-hidden="true"></i>
+        <span class="visually-hidden">{{ 'vault.action.view'|trans({}, 'NowoVaultBundle') }}</span>
+    </a>
+    {% if not readOnlyMap[item.id]|default(false) %}
+        <a href="{{ path(routes.item_share.name, {id: item.id}) }}"
+           class="btn btn-sm btn-icon btn-outline-green"
+           title="{{ 'vault.action.access'|trans({}, 'NowoVaultBundle') }}">
+            <i class="ti ti-users" aria-hidden="true"></i>
+            <span class="visually-hidden">{{ 'vault.action.access'|trans({}, 'NowoVaultBundle') }}</span>
+        </a>
+        <a href="{{ path(routes.item_edit.name, {id: item.id}) }}"
+           class="btn btn-sm btn-icon btn-outline-primary"
+           title="{{ 'vault.action.edit'|trans({}, 'NowoVaultBundle') }}">
+            <i class="ti ti-pencil" aria-hidden="true"></i>
+            <span class="visually-hidden">{{ 'vault.action.edit'|trans({}, 'NowoVaultBundle') }}</span>
+        </a>
+        <form method="post" action="{{ path(routes.item_trash.name, {id: item.id}) }}" class="d-inline">
+            <input type="hidden" name="_token" value="{{ csrf_token('vault_trash_' ~ item.id) }}">
+            <button type="submit"
+                    class="btn btn-sm btn-icon btn-outline-danger"
+                    title="{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}"
+                    onclick="return confirm('{{ 'vault.confirm.trash'|trans({}, 'NowoVaultBundle')|e('js') }}');">
+                <i class="ti ti-trash" aria-hidden="true"></i>
+                <span class="visually-hidden">{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}</span>
+            </button>
+        </form>
+    {% endif %}
+</div>

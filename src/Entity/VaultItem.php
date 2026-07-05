@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Entity;
 
 use DateTimeImmutable;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultItemRepository;
@@ -29,6 +31,13 @@ class VaultItem
     #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
     private DateTimeImmutable $updatedAt;
 
+    /** @var Collection<int, VaultTag> */
+    #[ORM\ManyToMany(targetEntity: VaultTag::class, inversedBy: 'items')]
+    #[ORM\JoinTable(name: 'vault_item_tag')]
+    #[ORM\JoinColumn(name: 'item_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'tag_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    private Collection $tags;
+
     public function __construct(
         #[ORM\Column(name: 'item_type', type: 'string', length: 32, enumType: VaultItemType::class)]
         private VaultItemType $itemType,
@@ -47,6 +56,7 @@ class VaultItem
         $this->id        = Uuid::generate()->toString();
         $this->createdAt = new DateTimeImmutable();
         $this->updatedAt = new DateTimeImmutable();
+        $this->tags      = new ArrayCollection();
     }
 
     public function getId(): string
@@ -137,5 +147,40 @@ class VaultItem
     public function getUpdatedAt(): DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    /**
+     * @return Collection<int, VaultTag>
+     */
+    public function getTags(): Collection
+    {
+        return $this->tags;
+    }
+
+    /**
+     * @param list<VaultTag> $tags
+     */
+    public function setTags(array $tags): self
+    {
+        $this->tags->clear();
+        foreach ($tags as $tag) {
+            $this->tags->add($tag);
+        }
+        $this->updatedAt = new DateTimeImmutable();
+
+        return $this;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getTagNames(): array
+    {
+        $names = [];
+        foreach ($this->tags as $tag) {
+            $names[] = $tag->getName();
+        }
+
+        return $names === [] ? [''] : $names;
     }
 }

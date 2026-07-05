@@ -24,9 +24,27 @@
 
 .vault-form[data-vault-readonly="1"] input,
 .vault-form[data-vault-readonly="1"] textarea,
-.vault-form[data-vault-readonly="1"] select {
+.vault-form[data-vault-readonly="1"] select,
+.vault-form[data-vault-readonly="1"] .tagify {
     pointer-events: none;
     opacity: 0.85;
+}
+
+.vault-form .form-label {
+    font-weight: 500;
+}
+
+.vault-form .nowo-tag-input,
+.vault-form .nowo-tag-input .tagify {
+    width: 100%;
+}
+
+.vault-form textarea.form-control {
+    min-height: 6rem;
+}
+
+.vault-form .form-text {
+    margin-top: 0.375rem;
 }
 
 .vault-form .password-strength-field {
@@ -47,7 +65,16 @@
     display: contents;
 }
 
-.vault-folder-actions .btn-icon {
+.vault-tag-actions .vault-tag-action-form {
+    display: contents;
+}
+
+.vault-tag-actions .vault-tag-action-form {
+    display: contents;
+}
+
+.vault-folder-actions .btn-icon,
+.vault-tag-actions .btn-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;

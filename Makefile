@@ -1,5 +1,5 @@
 # Vault Bundle - Development
-.PHONY: help up down build shell install test test-coverage coverage-php-percent cs-check cs-fix qa clean assets assets-build assets-watch assets-test test-ts ensure-up rector rector-dry phpstan release-check release-check-demos composer-sync update validate validate-translations
+.PHONY: help up down build shell install test test-coverage coverage-php-percent cs-check cs-fix qa clean assets assets-build assets-watch assets-test test-ts ensure-up rector rector-dry phpstan release-check release-check-demos composer-sync update validate validate-translations extension-sync vault-purge-tokens
 
 COMPOSE_FILE ?= docker-compose.yml
 COMPOSE     ?= /usr/bin/docker compose -f $(COMPOSE_FILE)
@@ -19,6 +19,7 @@ help:
 	@echo "  test-ts         Run TypeScript (Vitest) unit tests"
 	@echo "  assets-test     Alias of test-ts"
 	@echo "  test            Run PHPUnit tests"
+	@echo "  test-e2e        Run PHPUnit browser-extension API E2E tests"
 	@echo "  test-coverage   Run tests with code coverage"
 	@echo "  cs-check / cs-fix  Code style"
 	@echo "  rector / rector-dry  Rector"
@@ -28,6 +29,8 @@ help:
 	@echo "  composer-sync   Validate and align composer.lock"
 	@echo "  clean           Remove vendor and cache"
 	@echo "  update / validate  Composer"
+	@echo "  extension-sync    Build TypeScript and sync to chrome/ and firefox/"
+	@echo "  vault-purge-tokens  Run nowo:vault:extension-tokens:purge in dev container"
 	@echo ""
 	@echo "Demos: make -C demo up-symfony8"
 
@@ -70,6 +73,9 @@ assets-watch: ensure-up
 	$(COMPOSE) exec $(SERVICE_PHP) pnpm run watch
 
 # TypeScript/Vitest tests (bundle has TS)
+test-e2e: ensure-up
+	$(COMPOSE) exec -T $(SERVICE_PHP) vendor/bin/phpunit --testsuite e2e
+
 test-ts: ensure-up
 	$(COMPOSE) exec -T -e CI=true $(SERVICE_PHP) pnpm install --no-frozen-lockfile 2>/dev/null || true
 	$(COMPOSE) exec -T $(SERVICE_PHP) pnpm run test:coverage | tee coverage-ts.txt
@@ -129,6 +135,15 @@ update: ensure-up
 validate: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer validate --strict
 
+extension-build: ensure-up
+	$(COMPOSE) exec -T $(SERVICE_PHP) pnpm run build:extension
+
+extension-sync: extension-build
+	sh scripts/sync-browser-extension.sh
+
+vault-purge-tokens: ensure-up
+	$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console nowo:vault:extension-tokens:purge --no-interaction 2>/dev/null || \
+		echo "Run from demo: make -C demo/symfony8 vault-purge-tokens"
 
 # REQ-MAKE-008: update-deps (REQ-MAKE-008)
 BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))

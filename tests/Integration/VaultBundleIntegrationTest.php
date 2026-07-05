@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Integration;
 
+use Nowo\VaultBundle\Command\PurgeExtensionTokensCommand;
+use Nowo\VaultBundle\Command\ReencryptVaultPayloadsCommand;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
+use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
@@ -37,6 +40,7 @@ final class VaultBundleIntegrationTest extends TestCase
         self::assertTrue($container->hasDefinition(VaultRouteLoader::class));
         self::assertTrue($container->hasAlias(VaultItemRepositoryInterface::class));
         self::assertTrue($container->hasAlias(VaultGrantRepositoryInterface::class));
+        self::assertTrue($container->hasAlias(VaultExtensionTokenRepositoryInterface::class));
         self::assertTrue($container->hasAlias(VaultTeamMembershipResolverInterface::class));
     }
 
@@ -71,6 +75,18 @@ final class VaultBundleIntegrationTest extends TestCase
 
         self::assertSame('app.vault.access', (string) $container->getAlias(VaultAccessCheckerInterface::class));
         self::assertSame('app.vault.teams', (string) $container->getAlias(VaultTeamMembershipResolverInterface::class));
+    }
+
+    public function testMaintenanceCommandsAreRegisteredInContainer(): void
+    {
+        $container = new ContainerBuilder();
+        (new VaultExtension())->load([[
+            'user_class'     => 'App\\Entity\\User',
+            'encryption_key' => self::ENCRYPTION_KEY,
+        ]], $container);
+
+        self::assertTrue($container->hasDefinition(PurgeExtensionTokensCommand::class));
+        self::assertTrue($container->hasDefinition(ReencryptVaultPayloadsCommand::class));
     }
 
     public function testPrependSkipsWhenFrameworkMissing(): void

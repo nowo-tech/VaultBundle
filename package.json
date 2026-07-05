@@ -5,11 +5,13 @@
     "packageManager": "pnpm@10.12.1",
     "scripts": {
         "build": "vite build",
+        "build:extension": "node scripts/build-extension.mjs",
         "watch": "vite build --watch",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage"
     },
     "devDependencies": {
+        "@types/chrome": "^0.0.304",
         "@vitest/coverage-v8": "^3.0.0",
         "jsdom": "^29.1.1",
         "typescript": "^6.0.3",

@@ -28,6 +28,7 @@
                 <button type="submit" class="btn btn-primary">{{ 'vault.share.submit'|trans({}, 'NowoVaultBundle') }}</button>
                 <a href="{{ path(backRoute, backParams) }}" class="btn btn-outline-secondary">{{ 'vault.action.back'|trans({}, 'NowoVaultBundle') }}</a>
             </div>
+            {{ form_widget(form._token) }}
             {{ form_end(form, {render_rest: false}) }}
         </div>
     </div>

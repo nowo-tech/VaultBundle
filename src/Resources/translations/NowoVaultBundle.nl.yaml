@@ -1,0 +1,178 @@
+vault:
+    title: Vault
+    home:
+        intro: Veilige opslag voor inloggegevens, kaarten, documenten en notities. Kies een sectie om te beginnen.
+        items:
+            title: Mijn items
+            description: Blader door, zoek en organiseer uw vault-items.
+        shared:
+            description: Items gedeeld met u of uw teams.
+        trash:
+            description: Herstel of verwijder items in de prullenbak permanent.
+        create:
+            title: Nieuw item aanmaken
+            description: Kies het type geheim dat u wilt opslaan.
+        generator:
+            description: Genereer een sterk wachtwoord zonder de vault te verlaten.
+        runtime_config:
+            title: Runtimeconfiguratie (database)
+            description: 'Beheer encryptiesleutel, bijlagenlimiet en wachtwoordsterkte in vault_settings.'
+    nav:
+        vault: Vault
+        shared: Gedeelde items
+        trash: Prullenbak
+        folders: Mappen
+        password_generator: Wachtwoordgenerator
+    folder:
+        add: Map toevoegen
+        all: Alle items
+        name_placeholder: Mapnaam
+        empty_hint: 'Nog geen mappen. Maak er een aan vanaf de itemspagina om items te organiseren:'
+    search:
+        placeholder: Alle items doorzoeken
+        placeholder_tags: Zoeken op titel of tag
+    tags:
+        filter: Labels
+        all: Alle labels
+    type:
+        login: Inloggegevens
+        secure_note: Beveiligde notitie
+        credit_card: Creditcard
+        contact: Contactpersoon
+        id_card: Identiteitskaart
+        drivers_license: Rijbewijs
+        passport: Paspoort
+        document: Bestand
+    share:
+        title: Toegang delen
+        grantee_type: Type ontvanger
+        grantee: Gebruiker of team / groep
+        grantee_placeholder: Selecteer een gebruiker of team / groep
+        grantee_id: Gebruikers- of team-id
+        grantee_id_help: Voer de gebruikers-id (bijv. UUID) of team-/groeps-id in die in uw applicatie is geconfigureerd.
+        permission: Machtiging
+        submit: Toegang verlenen
+        existing: Huidige machtigingen
+        manage: Delen beheren
+    access:
+        title: Toegang
+        intro: Deel deze resource met andere gebruikers of teams (groepen). Elke machtiging bepaalt wie kan lezen, schrijven of beheren.
+        add: Toegang toevoegen
+        empty: Er zijn nog geen gebruikers of teams met toegang.
+        shared_badge: Gedeeld
+    grantee_type:
+        user: Gebruiker
+        team: Team / groep
+    permission:
+        read: Lezen
+        write: Schrijven
+        admin: Beheer
+    form:
+        title: Titel (verplicht)
+        attachment: Documentbijlage
+        username: E-mail of gebruikersnaam
+        password: Wachtwoord
+        websites: Website-adres
+        secure_note: Beveiligde notitie
+        cardholder: Naam kaarthouder
+        card_number: Kaartnummer
+        expiry: Vervaldatum
+        cvv: CVV
+        card_pin: Kaart-PIN
+        full_name: Volledige naam
+        email: E-mail
+        phone: Telefoon
+        address1: Adresregel 1
+        address2: Adresregel 2
+        city: Plaats
+        state: Staat of provincie
+        postal_code: Postcode
+        country: Land of regio
+        document_number: Documentnummer
+        issued_by: Uitgegeven door
+        issued_date: Uitgiftedatum
+        expiry_date: Vervaldatum
+        note: Notitie
+        folder: Map
+        no_folder: Geen map
+        tags: Labels
+        tag_placeholder: bijv. werk, privé
+        tags_help: Typ een tag en druk op Enter. Tags worden hergebruikt tussen uw items.
+    action:
+        save: Opslaan
+        cancel: Annuleren
+        back: Terug
+        search: Zoeken
+        view: Bekijken
+        edit: Bewerken
+        access: Toegang
+        delete_tag: Tag verwijderen
+        open_settings: Instellingen openen
+        trash: Naar prullenbak
+        restore: Herstellen
+        purge: Permanent verwijderen
+        revoke_access: Toegang intrekken
+    badge:
+        read_only: Alleen-lezen
+    read_only:
+        notice: Dit item is alleen-lezen. U kunt het bekijken maar niet wijzigen of verwijderen.
+    generator:
+        title: Wachtwoordgenerator
+        regenerate: Opnieuw genereren
+        copy: Kopiëren
+        fill: Wachtwoord invullen
+        length: Lengte
+        mode_characters: Tekens
+        mode_words: Woorden
+        inline: Wachtwoord genereren
+    empty:
+        items: Nog geen items. Maak uw eerste item aan.
+        trash: De prullenbak is leeg.
+        shared: Geen gedeelde items.
+    list:
+        type: Soort
+        folder: Map
+        actions: Acties
+    shared:
+        hint: Items gedeeld met u of uw teams verschijnen hier. Breid toegang uit via VaultGrantService en ITEM_LIST_QUERY-events.
+    confirm:
+        trash: Dit item naar de prullenbak verplaatsen?
+        trash_folder: Deze map naar de prullenbak verplaatsen?
+        trash_folder_with_items: 'Deze map bevat %count% item(s). Map verwijderen? De items blijven zonder map.'
+        delete_tag: 'Tag "%name%" verwijderen? Items behouden hun andere tags; alleen dit label wordt verwijderd.'
+        purge: Dit item permanent verwijderen?
+        revoke_access: Deze toegangsmachtiging intrekken?
+    flash:
+        item_created: Item opgeslagen.
+        item_updated: Item bijgewerkt.
+        item_trashed: Item naar prullenbak verplaatst.
+        item_restored: Item hersteld.
+        item_purged: Item permanent verwijderd.
+        folder_created: Map aangemaakt.
+        folder_name_required: Mapnaam is verplicht.
+        folder_trashed: Map naar prullenbak verplaatst.
+        folder_trashed_items_detached: Map naar prullenbak verplaatst. %count% item(s) hebben nu geen map meer.
+        tag_deleted: Tag verwijderd. Items tonen dit label niet meer.
+        share_created: Toegang verleend.
+        grant_revoked: Toegang ingetrokken.
+        grantee_not_allowed: De geselecteerde gebruiker of het team is niet toegestaan voor deze resource.
+        runtime_config:
+            saved: Instellingen opgeslagen in de database.
+            key_stored: Instellingen opgeslagen in de database. Encryptiesleutel opgeslagen.
+            key_generated: Vault-encryptiesleutel gegenereerd en opgeslagen in de database (versleuteld at rest).
+            key_exists: Er is al een vault-encryptiesleutel opgeslagen in de database.
+            max_attachment_invalid: max_attachment_bytes moet nul of groter zijn.
+    runtime_config:
+        title: Runtimeconfiguratie
+        intro: Database-instellingen voor vault-encryptiesleutel, bijlagenlimiet en wachtwoordsterkte.
+        section: Database-instellingen
+        last_update: 'Laatste update: %datetime%'
+        encryption_key: Vault-encryptiesleutel
+        encryption_key_stored_help: Opgeslagen in vault_settings.encryption_key (versleuteld at rest). Deze waarde kan niet vanaf dit scherm worden gewijzigd.
+        encryption_key_empty_help: Nog geen encryptiesleutel in de database. Genereer er een of plak een base64-sleutel en sla op.
+        encryption_key_placeholder: Plak een base64-sleutel of genereer er een hieronder
+        encryption_key_configured: "Geconfigureerd (verborgen om veiligheidsredenen)"
+        encryption_key_one_time_warning: "Kopieer deze sleutel nu. Deze wordt niet opnieuw getoond na het verlaten van deze pagina."
+        generate_key: VAULT_ENCRYPTION_KEY genereren
+        max_attachment_bytes: Max. bijlengrootte (bytes)
+        password_level: Wachtwoordsterkte

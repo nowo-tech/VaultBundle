@@ -1,0 +1,178 @@
+vault:
+    title: Vault
+    home:
+        intro: Armazenamento seguro para credenciais, cartões, documentos e notas. Escolha uma secção para começar.
+        items:
+            title: Os meus elementos
+            description: Navegue, pesquise e organize as entradas do seu vault.
+        shared:
+            description: Elementos partilhados consigo ou com as suas equipas.
+        trash:
+            description: Restaure ou elimine permanentemente entradas no lixo.
+        create:
+            title: Criar nova entrada
+            description: Escolha o tipo de segredo a guardar.
+        generator:
+            description: Gere uma palavra-passe forte sem sair do vault.
+        runtime_config:
+            title: Configuração em tempo de execução (base de dados)
+            description: 'Gira chave de encriptação, limite de anexos e nível de palavra-passe em vault_settings.'
+    nav:
+        vault: Vault
+        shared: Elementos partilhados
+        trash: Lixo
+        folders: Pastas
+        password_generator: Gerador de palavras-passe
+    folder:
+        add: Adicionar pasta
+        all: Todos os elementos
+        name_placeholder: Nome da pasta
+        empty_hint: 'Ainda não há pastas. Crie uma na página de elementos para organizar entradas:'
+    search:
+        placeholder: Pesquisar em todos os elementos
+        placeholder_tags: Pesquisar por título ou etiqueta
+    tags:
+        filter: Etiquetas
+        all: Todas as etiquetas
+    type:
+        login: Credencial
+        secure_note: Nota segura
+        credit_card: Cartão de crédito
+        contact: Contacto
+        id_card: Cartão de identificação
+        drivers_license: Carta de condução
+        passport: Passaporte
+        document: Documento
+    share:
+        title: Partilhar acesso
+        grantee_type: Tipo de destinatário
+        grantee: Utilizador ou equipa / grupo
+        grantee_placeholder: Selecione um utilizador ou equipa / grupo
+        grantee_id: Id de utilizador ou equipa
+        grantee_id_help: Introduza o id de utilizador (ex. UUID) ou o id de equipa/grupo configurado na sua aplicação.
+        permission: Permissão
+        submit: Conceder acesso
+        existing: Permissões atuais
+        manage: Gerir partilha
+    access:
+        title: Acesso
+        intro: Partilhe este recurso com outros utilizadores ou equipas (grupos). Cada permissão define quem pode ler, escrever ou administrar.
+        add: Adicionar acesso
+        empty: Ainda não há utilizadores nem equipas com acesso concedido.
+        shared_badge: Partilhado
+    grantee_type:
+        user: Utilizador
+        team: Equipa / grupo
+    permission:
+        read: Leitura
+        write: Escrita
+        admin: Administração
+    form:
+        title: Título (obrigatório)
+        attachment: Anexo do documento
+        username: E-mail ou nome de utilizador
+        password: Palavra-passe
+        websites: Endereço do site
+        secure_note: Nota segura
+        cardholder: Nome do titular
+        card_number: Número do cartão
+        expiry: Data de validade
+        cvv: CVV
+        card_pin: PIN do cartão
+        full_name: Nome completo
+        email: E-mail
+        phone: Telefone
+        address1: Morada linha 1
+        address2: Morada linha 2
+        city: Cidade
+        state: Estado ou província
+        postal_code: Código postal
+        country: País ou região
+        document_number: Número do documento
+        issued_by: Emitido por
+        issued_date: Data de emissão
+        expiry_date: Data de validade
+        note: Nota
+        folder: Pasta
+        no_folder: Sem pasta
+        tags: Etiquetas
+        tag_placeholder: ex. trabalho, pessoal
+        tags_help: Escreva uma etiqueta e prima Enter. As etiquetas são reutilizadas entre os seus elementos.
+    action:
+        save: Guardar
+        cancel: Cancelar
+        back: Voltar
+        search: Pesquisar
+        view: Ver
+        edit: Editar
+        access: Acesso
+        delete_tag: Eliminar etiqueta
+        open_settings: Abrir definições
+        trash: Mover para o lixo
+        restore: Restaurar
+        purge: Eliminar permanentemente
+        revoke_access: Remover acesso
+    badge:
+        read_only: Só leitura
+    read_only:
+        notice: Este elemento é só de leitura. Pode visualizá-lo mas não modificá-lo nem eliminá-lo.
+    generator:
+        title: Gerador de palavras-passe
+        regenerate: Regenerar
+        copy: Copiar
+        fill: Preencher palavra-passe
+        length: Comprimento
+        mode_characters: Caracteres
+        mode_words: Palavras
+        inline: Gerar palavra-passe
+    empty:
+        items: Ainda não há elementos. Crie a primeira entrada.
+        trash: O lixo está vazio.
+        shared: Não há elementos partilhados.
+    list:
+        type: Tipo
+        folder: Pasta
+        actions: Ações
+    shared:
+        hint: Elementos partilhados consigo ou com as suas equipas aparecem aqui. Estenda o acesso via VaultGrantService e eventos ITEM_LIST_QUERY.
+    confirm:
+        trash: Mover este elemento para o lixo?
+        trash_folder: Mover esta pasta para o lixo?
+        trash_folder_with_items: 'Esta pasta contém %count% elemento(s). Eliminar a pasta? Os elementos ficarão sem pasta associada.'
+        delete_tag: 'Eliminar a etiqueta "%name%"? Os elementos manterão as outras etiquetas; apenas este rótulo será removido.'
+        purge: Eliminar permanentemente este elemento?
+        revoke_access: Remover esta permissão de acesso?
+    flash:
+        item_created: Elemento guardado.
+        item_updated: Elemento atualizado.
+        item_trashed: Elemento movido para o lixo.
+        item_restored: Elemento restaurado.
+        item_purged: Elemento eliminado permanentemente.
+        folder_created: Pasta criada.
+        folder_name_required: O nome da pasta é obrigatório.
+        folder_trashed: Pasta movida para o lixo.
+        folder_trashed_items_detached: Pasta movida para o lixo. %count% elemento(s) ficaram sem pasta associada.
+        tag_deleted: Etiqueta eliminada. Os elementos já não mostram este rótulo.
+        share_created: Acesso concedido.
+        grant_revoked: Acesso removido.
+        grantee_not_allowed: O utilizador ou equipa selecionado não é permitido para este recurso.
+        runtime_config:
+            saved: Definições guardadas na base de dados.
+            key_stored: Definições guardadas na base de dados. Chave de encriptação armazenada.
+            key_generated: Chave de encriptação gerada e guardada na base de dados (encriptada em repouso).
+            key_exists: Já existe uma chave de encriptação do vault armazenada na base de dados.
+            max_attachment_invalid: max_attachment_bytes deve ser zero ou superior.
+    runtime_config:
+        title: Configuração em tempo de execução
+        intro: Definições na base de dados para chave de encriptação, limite de anexos e nível de palavra-passe.
+        section: Definições na base de dados
+        last_update: 'Última atualização: %datetime%'
+        encryption_key: Chave de encriptação do vault
+        encryption_key_stored_help: Armazenada em vault_settings.encryption_key (encriptada em repouso). Este valor não pode ser alterado neste ecrã.
+        encryption_key_empty_help: Ainda não há chave de encriptação na base de dados. Gere uma ou cole uma chave base64 e guarde.
+        encryption_key_placeholder: Cole uma chave base64 ou gere uma abaixo
+        encryption_key_configured: "Configurada (oculta por segurança)"
+        encryption_key_one_time_warning: "Copie esta chave agora. Não será mostrada novamente ao sair desta página."
+        generate_key: Gerar VAULT_ENCRYPTION_KEY
+        max_attachment_bytes: Tamanho máximo de anexos (bytes)
+        password_level: Nível de robustez da palavra-passe

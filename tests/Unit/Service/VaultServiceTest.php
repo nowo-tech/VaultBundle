@@ -145,7 +145,8 @@ final class VaultServiceTest extends TestCase
         $repo->method('findByCreator')->willReturn([$item]);
         $repo->method('findByCreatorAndFolder')->willReturn([$item]);
         $repo->method('findDeletedByCreator')->willReturn([$item]);
-        $repo->method('searchByTitle')->willReturn([$item]);
+        $repo->method('searchByTitleOrTag')->willReturn([$item]);
+        $repo->method('findByCreatorAndTag')->willReturn([$item]);
 
         $grantRepo = $this->createMock(VaultGrantRepositoryInterface::class);
         $grantRepo->method('findGrantedResourceIds')->willReturn([]);
@@ -162,6 +163,7 @@ final class VaultServiceTest extends TestCase
         self::assertSame(1, $lister->list($user, 'folder-id')['total']);
         self::assertSame(1, $lister->list($user, trashOnly: true)['total']);
         self::assertSame(1, $lister->list($user, searchQuery: 'one')['total']);
+        self::assertSame(1, $lister->list($user, tagId: 'tag-id')['total']);
 
         $sharedGrantRepo = $this->createMock(VaultGrantRepositoryInterface::class);
         $sharedGrantRepo->method('findGrantedResourceIds')->willReturn([$item->getId()]);

@@ -9,14 +9,12 @@ services:
         resource: '../../'
         exclude:
             - '../../DependencyInjection/'
+            - '../../Config/'
             - '../../VaultBundle.php'
             - '../../Repository/'
             - '../../Doctrine/'
             - '../../Security/'
-
-    Nowo\VaultBundle\Form\VaultItemFormType:
-        arguments:
-            $passwordFieldConfig: '%nowo_vault.password_field%'
+            - '../../BrowserExtension/VaultBrowserExtensionLoginRateLimiter.php'
 
     Nowo\VaultBundle\Controller\:
         resource: '../../Controller/'
@@ -24,16 +22,37 @@ services:
 
     Nowo\VaultBundle\Routing\VaultRouteLoader:
         arguments:
-            $routes: '%nowo_vault.routes%'
-            $routePrefix: '%nowo_vault.route_prefix%'
+            $runtimeConfig: '@Nowo\VaultBundle\Config\VaultRuntimeConfigProvider'
+            $configStorageEnabled: '%nowo_vault.config_storage.enabled%'
+            $browserExtensionEnabled: '%nowo_vault.browser_extension.enabled%'
+            $browserExtensionRoutes: '%nowo_vault.browser_extension.routes%'
         tags:
             - { name: routing.loader }
+
+    Nowo\VaultBundle\Controller\VaultBrowserExtensionController:
+        public: true
+
+    Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService:
+        arguments:
+            $tokenTtlSeconds: '%nowo_vault.browser_extension.token_ttl%'
+
+    Nowo\VaultBundle\Command\ReencryptVaultPayloadsCommand:
+        arguments:
+            $databaseEnabled: '%nowo_vault.config_storage.enabled%'
+
+    Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory:
+        arguments:
+            $allowedOrigins: '%nowo_vault.browser_extension.cors_allowed_origins%'
 
     Nowo\VaultBundle\Controller\VaultManageController:
         public: true
         arguments:
-            $routes: '%nowo_vault.routes%'
-            $templates: '%nowo_vault.templates%'
-            $dashboardRoute: '%nowo_vault.dashboard_route%'
-            $maxAttachmentBytes: '%nowo_vault.max_attachment_bytes%'
+            $runtimeConfig: '@Nowo\VaultBundle\Config\VaultRuntimeConfigProvider'
             $passwordStrengthEnabled: '%nowo_vault.password_strength_enabled%'
+            $tagInputEnabled: '%nowo_vault.tag_input_enabled%'
+            $configStorage: '%nowo_vault.config_storage%'
+
+    Nowo\VaultBundle\Controller\VaultRuntimeConfigController:
+        public: true
+        arguments:
+            $databaseEnabled: '%nowo_vault.config_storage.enabled%'

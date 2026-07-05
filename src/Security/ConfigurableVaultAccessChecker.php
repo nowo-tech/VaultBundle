@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Security;
 
+use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -12,20 +13,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class ConfigurableVaultAccessChecker implements VaultAccessCheckerInterface
 {
-    /**
-     * @param list<string> $adminRoles
-     * @param list<string> $accessRoles
-     * @param list<string> $createRoles
-     * @param list<string> $listRoles
-     * @param list<string> $deleteRoles
-     */
     public function __construct(
         private Security $security,
-        private array $adminRoles,
-        private array $accessRoles,
-        private array $createRoles,
-        private array $listRoles,
-        private array $deleteRoles,
+        private VaultRuntimeConfigProvider $runtimeConfig,
     ) {
     }
 
@@ -35,7 +25,7 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
             return true;
         }
 
-        return $this->hasAnyRole($this->accessRoles);
+        return $this->hasAnyRole($this->securityRoles()['access_roles']);
     }
 
     public function canCreate(?UserInterface $user = null): bool
@@ -44,7 +34,7 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
             return true;
         }
 
-        return $this->hasAnyRole($this->createRoles);
+        return $this->hasAnyRole($this->securityRoles()['create_roles']);
     }
 
     public function canList(?UserInterface $user = null): bool
@@ -53,7 +43,7 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
             return true;
         }
 
-        return $this->hasAnyRole($this->listRoles);
+        return $this->hasAnyRole($this->securityRoles()['list_roles']);
     }
 
     public function canRevoke(?UserInterface $user = null): bool
@@ -62,12 +52,12 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
             return true;
         }
 
-        return $this->hasAnyRole($this->deleteRoles);
+        return $this->hasAnyRole($this->securityRoles()['delete_roles']);
     }
 
     private function isAdmin(): bool
     {
-        foreach ($this->adminRoles as $role) {
+        foreach ($this->securityRoles()['admin_roles'] as $role) {
             if ($this->security->isGranted($role)) {
                 return true;
             }
@@ -88,5 +78,14 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
         }
 
         return false;
+    }
+
+    /**
+     * @return array{admin_roles: list<string>, access_roles: list<string>, create_roles: list<string>, list_roles: list<string>, delete_roles: list<string>}
+     */
+    private function securityRoles(): array
+    {
+        /* @var array{admin_roles: list<string>, access_roles: list<string>, create_roles: list<string>, list_roles: list<string>, delete_roles: list<string>} */
+        return $this->runtimeConfig->get()['security'];
     }
 }

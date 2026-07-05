@@ -11,6 +11,22 @@
 
     {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
 
+    {% block vault_home_extra %}
+        {% if configStorageEnabled|default(false) and configStorageAdminRoute|default(null) %}
+            <div class="card mb-4 border-primary">
+                <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                        <h3 class="card-title mb-1">{{ 'vault.home.runtime_config.title'|trans({}, 'NowoVaultBundle') }}</h3>
+                        <p class="text-secondary mb-0">{{ 'vault.home.runtime_config.description'|trans({}, 'NowoVaultBundle') }}</p>
+                    </div>
+                    <a href="{{ path(configStorageAdminRoute) }}" class="btn btn-primary">
+                        {{ 'vault.action.open_settings'|trans({}, 'NowoVaultBundle') }}
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    {% endblock %}
+
     <div class="row row-cards">
         <div class="col-md-6 col-lg-4">
             <a href="{{ path(routes.items.name) }}" class="card card-link">
@@ -80,5 +96,8 @@
 
 {% block javascripts %}
     {{ parent() }}
-    <script>window.VAULT_PASSWORD_URL = {{ path(routes.password_generate.name)|json_encode|raw }};</script>
+    <script>
+        window.VAULT_PASSWORD_URL = {{ path(routes.password_generate.name)|json_encode|raw }};
+        window.VAULT_PASSWORD_CSRF_TOKEN = {{ csrf_token('vault_password_generate')|json_encode|raw }};
+    </script>
 {% endblock %}

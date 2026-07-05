@@ -4,13 +4,23 @@ export default defineConfig({
     test: {
         environment: 'jsdom',
         globals: true,
-        include: ['src/Resources/assets/**/*.test.ts'],
+        include: [
+            'src/Resources/assets/**/*.test.ts',
+            'extension/src/**/*.test.ts',
+        ],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'text-summary', 'html'],
             reportsDirectory: './coverage-ts',
-            include: ['src/Resources/assets/src/vault-password-client.ts'],
-            exclude: ['**/*.test.ts', '**/node_modules/**'],
+            include: [
+                'src/Resources/assets/src/vault-password-client.ts',
+                'extension/src/**/*.ts',
+            ],
+            exclude: [
+                '**/*.test.ts',
+                '**/node_modules/**',
+                'extension/src/{background,content,popup,options}.ts',
+            ],
         },
     },
 });

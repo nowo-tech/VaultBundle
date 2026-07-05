@@ -7,6 +7,8 @@ namespace Nowo\VaultBundle\Tests\Unit\Entity;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
+use Nowo\VaultBundle\Entity\VaultSettings;
+use Nowo\VaultBundle\Entity\VaultTag;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
@@ -91,5 +93,46 @@ final class VaultEntityTest extends TestCase
         self::assertSame(VaultPermission::Admin, $grant->getPermission());
         self::assertSame($user, $grant->getCreatedBy());
         self::assertNotNull($grant->getCreatedAt());
+    }
+
+    public function testVaultItemTags(): void
+    {
+        $user = new TestUser('4');
+        $item = new VaultItem(VaultItemType::Login, 'Demo', $user, 'cipher');
+        $tagA = new VaultTag('work', $user);
+        $tagB = new VaultTag('urgent', $user);
+
+        self::assertSame([''], $item->getTagNames());
+
+        $item->setTags([$tagA, $tagB]);
+        self::assertSame(['work', 'urgent'], $item->getTagNames());
+
+        $item->setTags([$tagA]);
+        self::assertSame(['work'], $item->getTagNames());
+    }
+
+    public function testVaultTag(): void
+    {
+        $user = new TestUser('5');
+        $tag  = new VaultTag('personal', $user);
+
+        self::assertSame('personal', $tag->getName());
+        self::assertSame($user, $tag->getCreator());
+        self::assertNotNull($tag->getCreatedAt());
+        self::assertSame([], iterator_to_array($tag->getItems()));
+    }
+
+    public function testVaultSettings(): void
+    {
+        $settings = new VaultSettings(values: ['max_attachment_bytes' => 2048]);
+        $settings->mergeValues(['password_field' => ['level' => 'high']]);
+
+        self::assertSame('default', $settings->getScope());
+        self::assertSame(2048, $settings->getValues()['max_attachment_bytes']);
+        self::assertSame('high', $settings->getValues()['password_field']['level']);
+        self::assertNotNull($settings->getUpdatedAt());
+
+        $settings->setValues([]);
+        self::assertSame([], $settings->getValues());
     }
 }

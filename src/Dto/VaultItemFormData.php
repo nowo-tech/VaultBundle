@@ -14,6 +14,8 @@ final class VaultItemFormData
     public string $title        = '';
     public ?VaultFolder $folder = null;
     public string $note         = '';
+    /** @var list<string> */
+    public array $tags = [];
 
     // Login
     public string $username = '';

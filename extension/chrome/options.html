@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nowo Vault Options</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 24px auto; padding: 0 16px; }
+    label { display: block; margin-bottom: 12px; }
+    input { width: 100%; box-sizing: border-box; padding: 8px; }
+    button { padding: 8px 16px; }
+    .status { margin-top: 12px; color: #374151; }
+  </style>
+</head>
+<body>
+  <h1>Nowo Vault extension</h1>
+  <p>Point the extension to your Symfony app hosting VaultBundle.</p>
+  <form id="options-form">
+    <label>
+      Vault base URL
+      <input id="base-url" type="url" placeholder="http://localhost:8023" required>
+    </label>
+    <button type="submit">Save</button>
+  </form>
+  <p id="status" class="status"></p>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

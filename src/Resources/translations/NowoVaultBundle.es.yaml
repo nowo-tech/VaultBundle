@@ -14,6 +14,9 @@ vault:
             description: Elige el tipo de secreto que quieres guardar.
         generator:
             description: Genera una contraseña segura sin salir del vault.
+        runtime_config:
+            title: Configuración en tiempo de ejecución (base de datos)
+            description: 'Gestiona clave de cifrado, límite de adjuntos y nivel de contraseña en vault_settings.'
     nav:
         vault: Vault
         shared: Elementos compartidos
@@ -27,6 +30,10 @@ vault:
         empty_hint: 'Aún no hay carpetas. Crea una desde la página de elementos para organizar entradas:'
     search:
         placeholder: Buscar en todos los elementos
+        placeholder_tags: Buscar por título o etiqueta
+    tags:
+        filter: Etiquetas
+        all: Todas las etiquetas
     type:
         login: Acceso
         secure_note: Nota segura
@@ -88,11 +95,19 @@ vault:
         note: Nota
         folder: Carpeta
         no_folder: Sin carpeta
+        tags: Etiquetas
+        tag_placeholder: p. ej. trabajo, personal
+        tags_help: Escribe una etiqueta y pulsa Enter. Las etiquetas se reutilizan entre tus elementos.
     action:
         save: Guardar
         cancel: Cancelar
         back: Volver
         search: Buscar
+        view: Ver
+        edit: Editar
+        access: Acceso
+        delete_tag: Eliminar etiqueta
+        open_settings: Abrir ajustes
         trash: Mover a la papelera
         restore: Restaurar
         purge: Eliminar permanentemente
@@ -117,12 +132,14 @@ vault:
     list:
         type: Tipo
         folder: Carpeta
+        actions: Acciones
     shared:
         hint: Los elementos compartidos contigo o con tus equipos aparecen aquí. Extiende el acceso con VaultGrantService y eventos ITEM_LIST_QUERY.
     confirm:
         trash: ¿Mover este elemento a la papelera?
         trash_folder: ¿Mover esta carpeta a la papelera?
         trash_folder_with_items: 'Esta carpeta contiene %count% elemento(s). ¿Eliminar la carpeta? Los elementos quedarán sin carpeta asociada.'
+        delete_tag: '¿Eliminar la etiqueta "%name%"? Los elementos conservarán sus otras etiquetas; solo se quitará esta.'
         purge: ¿Eliminar permanentemente este elemento?
         revoke_access: ¿Quitar este permiso de acceso?
     flash:
@@ -135,6 +152,27 @@ vault:
         folder_name_required: El nombre de la carpeta es obligatorio.
         folder_trashed: Carpeta movida a la papelera.
         folder_trashed_items_detached: Carpeta movida a la papelera. %count% elemento(s) han quedado sin carpeta asociada.
+        tag_deleted: Etiqueta eliminada. Los elementos ya no muestran esta etiqueta.
         share_created: Acceso concedido.
         grant_revoked: Acceso eliminado.
         grantee_not_allowed: El usuario o equipo seleccionado no está permitido para este recurso.
+        runtime_config:
+            saved: Ajustes guardados en la base de datos.
+            key_stored: Ajustes guardados en la base de datos. Clave de cifrado almacenada.
+            key_generated: Clave de cifrado generada y guardada en la base de datos (cifrada en reposo).
+            key_exists: Ya hay una clave de cifrado almacenada en la base de datos.
+            max_attachment_invalid: max_attachment_bytes debe ser cero o mayor.
+    runtime_config:
+        title: Configuración en tiempo de ejecución
+        intro: Ajustes en base de datos para clave de cifrado, límite de adjuntos y nivel de contraseña.
+        section: Ajustes en base de datos
+        last_update: 'Última actualización: %datetime%'
+        encryption_key: Clave de cifrado del vault
+        encryption_key_stored_help: Almacenada en vault_settings.encryption_key (cifrada en reposo). No se puede cambiar desde esta pantalla.
+        encryption_key_empty_help: Aún no hay clave de cifrado en la base de datos. Genera una o pega una clave base64 y guarda.
+        encryption_key_placeholder: Pega una clave base64 o genera una abajo
+        encryption_key_configured: "Configurada (oculta por seguridad)"
+        encryption_key_one_time_warning: "Copia esta clave ahora. No se volverá a mostrar al salir de esta página."
+        generate_key: Generar VAULT_ENCRYPTION_KEY
+        max_attachment_bytes: Tamaño máximo de adjuntos (bytes)
+        password_level: Nivel de fortaleza de contraseña
