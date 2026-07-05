@@ -9,6 +9,19 @@ nowo_vault:
     # Base64-encoded 32-byte libsodium key (see .env VAULT_ENCRYPTION_KEY)
     encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
 
+    # Merge runtime settings from vault_settings (YAML remains bootstrap baseline)
+    config_storage:
+        enabled: true
+        cache_pool: cache.app
+
+    password_field:
+        level: strong
+
+    browser_extension:
+        enabled: true
+        user_provider: security.user.provider.concrete.app_user_provider
+        cors_allowed_origins: ['*']
+
     routes:
         # Public URL of the vault home (manage UI entry point)
         index:

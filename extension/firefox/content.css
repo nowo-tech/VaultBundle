@@ -1,0 +1,30 @@
+.nowo-vault-panel {
+  position: absolute;
+  z-index: 2147483646;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #111827;
+  color: #f9fafb;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  font: 13px/1.4 system-ui, sans-serif;
+}
+
+.nowo-vault-panel strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.nowo-vault-panel button {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}

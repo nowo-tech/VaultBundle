@@ -21,6 +21,14 @@ Authenticated users open the vault at `/tools/vault` (configurable via `nowo_vau
 
 Payloads are encrypted server-side with libsodium (`nowo_vault.encryption_key`).
 
+## Tags
+
+Assign one or more tags when creating or editing an item (one tag per field in the form). Tags are scoped to the item owner and reused across items with the same name. Delete your tags from the tag bar on the items list; items keep their other tags and simply lose the deleted label.
+
+- Filter items by tag from the tag bar on the items list
+- Search matches item titles **or** tag names (`q` query parameter)
+- Tags are stored in `{table_prefix}_tags` and linked via `{table_prefix}_item_tag`
+
 ## Folders
 
 Create folders from the sidebar. Share or trash folders via the folder row actions.

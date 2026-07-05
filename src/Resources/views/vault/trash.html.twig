@@ -29,9 +29,11 @@
                                     <td>{{ item.title }}</td>
                                     <td class="text-end text-nowrap">
                                         <form method="post" action="{{ path(routes.item_restore.name, {id: item.id}) }}" class="d-inline">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('vault_restore_' ~ item.id) }}">
                                             <button type="submit" class="btn btn-sm btn-outline-primary">{{ 'vault.action.restore'|trans({}, 'NowoVaultBundle') }}</button>
                                         </form>
                                         <form method="post" action="{{ path(routes.item_purge.name, {id: item.id}) }}" class="d-inline">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('vault_purge_' ~ item.id) }}">
                                             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('{{ 'vault.confirm.purge'|trans({}, 'NowoVaultBundle')|e('js') }}');">
                                                 {{ 'vault.action.purge'|trans({}, 'NowoVaultBundle') }}
                                             </button>

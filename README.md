@@ -12,10 +12,14 @@ Symfony bundle for a **password and secrets vault**: logins, secure notes, credi
 
 - Item types: login, secure note, credit card, contact, ID card, driver's license, passport, document
 - Folders with share and trash; item soft-delete with restore/purge
+- **Tags** — label items, filter and search by tag
 - `VaultGrant` for users and teams (read / write / admin) + share UI
 - `VaultTeamMembershipResolverInterface` for team-based grants
-- Events: list query/result, access check, read-only resolve
-- Server-side libsodium payload encryption
+- **Browser extension** — REST API + Chrome/Firefox autofill (optional)
+- **Runtime config** — optional DB-backed settings with admin UI
+- **Key rotation** — `nowo:vault:reencrypt` command and demo walkthrough
+- Events: list query/result, access check, read-only resolve, extension auth
+- Server-side libsodium payload encryption; CSRF on manage POST actions
 - Dark manage UI + password generator (modal + inline)
 - Document attachments (encrypted in payload)
 
@@ -49,12 +53,14 @@ make -C demo/symfony8 up
 
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
+- [Browser extension](docs/BROWSER-EXTENSION.md)
 - [Usage](docs/USAGE.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Changelog](docs/CHANGELOG.md)
 - [Upgrading](docs/UPGRADING.md)
 - [Release process](docs/RELEASE.md)
 - [Security](docs/SECURITY.md)
+- [Encryption key rotation](docs/ENCRYPTION-KEY-ROTATION.md)
 - [Engram](docs/ENGRAM.md)
 - [Spec-driven development](docs/SPEC-DRIVEN-DEVELOPMENT.md)
 
@@ -71,6 +77,8 @@ make test-ts           # Vitest
 make test-coverage     # PHP coverage report
 make release-check     # Full pre-release QA
 ```
+
+The `test-coverage-100` / `release-check` gate targets **100% line coverage on the measured subset of `src/`** (see `phpunit.xml.dist`). Controllers, repositories, forms, and Doctrine listeners are **excluded** from that metric; they are covered by E2E and integration tests instead. New services and domain logic under `src/Service/`, `src/Security/`, etc. must remain fully covered to pass release checks.
 
 Run `make test-coverage` and `make test-ts` for current PHP and TS coverage percentages.
 

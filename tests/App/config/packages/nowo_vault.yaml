@@ -1,0 +1,10 @@
+nowo_vault:
+    user_class: Nowo\VaultBundle\Tests\App\Entity\User
+    encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
+    browser_extension:
+        enabled: true
+        user_provider: security.user.provider.concrete.app_user_provider
+        cors_allowed_origins: ['*']
+        login_rate_limit:
+            max_attempts: 3
+            interval_seconds: 3600

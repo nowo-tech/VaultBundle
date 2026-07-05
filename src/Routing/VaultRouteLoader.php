@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Routing;
 
+use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
+use Nowo\VaultBundle\Controller\VaultBrowserExtensionController;
 use Nowo\VaultBundle\Controller\VaultManageController;
+use Nowo\VaultBundle\Controller\VaultRuntimeConfigController;
 use RuntimeException;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\Routing\Route;
@@ -14,12 +17,12 @@ final class VaultRouteLoader extends Loader
 {
     private bool $loaded = false;
 
-    /**
-     * @param array<string, array{path: string, name: string}> $routes
-     */
     public function __construct(
-        private readonly array $routes,
-        private readonly string $routePrefix,
+        private readonly VaultRuntimeConfigProvider $runtimeConfig,
+        private readonly bool $configStorageEnabled,
+        private readonly bool $browserExtensionEnabled,
+        /** @var array<string, array{path: string, name: string}> */
+        private readonly array $browserExtensionRoutes,
     ) {
     }
 
@@ -30,8 +33,12 @@ final class VaultRouteLoader extends Loader
         }
 
         $this->loaded = true;
-        $collection   = new RouteCollection();
-        $controller   = VaultManageController::class;
+        $config       = $this->runtimeConfig->get();
+        /** @var array<string, array{path: string, name: string}> $routes */
+        $routes      = $config['routes'];
+        $routePrefix = (string) $config['route_prefix'];
+        $collection  = new RouteCollection();
+        $controller  = VaultManageController::class;
 
         /** @var array<string, array{0: string, 1: list<string>, 2: array<string, string>}> $map */
         $map = [
@@ -41,6 +48,7 @@ final class VaultRouteLoader extends Loader
             'trash'               => ['trash', ['GET'], []],
             'item_new'            => ['newItem', ['GET', 'POST'], ['type' => '[a-z_]+']],
             'item_edit'           => ['editItem', ['GET', 'POST'], ['id' => '[0-9a-f-]{36}']],
+            'item_view'           => ['viewItem', ['GET'], ['id' => '[0-9a-f-]{36}']],
             'item_trash'          => ['trashItem', ['POST'], ['id' => '[0-9a-f-]{36}']],
             'item_restore'        => ['restoreItem', ['POST'], ['id' => '[0-9a-f-]{36}']],
             'item_purge'          => ['purgeItem', ['POST'], ['id' => '[0-9a-f-]{36}']],
@@ -48,6 +56,7 @@ final class VaultRouteLoader extends Loader
             'item_grant_revoke'   => ['revokeItemGrant', ['POST'], ['id' => '[0-9a-f-]{36}', 'grantId' => '[0-9a-f-]{36}']],
             'folder_create'       => ['createFolder', ['POST'], []],
             'folder_trash'        => ['trashFolder', ['POST'], ['id' => '[0-9a-f-]{36}']],
+            'tag_delete'          => ['deleteTag', ['POST'], ['id' => '[0-9a-f-]{36}']],
             'folder_share'        => ['shareFolder', ['GET', 'POST'], ['id' => '[0-9a-f-]{36}']],
             'folder_grant_revoke' => ['revokeFolderGrant', ['POST'], ['id' => '[0-9a-f-]{36}', 'grantId' => '[0-9a-f-]{36}']],
             'password_generate'   => ['generatePassword', ['POST'], []],
@@ -55,14 +64,54 @@ final class VaultRouteLoader extends Loader
 
         foreach ($map as $key => [$action, $methods, $requirements]) {
             $collection->add(
-                $this->routes[$key]['name'],
+                $routes[$key]['name'],
                 $this->createRoute(
-                    $this->routes[$key]['path'],
+                    $routes[$key]['path'],
                     ['_controller' => $controller . '::' . $action],
                     $methods,
+                    $routePrefix,
                     $requirements,
                 ),
             );
+        }
+
+        if ($this->configStorageEnabled && isset($routes['runtime_config'])) {
+            $collection->add(
+                $routes['runtime_config']['name'],
+                $this->createRoute(
+                    $routes['runtime_config']['path'],
+                    ['_controller' => VaultRuntimeConfigController::class . '::__invoke'],
+                    ['GET', 'POST'],
+                    $routePrefix,
+                ),
+            );
+        }
+
+        if ($this->browserExtensionEnabled) {
+            $extensionController = VaultBrowserExtensionController::class;
+            /** @var array<string, array{0: string, 1: list<string>}> $extensionMap */
+            $extensionMap = [
+                'login'  => ['login', ['POST', 'OPTIONS']],
+                'logins' => ['logins', ['GET', 'OPTIONS']],
+                'logout' => ['logout', ['POST', 'OPTIONS']],
+                'me'     => ['me', ['GET', 'OPTIONS']],
+            ];
+
+            foreach ($extensionMap as $key => [$action, $methods]) {
+                if (!isset($this->browserExtensionRoutes[$key])) {
+                    continue;
+                }
+
+                $collection->add(
+                    $this->browserExtensionRoutes[$key]['name'],
+                    $this->createRoute(
+                        $this->browserExtensionRoutes[$key]['path'],
+                        ['_controller' => $extensionController . '::' . $action],
+                        $methods,
+                        $routePrefix,
+                    ),
+                );
+            }
         }
 
         return $collection;
@@ -78,8 +127,8 @@ final class VaultRouteLoader extends Loader
      * @param array<string, string> $requirements
      * @param array<string, mixed> $defaults
      */
-    private function createRoute(string $path, array $defaults, array $methods, array $requirements = []): Route
+    private function createRoute(string $path, array $defaults, array $methods, string $routePrefix, array $requirements = []): Route
     {
-        return new Route($this->routePrefix . $path, $defaults, $requirements, [], '', [], $methods);
+        return new Route($routePrefix . $path, $defaults, $requirements, [], '', [], $methods);
     }
 }

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-05
+
+### Added
+
+- **Browser extension API** — Bearer-token auth (`/api/vault/extension/login`, `/me`, `/logins`, `/logout`); optional Chrome/Firefox extension under `extension/` with build/sync scripts
+- **Item tags** — assign, filter, and search by tag; `{table_prefix}_tags` and `{table_prefix}_item_tag` tables; optional `nowo-tech/tag-input-bundle` integration
+- **Database-backed runtime configuration** — optional `config_storage.enabled` with `{table_prefix}_settings`, admin UI, cache invalidation via `VaultRuntimeConfigWriter`; optional `nowo-tech/doctrine-encrypt-bundle` for encrypted key at rest
+- **Encryption key rotation** — console command `nowo:vault:reencrypt` (`--old-key`, `--new-key`, `--dry-run`, `--persist-new-key`, `--force`); demo Make targets and `scripts/vault-key-rotation-demo.sh`
+- **CSRF protection** — `VaultCsrfTrait` on all manage UI state-changing POST actions (token via `_token`, `X-CSRF-Token`, or JSON body)
+- **Extension login rate limiting** — cache-backed `browser_extension.login_rate_limit` (HTTP 429)
+- **Token maintenance** — console command `nowo:vault:extension-tokens:purge` for expired Bearer tokens
+- **Translations** — German, French, Italian, Dutch, and Portuguese (`NowoVaultBundle.*.yaml`)
+- **Events** — `VaultBrowserExtensionAuthEvent` for custom extension authentication
+- **Docs** — [Browser extension](BROWSER-EXTENSION.md), [Encryption key rotation](ENCRYPTION-KEY-ROTATION.md); expanded CONFIGURATION, SECURITY, INSTALLATION, USAGE
+- **Tests** — E2E for manage CSRF and extension API; unit tests for CORS, auth service, rate limiter, reencrypt, purge command, runtime config
+
+### Changed
+
+- Manage UI templates and `vault.js` include CSRF tokens on POST forms and fetch calls
+- Item list row actions extracted to `_item_row_actions.html.twig` (replaces `_item_access.html.twig`)
+- `VaultSharedItemResolver` and item repository optimized for extension login resolution
+- Extension token `last_used_at` updates debounced (5 minutes)
+- Demo Symfony 8: FrankenPHP, browser-extension fixtures, rotation demo commands, integration tests
+
+### Security
+
+- Manage routes require valid CSRF token on mutating POST requests
+- Extension login protected by configurable rate limit; session CSRF does not apply to Bearer API (documented)
+
 ## [1.0.0] - 2026-07-04
 
 First stable release of **VaultBundle** — password and secrets vault for Symfony.
@@ -32,4 +61,6 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.0
 [1.0.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.0.0

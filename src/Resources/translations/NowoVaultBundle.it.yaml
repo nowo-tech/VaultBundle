@@ -1,0 +1,178 @@
+vault:
+    title: Vault
+    home:
+        intro: Archiviazione sicura per accessi, carte, documenti e note. Scegli una sezione per iniziare.
+        items:
+            title: I miei elementi
+            description: Sfoglia, cerca e organizza le voci del tuo vault.
+        shared:
+            description: Elementi condivisi con te o con i tuoi team.
+        trash:
+            description: Ripristina o elimina definitivamente le voci nel cestino.
+        create:
+            title: Crea nuova voce
+            description: Scegli il tipo di segreto da archiviare.
+        generator:
+            description: Genera una password sicura senza uscire dal vault.
+        runtime_config:
+            title: Configurazione runtime (database)
+            description: 'Gestisci chiave di crittografia, limite allegati e livello password in vault_settings.'
+    nav:
+        vault: Vault
+        shared: Elementi condivisi
+        trash: Cestino
+        folders: Cartelle
+        password_generator: Generatore password
+    folder:
+        add: Aggiungi cartella
+        all: Tutti gli elementi
+        name_placeholder: Nome cartella
+        empty_hint: 'Non ci sono ancora cartelle. Creane una dalla pagina elementi per organizzare le voci:'
+    search:
+        placeholder: Cerca in tutti gli elementi
+        placeholder_tags: Cerca per titolo o tag
+    tags:
+        filter: Tag
+        all: Tutti i tag
+    type:
+        login: Accesso
+        secure_note: Nota sicura
+        credit_card: Carta di credito
+        contact: Contatto
+        id_card: Carta d'identità
+        drivers_license: Patente di guida
+        passport: Passaporto
+        document: Documento
+    share:
+        title: Condividi accesso
+        grantee_type: Tipo destinatario
+        grantee: Utente o team / gruppo
+        grantee_placeholder: Seleziona un utente o team / gruppo
+        grantee_id: Id utente o team
+        grantee_id_help: Inserisci l'id utente (es. UUID) o l'id team/gruppo configurato nella tua applicazione.
+        permission: Permesso
+        submit: Concedi accesso
+        existing: Permessi attuali
+        manage: Gestisci condivisione
+    access:
+        title: Accesso
+        intro: Condividi questa risorsa con altri utenti o team (gruppi). Ogni permesso definisce chi può leggerla, modificarla o amministrarla.
+        add: Aggiungi accesso
+        empty: Nessun utente o team ha ancora accesso concesso.
+        shared_badge: Condiviso
+    grantee_type:
+        user: Utente
+        team: Team / gruppo
+    permission:
+        read: Lettura
+        write: Scrittura
+        admin: Amministrazione
+    form:
+        title: Titolo (obbligatorio)
+        attachment: Allegato documento
+        username: Email o nome utente
+        password: Parola d'ordine
+        websites: Indirizzo sito web
+        secure_note: Nota sicura
+        cardholder: Nome titolare carta
+        card_number: Numero carta
+        expiry: Data di scadenza
+        cvv: CVV
+        card_pin: PIN carta
+        full_name: Nome completo
+        email: Email
+        phone: Telefono
+        address1: Indirizzo riga 1
+        address2: Indirizzo riga 2
+        city: Città
+        state: Stato o provincia
+        postal_code: CAP o codice postale
+        country: Paese o regione
+        document_number: Numero documento
+        issued_by: Rilasciato da
+        issued_date: Data di rilascio
+        expiry_date: Data di scadenza
+        note: Nota
+        folder: Cartella
+        no_folder: Nessuna cartella
+        tags: Tag
+        tag_placeholder: es. lavoro, personale
+        tags_help: Digita un tag e premi Invio. I tag vengono riutilizzati tra i tuoi elementi.
+    action:
+        save: Salva
+        cancel: Annulla
+        back: Indietro
+        search: Cerca
+        view: Visualizza
+        edit: Modifica
+        access: Accesso
+        delete_tag: Elimina tag
+        open_settings: Apri impostazioni
+        trash: Sposta nel cestino
+        restore: Ripristina
+        purge: Elimina definitivamente
+        revoke_access: Rimuovi accesso
+    badge:
+        read_only: Solo lettura
+    read_only:
+        notice: Questo elemento è di sola lettura. Puoi visualizzarlo ma non modificarlo o eliminarlo.
+    generator:
+        title: Generatore password
+        regenerate: Rigenera
+        copy: Copia
+        fill: Compila password
+        length: Lunghezza
+        mode_characters: Caratteri
+        mode_words: Parole
+        inline: Genera password
+    empty:
+        items: Non ci sono ancora elementi. Crea la prima voce.
+        trash: Il cestino è vuoto.
+        shared: Non ci sono elementi condivisi.
+    list:
+        type: Tipo
+        folder: Cartella
+        actions: Azioni
+    shared:
+        hint: Gli elementi condivisi con te o con i tuoi team compaiono qui. Estendi l'accesso con VaultGrantService e eventi ITEM_LIST_QUERY.
+    confirm:
+        trash: Spostare questo elemento nel cestino?
+        trash_folder: Spostare questa cartella nel cestino?
+        trash_folder_with_items: 'Questa cartella contiene %count% elemento/i. Eliminare la cartella? Gli elementi resteranno senza cartella.'
+        delete_tag: 'Eliminare il tag "%name%"? Gli elementi manterranno gli altri tag; questa etichetta verrà rimossa.'
+        purge: Eliminare definitivamente questo elemento?
+        revoke_access: Rimuovere questo permesso di accesso?
+    flash:
+        item_created: Elemento salvato.
+        item_updated: Elemento aggiornato.
+        item_trashed: Elemento spostato nel cestino.
+        item_restored: Elemento ripristinato.
+        item_purged: Elemento eliminato definitivamente.
+        folder_created: Cartella creata.
+        folder_name_required: Il nome della cartella è obbligatorio.
+        folder_trashed: Cartella spostata nel cestino.
+        folder_trashed_items_detached: Cartella spostata nel cestino. %count% elemento/i sono ora senza cartella.
+        tag_deleted: Tag eliminato. Gli elementi non mostrano più questa etichetta.
+        share_created: Accesso concesso.
+        grant_revoked: Accesso rimosso.
+        grantee_not_allowed: L'utente o il team selezionato non è consentito per questa risorsa.
+        runtime_config:
+            saved: Impostazioni salvate nel database.
+            key_stored: Impostazioni salvate nel database. Chiave di crittografia memorizzata.
+            key_generated: Chiave di crittografia generata e salvata nel database (crittografata a riposo).
+            key_exists: Una chiave di crittografia del vault è già memorizzata nel database.
+            max_attachment_invalid: max_attachment_bytes deve essere zero o maggiore.
+    runtime_config:
+        title: Configurazione runtime
+        intro: Impostazioni database per chiave di crittografia, limite allegati e livello password.
+        section: Impostazioni database
+        last_update: 'Ultimo aggiornamento: %datetime%'
+        encryption_key: Chiave di crittografia vault
+        encryption_key_stored_help: Memorizzata in vault_settings.encryption_key (crittografata a riposo). Non può essere modificata da questa schermata.
+        encryption_key_empty_help: Nessuna chiave di crittografia nel database. Generane una o incolla una chiave base64, poi salva.
+        encryption_key_placeholder: Incolla una chiave base64 o generane una sotto
+        encryption_key_configured: "Configurata (nascosta per sicurezza)"
+        encryption_key_one_time_warning: "Copia questa chiave ora. Non verrà mostrata di nuovo dopo aver lasciato questa pagina."
+        generate_key: Genera VAULT_ENCRYPTION_KEY
+        max_attachment_bytes: Dimensione massima allegati (byte)
+        password_level: Livello robustezza password

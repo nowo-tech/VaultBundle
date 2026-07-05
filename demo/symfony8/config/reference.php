@@ -1256,6 +1256,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     user_class?: scalar|Param|null, // FQCN of the application user entity (must implement UserInterface and expose getId()).
  *     table_prefix?: scalar|Param|null, // Prefix for vault tables (items, folders, grants). // Default: "vault_"
  *     encryption_key?: scalar|Param|null, // Base64-encoded 32-byte libsodium key for server-side payload encryption.
+ *     config_storage?: array{ // Optional database-backed runtime configuration with Symfony cache.
+ *         enabled?: bool|Param, // When true, creates/uses {table_prefix}_settings and merges DB values over YAML defaults. // Default: false
+ *         cache_pool?: scalar|Param|null, // Symfony cache pool service id used for merged runtime config. // Default: "cache.app"
+ *     },
  *     max_attachment_bytes?: int|Param, // Maximum document attachment size in bytes (stored encrypted in item payload). // Default: 512000
  *     password_field?: array{ // Login password field options when nowo-tech/password-strength-bundle is installed.
  *         level?: scalar|Param|null, // Default: "medium"
@@ -1265,7 +1269,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     team_membership_resolver?: scalar|Param|null, // Service id implementing VaultTeamMembershipResolverInterface. Null uses no teams. // Default: null
  *     database?: array{
  *         driver?: "doctrine_orm"|"doctrine_mongodb"|"custom"|Param, // Default: "doctrine_orm"
- *         platform?: "postgresql"|"mysql"|"mariadb"|"sqlite"|"sqlserver"|"oracle"|"mongodb"|"other"|Param, // Default: "postgresql"
+ *         platform?: "postgresql"|"mysql"|"mariadb"|"sqlite"|"sqlserver"|"oracle"|"mongodb"|"other"|Param, // postgresql is the supported runtime platform. mongodb is reserved for a future ODM driver (not implemented yet). // Default: "postgresql"
  *         entity_manager?: scalar|Param|null, // Default: "default"
  *     },
  *     route_prefix?: scalar|Param|null, // Default: ""
@@ -1303,6 +1307,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             path?: scalar|Param|null, // Default: "/tools/vault/items/{id}/edit"
  *             name?: scalar|Param|null, // Default: "nowo_vault_item_edit"
  *         },
+ *         item_view?: array{
+ *             path?: scalar|Param|null, // Default: "/tools/vault/items/{id}"
+ *             name?: scalar|Param|null, // Default: "nowo_vault_item_view"
+ *         },
  *         item_trash?: array{
  *             path?: scalar|Param|null, // Default: "/tools/vault/items/{id}/trash"
  *             name?: scalar|Param|null, // Default: "nowo_vault_item_trash"
@@ -1322,6 +1330,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         folder_trash?: array{
  *             path?: scalar|Param|null, // Default: "/tools/vault/folders/{id}/trash"
  *             name?: scalar|Param|null, // Default: "nowo_vault_folder_trash"
+ *         },
+ *         tag_delete?: array{
+ *             path?: scalar|Param|null, // Default: "/tools/vault/tags/{id}/delete"
+ *             name?: scalar|Param|null, // Default: "nowo_vault_tag_delete"
  *         },
  *         item_share?: array{
  *             path?: scalar|Param|null, // Default: "/tools/vault/items/{id}/share"
@@ -1343,6 +1355,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             path?: scalar|Param|null, // Default: "/tools/vault/password/generate"
  *             name?: scalar|Param|null, // Default: "nowo_vault_password_generate"
  *         },
+ *         runtime_config?: array{
+ *             path?: scalar|Param|null, // Default: "/tools/vault/runtime-config"
+ *             name?: scalar|Param|null, // Default: "nowo_vault_runtime_config"
+ *         },
  *     },
  *     templates?: array{
  *         layout?: scalar|Param|null, // Default: "@NowoVaultBundle/layout.html.twig"
@@ -1353,8 +1369,50 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         trash?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/trash.html.twig"
  *         shared?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/shared.html.twig"
  *         share?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/share.html.twig"
+ *         runtime_config?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/runtime_config.html.twig"
+ *     },
+ *     browser_extension?: array{ // Chrome/Brave browser extension API (Bearer token auth).
+ *         enabled?: bool|Param, // Default: false
+ *         token_ttl?: int|Param, // Bearer token lifetime in seconds. // Default: 86400
+ *         authenticator?: scalar|Param|null, // Service id implementing VaultBrowserExtensionAuthenticatorInterface. Null uses the default password authenticator. // Default: null
+ *         user_provider?: scalar|Param|null, // Symfony user provider service id for the default authenticator (e.g. security.user.provider.concrete.app_user_provider). // Default: null
+ *         cors_allowed_origins?: list<scalar|Param|null>,
+ *         login_rate_limit?: array{ // Brute-force protection for extension login (cache-backed).
+ *             enabled?: bool|Param, // Default: true
+ *             max_attempts?: int|Param, // Default: 5
+ *             interval_seconds?: int|Param, // Lockout window in seconds after max_attempts failed logins. // Default: 900
+ *             cache_pool?: scalar|Param|null, // Default: "cache.app"
+ *         },
+ *         routes?: array{
+ *             login?: array{
+ *                 path?: scalar|Param|null, // Default: "/api/vault/extension/login"
+ *                 name?: scalar|Param|null, // Default: "nowo_vault_extension_login"
+ *             },
+ *             logins?: array{
+ *                 path?: scalar|Param|null, // Default: "/api/vault/extension/logins"
+ *                 name?: scalar|Param|null, // Default: "nowo_vault_extension_logins"
+ *             },
+ *             logout?: array{
+ *                 path?: scalar|Param|null, // Default: "/api/vault/extension/logout"
+ *                 name?: scalar|Param|null, // Default: "nowo_vault_extension_logout"
+ *             },
+ *             me?: array{
+ *                 path?: scalar|Param|null, // Default: "/api/vault/extension/me"
+ *                 name?: scalar|Param|null, // Default: "nowo_vault_extension_me"
+ *             },
+ *         },
  *     },
  *     firewall?: scalar|Param|null, // Default: "main"
+ * }
+ * @psalm-type NowoDoctrineEncryptConfig = array{
+ *     default_config?: scalar|Param|null, // Config alias to use when #[Encrypted] has no alias or uses "default". // Default: "default"
+ *     batch_size?: int|Param, // Default batch size for doctrine:decrypt:database and doctrine:encrypt:database (raw SQL). Overridable per run via the batchSize argument. // Default: 5
+ *     configs?: array<string, array{ // Default: []
+ *         encryptor_class?: scalar|Param|null, // Default: "Halite"
+ *         secret_directory_path?: scalar|Param|null, // Directory for the key file. Required unless secret_key_env_var is set. // Default: null
+ *         secret_key_filename?: scalar|Param|null, // Optional custom key filename (e.g. .my_app.key). Only used when secret_directory_path is set. // Default: null
+ *         secret_key_env_var?: scalar|Param|null, // Key content from env: use %env(APP_ENCRYPT_KEY)% so Symfony resolves it at config load and the bundle receives the value. When set, secret_directory_path and secret_key_filename are not allowed. // Default: null
+ *     }>,
  * }
  * @psalm-type NowoPasswordStrengthConfig = array{
  *     form_theme?: scalar|Param|null, // Base Symfony form layout (must match twig.form_themes in the app). // Default: "form_div_layout.html.twig"
@@ -1380,6 +1438,17 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     always_empty?: bool|Param, // Always render empty value (default) // Default: true
  *     trim?: bool|Param, // Trim whitespace (default) // Default: false
  *     invalid_message?: scalar|Param|null, // Invalid message (default) // Default: "The password is invalid."
+ * }
+ * @psalm-type NowoTagInputConfig = array{
+ *     value_format?: "array"|"string"|Param, // Default: "array"
+ *     trim?: bool|Param, // Default: true
+ *     pattern?: scalar|Param|null, // Default: null
+ *     whitelist?: list<scalar|Param|null>,
+ *     duplicates?: bool|Param, // Default: false
+ *     max_tags?: int|Param, // Default: null
+ *     dropdown_enabled?: bool|Param, // Default: true
+ *     placeholder?: scalar|Param|null, // Default: ""
+ *     form_theme?: scalar|Param|null, // Default: "form_div_layout.html.twig"
  * }
  * @psalm-type UxIconsConfig = array{
  *     icon_dir?: scalar|Param|null, // The local directory where icons are stored. // Default: "%kernel.project_dir%/assets/icons"
@@ -1441,8 +1510,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     security?: SecurityConfig,
  *     twig?: TwigConfig,
  *     nowo_vault?: NowoVaultConfig,
+ *     nowo_doctrine_encrypt?: NowoDoctrineEncryptConfig,
  *     nowo_password_strength?: NowoPasswordStrengthConfig,
  *     nowo_password_toggle?: NowoPasswordToggleConfig,
+ *     nowo_tag_input?: NowoTagInputConfig,
  *     ux_icons?: UxIconsConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
@@ -1454,8 +1525,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         security?: SecurityConfig,
  *         twig?: TwigConfig,
  *         nowo_vault?: NowoVaultConfig,
+ *         nowo_doctrine_encrypt?: NowoDoctrineEncryptConfig,
  *         nowo_password_strength?: NowoPasswordStrengthConfig,
  *         nowo_password_toggle?: NowoPasswordToggleConfig,
+ *         nowo_tag_input?: NowoTagInputConfig,
  *         ux_icons?: UxIconsConfig,
  *         nowo_twig_inspector?: NowoTwigInspectorConfig,
  *         web_profiler?: WebProfilerConfig,
@@ -1471,8 +1544,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         security?: SecurityConfig,
  *         twig?: TwigConfig,
  *         nowo_vault?: NowoVaultConfig,
+ *         nowo_doctrine_encrypt?: NowoDoctrineEncryptConfig,
  *         nowo_password_strength?: NowoPasswordStrengthConfig,
  *         nowo_password_toggle?: NowoPasswordToggleConfig,
+ *         nowo_tag_input?: NowoTagInputConfig,
  *         ux_icons?: UxIconsConfig,
  *     },
  *     "when@test"?: array{
@@ -1485,8 +1560,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         security?: SecurityConfig,
  *         twig?: TwigConfig,
  *         nowo_vault?: NowoVaultConfig,
+ *         nowo_doctrine_encrypt?: NowoDoctrineEncryptConfig,
  *         nowo_password_strength?: NowoPasswordStrengthConfig,
  *         nowo_password_toggle?: NowoPasswordToggleConfig,
+ *         nowo_tag_input?: NowoTagInputConfig,
  *         ux_icons?: UxIconsConfig,
  *         nowo_twig_inspector?: NowoTwigInspectorConfig,
  *         web_profiler?: WebProfilerConfig,

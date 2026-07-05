@@ -1,0 +1,105 @@
+{% extends layout %}
+
+{% block title %}{{ 'vault.runtime_config.title'|trans({}, 'NowoVaultBundle') }}{% endblock %}
+
+{% block body %}
+    {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
+        pageTitle: 'vault.runtime_config.title'|trans({}, 'NowoVaultBundle'),
+        pageSubtitle: 'vault.runtime_config.intro'|trans({}, 'NowoVaultBundle'),
+        routes: routes,
+        dashboardRoute: dashboardRoute,
+    } %}
+
+    {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
+
+    <div class="row row-cards">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">{{ 'vault.runtime_config.section'|trans({}, 'NowoVaultBundle') }}</h3>
+                </div>
+                <div class="card-body">
+                    {% if dbUpdatedAt %}
+                        <p class="text-secondary small">{{ 'vault.runtime_config.last_update'|trans({'%datetime%': dbUpdatedAt|date('Y-m-d H:i:s') ~ ' UTC'}, 'NowoVaultBundle') }}</p>
+                    {% endif %}
+
+                    <form method="post" action="{{ path(runtimeConfigRoute) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('vault_runtime_config') }}">
+
+                        <div class="mb-3">
+                            <label class="form-label" for="encryption_key">{{ 'vault.runtime_config.encryption_key'|trans({}, 'NowoVaultBundle') }}</label>
+                            {% if showOneTimeKeyWarning %}
+                                <div class="alert alert-warning" role="alert">
+                                    {{ 'vault.runtime_config.encryption_key_one_time_warning'|trans({}, 'NowoVaultBundle') }}
+                                </div>
+                                <input type="text"
+                                       id="encryption_key"
+                                       class="form-control font-monospace"
+                                       value="{{ encryptionKeyDisplay }}"
+                                       readonly>
+                            {% elseif hasDbEncryptionKey %}
+                                <input type="text"
+                                       id="encryption_key"
+                                       class="form-control font-monospace"
+                                       value=""
+                                       readonly
+                                       disabled
+                                       placeholder="{{ 'vault.runtime_config.encryption_key_configured'|trans({}, 'NowoVaultBundle') }}">
+                                <div class="form-text">
+                                    {{ 'vault.runtime_config.encryption_key_stored_help'|trans({}, 'NowoVaultBundle') }}
+                                </div>
+                            {% else %}
+                                <input type="text"
+                                       id="encryption_key"
+                                       name="encryption_key"
+                                       class="form-control font-monospace"
+                                       autocomplete="off"
+                                       spellcheck="false"
+                                       value=""
+                                       placeholder="{{ 'vault.runtime_config.encryption_key_placeholder'|trans({}, 'NowoVaultBundle') }}">
+                                <div class="form-text">
+                                    {{ 'vault.runtime_config.encryption_key_empty_help'|trans({}, 'NowoVaultBundle') }}
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <button type="submit"
+                                            name="generate_encryption_key"
+                                            value="1"
+                                            class="btn btn-outline-primary"
+                                            formaction="{{ path(runtimeConfigRoute) }}"
+                                            formnovalidate>
+                                        {{ 'vault.runtime_config.generate_key'|trans({}, 'NowoVaultBundle') }}
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="max_attachment_bytes">{{ 'vault.runtime_config.max_attachment_bytes'|trans({}, 'NowoVaultBundle') }}</label>
+                            <input type="number"
+                                   id="max_attachment_bytes"
+                                   name="max_attachment_bytes"
+                                   class="form-control"
+                                   min="0"
+                                   step="1000"
+                                   value="{{ maxAttachmentBytes }}"
+                                   required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="password_level">{{ 'vault.runtime_config.password_level'|trans({}, 'NowoVaultBundle') }}</label>
+                            <select id="password_level" name="password_level" class="form-select">
+                                {% for level in ['weak', 'medium', 'strong'] %}
+                                    <option value="{{ level }}" {% if passwordLevel == level %}selected{% endif %}>{{ level }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-primary">{{ 'vault.action.save'|trans({}, 'NowoVaultBundle') }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

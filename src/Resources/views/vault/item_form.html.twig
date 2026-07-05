@@ -1,8 +1,19 @@
 {% extends layout %}
 
-{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% if tagInputEnabled|default(false) %}
+    {% form_theme form '@NowoVaultBundle/Form/vault_item_form_theme.html.twig' %}
+{% else %}
+    {% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% endif %}
 
 {% block title %}{{ ('vault.type.' ~ itemType.value)|trans({}, 'NowoVaultBundle') }}{% endblock %}
+
+{% block styles %}
+    {{ parent() }}
+    {% if tagInputEnabled|default(false) %}
+        <link rel="stylesheet" href="{{ asset('bundles/nowotaginput/tag-input.css') }}">
+    {% endif %}
+{% endblock %}
 
 {% block body %}
     {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
@@ -13,7 +24,7 @@
 
     <div class="card">
         <div class="card-body">
-            {% if readOnly|default(false) %}
+            {% if readOnly|default(false) and not viewMode|default(false) %}
                 <div class="alert alert-info">{{ 'vault.read_only.notice'|trans({}, 'NowoVaultBundle') }}</div>
             {% endif %}
 
@@ -77,16 +88,34 @@
                 {% endif %}
             {% endif %}
 
-            <div class="mb-3">
-                {% if folders is empty %}
-                    <p class="text-secondary small mb-2">
-                        {{ 'vault.folder.empty_hint'|trans({}, 'NowoVaultBundle') }}
-                        <a href="{{ path(routes.items.name) }}">{{ 'vault.nav.folders'|trans({}, 'NowoVaultBundle') }}</a>
-                    </p>
-                {% endif %}
-                {{ form_row(form.folder) }}
-            </div>
+            {% if folders is empty %}
+                <p class="text-secondary small mb-2">
+                    {{ 'vault.folder.empty_hint'|trans({}, 'NowoVaultBundle') }}
+                    <a href="{{ path(routes.items.name) }}">{{ 'vault.nav.folders'|trans({}, 'NowoVaultBundle') }}</a>
+                </p>
+            {% endif %}
+            {{ form_row(form.folder) }}
+
+            {% if tagInputEnabled|default(false) %}
+                {{ form_row(form.tags) }}
+                <p class="form-text text-secondary">{{ 'vault.form.tags_help'|trans({}, 'NowoVaultBundle') }}</p>
+            {% else %}
+                <div class="mb-3">
+                    {{ form_label(form.tags) }}
+                    {% for tagField in form.tags %}
+                        <div class="mb-2">
+                            {{ form_widget(tagField, {attr: {class: 'form-control', placeholder: 'vault.form.tag_placeholder'|trans({}, 'NowoVaultBundle')}}) }}
+                            {{ form_errors(tagField) }}
+                        </div>
+                    {% endfor %}
+                    {{ form_errors(form.tags) }}
+                    <p class="form-text text-secondary mb-0">{{ 'vault.form.tags_help'|trans({}, 'NowoVaultBundle') }}</p>
+                </div>
+            {% endif %}
+
             {{ form_row(form.note) }}
+
+            {{ form_widget(form._token) }}
 
             <div class="d-flex gap-2 mt-4">
                 {% if not readOnly|default(false) %}
@@ -98,15 +127,19 @@
             {{ form_end(form, {render_rest: false}) }}
         </div>
     </div>
-
-    {% include '@NowoVaultBundle/vault/_item_access.html.twig' %}
 {% endblock %}
 
 {% block javascripts %}
     {{ parent() }}
+    {% if tagInputEnabled|default(false) %}
+        <script src="{{ asset('bundles/nowotaginput/tag-input.js') }}" defer></script>
+    {% endif %}
     {% if passwordStrengthEnabled|default(false) %}
         <script src="{{ asset('bundles/passwordstrength/password-strength.js') }}" defer></script>
     {% else %}
-        <script>window.VAULT_PASSWORD_URL = {{ path(routes.password_generate.name)|json_encode|raw }};</script>
+        <script>
+            window.VAULT_PASSWORD_URL = {{ path(routes.password_generate.name)|json_encode|raw }};
+            window.VAULT_PASSWORD_CSRF_TOKEN = {{ csrf_token('vault_password_generate')|json_encode|raw }};
+        </script>
     {% endif %}
 {% endblock %}

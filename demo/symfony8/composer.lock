@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "70b2e0ca24afc0aa943ddc8159466ab6",
+    "content-hash": "6be0af6326d7e2edfced68440b517346",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -1293,6 +1293,131 @@
             "time": "2026-02-08T16:21:46+00:00"
         },
         {
+            "name": "nowo-tech/doctrine-encrypt-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "/var/doctrine-encrypt-bundle",
+                "reference": "073bad49928a8834f2b0177185842b0aeff2c6c4"
+            },
+            "require": {
+                "doctrine/orm": "^2.15 || ^3.0",
+                "paragonie/halite": "^5.1",
+                "paragonie/sodium_compat": "^1.20 || ^2.0",
+                "php": ">=8.2 <8.6",
+                "symfony/config": "^7.0 || ^8.0",
+                "symfony/dependency-injection": "^7.0 || ^8.0",
+                "symfony/http-kernel": "^7.0 || ^8.0",
+                "symfony/property-access": "^7.0 || ^8.0",
+                "symfony/var-exporter": "^7.0 || ^8.0",
+                "symfony/yaml": "^7.0 || ^8.0",
+                "twig/twig": "^3.2"
+            },
+            "require-dev": {
+                "defuse/php-encryption": "^2.1",
+                "friendsofphp/php-cs-fixer": "^3.0",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpstan/phpstan-symfony": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0",
+                "rector/rector": "^2.0",
+                "symfony/cache": "^7.0 || ^8.0"
+            },
+            "suggest": {
+                "defuse/php-encryption": "Alternative to Halite for encryption",
+                "ext-sodium": "Required to use Halite encryption library"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "Nowo\\DoctrineEncryptBundle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Nowo\\DoctrineEncryptBundle\\Tests\\": "tests/"
+                }
+            },
+            "archive": {
+                "exclude": [
+                    "/demo",
+                    "/.cursor"
+                ]
+            },
+            "scripts": {
+                "test": [
+                    "phpunit --colors=always"
+                ],
+                "test-coverage": [
+                    "phpunit --colors=always --coverage-html coverage --coverage-clover coverage.xml --coverage-text"
+                ],
+                "cs-check": [
+                    "php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.dist.php"
+                ],
+                "cs-fix": [
+                    "php-cs-fixer fix --config=.php-cs-fixer.dist.php"
+                ],
+                "phpstan": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "rector": [
+                    "rector process"
+                ],
+                "rector-dry": [
+                    "rector process --dry-run --no-progress-bar"
+                ],
+                "qa": [
+                    "@cs-check",
+                    "@test"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Héctor Franco Aceituno",
+                    "email": "hectorfranco@nowo.tech",
+                    "homepage": "https://github.com/HecFranco",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Nowo.tech",
+                    "homepage": "https://nowo.tech"
+                }
+            ],
+            "description": "Encrypt Doctrine entity fields at rest with Halite, Defuse, or MySQL-compatible MysqlAes. Symfony 7|8 bundle for field-level encryption, GDPR-friendly, multiple keys, key rotation.",
+            "homepage": "https://github.com/nowo-tech/DoctrineEncryptBundle",
+            "keywords": [
+                "aes_encrypt",
+                "data-at-rest",
+                "decrypt",
+                "defuse",
+                "doctrine",
+                "encrypt",
+                "encryption",
+                "entity",
+                "field-level encryption",
+                "gdpr",
+                "halite",
+                "key rotation",
+                "mysql",
+                "mysql aes",
+                "symfony",
+                "symfony-bundle"
+            ],
+            "support": {
+                "issues": "https://github.com/nowo-tech/DoctrineEncryptBundle/issues",
+                "source": "https://github.com/nowo-tech/DoctrineEncryptBundle",
+                "docs": "https://github.com/nowo-tech/DoctrineEncryptBundle/blob/master/docs/INSTALLATION.md"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            }
+        },
+        {
             "name": "nowo-tech/password-strength-bundle",
             "version": "v1.0.0",
             "source": {
@@ -1470,12 +1595,121 @@
             "time": "2026-07-02T09:04:53+00:00"
         },
         {
+            "name": "nowo-tech/tag-input-bundle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "/var/tag-input-bundle",
+                "reference": "14842cefcaf8103f5f0a057af5e34943a891d794"
+            },
+            "require": {
+                "php": ">=8.1 <8.6",
+                "symfony/config": "^6.0 || ^7.0 || ^8.0",
+                "symfony/dependency-injection": "^6.0 || ^7.0 || ^8.0",
+                "symfony/form": "^6.0 || ^7.0 || ^8.0",
+                "symfony/framework-bundle": "^6.0 || ^7.0 || ^8.0",
+                "symfony/http-kernel": "^6.0 || ^7.0 || ^8.0",
+                "symfony/twig-bundle": "^6.0 || ^7.0 || ^8.0"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.0",
+                "phpstan/extension-installer": "^1.0",
+                "phpstan/phpstan": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpstan/phpstan-symfony": "^2.0",
+                "phpunit/phpunit": "^11.0",
+                "rector/rector": "^2.0",
+                "symfony/browser-kit": "^6.0 || ^7.0 || ^8.0",
+                "symfony/dom-crawler": "^6.0 || ^7.0 || ^8.0",
+                "symfony/yaml": "^6.0 || ^7.0 || ^8.0"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "Nowo\\TagInputBundle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Nowo\\TagInputBundle\\Tests\\": "tests/"
+                }
+            },
+            "archive": {
+                "exclude": [
+                    "/demo",
+                    "/.cursor"
+                ]
+            },
+            "scripts": {
+                "test": [
+                    "@php vendor/bin/phpunit --color=always"
+                ],
+                "test-coverage": [
+                    "@php vendor/bin/phpunit  --color=always --coverage-html coverage --coverage-clover coverage.xml --coverage-text"
+                ],
+                "cs-check": [
+                    "@php vendor/bin/php-cs-fixer fix --dry-run --diff"
+                ],
+                "cs-fix": [
+                    "@php vendor/bin/php-cs-fixer fix"
+                ],
+                "rector": [
+                    "@php vendor/bin/rector process"
+                ],
+                "rector-dry": [
+                    "@php vendor/bin/rector process --dry-run --no-progress-bar"
+                ],
+                "phpstan": [
+                    "@php vendor/bin/phpstan analyse --memory-limit=512M"
+                ],
+                "qa": [
+                    "@cs-check",
+                    "@test"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Héctor Franco Aceituno",
+                    "email": "hectorfranco@nowo.tech",
+                    "homepage": "https://github.com/HecFranco",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Nowo.tech",
+                    "homepage": "https://nowo.tech"
+                }
+            ],
+            "description": "Symfony Tag FormType with Tagify UI for multi-tag text inputs.",
+            "homepage": "https://github.com/nowo-tech/TagInputBundle",
+            "keywords": [
+                "form",
+                "form-type",
+                "symfony",
+                "symfony-bundle",
+                "tagify",
+                "tags",
+                "typescript",
+                "vite"
+            ],
+            "support": {
+                "issues": "https://github.com/nowo-tech/TagInputBundle/issues",
+                "source": "https://github.com/nowo-tech/TagInputBundle"
+            },
+            "transport-options": {
+                "symlink": true,
+                "relative": false
+            }
+        },
+        {
             "name": "nowo-tech/vault-bundle",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "/var/vault-bundle",
-                "reference": "9c00a81921d25972a06d33aabaae68f8ae266589"
+                "reference": "15c9fe2c687bd51efc5fdcaf268f558beec9fdc4"
             },
             "require": {
                 "doctrine/doctrine-bundle": "^2.10 || ^3.0",
@@ -1498,6 +1732,7 @@
                 "doctrine/mongodb-odm": "^2.6",
                 "doctrine/mongodb-odm-bundle": "^5.0",
                 "friendsofphp/php-cs-fixer": "^3.0",
+                "nowo-tech/doctrine-encrypt-bundle": "^1.0",
                 "phpstan/extension-installer": "^1.0",
                 "phpstan/phpstan": "^2.0",
                 "phpstan/phpstan-phpunit": "^2.0",
@@ -1509,8 +1744,10 @@
             },
             "suggest": {
                 "doctrine/mongodb-odm-bundle": "Required when nowo_vault.database.platform is mongodb or database.driver is doctrine_mongodb.",
+                "nowo-tech/doctrine-encrypt-bundle": "Encrypts vault_settings.encryption_key at rest when storing the vault master key in the database.",
                 "nowo-tech/password-strength-bundle": "Strength policy, live feedback, and generator for login password fields.",
-                "nowo-tech/password-toggle-bundle": "Show/hide toggle for login password fields (used with password-strength-bundle)."
+                "nowo-tech/password-toggle-bundle": "Show/hide toggle for login password fields (used with password-strength-bundle).",
+                "nowo-tech/tag-input-bundle": "Tagify-powered multi-tag input for item labels."
             },
             "type": "symfony-bundle",
             "extra": {
@@ -1583,11 +1820,10 @@
                     "homepage": "https://nowo.tech"
                 }
             ],
-            "description": "Symfony bundle for NordPass-style password vault: logins, notes, cards, contacts, documents, folders, sharing, trash, and password generator",
+            "description": "Symfony bundle for a password and secrets vault: logins, notes, cards, contacts, documents, folders, sharing, trash, and password generator",
             "homepage": "https://github.com/nowo-tech/VaultBundle",
             "keywords": [
                 "encryption",
-                "nordpass",
                 "password-manager",
                 "secrets",
                 "security",
@@ -1603,6 +1839,295 @@
                 "symlink": true,
                 "relative": false
             }
+        },
+        {
+            "name": "paragonie/constant_time_encoding",
+            "version": "v3.1.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/paragonie/constant_time_encoding.git",
+                "reference": "d5b01a39b3415c2cd581d3bd3a3575c1ebbd8e77"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/paragonie/constant_time_encoding/zipball/d5b01a39b3415c2cd581d3bd3a3575c1ebbd8e77",
+                "reference": "d5b01a39b3415c2cd581d3bd3a3575c1ebbd8e77",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8"
+            },
+            "require-dev": {
+                "infection/infection": "^0",
+                "nikic/php-fuzzer": "^0",
+                "phpunit/phpunit": "^9|^10|^11",
+                "vimeo/psalm": "^4|^5|^6"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "ParagonIE\\ConstantTime\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Paragon Initiative Enterprises",
+                    "email": "security@paragonie.com",
+                    "homepage": "https://paragonie.com",
+                    "role": "Maintainer"
+                },
+                {
+                    "name": "Steve 'Sc00bz' Thomas",
+                    "email": "steve@tobtu.com",
+                    "homepage": "https://www.tobtu.com",
+                    "role": "Original Developer"
+                }
+            ],
+            "description": "Constant-time Implementations of RFC 4648 Encoding (Base-64, Base-32, Base-16)",
+            "keywords": [
+                "base16",
+                "base32",
+                "base32_decode",
+                "base32_encode",
+                "base64",
+                "base64_decode",
+                "base64_encode",
+                "bin2hex",
+                "encoding",
+                "hex",
+                "hex2bin",
+                "rfc4648"
+            ],
+            "support": {
+                "email": "info@paragonie.com",
+                "issues": "https://github.com/paragonie/constant_time_encoding/issues",
+                "source": "https://github.com/paragonie/constant_time_encoding"
+            },
+            "time": "2025-09-24T15:06:41+00:00"
+        },
+        {
+            "name": "paragonie/halite",
+            "version": "v5.1.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/paragonie/halite.git",
+                "reference": "12e7d1ab50ef3cacc27b59140e75d2cf59e85f71"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/paragonie/halite/zipball/12e7d1ab50ef3cacc27b59140e75d2cf59e85f71",
+                "reference": "12e7d1ab50ef3cacc27b59140e75d2cf59e85f71",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "paragonie/constant_time_encoding": "^2|^3",
+                "paragonie/hidden-string": "^1|^2",
+                "paragonie/sodium_compat": "^1|^2",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^9",
+                "vimeo/psalm": "^6.8"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "ParagonIE\\Halite\\": "./src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MPL-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Paragon Initiative Enterprises",
+                    "email": "info@paragonie.com",
+                    "homepage": "https://paragonie.com"
+                }
+            ],
+            "description": "High-level cryptography interface powered by libsodium",
+            "homepage": "https://github.com/paragonie/halite",
+            "keywords": [
+                "Argon2i",
+                "BLAKE",
+                "BLAKE2",
+                "BLAKE2b",
+                "Curve25519",
+                "Ed25519",
+                "X25519",
+                "Xsalsa20",
+                "argon2",
+                "cryptography",
+                "encryption",
+                "ext-sodium",
+                "hashing",
+                "libsodium",
+                "password",
+                "public-key",
+                "signatures",
+                "sodium"
+            ],
+            "support": {
+                "docs": "https://github.com/paragonie/halite/tree/master/doc",
+                "issues": "https://github.com/paragonie/halite/issues",
+                "source": "https://github.com/paragonie/halite/tree/v5.1.4"
+            },
+            "time": "2025-09-19T03:39:32+00:00"
+        },
+        {
+            "name": "paragonie/hidden-string",
+            "version": "v2.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/paragonie/hidden-string.git",
+                "reference": "87886ab8ed7abb61c8bcf8d67cd3d3527feedbf7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/paragonie/hidden-string/zipball/87886ab8ed7abb61c8bcf8d67cd3d3527feedbf7",
+                "reference": "87886ab8ed7abb61c8bcf8d67cd3d3527feedbf7",
+                "shasum": ""
+            },
+            "require": {
+                "paragonie/constant_time_encoding": "^2|^3",
+                "php": "^7.4|^8"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.5",
+                "vimeo/psalm": "^4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "ParagonIE\\HiddenString\\": "./src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MPL-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Paragon Initiative Enterprises",
+                    "email": "info@paragonie.com",
+                    "homepage": "https://paragonie.com"
+                }
+            ],
+            "description": "Encapsulate strings in an object to hide them from stack traces",
+            "homepage": "https://github.com/paragonie/hidden-string",
+            "keywords": [
+                "hidden",
+                "stack trace",
+                "string"
+            ],
+            "support": {
+                "issues": "https://github.com/paragonie/hidden-string/issues",
+                "source": "https://github.com/paragonie/hidden-string/tree/v2.2.0"
+            },
+            "time": "2024-05-08T12:45:06+00:00"
+        },
+        {
+            "name": "paragonie/sodium_compat",
+            "version": "v2.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/paragonie/sodium_compat.git",
+                "reference": "4714da6efdc782c06690bc72ce34fae7941c2d9f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/paragonie/sodium_compat/zipball/4714da6efdc782c06690bc72ce34fae7941c2d9f",
+                "reference": "4714da6efdc782c06690bc72ce34fae7941c2d9f",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "php-64bit": "*"
+            },
+            "require-dev": {
+                "infection/infection": "^0",
+                "nikic/php-fuzzer": "^0",
+                "phpunit/phpunit": "^7|^8|^9|^10|^11",
+                "vimeo/psalm": "^4|^5|^6"
+            },
+            "suggest": {
+                "ext-sodium": "Better performance, password hashing (Argon2i), secure memory management (memzero), and better security."
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "autoload.php"
+                ],
+                "psr-4": {
+                    "ParagonIE\\Sodium\\": "namespaced/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "ISC"
+            ],
+            "authors": [
+                {
+                    "name": "Paragon Initiative Enterprises",
+                    "email": "security@paragonie.com"
+                },
+                {
+                    "name": "Frank Denis",
+                    "email": "jedisct1@pureftpd.org"
+                }
+            ],
+            "description": "Pure PHP implementation of libsodium; uses the PHP extension if it exists",
+            "keywords": [
+                "Authentication",
+                "BLAKE2b",
+                "ChaCha20",
+                "ChaCha20-Poly1305",
+                "Chapoly",
+                "Curve25519",
+                "Ed25519",
+                "EdDSA",
+                "Edwards-curve Digital Signature Algorithm",
+                "Elliptic Curve Diffie-Hellman",
+                "Poly1305",
+                "Pure-PHP cryptography",
+                "RFC 7748",
+                "RFC 8032",
+                "Salpoly",
+                "Salsa20",
+                "X25519",
+                "XChaCha20-Poly1305",
+                "XSalsa20-Poly1305",
+                "Xchacha20",
+                "Xsalsa20",
+                "aead",
+                "cryptography",
+                "ecdh",
+                "elliptic curve",
+                "elliptic curve cryptography",
+                "encryption",
+                "libsodium",
+                "php",
+                "public-key cryptography",
+                "secret-key cryptography",
+                "side-channel resistant"
+            ],
+            "support": {
+                "issues": "https://github.com/paragonie/sodium_compat/issues",
+                "source": "https://github.com/paragonie/sodium_compat/tree/v2.5.0"
+            },
+            "time": "2025-12-30T16:12:18+00:00"
         },
         {
             "name": "psr/cache",

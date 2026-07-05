@@ -1,0 +1,178 @@
+vault:
+    title: Vault
+    home:
+        intro: Stockage sécurisé pour identifiants, cartes, documents et notes. Choisissez une section pour commencer.
+        items:
+            title: Mes éléments
+            description: Parcourez, recherchez et organisez les entrées de votre vault.
+        shared:
+            description: Éléments partagés avec vous ou vos équipes.
+        trash:
+            description: Restaurez ou supprimez définitivement les entrées dans la corbeille.
+        create:
+            title: Créer une nouvelle entrée
+            description: Choisissez le type de secret à stocker.
+        generator:
+            description: Générez un mot de passe fort sans quitter le vault.
+        runtime_config:
+            title: Configuration runtime (base de données)
+            description: 'Gérez la clé de chiffrement, la limite de pièces jointes et le niveau de mot de passe dans vault_settings.'
+    nav:
+        vault: Vault
+        shared: Éléments partagés
+        trash: Corbeille
+        folders: Dossiers
+        password_generator: Générateur de mots de passe
+    folder:
+        add: Ajouter un dossier
+        all: Tous les éléments
+        name_placeholder: Nom du dossier
+        empty_hint: 'Aucun dossier pour le moment. Créez-en un depuis la page des éléments pour organiser les entrées :'
+    search:
+        placeholder: Rechercher dans tous les éléments
+        placeholder_tags: Rechercher par titre ou tag
+    tags:
+        filter: Étiquettes
+        all: Toutes les étiquettes
+    type:
+        login: Identifiant
+        secure_note: Note sécurisée
+        credit_card: Carte bancaire
+        contact: Personne de contact
+        id_card: Carte d'identité
+        drivers_license: Permis de conduire
+        passport: Passeport
+        document: Fichier document
+    share:
+        title: Partager l'accès
+        grantee_type: Type de bénéficiaire
+        grantee: Utilisateur ou équipe / groupe
+        grantee_placeholder: Sélectionnez un utilisateur ou une équipe / un groupe
+        grantee_id: Id utilisateur ou équipe
+        grantee_id_help: Saisissez l'id utilisateur (ex. UUID) ou l'id équipe/groupe configuré dans votre application.
+        permission: Autorisation
+        submit: Accorder l'accès
+        existing: Droits actuels
+        manage: Gérer le partage
+    access:
+        title: Accès
+        intro: Partagez cette ressource avec d'autres utilisateurs ou équipes (groupes). Chaque droit définit qui peut la lire, la modifier ou l'administrer.
+        add: Ajouter un accès
+        empty: Aucun utilisateur ou équipe n'a encore reçu d'accès.
+        shared_badge: Partagé
+    grantee_type:
+        user: Utilisateur
+        team: Équipe / groupe
+    permission:
+        read: Lecture
+        write: Écriture
+        admin: Administration
+    form:
+        title: Titre (obligatoire)
+        attachment: Pièce jointe du document
+        username: E-mail ou nom d'utilisateur
+        password: Mot de passe
+        websites: Adresse du site web
+        secure_note: Note sécurisée
+        cardholder: Nom du titulaire
+        card_number: Numéro de carte
+        expiry: Date d'expiration
+        cvv: CVV
+        card_pin: Code PIN de la carte
+        full_name: Nom complet
+        email: E-mail
+        phone: Téléphone
+        address1: Adresse ligne 1
+        address2: Adresse ligne 2
+        city: Ville
+        state: État ou province
+        postal_code: Code postal
+        country: Pays ou région
+        document_number: Numéro de document
+        issued_by: Délivré par
+        issued_date: Date de délivrance
+        expiry_date: Date d'expiration
+        note: Remarque
+        folder: Dossier
+        no_folder: Aucun dossier
+        tags: Étiquettes
+        tag_placeholder: ex. travail, personnel
+        tags_help: Saisissez un tag et appuyez sur Entrée. Les tags sont réutilisés entre vos éléments.
+    action:
+        save: Enregistrer
+        cancel: Annuler
+        back: Retour
+        search: Rechercher
+        view: Voir
+        edit: Modifier
+        access: Accès
+        delete_tag: Supprimer le tag
+        open_settings: Ouvrir les paramètres
+        trash: Mettre à la corbeille
+        restore: Restaurer
+        purge: Supprimer définitivement
+        revoke_access: Retirer l'accès
+    badge:
+        read_only: Lecture seule
+    read_only:
+        notice: Cet élément est en lecture seule. Vous pouvez le consulter mais pas le modifier ni le supprimer.
+    generator:
+        title: Générateur de mots de passe
+        regenerate: Régénérer
+        copy: Copier
+        fill: Remplir le mot de passe
+        length: Longueur
+        mode_characters: Caractères
+        mode_words: Mots
+        inline: Générer un mot de passe
+    empty:
+        items: Aucun élément pour le moment. Créez votre première entrée.
+        trash: La corbeille est vide.
+        shared: Aucun élément partagé.
+    list:
+        type: Type d'entrée
+        folder: Dossier
+        actions: Opérations
+    shared:
+        hint: Les éléments partagés avec vous ou vos équipes apparaissent ici. Étendez l'accès via VaultGrantService et les événements ITEM_LIST_QUERY.
+    confirm:
+        trash: Mettre cet élément à la corbeille ?
+        trash_folder: Mettre ce dossier à la corbeille ?
+        trash_folder_with_items: 'Ce dossier contient %count% élément(s). Supprimer le dossier ? Les éléments resteront sans dossier.'
+        delete_tag: 'Supprimer le tag « %name% » ? Les éléments conserveront leurs autres tags ; seul ce libellé sera retiré.'
+        purge: Supprimer définitivement cet élément ?
+        revoke_access: Retirer ce droit d'accès ?
+    flash:
+        item_created: Élément enregistré.
+        item_updated: Élément mis à jour.
+        item_trashed: Élément mis à la corbeille.
+        item_restored: Élément restauré.
+        item_purged: Élément supprimé définitivement.
+        folder_created: Dossier créé.
+        folder_name_required: Le nom du dossier est obligatoire.
+        folder_trashed: Dossier mis à la corbeille.
+        folder_trashed_items_detached: Dossier mis à la corbeille. %count% élément(s) sont désormais sans dossier.
+        tag_deleted: Tag supprimé. Les éléments n'affichent plus ce libellé.
+        share_created: Accès accordé.
+        grant_revoked: Accès retiré.
+        grantee_not_allowed: L'utilisateur ou l'équipe sélectionné(e) n'est pas autorisé(e) pour cette ressource.
+        runtime_config:
+            saved: Paramètres enregistrés dans la base de données.
+            key_stored: Paramètres enregistrés dans la base de données. Clé de chiffrement stockée.
+            key_generated: Clé de chiffrement générée et enregistrée dans la base de données (chiffrée au repos).
+            key_exists: Une clé de chiffrement du vault est déjà stockée dans la base de données.
+            max_attachment_invalid: max_attachment_bytes doit être zéro ou supérieur.
+    runtime_config:
+        title: Configuration runtime
+        intro: Paramètres en base de données pour la clé de chiffrement, la limite de pièces jointes et le niveau de mot de passe.
+        section: Paramètres base de données
+        last_update: 'Dernière mise à jour : %datetime%'
+        encryption_key: Clé de chiffrement du vault
+        encryption_key_stored_help: Stockée dans vault_settings.encryption_key (chiffrée au repos). Cette valeur ne peut pas être modifiée depuis cet écran.
+        encryption_key_empty_help: Aucune clé de chiffrement en base de données. Générez-en une ou collez une clé base64, puis enregistrez.
+        encryption_key_placeholder: Collez une clé base64 ou générez-en une ci-dessous
+        encryption_key_configured: "Configurée (masquée pour la sécurité)"
+        encryption_key_one_time_warning: "Copiez cette clé maintenant. Elle ne sera plus affichée après avoir quitté cette page."
+        generate_key: Générer VAULT_ENCRYPTION_KEY
+        max_attachment_bytes: Taille max. des pièces jointes (octets)
+        password_level: Niveau de robustesse du mot de passe

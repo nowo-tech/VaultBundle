@@ -1,4 +1,4 @@
-.PHONY: help up-symfony8 down-symfony8 install-symfony8 database-symfony8 database-empty-symfony8 shell-symfony8 test-symfony8 release-check update-bundle-symfony8
+.PHONY: help up-symfony8 down-symfony8 install-symfony8 database-symfony8 database-empty-symfony8 shell-symfony8 test-symfony8 test-http-e2e-symfony8 release-check update-bundle-symfony8
 
 help:
 	@echo "Vault Bundle — Demos"
@@ -29,6 +29,9 @@ shell-symfony8:
 
 test-symfony8:
 	@$(MAKE) -C symfony8 test
+
+test-http-e2e-symfony8:
+	@$(MAKE) -C symfony8 test-http-e2e
 
 update-bundle-symfony8:
 	@$(MAKE) -C symfony8 update-bundle

@@ -57,7 +57,7 @@ php bin/console doctrine:schema:update --force
 # or create a migration
 ```
 
-Default tables: `{table_prefix}_items`, `{table_prefix}_folders`, `{table_prefix}_grants` (e.g. `vault_items`).
+Default tables: `{table_prefix}_items`, `{table_prefix}_folders`, `{table_prefix}_grants`, `{table_prefix}_tags`, `{table_prefix}_item_tag`, `{table_prefix}_settings` (e.g. `vault_items`). The settings table is created when `config_storage.enabled: true`.
 
 ## Security firewall
 
@@ -81,6 +81,16 @@ php bin/console assets:install
 ```
 
 Templates load `asset('vault.js', 'nowo_vault')` — rebuild with `pnpm run build` in the bundle repo if you fork it.
+
+## Browser extension (optional)
+
+When `browser_extension.enabled: true`, apply schema/migrations for `{table_prefix}_extension_tokens` and schedule token cleanup:
+
+```bash
+php bin/console nowo:vault:extension-tokens:purge
+```
+
+See [Browser extension](BROWSER-EXTENSION.md) and [Configuration](CONFIGURATION.md#browser-extension).
 
 ## Demo
 

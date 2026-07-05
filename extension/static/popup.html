@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nowo Vault</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <h1>Nowo Vault</h1>
+    <p id="status" class="status">Loading…</p>
+
+    <form id="login-form" hidden>
+      <label>
+        Username
+        <input id="username" type="text" autocomplete="username" required>
+      </label>
+      <label>
+        Password
+        <input id="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button type="submit">Sign in</button>
+    </form>
+
+    <section id="session-view" hidden>
+      <p>Signed in as <strong id="identifier"></strong></p>
+      <button id="logout" type="button">Sign out</button>
+    </section>
+
+    <p class="footer">
+      <a id="options-link" href="#">Extension options</a>
+    </p>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
