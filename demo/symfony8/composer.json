@@ -10,20 +10,6 @@
             "options": {
                 "symlink": true
             }
-        },
-        {
-            "type": "path",
-            "url": "/var/doctrine-encrypt-bundle",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "/var/tag-input-bundle",
-            "options": {
-                "symlink": true
-            }
         }
     ],
     "require": {
@@ -33,10 +19,10 @@
         "doctrine/doctrine-migrations-bundle": "^3.3 || ^4.0",
         "doctrine/migrations": "^3.8",
         "doctrine/orm": "^3.0",
-        "nowo-tech/doctrine-encrypt-bundle": "*",
+        "nowo-tech/doctrine-encrypt-bundle": "^2.0",
         "nowo-tech/password-strength-bundle": "^1.0",
         "nowo-tech/password-toggle-bundle": "^2.0",
-        "nowo-tech/tag-input-bundle": "*",
+        "nowo-tech/tag-input-bundle": "^1.0",
         "nowo-tech/vault-bundle": "*",
         "symfony/asset": "8.1.*",
         "symfony/console": "8.1.*",

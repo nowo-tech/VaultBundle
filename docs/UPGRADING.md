@@ -2,6 +2,14 @@
 
 This document describes how to upgrade between versions of Vault Bundle.
 
+## 1.1.1 (2026-07-08)
+
+Documentation and demo developer-experience release. **No action required** for applications already on 1.1.0 — no bundle API, schema, or configuration changes.
+
+Maintainers: see [SPEC-KIT.md](SPEC-KIT.md) and [specs/001-baseline/](../specs/001-baseline/) when updating production code under `src/`.
+
+Demo contributors: sibling path repos for `doctrine-encrypt-bundle` and `tag-input-bundle` are no longer mounted in Docker; the demo resolves them from Packagist.
+
 ## 1.1.0 (2026-07-05)
 
 ### Summary
@@ -117,5 +125,6 @@ Optional listeners for listing, grants, teams, and read-only items:
 
 See [examples/AccessControl.md](examples/AccessControl.md).
 
+[1.1.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.0
 [1.0.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.0.0

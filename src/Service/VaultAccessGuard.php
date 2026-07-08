@@ -49,7 +49,7 @@ final class VaultAccessGuard
             return false;
         }
 
-        return !(!$action->isViewOnly() && ($event->isReadOnly() || $this->isItemReadOnly($user, $item)))
+        return $action->isViewOnly() || !$event->isReadOnly() && !$this->isItemReadOnly($user, $item)
 
         ;
     }
