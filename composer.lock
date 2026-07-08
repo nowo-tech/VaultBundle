@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "951a0166ef50204f4456be2b28b00f36",
+    "content-hash": "e9ddc760fb06f5766b7e00f0075e3ce9",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -6486,35 +6486,41 @@
         },
         {
             "name": "nowo-tech/doctrine-encrypt-bundle",
-            "version": "v1.0.0",
+            "version": "v2.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/DoctrineEncryptBundle.git",
-                "reference": "3bb51bc39bd1b3c282c91de1b47c2e48f30aa4e0"
+                "reference": "cfd64198a299b90a34c57d6126139b7f846aee5d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/3bb51bc39bd1b3c282c91de1b47c2e48f30aa4e0",
-                "reference": "3bb51bc39bd1b3c282c91de1b47c2e48f30aa4e0",
+                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/cfd64198a299b90a34c57d6126139b7f846aee5d",
+                "reference": "cfd64198a299b90a34c57d6126139b7f846aee5d",
                 "shasum": ""
             },
             "require": {
                 "doctrine/orm": "^2.15 || ^3.0",
                 "paragonie/halite": "^5.1",
-                "paragonie/sodium_compat": "^1.20",
-                "php": ">=8.1",
-                "symfony/config": "^6.0 || ^7.0 || ^8.0",
-                "symfony/dependency-injection": "^6.0 || ^7.0 || ^8.0",
-                "symfony/http-kernel": "^6.0 || ^7.0 || ^8.0",
-                "symfony/property-access": "^6.0 || ^7.0 || ^8.0",
-                "symfony/yaml": "^6.0 || ^7.0 || ^8.0"
+                "paragonie/sodium_compat": "^1.20 || ^2.0",
+                "php": ">=8.2 <8.6",
+                "symfony/config": "^7.0 || ^8.0",
+                "symfony/dependency-injection": "^7.0 || ^8.0",
+                "symfony/http-kernel": "^7.0 || ^8.0",
+                "symfony/property-access": "^7.0 || ^8.0",
+                "symfony/var-exporter": "^7.0 || ^8.0",
+                "symfony/yaml": "^7.0 || ^8.0",
+                "twig/twig": "^3.2"
             },
             "require-dev": {
                 "defuse/php-encryption": "^2.1",
-                "doctrine/annotations": "^2.0",
                 "friendsofphp/php-cs-fixer": "^3.0",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpstan/phpstan-symfony": "^2.0",
                 "phpunit/phpunit": "^10.0 || ^11.0",
-                "symfony/cache": "^6.0 || ^7.0 || ^8.0"
+                "rector/rector": "^2.0",
+                "symfony/cache": "^7.0 || ^8.0"
             },
             "suggest": {
                 "defuse/php-encryption": "Alternative to Halite for encryption",
@@ -6542,23 +6548,38 @@
                     "homepage": "https://nowo.tech"
                 }
             ],
-            "description": "Encrypt Symfony 6|7|8 entity fields with Halite or Defuse (verified libraries).",
-            "homepage": "https://github.com/nowo-tech/doctrine-encrypt-bundle",
+            "description": "Encrypt Doctrine entity fields at rest with Halite, Defuse, or MySQL-compatible MysqlAes. Symfony 7|8 bundle for field-level encryption, GDPR-friendly, multiple keys, key rotation.",
+            "homepage": "https://github.com/nowo-tech/DoctrineEncryptBundle",
             "keywords": [
                 "Defuse",
+                "aes_encrypt",
+                "data-at-rest",
                 "decrypt",
                 "doctrine",
                 "encrypt",
+                "encryption",
                 "entity",
+                "field-level encryption",
+                "gdpr",
                 "halite",
-                "symfony"
+                "key rotation",
+                "mysql",
+                "mysql aes",
+                "symfony",
+                "symfony-bundle"
             ],
             "support": {
-                "docs": "https://github.com/nowo-tech/doctrine-encrypt-bundle/tree/main/docs",
-                "issues": "https://github.com/nowo-tech/doctrine-encrypt-bundle/issues",
-                "source": "https://github.com/nowo-tech/doctrine-encrypt-bundle"
+                "docs": "https://github.com/nowo-tech/DoctrineEncryptBundle/blob/master/docs/INSTALLATION.md",
+                "issues": "https://github.com/nowo-tech/DoctrineEncryptBundle/issues",
+                "source": "https://github.com/nowo-tech/DoctrineEncryptBundle"
             },
-            "time": "2026-02-19T13:07:07+00:00"
+            "funding": [
+                {
+                    "url": "https://github.com/HecFranco",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-06-11T12:41:11+00:00"
         },
         {
             "name": "paragonie/constant_time_encoding",
@@ -6754,85 +6775,45 @@
             "time": "2024-05-08T12:45:06+00:00"
         },
         {
-            "name": "paragonie/random_compat",
-            "version": "v9.99.100",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/paragonie/random_compat.git",
-                "reference": "996434e5492cb4c3edcb9168db6fbb1359ef965a"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/paragonie/random_compat/zipball/996434e5492cb4c3edcb9168db6fbb1359ef965a",
-                "reference": "996434e5492cb4c3edcb9168db6fbb1359ef965a",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">= 7"
-            },
-            "require-dev": {
-                "phpunit/phpunit": "4.*|5.*",
-                "vimeo/psalm": "^1"
-            },
-            "suggest": {
-                "ext-libsodium": "Provides a modern crypto API that can be used to generate random bytes."
-            },
-            "type": "library",
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Paragon Initiative Enterprises",
-                    "email": "security@paragonie.com",
-                    "homepage": "https://paragonie.com"
-                }
-            ],
-            "description": "PHP 5.x polyfill for random_bytes() and random_int() from PHP 7",
-            "keywords": [
-                "csprng",
-                "polyfill",
-                "pseudorandom",
-                "random"
-            ],
-            "support": {
-                "email": "info@paragonie.com",
-                "issues": "https://github.com/paragonie/random_compat/issues",
-                "source": "https://github.com/paragonie/random_compat"
-            },
-            "time": "2020-10-15T08:29:30+00:00"
-        },
-        {
             "name": "paragonie/sodium_compat",
-            "version": "v1.24.0",
+            "version": "v2.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/paragonie/sodium_compat.git",
-                "reference": "2cb48f26130919f92f30650bdcc30e6f4ebe45ac"
+                "reference": "4714da6efdc782c06690bc72ce34fae7941c2d9f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/paragonie/sodium_compat/zipball/2cb48f26130919f92f30650bdcc30e6f4ebe45ac",
-                "reference": "2cb48f26130919f92f30650bdcc30e6f4ebe45ac",
+                "url": "https://api.github.com/repos/paragonie/sodium_compat/zipball/4714da6efdc782c06690bc72ce34fae7941c2d9f",
+                "reference": "4714da6efdc782c06690bc72ce34fae7941c2d9f",
                 "shasum": ""
             },
             "require": {
-                "paragonie/random_compat": ">=1",
-                "php": "^5.2.4|^5.3|^5.4|^5.5|^5.6|^7|^8"
+                "php": "^8.1",
+                "php-64bit": "*"
             },
             "require-dev": {
-                "phpunit/phpunit": "^3|^4|^5|^6|^7|^8|^9"
+                "infection/infection": "^0",
+                "nikic/php-fuzzer": "^0",
+                "phpunit/phpunit": "^7|^8|^9|^10|^11",
+                "vimeo/psalm": "^4|^5|^6"
             },
             "suggest": {
-                "ext-libsodium": "PHP < 7.0: Better performance, password hashing (Argon2i), secure memory management (memzero), and better security.",
-                "ext-sodium": "PHP >= 7.0: Better performance, password hashing (Argon2i), secure memory management (memzero), and better security."
+                "ext-sodium": "Better performance, password hashing (Argon2i), secure memory management (memzero), and better security."
             },
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
             "autoload": {
                 "files": [
                     "autoload.php"
-                ]
+                ],
+                "psr-4": {
+                    "ParagonIE\\Sodium\\": "namespaced/"
+                }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
@@ -6885,9 +6866,9 @@
             ],
             "support": {
                 "issues": "https://github.com/paragonie/sodium_compat/issues",
-                "source": "https://github.com/paragonie/sodium_compat/tree/v1.24.0"
+                "source": "https://github.com/paragonie/sodium_compat/tree/v2.5.0"
             },
-            "time": "2025-12-30T16:16:35+00:00"
+            "time": "2025-12-30T16:12:18+00:00"
         },
         {
             "name": "phar-io/manifest",
