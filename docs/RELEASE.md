@@ -33,6 +33,20 @@ git push origin vX.Y.Z
 - After the push, GitHub Actions creates the release and appends the changelog entry for that version to the release body.
 - Packagist will pick up the new tag automatically.
 
+### v1.1.1 (2026-07-08)
+
+Highlights: GitHub Spec Kit baseline, SPEC-KIT manual, demo Packagist deps for optional bundles.
+
+After running `make release-check` and committing all changes:
+
+```bash
+git checkout main
+git pull origin main
+git tag -a v1.1.1 -m "Release v1.1.1"
+git push origin main
+git push origin v1.1.1
+```
+
 ### v1.1.0 (2026-07-05)
 
 Highlights: browser extension API, tags, runtime config, key rotation command, manage CSRF, extension rate limiting.

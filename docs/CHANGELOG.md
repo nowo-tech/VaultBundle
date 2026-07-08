@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-07-08
+
+### Added
+
+- **GitHub Spec Kit baseline** — `specs/001-baseline/` (product spec + 100% `src/` code inventory), `.specify/` scaffolding, Cursor Agent `speckit-*` skills
+- **Docs** — [GitHub Spec Kit](SPEC-KIT.md); expanded [Spec-driven development](SPEC-DRIVEN-DEVELOPMENT.md) (three-layer model, contributor workflow, US-06)
+
+### Changed
+
+- Demo Symfony 8: `doctrine-encrypt-bundle` and `tag-input-bundle` installed from Packagist (`^2.0`, `^1.0`) instead of sibling path repositories; removed extra Docker volume mounts for those bundles
+
 ## [1.1.0] - 2026-07-05
 
 ### Added
@@ -61,6 +72,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.0
 [1.0.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.0.0
