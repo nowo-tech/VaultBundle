@@ -13,6 +13,8 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
 
+use const PHP_VERSION_ID;
+
 final class Kernel extends BaseKernel
 {
     public function registerBundles(): iterable
@@ -27,7 +29,7 @@ final class Kernel extends BaseKernel
     public function registerContainerConfiguration(LoaderInterface $loader): void
     {
         $loader->load($this->getProjectDir() . '/config/{packages}/*.{yaml,yml}', 'glob');
-        $loader->load(function (ContainerBuilder $container): void {
+        $loader->load(static function (ContainerBuilder $container): void {
             if (PHP_VERSION_ID < 80400) {
                 return;
             }
