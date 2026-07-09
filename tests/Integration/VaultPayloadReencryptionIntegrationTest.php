@@ -21,6 +21,12 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class VaultPayloadReencryptionIntegrationTest extends KernelTestCase
 {
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        self::ensureKernelShutdown();
+    }
+
     public function testReencryptCommandRotatesStoredPayloads(): void
     {
         self::bootKernel();

@@ -19,6 +19,12 @@ use const JSON_THROW_ON_ERROR;
 
 final class BrowserExtensionApiEndToEndTest extends WebTestCase
 {
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        self::ensureKernelShutdown();
+    }
+
     private function prepareClient(): KernelBrowser
     {
         $client        = self::createClient(['disableReboot' => true]);
