@@ -50,7 +50,7 @@
         "doctrine/mongodb-odm": "^2.6",
         "doctrine/mongodb-odm-bundle": "^5.0",
         "friendsofphp/php-cs-fixer": "^3.0",
-        "nowo-tech/doctrine-encrypt-bundle": "^1.0",
+        "nowo-tech/doctrine-encrypt-bundle": "^2.2",
         "phpstan/extension-installer": "^1.0",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
