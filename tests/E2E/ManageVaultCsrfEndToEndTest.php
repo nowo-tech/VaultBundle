@@ -21,6 +21,12 @@ use const JSON_THROW_ON_ERROR;
 
 final class ManageVaultCsrfEndToEndTest extends WebTestCase
 {
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        self::ensureKernelShutdown();
+    }
+
     public function testTrashItemWithoutCsrfIsDenied(): void
     {
         [$client, $itemId] = $this->prepareAuthenticatedClient();
