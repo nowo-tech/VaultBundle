@@ -80,6 +80,10 @@ jobs:
             symfony/twig-bundle:^${SYMFONY} \
             symfony/validator:^${SYMFONY} \
             symfony/yaml:^${SYMFONY} \
+            symfony/var-exporter:^${SYMFONY} \
+            symfony/browser-kit:^${SYMFONY} \
+            symfony/asset:^${SYMFONY} \
+            symfony/dom-crawler:^${SYMFONY} \
             doctrine/doctrine-bundle:${DOCTRINE_BUNDLE} \
             --no-interaction --no-update
           composer update symfony/* doctrine/* --with-all-dependencies --no-interaction --prefer-dist --no-progress
@@ -194,7 +198,7 @@ jobs:
 
       - name: Install dependencies (Symfony 7.0)
         run: |
-          composer require symfony/config:^7.0 symfony/dependency-injection:^7.0 symfony/form:^7.0 symfony/framework-bundle:^7.0 symfony/http-foundation:^7.0 symfony/http-kernel:^7.0 symfony/routing:^7.0 symfony/twig-bundle:^7.0 symfony/web-profiler-bundle:^7.0 doctrine/doctrine-bundle:^2.10 --no-interaction --no-update
+          composer require symfony/config:^7.0 symfony/dependency-injection:^7.0 symfony/form:^7.0 symfony/framework-bundle:^7.0 symfony/http-foundation:^7.0 symfony/http-kernel:^7.0 symfony/routing:^7.0 symfony/twig-bundle:^7.0 symfony/web-profiler-bundle:^7.0 symfony/var-exporter:^7.0 symfony/browser-kit:^7.0 symfony/asset:^7.0 symfony/dom-crawler:^7.0 doctrine/doctrine-bundle:^2.10 --no-interaction --no-update
           composer update symfony/* doctrine/* --with-all-dependencies --no-interaction --prefer-dist --no-progress
 
       - name: Run tests with coverage
