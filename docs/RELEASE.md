@@ -11,8 +11,8 @@ Use this checklist when cutting a new version. The workflow [.github/workflows/r
 2. **UPGRADING.md**
    - Add or update upgrade notes for the new version if there are breaking or notable changes.
 
-3. **Run release-check**
-   - From the bundle root: `make release-check` (validates composer, runs cs-fix, cs-check, rector-dry, phpstan, test-coverage, test-ts, and demo `release-verify` HTTP smoke).
+3. **Run QA**
+   - From the bundle root: `composer validate --strict`, `composer cs-check`, `composer phpstan`, `composer test` (and `composer test-coverage` on the reference matrix: PHP 8.2 + Symfony 7.0).
 
 4. **Commit**
    - Commit `docs/CHANGELOG.md`, `docs/UPGRADING.md` and any other release-related changes.
@@ -32,6 +32,20 @@ git push origin vX.Y.Z
 - Tag format must be **`vX.Y.Z`** (e.g. `v1.0.0`) so the workflow and Packagist recognize it.
 - After the push, GitHub Actions creates the release and appends the changelog entry for that version to the release body.
 - Packagist will pick up the new tag automatically.
+
+### v1.1.2 (2026-07-13)
+
+Highlights: CI fixes for PHP 8.4/8.5 × Symfony 8.0/8.1 (Doctrine Bundle 3 test kernel), lazy-proxy test deps, kernel shutdown in E2E suites.
+
+After running QA and committing all changes:
+
+```bash
+git checkout main
+git pull origin main
+git tag -a v1.1.2 -m "Release v1.1.2"
+git push origin main
+git push origin v1.1.2
+```
 
 ### v1.1.1 (2026-07-08)
 

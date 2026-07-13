@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-07-13
+
+### Fixed
+
+- **CI** — PHP 8.4/8.5 × Symfony 8.0/8.1 matrix: test kernel compatible with Doctrine Bundle 3 (`entity_managers.default` config, no deprecated `auto_generate_proxy_classes`, native lazy objects on PHP 8.4+)
+- **CI** — Doctrine lazy proxies on PHP 8.2–8.3 via `symfony/var-exporter` in `require-dev`
+- **Tests** — E2E and integration suites call `ensureKernelShutdown()` in `tearDown()` to avoid double-boot failures
+
+### Changed
+
+- **Dev** — `nowo-tech/doctrine-encrypt-bundle` bumped to `^2.2` in `require-dev`
+- **CI** — workflow installs `symfony/var-exporter`, `browser-kit`, `asset`, and `dom-crawler` per Symfony matrix version
+
 ## [1.1.1] - 2026-07-08
 
 ### Added
@@ -72,7 +85,8 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.2
 [1.1.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.0
 [1.0.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.0.0

@@ -30,21 +30,15 @@ final class Kernel extends BaseKernel
     {
         $loader->load($this->getProjectDir() . '/config/{packages}/*.{yaml,yml}', 'glob');
         $loader->load(static function (ContainerBuilder $container): void {
-            if (PHP_VERSION_ID >= 80400) {
-                // PHP 8.4+: native lazy objects (required with Doctrine Bundle 3 / Symfony 8).
-                $container->loadFromExtension('doctrine', [
-                    'orm' => [
-                        'enable_native_lazy_objects' => true,
-                    ],
-                ]);
-
+            if (PHP_VERSION_ID < 80400) {
                 return;
             }
 
-            // PHP 8.2–8.3: lazy ghosts via symfony/var-exporter (see composer.json require-dev).
+            // PHP 8.4+ (incl. Doctrine Bundle 2 on Symfony 7.4): native lazy objects.
+            // Doctrine Bundle 3 enables this by default; explicit for DB 2.x test kernels.
             $container->loadFromExtension('doctrine', [
                 'orm' => [
-                    'auto_generate_proxy_classes' => true,
+                    'enable_native_lazy_objects' => true,
                 ],
             ]);
         });
