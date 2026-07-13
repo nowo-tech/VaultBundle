@@ -7,6 +7,8 @@
 - Doctrine ORM 2.15+ or 3.x
 - Doctrine Bundle 2.10+ (Symfony 7.x) or 3.0+ (Symfony 8.x)
 
+On **PHP 8.4+** with Doctrine Bundle 2.x (Symfony 7.x), enable native lazy objects or install `symfony/var-exporter` so Doctrine ORM can build entity proxies. Symfony 8 + Doctrine Bundle 3 enables native lazy objects by default.
+
 ## Composer
 
 ```bash

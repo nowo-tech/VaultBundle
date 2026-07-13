@@ -2,6 +2,12 @@
 
 This document describes how to upgrade between versions of Vault Bundle.
 
+## 1.1.2 (2026-07-13)
+
+CI and test-infrastructure patch. **No action required** for applications already on 1.1.1 — no bundle API, schema, or configuration changes.
+
+If you run **Symfony 8** with **PHP 8.4+**, ensure `doctrine/doctrine-bundle` ^3.0 is installed (see [1.0.0](#symfony-8--doctrine) below). Doctrine Bundle 3 enables native lazy objects by default on supported PHP versions.
+
 ## 1.1.1 (2026-07-08)
 
 Documentation and demo developer-experience release. **No action required** for applications already on 1.1.0 — no bundle API, schema, or configuration changes.
@@ -125,6 +131,7 @@ Optional listeners for listing, grants, teams, and read-only items:
 
 See [examples/AccessControl.md](examples/AccessControl.md).
 
+[1.1.2]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.2
 [1.1.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.0
 [1.0.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.0.0

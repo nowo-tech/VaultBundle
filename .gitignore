@@ -19,6 +19,7 @@
 /coverage-ts.txt
 /extension/build
 /tests/**/var/
+**/config/reference.php
 
 # PHP tool caches
 /.php-cs-fixer.cache
@@ -32,3 +33,6 @@
 *.tgz
 *.rar
 *.7z
+# Cursor local sandbox (machine-specific; REQ-IDE-005)
+.cursor/sandbox.json
+
