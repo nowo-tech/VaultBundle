@@ -6490,16 +6490,16 @@
         },
         {
             "name": "nowo-tech/doctrine-encrypt-bundle",
-            "version": "v2.2.2",
+            "version": "v2.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/DoctrineEncryptBundle.git",
-                "reference": "cfd64198a299b90a34c57d6126139b7f846aee5d"
+                "reference": "1c76f7efb874a7206d0839ea6fd5fffcb14f1b30"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/cfd64198a299b90a34c57d6126139b7f846aee5d",
-                "reference": "cfd64198a299b90a34c57d6126139b7f846aee5d",
+                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/1c76f7efb874a7206d0839ea6fd5fffcb14f1b30",
+                "reference": "1c76f7efb874a7206d0839ea6fd5fffcb14f1b30",
                 "shasum": ""
             },
             "require": {
@@ -6583,7 +6583,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-11T12:41:11+00:00"
+            "time": "2026-07-09T11:11:15+00:00"
         },
         {
             "name": "paragonie/constant_time_encoding",
