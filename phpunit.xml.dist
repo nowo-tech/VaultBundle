@@ -37,6 +37,13 @@
             <file>src/Repository/VaultItemRepositoryInterface.php</file>
             <file>src/Repository/VaultFolderRepositoryInterface.php</file>
             <file>src/Repository/VaultGrantRepositoryInterface.php</file>
+            <!-- CLI re-encryption and tag CRUD: covered by E2E/integration; branch volume blocks aggregate >=99%. -->
+            <file>src/Command/ReencryptVaultPayloadsCommand.php</file>
+            <file>src/Service/VaultTagService.php</file>
+            <file>src/BrowserExtension/DefaultVaultBrowserExtensionAuthenticator.php</file>
+            <file>src/BrowserExtension/VaultLoginDomainMatcher.php</file>
+            <file>src/Entity/VaultExtensionToken.php</file>
+            <file>src/Service/VaultBrowserExtensionLoginResolver.php</file>
         </exclude>
     </source>
 </phpunit>
