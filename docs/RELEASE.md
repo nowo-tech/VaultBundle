@@ -33,6 +33,21 @@ git push origin vX.Y.Z
 - After the push, GitHub Actions creates the release and appends the changelog entry for that version to the release body.
 - Packagist will pick up the new tag automatically.
 
+### v1.1.3 (2026-07-16)
+
+Highlights: Contributor Covenant Code of Conduct, git hooks / CI for REQ-GIT-001 (no Cursor co-author trailers), GITHUB_CI docs.
+
+After running QA and committing all changes:
+
+```bash
+git checkout main
+git pull origin main
+make check-no-cursor-coauthor
+git tag -a v1.1.3 -m "Release v1.1.3"
+git push origin main
+git push origin v1.1.3
+```
+
 ### v1.1.2 (2026-07-13)
 
 Highlights: CI fixes for PHP 8.4/8.5 × Symfony 8.0/8.1 (Doctrine Bundle 3 test kernel), lazy-proxy test deps, kernel shutdown in E2E suites.
@@ -74,7 +89,7 @@ git tag -a v1.1.0 -m "Release v1.1.0"
 git push origin v1.1.0
 ```
 
-#After creating the release commit and tag, run `make check-no-cursor-coauthor` again **before** `git push` (REQ-GIT-001). The release commit itself is not covered by an earlier `release-check` run.
+After creating the release commit and tag, run `make check-no-cursor-coauthor` again **before** `git push` (REQ-GIT-001). The release commit itself is not covered by an earlier `release-check` run.
 
 ## Example for v1.0.0
 

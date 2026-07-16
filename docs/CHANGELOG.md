@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-07-16
+
+### Added
+
+- **Code of Conduct** — Contributor Covenant (`CODE_OF_CONDUCT.md`); linked from README and [CONTRIBUTING](CONTRIBUTING.md)
+- **Git hooks (REQ-GIT-001)** — `.githooks/commit-msg` rejects Cursor `Co-authored-by` trailers; `make setup-hooks`, `make check-no-cursor-coauthor`, `make strip-cursor-coauthor-from-history`
+- **Docs** — [GITHUB_CI.md](GITHUB_CI.md) for CI history checks and contributor setup
+
+### Changed
+
+- **CI** — enforces no Cursor co-author trailers on push/PR history
+- **release-check** — runs `check-no-cursor-coauthor` before the rest of the QA pipeline
+
 ## [1.1.2] - 2026-07-13
 
 ### Fixed
@@ -85,7 +98,8 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.3
 [1.1.2]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.2
 [1.1.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.1
 [1.1.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.0

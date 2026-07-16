@@ -2,10 +2,10 @@
 
 Thank you for contributing to Vault Bundle.
 
-
 ## Code of Conduct
 
 This project follows the [Contributor Covenant Code of Conduct](../CODE_OF_CONDUCT.md). By participating, you are expected to uphold it. Please report unacceptable behavior to **hectorfranco@nowo.tech**.
+
 ## Development setup
 
 ```bash
@@ -44,6 +44,7 @@ make release-check   # full pre-release pipeline
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
+
 ## Git hooks (REQ-GIT-001)
 
 Do **not** add `Co-authored-by: Cursor` or `cursoragent@cursor.com` trailers to commit messages.
