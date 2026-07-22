@@ -2,6 +2,12 @@
 
 This document describes how to upgrade between versions of Vault Bundle.
 
+## 1.1.4 (2026-07-22)
+
+Demo and maintainer tooling patch. **No action required** for applications already on 1.1.3 — no bundle API, schema, or configuration changes.
+
+Demo contributors: FrankenPHP mode is no longer tied to `APP_ENV`. Set `FRANKENPHP_MODE=classic` or `worker` in `demo/symfony8/.env`, then recreate the container (`docker compose up -d` / `make up`). See [DEMO-FRANKENPHP.md](DEMO-FRANKENPHP.md).
+
 ## 1.1.3 (2026-07-16)
 
 Contributor and maintainer tooling release. **No action required** for applications already on 1.1.2 — no bundle API, schema, or configuration changes.
@@ -137,6 +143,7 @@ Optional listeners for listing, grants, teams, and read-only items:
 
 See [examples/AccessControl.md](examples/AccessControl.md).
 
+[1.1.4]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.4
 [1.1.3]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.3
 [1.1.2]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.2
 [1.1.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.1

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Unit\Routing;
 
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
+use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Routing\Route;
 
 final class VaultRouteLoaderTest extends TestCase
 {
@@ -39,8 +41,8 @@ final class VaultRouteLoaderTest extends TestCase
 
         $collection = $loader->load('.', 'nowo_vault');
 
-        self::assertTrue($collection->get('nowo_vault_index') instanceof \Symfony\Component\Routing\Route);
-        self::assertTrue($collection->get('nowo_vault_item_share') instanceof \Symfony\Component\Routing\Route);
+        self::assertTrue($collection->get('nowo_vault_index') instanceof Route);
+        self::assertTrue($collection->get('nowo_vault_item_share') instanceof Route);
         self::assertNull($collection->get('nowo_vault_runtime_config'));
         self::assertTrue($loader->supports('.', 'nowo_vault'));
         self::assertFalse($loader->supports('.', 'other'));
@@ -180,7 +182,7 @@ final class VaultRouteLoaderTest extends TestCase
                 'route_prefix' => $routePrefix,
             ]),
             false,
-            $this->createMock(\Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface::class),
+            $this->createMock(VaultSettingsRepositoryInterface::class),
             new ArrayAdapter(),
         );
     }

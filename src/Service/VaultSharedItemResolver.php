@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Service;
 
+use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
@@ -24,7 +25,7 @@ final readonly class VaultSharedItemResolver
     }
 
     /**
-     * @return list<\Nowo\VaultBundle\Entity\VaultItem>
+     * @return list<VaultItem>
      */
     public function resolve(UserInterface $viewer): array
     {
@@ -42,7 +43,7 @@ final readonly class VaultSharedItemResolver
     }
 
     /**
-     * @return list<\Nowo\VaultBundle\Entity\VaultItem>
+     * @return list<VaultItem>
      */
     public function resolveByItemType(UserInterface $viewer, VaultItemType $itemType): array
     {

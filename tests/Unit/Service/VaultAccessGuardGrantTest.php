@@ -22,6 +22,7 @@ use Nowo\VaultBundle\Tests\Stub\TestTeamMembershipResolver;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 final class VaultAccessGuardGrantTest extends TestCase
 {
@@ -166,7 +167,7 @@ final class VaultAccessGuardGrantTest extends TestCase
     public function testNonOwnerWithoutUserIdIsDenied(): void
     {
         $owner  = new TestUser('1');
-        $viewer = new class implements \Symfony\Component\Security\Core\User\UserInterface {
+        $viewer = new class implements UserInterface {
             public function getUserIdentifier(): string
             {
                 return 'anon';
@@ -210,7 +211,7 @@ final class VaultAccessGuardGrantTest extends TestCase
     {
         $owner = new TestUser('1');
         $item  = new VaultItem(VaultItemType::Login, 'Item', $owner, 'c');
-        $user  = new class implements \Symfony\Component\Security\Core\User\UserInterface {
+        $user  = new class implements UserInterface {
             public function getUserIdentifier(): string
             {
                 return 'anon';

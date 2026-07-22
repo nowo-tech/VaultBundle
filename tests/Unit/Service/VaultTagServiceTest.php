@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Tests\Unit\Service;
 
 use InvalidArgumentException;
 use Nowo\VaultBundle\Entity\VaultTag;
+use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
 use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
@@ -22,7 +23,7 @@ final class VaultTagServiceTest extends TestCase
         $repo->method('findById')->with($tag->getId())->willReturn($tag);
         $repo->expects(self::once())->method('remove')->with($tag);
 
-        $service = new VaultTagService($repo, $this->createMock(\Nowo\VaultBundle\Repository\VaultItemRepositoryInterface::class));
+        $service = new VaultTagService($repo, $this->createMock(VaultItemRepositoryInterface::class));
         $service->deleteForCreator($user, $tag->getId());
     }
 
@@ -36,7 +37,7 @@ final class VaultTagServiceTest extends TestCase
         $repo->method('findById')->with($tag->getId())->willReturn($tag);
         $repo->expects(self::never())->method('remove');
 
-        $service = new VaultTagService($repo, $this->createMock(\Nowo\VaultBundle\Repository\VaultItemRepositoryInterface::class));
+        $service = new VaultTagService($repo, $this->createMock(VaultItemRepositoryInterface::class));
 
         $this->expectException(InvalidArgumentException::class);
         $service->deleteForCreator($other, $tag->getId());

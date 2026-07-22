@@ -33,6 +33,21 @@ git push origin vX.Y.Z
 - After the push, GitHub Actions creates the release and appends the changelog entry for that version to the release body.
 - Packagist will pick up the new tag automatically.
 
+### v1.1.4 (2026-07-22)
+
+Highlights: demo `FRANKENPHP_MODE` (classic/worker), CS Fixer `import_symbols`, dependency bumps (doctrine-encrypt-bundle 2.3, Vite, Rector, PHP-CS-Fixer, actions/checkout@v7).
+
+After running QA and committing all changes:
+
+```bash
+git checkout main
+git pull origin main
+make check-no-cursor-coauthor
+git tag -a v1.1.4 -m "Release v1.1.4"
+git push origin main
+git push origin v1.1.4
+```
+
 ### v1.1.3 (2026-07-16)
 
 Highlights: Contributor Covenant Code of Conduct, git hooks / CI for REQ-GIT-001 (no Cursor co-author trailers), GITHUB_CI docs.

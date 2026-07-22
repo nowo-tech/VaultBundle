@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Tests\Unit;
 
 use Nowo\VaultBundle\VaultBundle;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 final class VaultBundleTest extends TestCase
 {
@@ -16,7 +17,7 @@ final class VaultBundleTest extends TestCase
 
     public function testBuildRegistersCompilerPass(): void
     {
-        $container = new \Symfony\Component\DependencyInjection\ContainerBuilder();
+        $container = new ContainerBuilder();
         (new VaultBundle())->build($container);
         self::assertNotEmpty($container->getCompilerPassConfig()->getPasses());
     }

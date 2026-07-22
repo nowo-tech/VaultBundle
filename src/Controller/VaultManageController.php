@@ -10,6 +10,7 @@ use Nowo\VaultBundle\Dto\PasswordGeneratorOptions;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Dto\VaultShareFormData;
 use Nowo\VaultBundle\Entity\VaultFolder;
+use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
@@ -32,8 +33,10 @@ use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -304,7 +307,7 @@ final class VaultManageController extends AbstractController
         ]);
     }
 
-    public function revokeItemGrant(Request $request, string $id, string $grantId): \Symfony\Component\HttpFoundation\RedirectResponse
+    public function revokeItemGrant(Request $request, string $id, string $grantId): RedirectResponse
     {
         $this->denyUnlessFeature('access');
         $this->denyUnlessValidCsrf('vault_revoke_grant_' . $grantId, $request);
@@ -313,7 +316,7 @@ final class VaultManageController extends AbstractController
         $this->denyUnlessItemAccess($item, VaultAccessAction::Share);
 
         $grant = $this->grantService->findById($grantId);
-        if (!$grant instanceof \Nowo\VaultBundle\Entity\VaultGrant || $grant->getResourceType() !== VaultResourceType::Item || $grant->getResourceId() !== $item->getId()) {
+        if (!$grant instanceof VaultGrant || $grant->getResourceType() !== VaultResourceType::Item || $grant->getResourceId() !== $item->getId()) {
             throw $this->createNotFoundException('Grant not found.');
         }
 
@@ -323,7 +326,7 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['item_share']['name'], ['id' => $item->getId()]);
     }
 
-    public function revokeFolderGrant(Request $request, string $id, string $grantId): \Symfony\Component\HttpFoundation\RedirectResponse
+    public function revokeFolderGrant(Request $request, string $id, string $grantId): RedirectResponse
     {
         $this->denyUnlessFeature('access');
         $this->denyUnlessValidCsrf('vault_revoke_grant_' . $grantId, $request);
@@ -332,7 +335,7 @@ final class VaultManageController extends AbstractController
         $this->denyUnlessFolderAccess($folder, VaultAccessAction::Share);
 
         $grant = $this->grantService->findById($grantId);
-        if (!$grant instanceof \Nowo\VaultBundle\Entity\VaultGrant || $grant->getResourceType() !== VaultResourceType::Folder || $grant->getResourceId() !== $folder->getId()) {
+        if (!$grant instanceof VaultGrant || $grant->getResourceType() !== VaultResourceType::Folder || $grant->getResourceId() !== $folder->getId()) {
             throw $this->createNotFoundException('Grant not found.');
         }
 
@@ -342,7 +345,7 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['items']['name'], ['folder' => $folder->getId()]);
     }
 
-    public function trashItem(Request $request, string $id): \Symfony\Component\HttpFoundation\RedirectResponse
+    public function trashItem(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('revoke');
         $this->denyUnlessValidCsrf('vault_trash_' . $id, $request);
@@ -355,7 +358,7 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['items']['name']);
     }
 
-    public function restoreItem(Request $request, string $id): \Symfony\Component\HttpFoundation\RedirectResponse
+    public function restoreItem(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('revoke');
         $this->denyUnlessValidCsrf('vault_restore_' . $id, $request);
@@ -368,7 +371,7 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['trash']['name']);
     }
 
-    public function purgeItem(Request $request, string $id): \Symfony\Component\HttpFoundation\RedirectResponse
+    public function purgeItem(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('revoke');
         $this->denyUnlessValidCsrf('vault_purge_' . $id, $request);
@@ -381,7 +384,7 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['trash']['name']);
     }
 
-    public function createFolder(Request $request): \Symfony\Component\HttpFoundation\RedirectResponse
+    public function createFolder(Request $request): RedirectResponse
     {
         $this->denyUnlessFeature('create');
         $this->denyUnlessValidCsrf('vault_folder_create', $request);
@@ -463,7 +466,7 @@ final class VaultManageController extends AbstractController
         );
     }
 
-    public function trashFolder(Request $request, string $id): \Symfony\Component\HttpFoundation\RedirectResponse
+    public function trashFolder(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('revoke');
         $this->denyUnlessValidCsrf('vault_folder_trash_' . $id, $request);
@@ -477,7 +480,7 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['items']['name']);
     }
 
-    public function deleteTag(Request $request, string $id): \Symfony\Component\HttpFoundation\RedirectResponse
+    public function deleteTag(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('list');
 
@@ -600,7 +603,7 @@ final class VaultManageController extends AbstractController
         }
     }
 
-    private function redirectToItems(?VaultFolder $folder): \Symfony\Component\HttpFoundation\RedirectResponse
+    private function redirectToItems(?VaultFolder $folder): RedirectResponse
     {
         return $this->redirectToRoute(
             $this->routes()['items']['name'],
@@ -651,9 +654,9 @@ final class VaultManageController extends AbstractController
     }
 
     /**
-     * @return \Symfony\Component\Form\FormInterface<VaultShareFormData>
+     * @return FormInterface<VaultShareFormData>
      */
-    private function createShareForm(VaultGrantListQueryEvent $grantList, ?VaultShareFormData $data = null): \Symfony\Component\Form\FormInterface
+    private function createShareForm(VaultGrantListQueryEvent $grantList, ?VaultShareFormData $data = null): FormInterface
     {
         return $this->createForm(VaultShareType::class, $data ?? new VaultShareFormData(), [
             'grantee_choices' => $grantList->getGrantees(),
@@ -687,12 +690,12 @@ final class VaultManageController extends AbstractController
     }
 
     /**
-     * @param list<\Nowo\VaultBundle\Entity\VaultGrant> $grants
+     * @param list<VaultGrant> $grants
      * @param array<string, mixed> $backParams
-     * @param \Symfony\Component\Form\FormInterface<VaultShareFormData> $form
+     * @param FormInterface<VaultShareFormData> $form
      */
     private function renderSharePage(
-        \Symfony\Component\Form\FormInterface $form,
+        FormInterface $form,
         string $resourceLabel,
         array $grants,
         string $resourceId,

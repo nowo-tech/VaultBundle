@@ -179,16 +179,16 @@
         },
         {
             "name": "doctrine/dbal",
-            "version": "4.4.3",
+            "version": "4.4.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/dbal.git",
-                "reference": "61e730f1658814821a85f2402c945f3883407dec"
+                "reference": "fb9e0ffe15e1590e24dc61c0c0a23f9a33ee42ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/dbal/zipball/61e730f1658814821a85f2402c945f3883407dec",
-                "reference": "61e730f1658814821a85f2402c945f3883407dec",
+                "url": "https://api.github.com/repos/doctrine/dbal/zipball/fb9e0ffe15e1590e24dc61c0c0a23f9a33ee42ce",
+                "reference": "fb9e0ffe15e1590e24dc61c0c0a23f9a33ee42ce",
                 "shasum": ""
             },
             "require": {
@@ -265,7 +265,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/dbal/issues",
-                "source": "https://github.com/doctrine/dbal/tree/4.4.3"
+                "source": "https://github.com/doctrine/dbal/tree/4.4.4"
             },
             "funding": [
                 {
@@ -281,7 +281,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-03-20T08:52:12+00:00"
+            "time": "2026-07-21T14:34:40+00:00"
         },
         {
             "name": "doctrine/deprecations",
@@ -333,16 +333,16 @@
         },
         {
             "name": "doctrine/doctrine-bundle",
-            "version": "3.2.4",
+            "version": "3.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/DoctrineBundle.git",
-                "reference": "75f1bf75d0ba099f23e7d43ebd804df5bec58c29"
+                "reference": "88ad38467d03e30b676069493fa96663ffa0a32b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/DoctrineBundle/zipball/75f1bf75d0ba099f23e7d43ebd804df5bec58c29",
-                "reference": "75f1bf75d0ba099f23e7d43ebd804df5bec58c29",
+                "url": "https://api.github.com/repos/doctrine/DoctrineBundle/zipball/88ad38467d03e30b676069493fa96663ffa0a32b",
+                "reference": "88ad38467d03e30b676069493fa96663ffa0a32b",
                 "shasum": ""
             },
             "require": {
@@ -350,6 +350,7 @@
                 "doctrine/deprecations": "^1.0",
                 "doctrine/persistence": "^4",
                 "doctrine/sql-formatter": "^1.0.1",
+                "ext-mbstring": "*",
                 "php": "^8.4",
                 "symfony/cache": "^6.4 || ^7.0 || ^8.0",
                 "symfony/config": "^6.4 || ^7.0 || ^8.0",
@@ -377,6 +378,7 @@
                 "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
                 "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
                 "symfony/property-info": "^6.4 || ^7.0 || ^8.0",
+                "symfony/runtime": "^6.4 || ^7.0 || ^8.0",
                 "symfony/security-bundle": "^6.4 || ^7.0 || ^8.0",
                 "symfony/stopwatch": "^6.4 || ^7.0 || ^8.0",
                 "symfony/string": "^6.4 || ^7.0 || ^8.0",
@@ -429,7 +431,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/DoctrineBundle/issues",
-                "source": "https://github.com/doctrine/DoctrineBundle/tree/3.2.4"
+                "source": "https://github.com/doctrine/DoctrineBundle/tree/3.3.0"
             },
             "funding": [
                 {
@@ -445,7 +447,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-09T19:11:55+00:00"
+            "time": "2026-07-22T11:49:24+00:00"
         },
         {
             "name": "doctrine/doctrine-fixtures-bundle",
@@ -1294,16 +1296,16 @@
         },
         {
             "name": "nowo-tech/doctrine-encrypt-bundle",
-            "version": "v2.2.2",
+            "version": "v2.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/DoctrineEncryptBundle.git",
-                "reference": "cfd64198a299b90a34c57d6126139b7f846aee5d"
+                "reference": "d80ad6d71a9ae21beef567081ff08658cb854907"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/cfd64198a299b90a34c57d6126139b7f846aee5d",
-                "reference": "cfd64198a299b90a34c57d6126139b7f846aee5d",
+                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/d80ad6d71a9ae21beef567081ff08658cb854907",
+                "reference": "d80ad6d71a9ae21beef567081ff08658cb854907",
                 "shasum": ""
             },
             "require": {
@@ -1387,20 +1389,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-11T12:41:11+00:00"
+            "time": "2026-07-20T08:27:01+00:00"
         },
         {
             "name": "nowo-tech/password-strength-bundle",
-            "version": "v1.0.0",
+            "version": "v1.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/PasswordStrengthBundle.git",
-                "reference": "dadf2559756cc20aec0daf60b134c6fc54faa5bc"
+                "reference": "bf885936483dc0973e92df76e87c3df94d5b0d7e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/PasswordStrengthBundle/zipball/dadf2559756cc20aec0daf60b134c6fc54faa5bc",
-                "reference": "dadf2559756cc20aec0daf60b134c6fc54faa5bc",
+                "url": "https://api.github.com/repos/nowo-tech/PasswordStrengthBundle/zipball/bf885936483dc0973e92df76e87c3df94d5b0d7e",
+                "reference": "bf885936483dc0973e92df76e87c3df94d5b0d7e",
                 "shasum": ""
             },
             "require": {
@@ -1481,20 +1483,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-03T10:47:00+00:00"
+            "time": "2026-07-16T11:48:42+00:00"
         },
         {
             "name": "nowo-tech/password-toggle-bundle",
-            "version": "v2.0.0",
+            "version": "v2.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/PasswordToggleBundle.git",
-                "reference": "5369a9b7a133f252b99efd3afe49c5a2ee731a4d"
+                "reference": "1c3039e7aa6a0fff1d66c8449db7d1eb7ccebb34"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/PasswordToggleBundle/zipball/5369a9b7a133f252b99efd3afe49c5a2ee731a4d",
-                "reference": "5369a9b7a133f252b99efd3afe49c5a2ee731a4d",
+                "url": "https://api.github.com/repos/nowo-tech/PasswordToggleBundle/zipball/1c3039e7aa6a0fff1d66c8449db7d1eb7ccebb34",
+                "reference": "1c3039e7aa6a0fff1d66c8449db7d1eb7ccebb34",
                 "shasum": ""
             },
             "require": {
@@ -1564,20 +1566,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-02T09:04:53+00:00"
+            "time": "2026-07-16T11:53:52+00:00"
         },
         {
             "name": "nowo-tech/tag-input-bundle",
-            "version": "v1.0.1",
+            "version": "v1.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/TagInputBundle.git",
-                "reference": "9d99edefc27bcb7c3bd472222a9443797d3f8997"
+                "reference": "fc260647b96d68cd70d3b7179a3802c6a328dae5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/TagInputBundle/zipball/9d99edefc27bcb7c3bd472222a9443797d3f8997",
-                "reference": "9d99edefc27bcb7c3bd472222a9443797d3f8997",
+                "url": "https://api.github.com/repos/nowo-tech/TagInputBundle/zipball/fc260647b96d68cd70d3b7179a3802c6a328dae5",
+                "reference": "fc260647b96d68cd70d3b7179a3802c6a328dae5",
                 "shasum": ""
             },
             "require": {
@@ -1645,7 +1647,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-05T14:51:14+00:00"
+            "time": "2026-07-16T10:10:50+00:00"
         },
         {
             "name": "nowo-tech/vault-bundle",
@@ -1653,7 +1655,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/vault-bundle",
-                "reference": "ce4a32e9da3fee6ddca693b6a9fd2c65d7307c6e"
+                "reference": "64d1478b77b3b69c4f844c7cf9e7db373e6c3f6f"
             },
             "require": {
                 "doctrine/doctrine-bundle": "^2.10 || ^3.0",
@@ -1676,7 +1678,7 @@
                 "doctrine/mongodb-odm": "^2.6",
                 "doctrine/mongodb-odm-bundle": "^5.0",
                 "friendsofphp/php-cs-fixer": "^3.0",
-                "nowo-tech/doctrine-encrypt-bundle": "^1.0",
+                "nowo-tech/doctrine-encrypt-bundle": "^2.2",
                 "phpstan/extension-installer": "^1.0",
                 "phpstan/phpstan": "^2.0",
                 "phpstan/phpstan-phpunit": "^2.0",
@@ -1685,7 +1687,8 @@
                 "rector/rector": "^2.0",
                 "symfony/asset": "^7.4 || ^8.0",
                 "symfony/browser-kit": "^7.4 || ^8.0",
-                "symfony/dom-crawler": "^7.4 || ^8.0"
+                "symfony/dom-crawler": "^7.4 || ^8.0",
+                "symfony/var-exporter": "^6.4 || ^7.0 || ^8.0"
             },
             "suggest": {
                 "doctrine/mongodb-odm-bundle": "Planned future platform support when nowo_vault.database.platform is mongodb (not implemented in 1.x).",
@@ -6409,16 +6412,16 @@
         },
         {
             "name": "symfony/ux-icons",
-            "version": "v3.2.0",
+            "version": "v3.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/ux-icons.git",
-                "reference": "a6b81d5953d5f963fc8f27a3584213d242406ca1"
+                "reference": "449a8873a8077fc21ac2bd98a453c247c320cdd5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/ux-icons/zipball/a6b81d5953d5f963fc8f27a3584213d242406ca1",
-                "reference": "a6b81d5953d5f963fc8f27a3584213d242406ca1",
+                "url": "https://api.github.com/repos/symfony/ux-icons/zipball/449a8873a8077fc21ac2bd98a453c247c320cdd5",
+                "reference": "449a8873a8077fc21ac2bd98a453c247c320cdd5",
                 "shasum": ""
             },
             "require": {
@@ -6478,7 +6481,7 @@
                 "twig"
             ],
             "support": {
-                "source": "https://github.com/symfony/ux-icons/tree/v3.2.0"
+                "source": "https://github.com/symfony/ux-icons/tree/v3.3.0"
             },
             "funding": [
                 {
@@ -7044,16 +7047,16 @@
         },
         {
             "name": "nowo-tech/twig-inspector-bundle",
-            "version": "v1.0.34",
+            "version": "v1.0.37",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/TwigInspectorBundle.git",
-                "reference": "e926c092b6df59edaded71ec011075e67190c783"
+                "reference": "87f257751802989a5fbe3e61da3cff3737edc928"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/TwigInspectorBundle/zipball/e926c092b6df59edaded71ec011075e67190c783",
-                "reference": "e926c092b6df59edaded71ec011075e67190c783",
+                "url": "https://api.github.com/repos/nowo-tech/TwigInspectorBundle/zipball/87f257751802989a5fbe3e61da3cff3737edc928",
+                "reference": "87f257751802989a5fbe3e61da3cff3737edc928",
                 "shasum": ""
             },
             "require": {
@@ -7081,7 +7084,7 @@
                 "symfony/yaml": "^6.0 || ^7.0 || ^8.0"
             },
             "suggest": {
-                "symfony/flex": "For automatic recipe installation (config and routes)"
+                "symfony/flex": "For automatic recipe installation (config and routes; registers this bundle for dev/test only — always install with composer require --dev)"
             },
             "type": "symfony-bundle",
             "autoload": {
@@ -7142,7 +7145,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-07T14:45:27+00:00"
+            "time": "2026-07-20T08:48:35+00:00"
         },
         {
             "name": "phar-io/manifest",

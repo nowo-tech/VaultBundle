@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Controller;
 
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
+use Nowo\VaultBundle\Dto\VaultBrowserExtensionLoginMatch;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionLoginResolver;
 use Nowo\VaultBundle\Support\UserIdResolver;
@@ -80,7 +81,7 @@ final readonly class VaultBrowserExtensionController
 
         return $this->responseFactory->json([
             'domain' => $domain,
-            'logins' => array_map(static fn (\Nowo\VaultBundle\Dto\VaultBrowserExtensionLoginMatch $match): array => $match->toArray(), $matches),
+            'logins' => array_map(static fn (VaultBrowserExtensionLoginMatch $match): array => $match->toArray(), $matches),
         ], Response::HTTP_OK, $request);
     }
 

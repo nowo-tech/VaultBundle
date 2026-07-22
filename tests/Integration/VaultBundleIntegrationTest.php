@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Integration;
 
+use Doctrine\Bundle\DoctrineBundle\DependencyInjection\DoctrineExtension;
 use Nowo\VaultBundle\Command\PurgeExtensionTokensCommand;
 use Nowo\VaultBundle\Command\ReencryptVaultPayloadsCommand;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
@@ -16,7 +17,9 @@ use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\VaultBundle;
 use PHPUnit\Framework\TestCase;
 use stdClass;
+use Symfony\Bundle\FrameworkBundle\DependencyInjection\FrameworkExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 
 final class VaultBundleIntegrationTest extends TestCase
 {
@@ -47,8 +50,8 @@ final class VaultBundleIntegrationTest extends TestCase
     public function testExtensionPrependConfiguresAssetsAndDoctrine(): void
     {
         $container = new ContainerBuilder();
-        $container->registerExtension(new \Symfony\Bundle\FrameworkBundle\DependencyInjection\FrameworkExtension());
-        $container->registerExtension(new \Doctrine\Bundle\DoctrineBundle\DependencyInjection\DoctrineExtension());
+        $container->registerExtension(new FrameworkExtension());
+        $container->registerExtension(new DoctrineExtension());
 
         (new VaultExtension())->prepend($container);
 
@@ -63,8 +66,8 @@ final class VaultBundleIntegrationTest extends TestCase
     public function testExtensionUsesCustomAccessCheckerAndTeamResolver(): void
     {
         $container = new ContainerBuilder();
-        $container->setDefinition('app.vault.access', new \Symfony\Component\DependencyInjection\Definition(stdClass::class));
-        $container->setDefinition('app.vault.teams', new \Symfony\Component\DependencyInjection\Definition(stdClass::class));
+        $container->setDefinition('app.vault.access', new Definition(stdClass::class));
+        $container->setDefinition('app.vault.teams', new Definition(stdClass::class));
 
         (new VaultExtension())->load([[
             'user_class'               => 'App\\Entity\\User',

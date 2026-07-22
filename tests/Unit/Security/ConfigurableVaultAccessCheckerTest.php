@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Unit\Security;
 
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
+use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
 use PHPUnit\Framework\TestCase;
@@ -84,7 +85,7 @@ final class ConfigurableVaultAccessCheckerTest extends TestCase
         return new VaultRuntimeConfigProvider(
             VaultRuntimeConfigFactory::baseline(['security' => $security]),
             false,
-            $this->createMock(\Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface::class),
+            $this->createMock(VaultSettingsRepositoryInterface::class),
             new ArrayAdapter(),
         );
     }

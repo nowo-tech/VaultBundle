@@ -11,6 +11,7 @@ use Nowo\VaultBundle\Service\VaultPayloadReencryptionService;
 use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -108,7 +109,7 @@ final class ReencryptVaultPayloadsCommand extends Command
                 includeDeleted: !$input->getOption('skip-trash'),
                 dryRun: $dryRun,
                 onProgress: static function (int $processed, int $total) use ($progress): void {
-                    if (!$progress instanceof \Symfony\Component\Console\Helper\ProgressBar) {
+                    if (!$progress instanceof ProgressBar) {
                         return;
                     }
 

@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Integration;
 
+use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
+use Nowo\DoctrineEncryptBundle\Util\EncryptUtil;
+
 /**
  * Detects whether DoctrineEncryptBundle is installed at runtime.
  */
 final class DoctrineEncryptIntegration
 {
-    public const ENCRYPTED_ATTRIBUTE = \Nowo\DoctrineEncryptBundle\Configuration\Encrypted::class;
+    public const ENCRYPTED_ATTRIBUTE = Encrypted::class;
 
-    public const ENCRYPT_UTIL = 'Nowo\\DoctrineEncryptBundle\\Util\\EncryptUtil';
+    public const ENCRYPT_UTIL = EncryptUtil::class;
 
     public static function isAvailable(): bool
     {

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Unit\Service;
 
 use InvalidArgumentException;
+use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
+use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Nowo\VaultBundle\Service\VaultPayloadReencryptionService;
@@ -15,6 +17,7 @@ use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 final class VaultPayloadReencryptionServiceTest extends TestCase
 {
@@ -139,7 +142,7 @@ final class VaultPayloadReencryptionServiceTest extends TestCase
         $baseline = VaultRuntimeConfigFactory::baseline(['encryption_key' => $encryptionKey]);
 
         return new VaultRuntimeConfigResolver(
-            new \Nowo\VaultBundle\Config\VaultRuntimeConfigProvider($baseline, false, $this->createMock(\Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface::class), new \Symfony\Component\Cache\Adapter\ArrayAdapter()),
+            new VaultRuntimeConfigProvider($baseline, false, $this->createMock(VaultSettingsRepositoryInterface::class), new ArrayAdapter()),
             $baseline,
             false,
         );

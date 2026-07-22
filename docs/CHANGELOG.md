@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-07-22
+
+### Added
+
+- **Demo** — `FRANKENPHP_MODE` (`classic` | `worker`) in `.env` / Compose to switch FrankenPHP Caddyfile without rebuilding the image; documented in [DEMO-FRANKENPHP.md](DEMO-FRANKENPHP.md)
+
+### Changed
+
+- **CS Fixer** — `fully_qualified_strict_types.import_symbols` enabled; source and tests use imported symbols instead of leading-backslash FQCNs
+- **Dev / CI deps** — `nowo-tech/doctrine-encrypt-bundle` ^2.3, Vite 8.1.5, Rector 2.5.7, PHP-CS-Fixer 3.95.15, `actions/checkout@v7`
+
 ## [1.1.3] - 2026-07-16
 
 ### Added
@@ -98,7 +109,8 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.4
 [1.1.3]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.3
 [1.1.2]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.2
 [1.1.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.1
