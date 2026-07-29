@@ -1,4 +1,30 @@
-/** Client-side password generator API call. */
+/**
+ * Client-side password generator API call helpers for Vault manage UI.
+ */
+
+/** Request body for the password generator endpoint. */
+export interface PasswordGeneratorRequest {
+    mode: string;
+    length: number;
+    useLower: boolean;
+    useUpper: boolean;
+    useDigits: boolean;
+    useSymbols: boolean;
+}
+
+/** Response from the password generator endpoint. */
+export interface PasswordGeneratorResponse {
+    password: string;
+    strength: string;
+}
+
+/**
+ * POST to the vault password generator endpoint.
+ *
+ * @param url - Generator endpoint URL
+ * @param options - Generator options
+ * @param csrfToken - Optional CSRF token (header + body `_token`)
+ */
 export async function fetchGeneratedPassword(
     url: string,
     options: PasswordGeneratorRequest,
@@ -31,20 +57,11 @@ export async function fetchGeneratedPassword(
     return response.json() as Promise<PasswordGeneratorResponse>;
 }
 
-export interface PasswordGeneratorRequest {
-    mode: string;
-    length: number;
-    useLower: boolean;
-    useUpper: boolean;
-    useDigits: boolean;
-    useSymbols: boolean;
-}
-
-export interface PasswordGeneratorResponse {
-    password: string;
-    strength: string;
-}
-
+/**
+ * Read generator option widgets from the manage UI DOM.
+ *
+ * @param doc - Document root to query
+ */
 export function readGeneratorOptionsFromDom(doc: Document): PasswordGeneratorRequest {
     const mode = (doc.querySelector('input[name="vault-gen-mode"]:checked') as HTMLInputElement | null)?.value ?? 'characters';
     const length = Number((doc.querySelector('[data-vault-password-length]') as HTMLInputElement | null)?.value ?? 20);

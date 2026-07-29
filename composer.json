@@ -10,16 +10,18 @@
         "vault",
         "secrets",
         "encryption",
-        "security"
+        "security",
+        "php",
+        "frankenphp"
     ],
-    "homepage": "https://github.com/nowo-tech/VaultBundle",
+    "homepage": "https://packagist.org/packages/nowo-tech/vault-bundle",
     "support": {
         "issues": "https://github.com/nowo-tech/VaultBundle/issues",
         "source": "https://github.com/nowo-tech/VaultBundle"
     },
     "authors": [
         {
-            "name": "Héctor Franco Aceituno",
+            "name": "H\u00e9ctor Franco Aceituno",
             "email": "hectorfranco@nowo.tech",
             "homepage": "https://github.com/HecFranco",
             "role": "Developer"
@@ -51,14 +53,15 @@
         "doctrine/mongodb-odm-bundle": "^5.0",
         "friendsofphp/php-cs-fixer": "^3.0",
         "nowo-tech/doctrine-encrypt-bundle": "^2.2",
+        "nowo-tech/phpstan-frankenphp": "^1.0",
         "phpstan/extension-installer": "^1.0",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-symfony": "^2.0",
         "phpunit/phpunit": "^10.0",
         "rector/rector": "^2.0",
-        "symfony/browser-kit": "^7.4 || ^8.0",
         "symfony/asset": "^7.4 || ^8.0",
+        "symfony/browser-kit": "^7.4 || ^8.0",
         "symfony/dom-crawler": "^7.4 || ^8.0",
         "symfony/var-exporter": "^6.4 || ^7.0 || ^8.0"
     },

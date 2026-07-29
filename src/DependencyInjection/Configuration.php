@@ -321,7 +321,7 @@ final class Configuration implements ConfigurationInterface
                             ->defaultNull()
                         ->end()
                         ->arrayNode('cors_allowed_origins')
-                            ->info('Allowed CORS origins. Empty allows chrome-extension:// and moz-extension:// only. Use "*" for development.')
+                            ->info('Allowed CORS origins. Empty allows chrome-extension:// and moz-extension:// only. Wildcard "*" is development-only and is rejected in prod.')
                             ->scalarPrototype()->end()
                             ->defaultValue([])
                         ->end()

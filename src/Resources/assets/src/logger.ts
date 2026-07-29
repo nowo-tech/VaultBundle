@@ -1,7 +1,14 @@
+/**
+ * Console logger helpers for Vault Bundle frontend assets (debug-gated).
+ */
+
+/** Options for {@link createBundleLogger}. */
 export type BundleLoggerOptions = {
+    /** Optional build timestamp shown on script-loaded log. */
     buildTime?: string;
 };
 
+/** Structured console logger used by Vault UI scripts. */
 export type BundleLogger = {
     scriptLoaded: () => void;
     setDebug: (enabled: boolean) => void;
@@ -27,12 +34,19 @@ const EMOJI = {
     error: '❌',
 } as const;
 
+/** Serialize plain objects for console output. */
 function formatArgs(args: unknown[]): unknown[] {
     return args.map((arg) =>
         typeof arg === 'object' && arg !== null && !(arg instanceof Error) ? JSON.stringify(arg) : arg,
     );
 }
 
+/**
+ * Create a named, debug-gated console logger for bundle scripts.
+ *
+ * @param name - Logger name prefix (e.g. `Vault`)
+ * @param options - Optional build metadata
+ */
 export function createBundleLogger(name: string, options: BundleLoggerOptions = {}): BundleLogger {
     const prefix = `[${name}]`;
     const { buildTime } = options;

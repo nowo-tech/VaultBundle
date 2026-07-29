@@ -21,10 +21,24 @@ Default: **creator-only**. Extend via:
 - `VaultEvents::ITEM_ACCESS_CHECK`, `FOLDER_ACCESS_CHECK`
 - `VaultEvents::ITEM_READ_ONLY_RESOLVE` for view-only mode
 
-## Secrets
+## Browser extension API
+
+- Extension endpoints use **Bearer tokens** (not cookie sessions). CSRF does not apply to Bearer API calls; protect tokens (HTTPS, short TTL, purge cron) and keep login rate limits enabled.
+- `cors_allowed_origins`: empty allows `chrome-extension://` / `moz-extension://` only. Wildcard `*` is ignored in `prod` (factory rejects it). Never rely on `*` outside local demos.
+
+## Secrets and CLI
 
 - Never commit `VAULT_ENCRYPTION_KEY` or production `.env`
 - Demo `.env.example` uses a placeholder key for local use only
+- `nowo:vault:reencrypt --old-key=…` may expose key material on the process argv — prefer env/`--old-key-file` patterns in production operators’ runbooks; rotate shell history after use
+
+## Accepted residuals (REQ-SEC-004)
+
+Documented and accepted for **Pass (conditional)** / overall **Medium**:
+
+1. Plaintext payloads exist in PHP memory briefly after decrypt (inherent).
+2. Extension Bearer API has no CSRF (token auth by design).
+3. Operator CLI key-on-argv risk when using `--old-key` (documented above).
 
 ## Release checklist (12.4.1)
 
@@ -42,5 +56,6 @@ Before tagging a release, confirm:
 | **Cryptography** | Unique `VAULT_ENCRYPTION_KEY` per environment; rotation plan documented. |
 | **Permissions / exposure** | `VaultAccessCheckerInterface` and grants configured for production roles. |
 | **Limits / DoS** | `max_attachment_bytes`, extension login rate limit, token TTL and purge cron. |
+| **AI security audit (REQ-SEC-004)** | Pass (conditional) recorded in monorepo `BUNDLES_SECURITY_ANALYSIS.md`. |
 
 See [examples/AccessControl.md](examples/AccessControl.md).

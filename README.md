@@ -6,7 +6,9 @@
 
 Symfony bundle for a **password and secrets vault**: logins, secure notes, credit cards, contacts, identity documents, folders, sharing, trash, read-only events, and a built-in password generator.
 
-**FrankenPHP worker mode:** Supported — demo uses FrankenPHP on Symfony 8 ([Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)).
+![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
+
+This bundle is **FrankenPHP worker mode friendly**.
 
 ## Features
 
@@ -50,7 +52,6 @@ make -C demo/symfony8 up
 ```
 
 ## Documentation
-
 
 - [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Installation](docs/INSTALLATION.md)

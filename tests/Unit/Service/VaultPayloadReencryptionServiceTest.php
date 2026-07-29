@@ -93,6 +93,41 @@ final class VaultPayloadReencryptionServiceTest extends TestCase
         $service->reencrypt($key, $key);
     }
 
+    public function testRejectsInvalidBatchSize(): void
+    {
+        $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $newKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+
+        $service = new VaultPayloadReencryptionService(
+            $this->createMock(VaultItemRepositoryInterface::class),
+            $this->createResolver($newKey),
+        );
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Batch size must be at least 1.');
+
+        $service->reencrypt($oldKey, $newKey, batchSize: 0);
+    }
+
+    public function testStopsWhenBatchIsEmptyDespitePositiveCount(): void
+    {
+        $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $newKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+
+        $repository = $this->createMock(VaultItemRepositoryInterface::class);
+        $repository->method('countAll')->willReturn(2);
+        $repository->expects(self::once())
+            ->method('findBatch')
+            ->willReturn([]);
+        $repository->expects(self::never())->method('saveBatch');
+
+        $service = new VaultPayloadReencryptionService($repository, $this->createResolver($newKey));
+        $result  = $service->reencrypt($oldKey, $newKey);
+
+        self::assertSame(2, $result->totalItems);
+        self::assertSame(0, $result->processedItems);
+    }
+
     public function testWrapsDecryptFailuresWithItemId(): void
     {
         $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();

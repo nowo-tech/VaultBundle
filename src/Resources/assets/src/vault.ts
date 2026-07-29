@@ -1,13 +1,22 @@
+/**
+ * Vault manage UI: password generator modal/inline controls and folder form toggles.
+ */
+
 import './vault.css';
 import { fetchGeneratedPassword, readGeneratorOptionsFromDom } from './vault-password-client';
 
 declare global {
     interface Window {
+        /** Password generator endpoint URL injected by Twig. */
         VAULT_PASSWORD_URL?: string;
+        /** CSRF token for generator POST. */
         VAULT_PASSWORD_CSRF_TOKEN?: string;
     }
 }
 
+/**
+ * Call the server password generator using window-injected URL/CSRF.
+ */
 async function generatePassword(): Promise<{ password: string; strength: string }> {
     const url = window.VAULT_PASSWORD_URL;
     if (!url) {
@@ -17,6 +26,7 @@ async function generatePassword(): Promise<{ password: string; strength: string 
     return fetchGeneratedPassword(url, readGeneratorOptionsFromDom(document), window.VAULT_PASSWORD_CSRF_TOKEN);
 }
 
+/** Bind modal open/close/regenerate/copy/fill controls. */
 function bindPasswordModal(): void {
     const modal = document.querySelector('[data-vault-password-modal]') as HTMLElement | null;
     const openButtons = document.querySelectorAll('[data-vault-password-generator]');
@@ -72,6 +82,7 @@ function bindPasswordModal(): void {
     });
 }
 
+/** Bind one-click inline generate into the item password field. */
 function bindInlineGenerator(): void {
     document.querySelector('[data-vault-generate-inline]')?.addEventListener('click', async () => {
         const result = await generatePassword();
@@ -82,6 +93,7 @@ function bindInlineGenerator(): void {
     });
 }
 
+/** Bind folder create form visibility toggle. */
 function bindFolderForm(): void {
     document.querySelector('[data-vault-folder-toggle]')?.addEventListener('click', () => {
         const form = document.querySelector('[data-vault-folder-form]') as HTMLElement | null;

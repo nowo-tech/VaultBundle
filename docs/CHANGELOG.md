@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-07-29
+
+### Added
+
+- `make check-open-prs`, `coverage-check`, `demo-smoke`, `down-dev` (REQ-MAKE-002 / 007).
+- `SYMFONY_DEPRECATIONS_HELPER=max[direct]=0` (REQ-SF-005).
+- FrankenPHP Friendly banner (`docs/images/frankenphp-friendly.png`) — REQ-DOCS-017.
+- `docs/SECURITY.md` residuals + SEC-004 Pass (conditional) row in 12.4.1.
+- Unit tests closing measured PHP coverage gaps for the 100% gate.
+
+### Changed
+
+- Demo Symfony 8 image `dunglas/frankenphp:1-php8.5-bookworm` (REQ-DEMO-010).
+- Packagist homepage + GitHub About topics (REQ-DOCS-018).
+- CI Symfony matrix drops 7.0 (align with `^7.4`); coverage job on 8.2/7.4.
+- `release-check` no longer runs `cs-fix`; includes `check-open-prs` + `coverage-check`.
+- PHPStan: `ignoreErrors: []`; Entity/Doctrine paths excluded; FrankenPHP rulesets (REQ-CS-005/006).
+
 ## [1.1.4] - 2026-07-22
 
 ### Added

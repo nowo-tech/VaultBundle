@@ -47,4 +47,26 @@ final class VaultSharedItemResolverTest extends TestCase
 
         self::assertSame([], $resolver->resolve(new TestUser('9')));
     }
+
+    public function testResolveByItemTypeFiltersGrantedItems(): void
+    {
+        $viewer   = new TestUser('2');
+        $owner    = new TestUser('1');
+        $login    = new VaultItem(VaultItemType::Login, 'Shared login', $owner, 'cipher');
+        $itemType = VaultItemType::Login;
+
+        $grants = $this->createMock(VaultGrantRepositoryInterface::class);
+        $grants->method('findGrantedResourceIds')->willReturn([$login->getId()]);
+
+        $items = $this->createMock(VaultItemRepositoryInterface::class);
+        $items->expects(self::once())
+            ->method('findByIdsForViewerAndItemType')
+            ->with([$login->getId()], $viewer, $itemType)
+            ->willReturn([$login]);
+        $items->expects(self::never())->method('findByIdsForViewer');
+
+        $resolver = new VaultSharedItemResolver($grants, $items, new NullVaultTeamMembershipResolver());
+
+        self::assertSame([$login], $resolver->resolveByItemType($viewer, $itemType));
+    }
 }

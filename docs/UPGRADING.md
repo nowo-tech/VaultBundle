@@ -2,6 +2,16 @@
 
 This document describes how to upgrade between versions of Vault Bundle.
 
+## 1.1.5 (2026-07-29)
+
+Maintainer tooling, docs, CI matrix, and PHPStan/coverage hygiene. **No action required** for applications already on 1.1.4 — no bundle API, schema, or configuration changes.
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+Demo contributors: Symfony 8 demo image is `dunglas/frankenphp:1-php8.5-bookworm`. Recreate the container after pull if you use the demo.
+
 ## 1.1.4 (2026-07-22)
 
 Demo and maintainer tooling patch. **No action required** for applications already on 1.1.3 — no bundle API, schema, or configuration changes.

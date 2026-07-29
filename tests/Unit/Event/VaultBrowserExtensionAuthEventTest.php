@@ -11,6 +11,14 @@ use PHPUnit\Framework\TestCase;
 
 final class VaultBrowserExtensionAuthEventTest extends TestCase
 {
+    public function testExposesCredentials(): void
+    {
+        $event = new VaultBrowserExtensionAuthEvent('alice@example.com', 'secret-pass');
+
+        self::assertSame('alice@example.com', $event->getUsername());
+        self::assertSame('secret-pass', $event->getPassword());
+    }
+
     public function testListenerCanHandleAuth(): void
     {
         $event = new VaultBrowserExtensionAuthEvent('demo', 'secret');

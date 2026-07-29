@@ -47,4 +47,22 @@ final class VaultBrowserExtensionResponseFactoryTest extends TestCase
 
         self::assertNull($response->headers->get('Access-Control-Allow-Origin'));
     }
+
+    public function testJsonWithoutRequestSkipsCors(): void
+    {
+        $factory  = new VaultBrowserExtensionResponseFactory(['https://app.example'], 'prod');
+        $response = $factory->json(['ok' => true], 200);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertNull($response->headers->get('Access-Control-Allow-Origin'));
+    }
+
+    public function testEmptyWithoutRequestSkipsCors(): void
+    {
+        $factory  = new VaultBrowserExtensionResponseFactory(['https://app.example'], 'prod');
+        $response = $factory->empty(204);
+
+        self::assertSame(204, $response->getStatusCode());
+        self::assertNull($response->headers->get('Access-Control-Allow-Origin'));
+    }
 }
