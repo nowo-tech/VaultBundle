@@ -56,3 +56,8 @@ services:
         public: true
         arguments:
             $databaseEnabled: '%nowo_vault.config_storage.enabled%'
+
+    Nowo\VaultBundle\Twig\VaultExtension:
+        arguments:
+            $cssFramework: '%nowo_vault.css_framework%'
+

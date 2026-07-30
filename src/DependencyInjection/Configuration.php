@@ -15,6 +15,9 @@ final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_vault';
 
+    /** @var list<string> */
+    public const CSS_FRAMEWORKS = ['bootstrap', 'bootstrap4', 'bootstrap5', 'tailwind', 'foundation', 'custom', 'tabler', 'none'];
+
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder(self::ALIAS);
@@ -37,6 +40,11 @@ final class Configuration implements ConfigurationInterface
                     ->info('Base64-encoded 32-byte libsodium key for server-side payload encryption.')
                     ->isRequired()
                     ->cannotBeEmpty()
+                ->end()
+                ->enumNode('css_framework')
+                    ->info('Host CSS stack hint for manage Web UI (REQ-UI-001). Twig global nowo_vault_css_framework. Demo default: tabler.')
+                    ->values(self::CSS_FRAMEWORKS)
+                    ->defaultValue('tabler')
                 ->end()
                 ->arrayNode('config_storage')
                     ->info('Optional database-backed runtime configuration with Symfony cache.')

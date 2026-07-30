@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-30
+
+### Added
+
+- **REQ-UI-001 `css_framework`** — root enum (`tabler` default; also `bootstrap5` / `bootstrap` / `bootstrap4` / `tailwind` / `foundation` / `custom` / `none`). Parameter `nowo_vault.css_framework` and Twig global **`nowo_vault_css_framework`**. Demo layout CDN gated for Tabler/Bootstrap-compatible values.
+- Intermediate shell **`vault/base.html.twig`**: manage pages extend it; stacks `vault.css` / `vault.js` with **`{{ parent() }}`** so host layouts keep their assets.
+
+### Changed
+
+- Manage templates (`home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`) extend **`vault/base.html.twig`** instead of `layout` directly.
+- Default **`layout.html.twig`**: `nowo-ui-css-*` / `data-css-framework` on `<html>`; package assets moved into `base` (demo chrome remains Tabler CDN when applicable).
+
+### Documentation
+
+- **[CONFIGURATION](CONFIGURATION.md)** / **[USAGE](USAGE.md):** look-and-feel, host layout, freeze rule for Twig overrides.
+- **[UPGRADING](UPGRADING.md)** section **1.2.0**.
+
 ## [1.1.5] - 2026-07-29
 
 ### Added

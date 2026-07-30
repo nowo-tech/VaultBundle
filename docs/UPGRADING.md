@@ -2,6 +2,28 @@
 
 This document describes how to upgrade between versions of Vault Bundle.
 
+## 1.2.0 (2026-07-30)
+
+Optional host CSS stack hint and manage page shell for REQ-UI-001. **Non-breaking** — default remains `tabler` (demo CDN behaviour for Tabler/Bootstrap-compatible values).
+
+```bash
+composer require nowo-tech/vault-bundle:^1.2.0
+php bin/console cache:clear
+```
+
+### Behaviour
+
+- New root key `css_framework` → Twig global `nowo_vault_css_framework`.
+- Manage pages go through `@NowoVaultBundle/vault/base.html.twig` (stacks package CSS/JS with `parent()`). Prefer `templates.layout` at the host chrome instead of freezing every page.
+- If you **overrode** manage templates that `{% extends layout %}`, update them to `{% extends '@NowoVaultBundle/vault/base.html.twig' %}` (or keep extending your own shell and stack assets yourself).
+
+```yaml
+nowo_vault:
+    css_framework: bootstrap5   # or tabler | custom | …
+    templates:
+        layout: 'layouts/app.html.twig'
+```
+
 ## 1.1.5 (2026-07-29)
 
 Maintainer tooling, docs, CI matrix, and PHPStan/coverage hygiene. **No action required** for applications already on 1.1.4 — no bundle API, schema, or configuration changes.

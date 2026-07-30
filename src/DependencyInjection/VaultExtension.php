@@ -65,6 +65,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $runtimeBaseline      = RuntimeConfiguration::extractBaseline($config);
 
         $container->setParameter('nowo_vault.user_class', $config['user_class']);
+        $container->setParameter('nowo_vault.css_framework', $config['css_framework']);
         $container->setParameter('nowo_vault.items_table', $itemsTable);
         $container->setParameter('nowo_vault.folders_table', $foldersTable);
         $container->setParameter('nowo_vault.grants_table', $grantsTable);

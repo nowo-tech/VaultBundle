@@ -1,4 +1,4 @@
-{% extends layout %}
+{% extends '@NowoVaultBundle/vault/base.html.twig' %}
 
 {% if tagInputEnabled|default(false) %}
     {% form_theme form '@NowoVaultBundle/Form/vault_item_form_theme.html.twig' %}
@@ -8,7 +8,7 @@
 
 {% block title %}{{ ('vault.type.' ~ itemType.value)|trans({}, 'NowoVaultBundle') }}{% endblock %}
 
-{% block styles %}
+{% block stylesheets %}
     {{ parent() }}
     {% if tagInputEnabled|default(false) %}
         <link rel="stylesheet" href="{{ asset('bundles/nowotaginput/tag-input.css') }}">

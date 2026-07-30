@@ -61,7 +61,22 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 
 ## Twig overrides
 
-Copy templates to `templates/bundles/NowoVaultBundle/vault/`.
+The bundle registers **`@NowoVaultBundle/`**. Application files under **`templates/bundles/NowoVaultBundle/`** win over vendor (`TwigPathsPass`).
+
+**Freeze rule:** a full-file override hides vendor updates for that path until you delete or merge it. Prefer **`templates.layout`** + **`css_framework`** over copying every manage page.
+
+Copy templates to `templates/bundles/NowoVaultBundle/vault/` only when you must customise that page.
+
+Manage pages extend `@NowoVaultBundle/vault/base.html.twig`, which stacks `vault.css` / `vault.js` with `{{ parent() }}` on `stylesheets` / `javascripts` (REQ-UI-001). Point `templates.layout` at the host layout (or a bridge) so chrome comes from the project without forking every page.
+
+**`css_framework` (REQ-UI-001):** set root key `css_framework` to match the host stack. Twig global: `nowo_vault_css_framework` (default `tabler`, matching the demo CDN layout). Use `custom` / `none` when the host shell already provides CSS and you restyle via `nowo-ui-*` / Tabler-compatible classes. Example:
+
+```yaml
+nowo_vault:
+    css_framework: tabler
+    templates:
+        layout: 'layouts/app.html.twig'
+```
 
 ## Translations
 

@@ -1,0 +1,20 @@
+{# Page shell (REQ-UI-001): extends controller `layout` and stacks Vault CSS/JS with parent(). #}
+{% extends layout %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {% block nowo_ui_styles %}
+        <link rel="stylesheet" href="{{ asset('vault.css', 'nowo_vault') }}">
+        <style>
+            body { background: #f6f8fb; }
+            .container-narrow { max-width: 960px; }
+        </style>
+    {% endblock %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {% block nowo_ui_scripts %}
+        <script type="module" src="{{ asset('vault.js', 'nowo_vault') }}"></script>
+    {% endblock %}
+{% endblock %}

@@ -65,6 +65,19 @@ All routes are configurable under `nowo_vault.routes` (see `Configuration.php` d
 | `share` | `@NowoVaultBundle/vault/share.html.twig` |
 | `runtime_config` | `@NowoVaultBundle/vault/runtime_config.html.twig` |
 
+## Look-and-feel (REQ-UI-001)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `css_framework` | `tabler` | Host CSS stack hint: `bootstrap5`, `bootstrap`, `bootstrap4`, `tabler`, `tailwind`, `foundation`, `custom`, `none`. Twig global `nowo_vault_css_framework`. Matches the demo Tabler CDN layout. YAML-only (not stored in runtime DB settings). |
+
+```yaml
+nowo_vault:
+    css_framework: bootstrap5   # or: tabler | tailwind | foundation | custom
+    templates:
+        layout: 'kit/vault_layout.html.twig'   # host chrome; pages keep stacking vault.css via base
+```
+
 ## Firewall
 
 Document `nowo_vault.firewall` in your `security.yaml`. All manage routes require authentication.
@@ -97,6 +110,7 @@ When `enabled: true`, Doctrine creates/uses `{table_prefix}_settings` (default `
 | `security.access_checker` | DI service id |
 | `team_membership_resolver` | DI service id |
 | `routes`, `templates`, `route_prefix`, `dashboard_route`, `firewall` | Routing and UI bootstrap |
+| `css_framework` | Look-and-feel hint (Twig global) |
 | `security.*_roles` | Role lists (not `access_checker`) |
 
 When storing `encryption_key` in the database, install `nowo-tech/doctrine-encrypt-bundle` and configure a bootstrap Halite/Defuse key (`DOCTRINE_ENCRYPT_KEY` or secret file). The column `vault_settings.encryption_key` is encrypted at rest via `#[Encrypted]`; YAML/env still provides the initial bootstrap until a DB override is saved.

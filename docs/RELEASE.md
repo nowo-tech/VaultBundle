@@ -33,6 +33,21 @@ git push origin vX.Y.Z
 - After the push, GitHub Actions creates the release and appends the changelog entry for that version to the release body.
 - Packagist will pick up the new tag automatically.
 
+### v1.2.0 (2026-07-30)
+
+Highlights: root `css_framework` + `vault/base.html.twig` with `parent()` asset stacking (REQ-UI-001).
+
+After running QA and committing all changes:
+
+```bash
+git checkout main
+git pull origin main
+make check-no-cursor-coauthor
+git tag -a v1.2.0 -m "Release v1.2.0 - css_framework + vault/base parent() stacking (REQ-UI-001)"
+git push origin main
+git push origin v1.2.0
+```
+
 ### v1.1.5 (2026-07-29)
 
 Highlights: FrankenPHP Friendly banner, `check-open-prs` / `demo-smoke` / coverage gate, PHP 8.5 demo image, CI matrix `^7.4`, PHPStan FrankenPHP rulesets.
