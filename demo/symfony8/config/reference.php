@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 // This file is auto-generated and is for apps only. Bundles SHOULD NOT rely on its content.
 
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
@@ -1256,6 +1254,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     user_class?: scalar|Param|null, // FQCN of the application user entity (must implement UserInterface and expose getId()).
  *     table_prefix?: scalar|Param|null, // Prefix for vault tables (items, folders, grants). // Default: "vault_"
  *     encryption_key?: scalar|Param|null, // Base64-encoded 32-byte libsodium key for server-side payload encryption.
+ *     css_framework?: "bootstrap"|"bootstrap4"|"bootstrap5"|"tailwind"|"foundation"|"custom"|"tabler"|"none"|Param, // Host CSS stack hint for manage Web UI (REQ-UI-001). Twig global nowo_vault_css_framework. Demo default: tabler. // Default: "tabler"
  *     config_storage?: array{ // Optional database-backed runtime configuration with Symfony cache.
  *         enabled?: bool|Param, // When true, creates/uses {table_prefix}_settings and merges DB values over YAML defaults. // Default: false
  *         cache_pool?: scalar|Param|null, // Symfony cache pool service id used for merged runtime config. // Default: "cache.app"
@@ -1281,6 +1280,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         create_roles?: list<scalar|Param|null>,
  *         list_roles?: list<scalar|Param|null>,
  *         delete_roles?: list<scalar|Param|null>,
+ *         allow_unauthenticated?: bool|Param, // Default: false
  *     },
  *     routes?: array{
  *         index?: array{

@@ -51,11 +51,13 @@ services:
             $passwordStrengthEnabled: '%nowo_vault.password_strength_enabled%'
             $tagInputEnabled: '%nowo_vault.tag_input_enabled%'
             $configStorage: '%nowo_vault.config_storage%'
+            $allowUnauthenticated: '%nowo_vault.security.allow_unauthenticated%'
 
     Nowo\VaultBundle\Controller\VaultRuntimeConfigController:
         public: true
         arguments:
             $databaseEnabled: '%nowo_vault.config_storage.enabled%'
+            $allowUnauthenticated: '%nowo_vault.security.allow_unauthenticated%'
 
     Nowo\VaultBundle\Twig\VaultExtension:
         arguments:

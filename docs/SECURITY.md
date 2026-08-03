@@ -8,7 +8,7 @@
 | Master key | Server compromise | Store `VAULT_ENCRYPTION_KEY` in secrets manager; [rotate with a re-encryption plan](ENCRYPTION-KEY-ROTATION.md) |
 | Extension login | Brute force | `browser_extension.login_rate_limit` (cache-backed, enabled by default) |
 | Extension tokens | DB growth / leaked tokens | Short `token_ttl`, cron `nowo:vault:extension-tokens:purge`, HTTPS |
-| Manage routes | Unauthorized access | Symfony firewall + `VaultAccessCheckerInterface` |
+| Manage routes | Unauthorized access | Symfony firewall + `VaultAccessCheckerInterface`. Keep `security.allow_unauthenticated: false` in production (demo-only AllowAll bypass). |
 | Item/folder ACL | IDOR | Creator ownership + `VaultGrant` + events |
 | Attachments | Oversized uploads | `max_attachment_bytes` limit |
 | Team grants | Wrong team access | Implement `VaultTeamMembershipResolverInterface` carefully |

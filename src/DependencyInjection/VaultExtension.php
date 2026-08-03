@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\DependencyInjection;
 
+use LogicException;
 use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterface;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
@@ -25,6 +26,7 @@ use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
+use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\RuntimeKeyVaultPayloadCryptographer;
@@ -51,6 +53,13 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $configuration = new Configuration();
         $config        = $this->processConfiguration($configuration, $configs);
 
+        if (
+            !$config['security']['allow_unauthenticated']
+            && !$this->isSecurityBundleAvailable($container)
+        ) {
+            throw new LogicException('VaultBundle manage UI requires symfony/security-bundle when security.allow_unauthenticated is false.');
+        }
+
         $prefix               = rtrim((string) $config['table_prefix'], '_');
         $itemsTable           = $prefix . '_items';
         $foldersTable         = $prefix . '_folders';
@@ -66,6 +75,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
 
         $container->setParameter('nowo_vault.user_class', $config['user_class']);
         $container->setParameter('nowo_vault.css_framework', $config['css_framework']);
+        $container->setParameter('nowo_vault.security.allow_unauthenticated', $config['security']['allow_unauthenticated']);
         $container->setParameter('nowo_vault.items_table', $itemsTable);
         $container->setParameter('nowo_vault.folders_table', $foldersTable);
         $container->setParameter('nowo_vault.grants_table', $grantsTable);
@@ -152,7 +162,10 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setAlias(VaultPayloadCryptographerInterface::class, RuntimeKeyVaultPayloadCryptographer::class);
 
         $accessCheckerId = $config['security']['access_checker'] ?? null;
-        if (!is_string($accessCheckerId) || $accessCheckerId === '') {
+        if ($config['security']['allow_unauthenticated']) {
+            $accessCheckerId = 'nowo_vault.access_checker.allow_all';
+            $container->setDefinition($accessCheckerId, new Definition(AllowAllVaultAccessChecker::class));
+        } elseif (!is_string($accessCheckerId) || $accessCheckerId === '') {
             $accessCheckerId = 'nowo_vault.access_checker.default';
             $container->setDefinition($accessCheckerId, (new Definition(ConfigurableVaultAccessChecker::class))
                 ->setAutowired(true));
@@ -188,6 +201,26 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
     public function getAlias(): string
     {
         return Configuration::ALIAS;
+    }
+
+    /**
+     * Prefer kernel.bundles: ContainerBuilder::hasExtension() can be false while SecurityBundle
+     * is already registered (e.g. during early Flex cache:clear boots).
+     */
+    private function isSecurityBundleAvailable(ContainerBuilder $container): bool
+    {
+        if ($container->hasExtension('security')) {
+            return true;
+        }
+
+        if (!$container->hasParameter('kernel.bundles')) {
+            return false;
+        }
+
+        /** @var array<string, class-string> $bundles */
+        $bundles = $container->getParameter('kernel.bundles');
+
+        return isset($bundles['SecurityBundle']);
     }
 
     public function prepend(ContainerBuilder $container): void

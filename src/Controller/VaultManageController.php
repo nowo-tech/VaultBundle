@@ -40,14 +40,12 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\User\UserInterface;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function base64_encode;
 use function in_array;
 use function is_string;
 
-#[IsGranted('IS_AUTHENTICATED')]
 final class VaultManageController extends AbstractController
 {
     use VaultCsrfTrait;
@@ -72,6 +70,7 @@ final class VaultManageController extends AbstractController
         private readonly bool $tagInputEnabled,
         /** @var array{enabled: bool, cache_pool: string} */
         private readonly array $configStorage,
+        private readonly bool $allowUnauthenticated = false,
     ) {
     }
 
@@ -570,31 +569,33 @@ final class VaultManageController extends AbstractController
 
     private function denyUnlessFolderAccess(VaultFolder $folder, VaultAccessAction $action): void
     {
-        /** @var UserInterface $user */
         $user = $this->getUser();
-        if (!$this->accessGuard->canAccessFolder($user, $folder, $action)) {
+        if (!$user instanceof UserInterface || !$this->accessGuard->canAccessFolder($user, $folder, $action)) {
             throw $this->createAccessDeniedException();
         }
     }
 
     private function denyUnlessItemAccess(VaultItem $item, VaultAccessAction $action): void
     {
-        /** @var UserInterface $user */
         $user = $this->getUser();
-        if (!$this->accessGuard->canAccessItem($user, $item, $action)) {
+        if (!$user instanceof UserInterface || !$this->accessGuard->canAccessItem($user, $item, $action)) {
             throw $this->createAccessDeniedException();
         }
     }
 
     private function denyUnlessFeature(string $feature): void
     {
+        if ($this->allowUnauthenticated) {
+            return;
+        }
+
         $user = $this->getUser();
 
         $allowed = match ($feature) {
-            'access' => $this->accessChecker->canAccess($user),
-            'create' => $this->accessChecker->canCreate($user),
-            'list'   => $this->accessChecker->canList($user),
-            'revoke' => $this->accessChecker->canRevoke($user),
+            'access' => $this->accessChecker->canAccess($user instanceof UserInterface ? $user : null),
+            'create' => $this->accessChecker->canCreate($user instanceof UserInterface ? $user : null),
+            'list'   => $this->accessChecker->canList($user instanceof UserInterface ? $user : null),
+            'revoke' => $this->accessChecker->canRevoke($user instanceof UserInterface ? $user : null),
             default  => false,
         };
 

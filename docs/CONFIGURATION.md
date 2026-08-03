@@ -30,10 +30,13 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 |--------|---------|-------------|
 | `security.access_checker` | null | Custom `VaultAccessCheckerInterface` service id |
 | `security.admin_roles` | `[ROLE_ADMIN]` | Bypass feature checks |
-| `security.access_roles` | `[ROLE_USER]` | Open manage UI |
+| `security.access_roles` | `[ROLE_USER]` | Open manage UI (hosts may set `ROLE_ADMIN` for admin-only) |
 | `security.create_roles` | `[ROLE_USER]` | Create items/folders |
 | `security.list_roles` | `[ROLE_USER]` | List vault |
 | `security.delete_roles` | `[ROLE_USER]` | Trash / purge / share admin |
+| `security.allow_unauthenticated` | `false` | DEV/DEMO only — wires AllowAll checker; production MUST keep `false` |
+
+Manage UI requires `symfony/security-bundle` when `allow_unauthenticated` is `false`.
 
 ## Teams
 
@@ -80,7 +83,7 @@ nowo_vault:
 
 ## Firewall
 
-Document `nowo_vault.firewall` in your `security.yaml`. All manage routes require authentication.
+Document `nowo_vault.firewall` in your `security.yaml`. Protect manage routes with host `access_control` (and keep `allow_unauthenticated: false` in production). Feature checks use `VaultAccessCheckerInterface` inside the controllers.
 
 ## Database-backed runtime configuration
 

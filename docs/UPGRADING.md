@@ -2,6 +2,37 @@
 
 This document describes how to upgrade between versions of Vault Bundle.
 
+## 1.3.0 (2026-08-03)
+
+Minor release: REQ-UI-002 — `security.allow_unauthenticated`, AllowAll checker, SecurityBundle compile-time guard, and soft manage-UI gate (no hard `IsGranted` attribute).
+
+```bash
+composer require nowo-tech/vault-bundle:^1.3
+php bin/console cache:clear
+```
+
+### Behaviour
+
+| Topic | Before | 1.3.0 |
+| --- | --- | --- |
+| Apps without SecurityBundle | Could boot | Boot fails with `LogicException` unless `allow_unauthenticated: true` |
+| Manage auth attribute | `#[IsGranted('IS_AUTHENTICATED')]` | Feature/admin checks via `VaultAccessCheckerInterface` (+ optional AllowAll) |
+| Host firewall | Recommended | Still required in production (`access_control` on `/tools/vault`) |
+
+**Trusted local demos only:**
+
+```yaml
+nowo_vault:
+    security:
+        allow_unauthenticated: true   # never in production
+```
+
+**Production:** keep `allow_unauthenticated: false`, install SecurityBundle, grant `access_roles` / area roles, and protect manage paths with host `access_control`.
+
+### Breaking changes
+
+Applications that used the manage UI **without** SecurityBundle must install/configure it or set `allow_unauthenticated: true` for non-production use. Item/folder ACL still requires an authenticated user for mutating flows.
+
 ## 1.2.0 (2026-07-30)
 
 Optional host CSS stack hint and manage page shell for REQ-UI-001. **Non-breaking** — default remains `tabler` (demo CDN behaviour for Tabler/Bootstrap-compatible values).

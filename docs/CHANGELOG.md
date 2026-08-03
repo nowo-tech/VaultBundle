@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-03
+
+### Added
+
+- **REQ-UI-002:** `security.allow_unauthenticated` (default `false`) with `AllowAllVaultAccessChecker`, compile-time SecurityBundle guard, and controller early-return when the flag is enabled.
+- Controllers inject `%nowo_vault.security.allow_unauthenticated%` (manage + runtime config); soft gate replaces hard `#[IsGranted('IS_AUTHENTICATED')]`.
+
+### Changed
+
+- Docs: CONFIGURATION / SECURITY; Flex recipe comments for `access_roles` / `allow_unauthenticated`.
+- Dev deps (Dependabot): php-cs-fixer 3.95.18, rector 2.5.9→2.6.0, phpstan group, `phpstan-frankenphp` 1.0.2→1.0.3, vite 8.2.0, jsdom 30.0.1, `actions/stale` v11, doctrine-encrypt-bundle, Symfony 7.4.15 lock refresh.
+
+### Compatibility
+
+- PHP `>=8.2 <8.6`; Symfony `^7.4 || ^8.0`.
+- Manage UI with default security settings requires **SecurityBundle** (or set `allow_unauthenticated: true` for trusted local demos only).
+
 ## [1.2.0] - 2026-07-30
 
 ### Added
@@ -144,7 +161,10 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
+[1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
+[1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
 [1.1.4]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.4
 [1.1.3]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.3
 [1.1.2]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.2

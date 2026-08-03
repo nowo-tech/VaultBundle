@@ -177,7 +177,6 @@ final class VaultBrowserExtensionAuthServiceTest extends TestCase
             'failureReason' => null,
         ] as $property => $value) {
             $prop = $ref->getProperty($property);
-            $prop->setAccessible(true);
             $prop->setValue($instance, $value);
         }
 

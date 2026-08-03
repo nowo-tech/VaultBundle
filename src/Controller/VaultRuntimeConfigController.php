@@ -12,12 +12,10 @@ use Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function is_string;
 
-#[IsGranted('IS_AUTHENTICATED')]
 final class VaultRuntimeConfigController extends AbstractController
 {
     use VaultCsrfTrait;
@@ -30,6 +28,7 @@ final class VaultRuntimeConfigController extends AbstractController
         private readonly VaultSettingsRepositoryInterface $settingsRepository,
         private readonly TranslatorInterface $translator,
         private readonly bool $databaseEnabled,
+        private readonly bool $allowUnauthenticated = false,
     ) {
     }
 
@@ -124,6 +123,10 @@ final class VaultRuntimeConfigController extends AbstractController
 
     private function denyUnlessAdmin(): void
     {
+        if ($this->allowUnauthenticated) {
+            return;
+        }
+
         /** @var list<string> $adminRoles */
         $adminRoles = $this->configProvider->get()['security']['admin_roles'];
 

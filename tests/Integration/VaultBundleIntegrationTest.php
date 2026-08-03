@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Integration;
 
 use Doctrine\Bundle\DoctrineBundle\DependencyInjection\DoctrineExtension;
+use LogicException;
 use Nowo\VaultBundle\Command\PurgeExtensionTokensCommand;
 use Nowo\VaultBundle\Command\ReencryptVaultPayloadsCommand;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
@@ -18,6 +19,7 @@ use Nowo\VaultBundle\VaultBundle;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 use Symfony\Bundle\FrameworkBundle\DependencyInjection\FrameworkExtension;
+use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 
@@ -34,6 +36,7 @@ final class VaultBundleIntegrationTest extends TestCase
     public function testContainerBuildsCoreServicesFromMinimalConfig(): void
     {
         $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class]);
         (new VaultExtension())->load([[
             'user_class'     => 'App\\Entity\\User',
             'encryption_key' => self::ENCRYPTION_KEY,
@@ -45,6 +48,7 @@ final class VaultBundleIntegrationTest extends TestCase
         self::assertTrue($container->hasAlias(VaultGrantRepositoryInterface::class));
         self::assertTrue($container->hasAlias(VaultExtensionTokenRepositoryInterface::class));
         self::assertTrue($container->hasAlias(VaultTeamMembershipResolverInterface::class));
+        self::assertFalse($container->getParameter('nowo_vault.security.allow_unauthenticated'));
     }
 
     public function testExtensionPrependConfiguresAssetsAndDoctrine(): void
@@ -66,6 +70,7 @@ final class VaultBundleIntegrationTest extends TestCase
     public function testExtensionUsesCustomAccessCheckerAndTeamResolver(): void
     {
         $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class]);
         $container->setDefinition('app.vault.access', new Definition(stdClass::class));
         $container->setDefinition('app.vault.teams', new Definition(stdClass::class));
 
@@ -83,6 +88,7 @@ final class VaultBundleIntegrationTest extends TestCase
     public function testMaintenanceCommandsAreRegisteredInContainer(): void
     {
         $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class]);
         (new VaultExtension())->load([[
             'user_class'     => 'App\\Entity\\User',
             'encryption_key' => self::ENCRYPTION_KEY,
@@ -90,6 +96,38 @@ final class VaultBundleIntegrationTest extends TestCase
 
         self::assertTrue($container->hasDefinition(PurgeExtensionTokensCommand::class));
         self::assertTrue($container->hasDefinition(ReencryptVaultPayloadsCommand::class));
+    }
+
+    public function testLoadThrowsWhenSecurityBundleMissingAndUnauthenticatedDisallowed(): void
+    {
+        $container = new ContainerBuilder();
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('allow_unauthenticated');
+
+        (new VaultExtension())->load([[
+            'user_class'     => 'App\\Entity\\User',
+            'encryption_key' => self::ENCRYPTION_KEY,
+            'security'       => ['allow_unauthenticated' => false],
+        ]], $container);
+    }
+
+    public function testLoadRegistersAllowAllAccessCheckerWhenUnauthenticatedAllowed(): void
+    {
+        $container = new ContainerBuilder();
+
+        (new VaultExtension())->load([[
+            'user_class'     => 'App\\Entity\\User',
+            'encryption_key' => self::ENCRYPTION_KEY,
+            'security'       => ['allow_unauthenticated' => true],
+        ]], $container);
+
+        self::assertTrue($container->hasDefinition('nowo_vault.access_checker.allow_all'));
+        self::assertSame(
+            'nowo_vault.access_checker.allow_all',
+            (string) $container->getAlias(VaultAccessCheckerInterface::class),
+        );
+        self::assertTrue($container->getParameter('nowo_vault.security.allow_unauthenticated'));
     }
 
     public function testPrependSkipsWhenFrameworkMissing(): void

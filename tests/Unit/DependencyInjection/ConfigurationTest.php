@@ -27,6 +27,8 @@ final class ConfigurationTest extends TestCase
         self::assertSame(86_400, $config['browser_extension']['token_ttl']);
         self::assertTrue($config['browser_extension']['login_rate_limit']['enabled']);
         self::assertSame(5, $config['browser_extension']['login_rate_limit']['max_attempts']);
+        self::assertFalse($config['security']['allow_unauthenticated']);
+        self::assertSame(['ROLE_USER'], $config['security']['access_roles']);
         self::assertArrayHasKey('index', $config['routes']);
     }
 

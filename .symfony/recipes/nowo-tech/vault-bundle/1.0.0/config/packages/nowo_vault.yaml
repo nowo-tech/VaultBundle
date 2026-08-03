@@ -1,3 +1,7 @@
 nowo_vault:
     user_class: App\Entity\User
     encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
+    # security:
+    #     access_roles: [ROLE_USER]
+    #     access_checker: null
+    #     allow_unauthenticated: false  # never true in production
