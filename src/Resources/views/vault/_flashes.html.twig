@@ -1,5 +1,7 @@
+{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
+{% set _vault_fw = nowo_vault_css_framework|default('tabler') %}
 {% for label, messages in app.flashes %}
     {% for message in messages %}
-        <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }}">{{ message }}</div>
+        <div class="{{ ui.flash(label == 'success' ? 'success' : 'danger', _vault_fw) }}">{{ message }}</div>
     {% endfor %}
 {% endfor %}

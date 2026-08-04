@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\App;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
+use Nowo\FormKitBundle\NowoFormKitBundle;
+use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\VaultBundle\VaultBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
@@ -12,6 +14,7 @@ use Symfony\Bundle\TwigBundle\TwigBundle;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
+use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
 
 use const PHP_VERSION_ID;
 
@@ -23,6 +26,9 @@ final class Kernel extends BaseKernel
         yield new DoctrineBundle();
         yield new SecurityBundle();
         yield new TwigBundle();
+        yield new TwigExtraBundle();
+        yield new NowoUiKitBundle();
+        yield new NowoFormKitBundle();
         yield new VaultBundle();
     }
 

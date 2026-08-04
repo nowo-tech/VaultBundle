@@ -8,6 +8,8 @@ use Nowo\VaultBundle\Dto\VaultGranteeChoice;
 use Nowo\VaultBundle\Dto\VaultShareFormData;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultPermission;
+use Nowo\FormKitBundle\Attribute\FormKitConfig;
+use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
@@ -26,8 +28,11 @@ use function is_string;
 /**
  * @extends AbstractType<VaultShareFormData>
  */
+#[FormKitConfig('vault')]
 final class VaultShareType extends AbstractType
 {
+    use FormOptionsTrait;
+
     public function __construct(
         private readonly TranslatorInterface $translator,
     ) {
@@ -39,7 +44,7 @@ final class VaultShareType extends AbstractType
         $granteeChoices = $options['grantee_choices'];
 
         if ($granteeChoices !== []) {
-            $builder->add('granteeSelection', ChoiceType::class, [
+            $this->addChoice($builder, 'granteeSelection', [
                 'mapped'      => false,
                 'choices'     => $this->buildGroupedChoices($granteeChoices),
                 'placeholder' => 'vault.share.grantee_placeholder',
@@ -67,7 +72,7 @@ final class VaultShareType extends AbstractType
                 $data->granteeId   = $id;
             });
 
-            $builder->add('permission', EnumType::class, [
+            $this->addWithDefaults($builder, 'permission', EnumType::class, [
                 'class' => VaultPermission::class,
                 'label' => 'vault.share.permission',
             ]);
@@ -75,16 +80,15 @@ final class VaultShareType extends AbstractType
             return;
         }
 
-        $builder
-            ->add('granteeType', EnumType::class, [
+        $this->addWithDefaults($builder, 'granteeType', EnumType::class, [
                 'class' => GranteeType::class,
                 'label' => 'vault.share.grantee_type',
-            ])
-            ->add('granteeId', TextType::class, [
+            ]);
+        $this->addText($builder, 'granteeId', [
                 'constraints' => [new NotBlank()],
                 'label'       => 'vault.share.grantee_id',
-            ])
-            ->add('permission', EnumType::class, [
+            ]);
+        $this->addWithDefaults($builder, 'permission', EnumType::class, [
                 'class' => VaultPermission::class,
                 'label' => 'vault.share.permission',
             ]);

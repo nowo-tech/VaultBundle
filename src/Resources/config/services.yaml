@@ -63,3 +63,8 @@ services:
         arguments:
             $cssFramework: '%nowo_vault.css_framework%'
 
+    # Form Kit injects FormOptionsMerger into tagged form types (FormOptionsMergerInjectorCompilerPass).
+    Nowo\VaultBundle\Form\:
+        resource: '../../Form/'
+        exclude: '../../Form/DataTransformer/'
+        tags: ['form.type']

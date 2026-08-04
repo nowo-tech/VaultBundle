@@ -1,19 +1,21 @@
-<div class="btn-list flex-nowrap justify-content-end">
+{% import '@NowoUiKitBundle/macros/ui.html.twig' as ui %}
+{% set _vault_fw = nowo_vault_css_framework|default('tabler') %}
+<div class="btn-list flex-nowrap justify-content-end nowo-ui-row-actions">
     <a href="{{ path(routes.item_view.name, {id: item.id}) }}"
-       class="btn btn-sm btn-icon btn-outline-secondary"
+       class="{{ ui.action('view', _vault_fw) }} btn btn-sm btn-icon btn-outline-secondary"
        title="{{ 'vault.action.view'|trans({}, 'NowoVaultBundle') }}">
         <i class="ti ti-eye" aria-hidden="true"></i>
         <span class="visually-hidden">{{ 'vault.action.view'|trans({}, 'NowoVaultBundle') }}</span>
     </a>
     {% if not readOnlyMap[item.id]|default(false) %}
         <a href="{{ path(routes.item_share.name, {id: item.id}) }}"
-           class="btn btn-sm btn-icon btn-outline-green"
+           class="{{ ui.btn('secondary', 'sm', _vault_fw) }} btn btn-sm btn-icon btn-outline-green"
            title="{{ 'vault.action.access'|trans({}, 'NowoVaultBundle') }}">
             <i class="ti ti-users" aria-hidden="true"></i>
             <span class="visually-hidden">{{ 'vault.action.access'|trans({}, 'NowoVaultBundle') }}</span>
         </a>
         <a href="{{ path(routes.item_edit.name, {id: item.id}) }}"
-           class="btn btn-sm btn-icon btn-outline-primary"
+           class="{{ ui.action('edit', _vault_fw) }} btn btn-sm btn-icon btn-outline-primary"
            title="{{ 'vault.action.edit'|trans({}, 'NowoVaultBundle') }}">
             <i class="ti ti-pencil" aria-hidden="true"></i>
             <span class="visually-hidden">{{ 'vault.action.edit'|trans({}, 'NowoVaultBundle') }}</span>
@@ -21,7 +23,7 @@
         <form method="post" action="{{ path(routes.item_trash.name, {id: item.id}) }}" class="d-inline">
             <input type="hidden" name="_token" value="{{ csrf_token('vault_trash_' ~ item.id) }}">
             <button type="submit"
-                    class="btn btn-sm btn-icon btn-outline-danger"
+                    class="{{ ui.action('delete', _vault_fw) }} btn btn-sm btn-icon btn-outline-danger"
                     title="{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}"
                     onclick="return confirm('{{ 'vault.confirm.trash'|trans({}, 'NowoVaultBundle')|e('js') }}');">
                 <i class="ti ti-trash" aria-hidden="true"></i>

@@ -42,6 +42,8 @@ use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
 
+use function array_key_exists;
+use function is_array;
 use function is_string;
 use function rtrim;
 use function sprintf;
@@ -225,19 +227,18 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
 
     public function prepend(ContainerBuilder $container): void
     {
-        if (!$container->hasExtension('framework')) {
-            return;
-        }
-
-        $container->prependExtensionConfig('framework', [
-            'assets' => [
-                'packages' => [
-                    'nowo_vault' => [
-                        'base_path' => '/bundles/vault',
+        $this->prependFormKitDefaults($container);
+        if ($container->hasExtension('framework')) {
+            $container->prependExtensionConfig('framework', [
+                'assets' => [
+                    'packages' => [
+                        'nowo_vault' => [
+                            'base_path' => '/bundles/vault',
+                        ],
                     ],
                 ],
-            ],
-        ]);
+            ]);
+        }
 
         if ($container->hasExtension('doctrine')) {
             $container->prependExtensionConfig('doctrine', [
@@ -250,6 +251,126 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                     ],
                 ],
             ]);
+        }
+
+        $this->prependUiKitDefaults($container);
+    }
+
+    /**
+     * When UiKit is installed, seed nowo_ui_kit.css_framework / icon_set from
+     * root css_framework so kit macros resolve the same stack.
+     * Does not override keys the host already set under nowo_ui_kit.
+     */
+
+    /**
+     * When FormKit is installed, register the vault profile. Forms select it via #[FormKitConfig].
+     */
+    private function prependFormKitDefaults(ContainerBuilder $container): void
+    {
+        if (!$container->hasExtension('nowo_form_kit')) {
+            return;
+        }
+
+        $hostHasCssFramework = false;
+        $hostHasProfile      = false;
+        foreach ($container->getExtensionConfig('nowo_form_kit') as $cfg) {
+            /** @var array<string, mixed> $cfg */
+            if (array_key_exists('css_framework', $cfg)) {
+                $hostHasCssFramework = true;
+            }
+            $profiles = $cfg['profiles'] ?? null;
+            if (is_array($profiles) && array_key_exists('vault', $profiles)) {
+                $hostHasProfile = true;
+            }
+        }
+
+        $seed = [];
+
+        if (!$hostHasCssFramework) {
+            $seed['css_framework'] = 'bootstrap';
+        }
+
+        if (!$hostHasProfile) {
+            $seed['profiles'] = [
+                'vault' => [
+                    'alias'              => 'vault',
+                    'translation_domain' => 'NowoVaultBundle',
+                    'defaults'           => [
+                        'attr'     => ['class' => 'nowo-ui-input form-control'],
+                        'row_attr' => ['class' => 'mb-2'],
+                    ],
+                    'field_types' => [
+                        'checkbox' => [
+                            'attr'     => ['class' => 'form-check-input'],
+                            'row_attr' => ['class' => 'form-check mb-2'],
+                        ],
+                        'choice' => [
+                            'attr' => ['class' => 'form-select'],
+                        ],
+                        'entity' => [
+                            'attr' => ['class' => 'form-select'],
+                        ],
+                        'file' => [
+                            'attr' => ['class' => 'nowo-ui-input form-control'],
+                        ],
+                        'textarea' => [
+                            'attr' => ['class' => 'nowo-ui-input form-control'],
+                        ],
+                    ],
+                ],
+            ];
+        }
+
+        if ($seed !== []) {
+            $container->prependExtensionConfig('nowo_form_kit', $seed);
+        }
+    }
+
+    private function prependUiKitDefaults(ContainerBuilder $container): void
+    {
+        if (!$container->hasExtension('nowo_ui_kit')) {
+            return;
+        }
+
+        $hostHasCssFramework = false;
+        $hostHasIconSet      = false;
+        foreach ($container->getExtensionConfig('nowo_ui_kit') as $cfg) {
+            if (!is_array($cfg)) {
+                continue;
+            }
+            if (array_key_exists('css_framework', $cfg)) {
+                $hostHasCssFramework = true;
+            }
+            if (array_key_exists('icon_set', $cfg)) {
+                $hostHasIconSet = true;
+            }
+        }
+
+        if ($hostHasCssFramework && $hostHasIconSet) {
+            return;
+        }
+
+        // Avoid processConfiguration(): encryption_key is required and may be unset during early prepend.
+        $fw = 'tabler';
+        foreach ($container->getExtensionConfig(Configuration::ALIAS) as $cfg) {
+            if (is_array($cfg) && isset($cfg['css_framework']) && is_string($cfg['css_framework'])) {
+                $fw = $cfg['css_framework'];
+            }
+        }
+        if ($fw === 'bootstrap') {
+            $fw = 'bootstrap5';
+        }
+
+        $defaults = [];
+        if (!$hostHasCssFramework) {
+            $defaults['css_framework'] = $fw;
+        }
+        if (!$hostHasIconSet) {
+            $defaults['icon_set'] = $fw === 'tabler' ? 'tabler-icons' : 'bootstrap-icons';
+        }
+
+        if ($defaults !== []) {
+            $container->prependExtensionConfig('nowo_ui_kit', $defaults);
         }
     }
 }

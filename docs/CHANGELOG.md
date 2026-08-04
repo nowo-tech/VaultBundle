@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-04
+
+### Changed
+
+- **FormKitBundle:** depend on [`nowo-tech/form-kit-bundle`](https://github.com/nowo-tech/FormKitBundle) ^2.0. Admin form types use `FormOptionsTrait` + profile `vault` (`#[FormKitConfig]`), including full `VaultItemFormType` field helpers (`withBuilder` / `add*Field` / `addTypedField` for TagInput, PasswordStrength, and folder EntityType). Extension prepends that profile when missing; form types are tagged `form.type` so `FormOptionsMerger` is injected. Test kernel registers `NowoUiKitBundle`, `NowoFormKitBundle`, and `TwigExtraBundle`.
+
+### Added
+- **REQ-TWIG-004:** require `twig/extra-bundle` + `twig/string-extra`; `make check-twig-extra` in `release-check`; demos register `TwigExtraBundle`.
+- **Twig-CS-Fixer:** `vincentlanglet/twig-cs-fixer`, `.twig-cs-fixer.php`, `composer twig:lint` / `twig:fix`.
+
+### Changed
+
+- **REQ-UI-001-kit:** Require **[UiKitBundle](https://github.com/nowo-tech/UiKitBundle)** (`nowo-tech/ui-kit-bundle` `^1.4`). Vault base loads kit CSS; flashes and row actions compose kit macros. `VaultExtension` seeds `nowo_ui_kit` from root `css_framework` (raw config — avoids required `encryption_key` during prepend) when the host has not configured UiKit. Demo registers UiKit and ships `nowo_ui_kit.yaml` (`tabler` / `tabler-icons`).
+
+[1.4.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.4.0
+
 ## [1.3.0] - 2026-08-03
 
 ### Added
