@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Form;
 
+use Nowo\FormKitBundle\Attribute\FormKitConfig;
+use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Nowo\VaultBundle\Dto\VaultGranteeChoice;
 use Nowo\VaultBundle\Dto\VaultShareFormData;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultPermission;
-use Nowo\FormKitBundle\Attribute\FormKitConfig;
-use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
-use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
@@ -81,17 +79,17 @@ final class VaultShareType extends AbstractType
         }
 
         $this->addWithDefaults($builder, 'granteeType', EnumType::class, [
-                'class' => GranteeType::class,
-                'label' => 'vault.share.grantee_type',
-            ]);
+            'class' => GranteeType::class,
+            'label' => 'vault.share.grantee_type',
+        ]);
         $this->addText($builder, 'granteeId', [
-                'constraints' => [new NotBlank()],
-                'label'       => 'vault.share.grantee_id',
-            ]);
+            'constraints' => [new NotBlank()],
+            'label'       => 'vault.share.grantee_id',
+        ]);
         $this->addWithDefaults($builder, 'permission', EnumType::class, [
-                'class' => VaultPermission::class,
-                'label' => 'vault.share.permission',
-            ]);
+            'class' => VaultPermission::class,
+            'label' => 'vault.share.permission',
+        ]);
     }
 
     public function buildView(FormView $view, FormInterface $form, array $options): void
