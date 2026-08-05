@@ -31,7 +31,7 @@ final class ReencryptVaultPayloadsCommandTest extends TestCase
         $tester->execute([]);
 
         self::assertSame(Command::INVALID, $tester->getStatusCode());
-        self::assertStringContainsString('--old-key option is required', $tester->getDisplay());
+        self::assertStringContainsString('--old-key-file (preferred) or --old-key', $tester->getDisplay());
     }
 
     public function testRunsDryRunSuccessfully(): void
@@ -128,6 +128,87 @@ final class ReencryptVaultPayloadsCommandTest extends TestCase
 
         self::assertSame(Command::INVALID, $tester->getStatusCode());
         self::assertStringContainsString('base64-encoded', $tester->getDisplay());
+    }
+
+    public function testRunsDryRunWithOldKeyFile(): void
+    {
+        $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $newKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $item   = new VaultItem(
+            VaultItemType::Login,
+            'Demo',
+            new TestUser('1'),
+            (new SodiumVaultPayloadCryptographer($oldKey))->encrypt(['username' => 'u', 'password' => 'p']),
+        );
+
+        $repository = $this->createMock(VaultItemRepositoryInterface::class);
+        $repository->method('countAll')->willReturn(1);
+        $repository->method('findBatch')->willReturn([$item]);
+
+        $keyFile = tempnam(sys_get_temp_dir(), 'vault_old_key_');
+        self::assertNotFalse($keyFile);
+        file_put_contents($keyFile, "  {$oldKey}  \n");
+
+        try {
+            $tester = new CommandTester($this->createCommand($repository, $newKey));
+            $tester->execute([
+                '--old-key-file' => $keyFile,
+                '--new-key'      => $newKey,
+                '--dry-run'      => true,
+            ]);
+
+            self::assertSame(Command::SUCCESS, $tester->getStatusCode());
+            self::assertStringContainsString('Verified 1 of 1', $tester->getDisplay());
+        } finally {
+            @unlink($keyFile);
+        }
+    }
+
+    public function testKeyFilePreferredOverArgv(): void
+    {
+        $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $newKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $item   = new VaultItem(
+            VaultItemType::Login,
+            'Demo',
+            new TestUser('1'),
+            (new SodiumVaultPayloadCryptographer($oldKey))->encrypt(['username' => 'u', 'password' => 'p']),
+        );
+
+        $repository = $this->createMock(VaultItemRepositoryInterface::class);
+        $repository->method('countAll')->willReturn(1);
+        $repository->method('findBatch')->willReturn([$item]);
+
+        $keyFile = tempnam(sys_get_temp_dir(), 'vault_old_key_');
+        self::assertNotFalse($keyFile);
+        file_put_contents($keyFile, $oldKey);
+
+        try {
+            $tester = new CommandTester($this->createCommand($repository, $newKey));
+            $tester->execute([
+                '--old-key'      => 'this-is-not-a-valid-key-and-must-be-ignored',
+                '--old-key-file' => $keyFile,
+                '--new-key'      => $newKey,
+                '--dry-run'      => true,
+            ]);
+
+            self::assertSame(Command::SUCCESS, $tester->getStatusCode());
+            self::assertStringContainsString('Verified 1 of 1', $tester->getDisplay());
+        } finally {
+            @unlink($keyFile);
+        }
+    }
+
+    public function testRejectsUnreadableOldKeyFile(): void
+    {
+        $tester = new CommandTester($this->createCommand());
+        $tester->execute([
+            '--old-key-file' => '/no/such/vault-key-file-' . uniqid('', true),
+            '--dry-run'      => true,
+        ]);
+
+        self::assertSame(Command::INVALID, $tester->getStatusCode());
+        self::assertMatchesRegularExpression('/not\s+readable/', $tester->getDisplay());
     }
 
     private function createCommand(
