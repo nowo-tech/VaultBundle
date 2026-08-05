@@ -76,10 +76,10 @@ final class ReencryptVaultPayloadsCommand extends Command
 
             return Command::INVALID;
         }
-        $batchSize    = (int) $input->getOption('batch-size');
-        $dryRun       = (bool) $input->getOption('dry-run');
-        $persistKey   = (bool) $input->getOption('persist-new-key');
-        $force        = (bool) $input->getOption('force');
+        $batchSize  = (int) $input->getOption('batch-size');
+        $dryRun     = (bool) $input->getOption('dry-run');
+        $persistKey = (bool) $input->getOption('persist-new-key');
+        $force      = (bool) $input->getOption('force');
 
         if ($persistKey && ($dryRun || $newKey === null)) {
             $io->error('Option --persist-new-key requires --new-key or --new-key-file and cannot be combined with --dry-run.');
@@ -172,7 +172,6 @@ final class ReencryptVaultPayloadsCommand extends Command
 
         return Command::SUCCESS;
     }
-
 
     /**
      * Resolves key material from a file option (preferred) or argv option.

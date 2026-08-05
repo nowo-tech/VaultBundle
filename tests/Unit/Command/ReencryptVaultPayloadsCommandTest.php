@@ -130,7 +130,6 @@ final class ReencryptVaultPayloadsCommandTest extends TestCase
         self::assertStringContainsString('base64-encoded', $tester->getDisplay());
     }
 
-
     public function testRunsDryRunWithOldKeyFile(): void
     {
         $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
