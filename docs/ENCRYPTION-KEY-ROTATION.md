@@ -21,18 +21,25 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 Use the bundled console command (maintenance window recommended):
 
 ```bash
+# Prefer file-based keys (avoids argv / shell history exposure). File options win if both are set.
+printf '%s' "$OLD_KEY" > /run/secrets/vault_old_key
+printf '%s' "$NEW_KEY" > /run/secrets/vault_new_key
+
 # Verify every payload decrypts with the old key (no writes)
-# Pass --new-key when the effective config key still equals --old-key (e.g. demo dry-run)
-php bin/console nowo:vault:reencrypt --old-key="$OLD_KEY" --new-key="$NEW_KEY" --dry-run
+# Pass --new-key-file when the effective config key still equals the old key (e.g. demo dry-run)
+php bin/console nowo:vault:reencrypt --old-key-file=/run/secrets/vault_old_key --new-key-file=/run/secrets/vault_new_key --dry-run
 
 # Re-encrypt to a new key already configured in nowo_vault.encryption_key
-php bin/console nowo:vault:reencrypt --old-key="$OLD_KEY"
+php bin/console nowo:vault:reencrypt --old-key-file=/run/secrets/vault_old_key
 
 # Re-encrypt to an explicit new key before updating YAML/DB
-php bin/console nowo:vault:reencrypt --old-key="$OLD_KEY" --new-key="$NEW_KEY"
+php bin/console nowo:vault:reencrypt --old-key-file=/run/secrets/vault_old_key --new-key-file=/run/secrets/vault_new_key
 
 # When config_storage.enabled, persist the new key after success
-php bin/console nowo:vault:reencrypt --old-key="$OLD_KEY" --new-key="$NEW_KEY" --persist-new-key --force --no-interaction
+php bin/console nowo:vault:reencrypt --old-key-file=/run/secrets/vault_old_key --new-key-file=/run/secrets/vault_new_key --persist-new-key --force --no-interaction
+
+# Legacy argv form (discouraged): --old-key / --new-key
+# php bin/console nowo:vault:reencrypt --old-key="$OLD_KEY" --new-key="$NEW_KEY" --dry-run
 ```
 
 Demo (Docker):
@@ -52,12 +59,14 @@ Options:
 
 | Option | Description |
 |--------|-------------|
-| `--old-key` | Required. Previous base64 libsodium key. |
-| `--new-key` | Target key. Defaults to effective `nowo_vault.encryption_key`. |
+| `--old-key-file` | **Preferred.** Path to a file containing the previous base64 libsodium key (trimmed). Wins over `--old-key` when both are set. |
+| `--old-key` | Previous key via argv (discouraged: visible in process list / shell history). Required unless `--old-key-file` is set. |
+| `--new-key-file` | **Preferred.** Path to a file containing the target key (trimmed). Wins over `--new-key` when both are set. |
+| `--new-key` | Target key via argv (discouraged). Defaults to effective `nowo_vault.encryption_key` when omitted. |
 | `--batch-size` | Items per flush (default `50`). |
 | `--dry-run` | Decrypt-check only. |
 | `--skip-trash` | Skip soft-deleted items. |
-| `--persist-new-key` | Store `--new-key` via `VaultRuntimeConfigWriter` (requires DB runtime config). |
+| `--persist-new-key` | Store the new key (from `--new-key-file` / `--new-key`) via `VaultRuntimeConfigWriter` (requires DB runtime config). |
 | `--force` | Skip confirmation; **required** for non-interactive writes (CI, cron, `make vault-reencrypt`). |
 
 ### 2. Custom script (optional)

@@ -17,6 +17,8 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+use function file_get_contents;
+use function is_readable;
 use function is_string;
 use function sprintf;
 use function trim;
@@ -38,12 +40,14 @@ final class ReencryptVaultPayloadsCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('old-key', null, InputOption::VALUE_REQUIRED, 'Previous base64-encoded 32-byte libsodium key used to encrypt existing payloads.')
-            ->addOption('new-key', null, InputOption::VALUE_REQUIRED, 'Target key. Defaults to the effective nowo_vault.encryption_key from YAML/DB.')
+            ->addOption('old-key', null, InputOption::VALUE_REQUIRED, 'Previous base64-encoded 32-byte libsodium key (discouraged: visible in process argv / shell history). Prefer --old-key-file.')
+            ->addOption('old-key-file', null, InputOption::VALUE_REQUIRED, 'Read the previous key from a file (trimmed). Preferred over --old-key; wins when both are set.')
+            ->addOption('new-key', null, InputOption::VALUE_REQUIRED, 'Target key via argv (discouraged). Defaults to the effective nowo_vault.encryption_key from YAML/DB. Prefer --new-key-file.')
+            ->addOption('new-key-file', null, InputOption::VALUE_REQUIRED, 'Read the target key from a file (trimmed). Preferred over --new-key; wins when both are set.')
             ->addOption('batch-size', null, InputOption::VALUE_REQUIRED, 'Number of items processed per flush.', '50')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Verify decryption with the old key without writing ciphertext.')
             ->addOption('skip-trash', null, InputOption::VALUE_NONE, 'Skip soft-deleted items in trash.')
-            ->addOption('persist-new-key', null, InputOption::VALUE_NONE, 'After success, store --new-key in database runtime config (requires config_storage.enabled).')
+            ->addOption('persist-new-key', null, InputOption::VALUE_NONE, 'After success, store the new key in database runtime config (requires config_storage.enabled).')
             ->addOption('force', null, InputOption::VALUE_NONE, 'Skip confirmation (required for non-interactive runs that write ciphertext).');
     }
 
@@ -51,22 +55,34 @@ final class ReencryptVaultPayloadsCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $oldKey = trim((string) $input->getOption('old-key'));
-        if ($oldKey === '') {
-            $io->error('The --old-key option is required.');
+        try {
+            $oldKey = $this->resolveKeyMaterial($input, 'old-key', 'old-key-file');
+        } catch (InvalidArgumentException $exception) {
+            $io->error($exception->getMessage());
 
             return Command::INVALID;
         }
 
-        $newKeyOption = $input->getOption('new-key');
-        $newKey       = is_string($newKeyOption) && trim($newKeyOption) !== '' ? trim($newKeyOption) : null;
+        if ($oldKey === null || $oldKey === '') {
+            $io->error('Provide the previous key via --old-key-file (preferred) or --old-key.');
+
+            return Command::INVALID;
+        }
+
+        try {
+            $newKey = $this->resolveKeyMaterial($input, 'new-key', 'new-key-file');
+        } catch (InvalidArgumentException $exception) {
+            $io->error($exception->getMessage());
+
+            return Command::INVALID;
+        }
         $batchSize    = (int) $input->getOption('batch-size');
         $dryRun       = (bool) $input->getOption('dry-run');
         $persistKey   = (bool) $input->getOption('persist-new-key');
         $force        = (bool) $input->getOption('force');
 
         if ($persistKey && ($dryRun || $newKey === null)) {
-            $io->error('Option --persist-new-key requires --new-key and cannot be combined with --dry-run.');
+            $io->error('Option --persist-new-key requires --new-key or --new-key-file and cannot be combined with --dry-run.');
 
             return Command::INVALID;
         }
@@ -155,6 +171,36 @@ final class ReencryptVaultPayloadsCommand extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+
+    /**
+     * Resolves key material from a file option (preferred) or argv option.
+     *
+     * @throws InvalidArgumentException when the key file is missing or unreadable
+     */
+    private function resolveKeyMaterial(InputInterface $input, string $argvOption, string $fileOption): ?string
+    {
+        $fileOptionValue = $input->getOption($fileOption);
+        if (is_string($fileOptionValue) && $fileOptionValue !== '') {
+            if (!is_readable($fileOptionValue)) {
+                throw new InvalidArgumentException(sprintf('Key file "%s" is not readable.', $fileOptionValue));
+            }
+
+            $contents = file_get_contents($fileOptionValue);
+            if ($contents === false) {
+                throw new InvalidArgumentException(sprintf('Unable to read key file "%s".', $fileOptionValue));
+            }
+
+            return trim($contents);
+        }
+
+        $argvValue = $input->getOption($argvOption);
+        if (is_string($argvValue) && trim($argvValue) !== '') {
+            return trim($argvValue);
+        }
+
+        return null;
     }
 
     private function confirmExecution(SymfonyStyle $io, InputInterface $input, bool $force): bool

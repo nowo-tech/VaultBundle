@@ -30,7 +30,7 @@ Default: **creator-only**. Extend via:
 
 - Never commit `VAULT_ENCRYPTION_KEY` or production `.env`
 - Demo `.env.example` uses a placeholder key for local use only
-- `nowo:vault:reencrypt --old-key=…` may expose key material on the process argv — prefer env/`--old-key-file` patterns in production operators’ runbooks; rotate shell history after use
+- `nowo:vault:reencrypt --old-key=…` / `--new-key=…` may expose key material on the process argv — **prefer `--old-key-file` / `--new-key-file`** (file wins when both argv and file options are set). Rotate shell history after any argv use.
 
 ## Accepted residuals (REQ-SEC-004)
 
@@ -38,7 +38,7 @@ Documented and accepted for **Pass (conditional)** / overall **Medium**:
 
 1. Plaintext payloads exist in PHP memory briefly after decrypt (inherent).
 2. Extension Bearer API has no CSRF (token auth by design).
-3. Operator CLI key-on-argv risk when using `--old-key` (documented above).
+3. Operator CLI key-on-argv risk when using `--old-key` / `--new-key` instead of `--*-key-file` (documented above; file-based options are the supported operator path).
 
 ## Release checklist (12.4.1)
 
