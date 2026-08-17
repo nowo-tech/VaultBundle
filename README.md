@@ -19,7 +19,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 - `VaultTeamMembershipResolverInterface` for team-based grants
 - **Browser extension** — REST API + Chrome/Firefox autofill (optional)
 - **Runtime config** — optional DB-backed settings with admin UI
-- **Key rotation** — `nowo:vault:reencrypt` command and demo walkthrough
+- **Key rotation** — `nowo:vault:reencrypt`; **`nowo:vault:extension-tokens:purge`** for expired browser-extension tokens
 - Events: list query/result, access check, read-only resolve, extension auth
 - Server-side libsodium payload encryption; CSRF on manage POST actions
 - Dark manage UI + password generator (modal + inline)
