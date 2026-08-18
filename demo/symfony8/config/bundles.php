@@ -10,6 +10,7 @@ use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\PasswordStrengthBundle\PasswordStrengthBundle;
 use Nowo\PasswordToggleBundle\NowoPasswordToggleBundle;
 use Nowo\TagInputBundle\NowoTagInputBundle;
+use Nowo\HotReloadBundle\NowoHotReloadBundle;
 use Nowo\TwigInspectorBundle\NowoTwigInspectorBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\VaultBundle\VaultBundle;
@@ -35,6 +36,7 @@ return [
     NowoPasswordToggleBundle::class  => ['all' => true],
     NowoTagInputBundle::class        => ['all' => true],
     UXIconsBundle::class             => ['all' => true],
+    NowoHotReloadBundle::class   => ['dev' => true, 'test' => true],
     NowoTwigInspectorBundle::class   => ['dev' => true, 'test' => true],
     WebProfilerBundle::class         => ['dev' => true, 'test' => true],
     DebugBundle::class               => ['dev' => true],
