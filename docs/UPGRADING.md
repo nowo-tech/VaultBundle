@@ -218,6 +218,14 @@ If you use admin/dashboard Symfony forms, ensure `nowo-tech/form-kit-bundle` ^2.
 
 ## Unreleased
 
+## To 1.4.2
+
+No application upgrade steps.
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
 ## To 1.4.1
 
 No application upgrade steps. **Demos only:** Hot Reload Bundle `^1.4` (FrankenPHP Mercure/`hot_reload`, `dev`/`test`).
