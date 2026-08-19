@@ -218,6 +218,14 @@ If you use admin/dashboard Symfony forms, ensure `nowo-tech/form-kit-bundle` ^2.
 
 ## Unreleased
 
+## To 1.4.5
+
+No application upgrade steps. Transitive dependency refresh only.
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
 ## To 1.4.4
 
 Review Flex recipe `security_nowo_vault.yaml` after update.

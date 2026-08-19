@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-08-19
+
+### Security
+
+- **Dependencies:** bump `paragonie/sodium_compat` to **v2.5.2** (PKSA-32g2-byr9-drtw / Ed25519 validation) so `composer audit --locked` passes in CI.
+
 ## [1.4.4] - 2026-08-19
 
 ### Security
