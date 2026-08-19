@@ -218,6 +218,14 @@ If you use admin/dashboard Symfony forms, ensure `nowo-tech/form-kit-bundle` ^2.
 
 ## Unreleased
 
+## To 1.4.4
+
+Review Flex recipe `security_nowo_vault.yaml` after update.
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
 ## To 1.4.3
 
 Review Flex recipe `security_nowo_vault.yaml`: `^/tools/vault` requires `ROLE_USER`. Adjust roles or paths for your app.
