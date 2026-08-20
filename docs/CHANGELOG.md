@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.6] - 2026-08-20
+
+### Security
+
+- **Flex recipe:** `when@prod` forces `allow_unauthenticated: false`; document extension `PUBLIC_ACCESS` path; REQ-SEC-004 re-audit **Pass (good)**. Prefer **`^1.4.6`**.
+
 ## [1.4.5] - 2026-08-19
 
 ### Security

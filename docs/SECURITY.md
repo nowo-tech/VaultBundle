@@ -34,11 +34,12 @@ Default: **creator-only**. Extend via:
 
 ## Accepted residuals (REQ-SEC-004)
 
-Documented and accepted for **Pass (conditional)** / overall **Medium**:
+Documented and accepted for **Pass (good)** / overall **Low** (re-audit **2026-08-20**):
 
 1. Plaintext payloads exist in PHP memory briefly after decrypt (inherent).
-2. Extension Bearer API has no CSRF (token auth by design).
+2. Extension Bearer API has no CSRF (token auth by design; rate limit + TTL + purge cron).
 3. Operator CLI key-on-argv risk when using `--old-key` / `--new-key` instead of `--*-key-file` (documented above; file-based options are the supported operator path).
+4. Generated encryption keys are shown **one-time** via session (not flash); host must use HTTPS.
 
 ## Release checklist (12.4.1)
 
@@ -56,6 +57,7 @@ Before tagging a release, confirm:
 | **Cryptography** | Unique `VAULT_ENCRYPTION_KEY` per environment; rotation plan documented. |
 | **Permissions / exposure** | `VaultAccessCheckerInterface` and grants configured for production roles. |
 | **Limits / DoS** | `max_attachment_bytes`, extension login rate limit, token TTL and purge cron. |
-| **AI security audit (REQ-SEC-004)** | Pass (conditional) recorded in monorepo `BUNDLES_SECURITY_ANALYSIS.md`. |
+| **AI security audit (REQ-SEC-004)** | **Pass (good)** / Low — re-audit 2026-08-20 (one-time session key, manage CSRF, Flex access_control, Bearer extension documented). |
+
 
 See [examples/AccessControl.md](examples/AccessControl.md).

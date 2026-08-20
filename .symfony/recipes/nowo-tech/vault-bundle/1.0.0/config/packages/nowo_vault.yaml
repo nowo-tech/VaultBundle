@@ -1,7 +1,13 @@
 nowo_vault:
     user_class: App\Entity\User
     encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
-    # security:
-    #     access_roles: [ROLE_USER]
-    #     access_checker: null
-    #     allow_unauthenticated: false  # never true in production
+    security:
+        # Authenticated users may use their vault; runtime key admin stays ROLE_ADMIN.
+        access_roles: [ROLE_USER]
+        admin_roles: [ROLE_ADMIN]
+        allow_unauthenticated: false
+
+when@prod:
+    nowo_vault:
+        security:
+            allow_unauthenticated: false

@@ -1,4 +1,6 @@
 # Merged into security.access_control by Symfony (REQ-SEC-004).
+# Personal vault UI: any authenticated user (ROLE_USER). Tighten to ROLE_ADMIN if vault is admin-only.
 security:
     access_control:
         - { path: ^/tools/vault, roles: ROLE_USER }
+        - { path: ^/api/vault/extension, roles: PUBLIC_ACCESS }
