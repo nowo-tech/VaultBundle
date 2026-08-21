@@ -56,6 +56,7 @@ make -C demo/symfony8 up
 - [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
+- [PSR evaluation (REQ-CS-007)](docs/PSR.md)
 - [Browser extension](docs/BROWSER-EXTENSION.md)
 - [Usage](docs/USAGE.md)
 - [Contributing](docs/CONTRIBUTING.md)
