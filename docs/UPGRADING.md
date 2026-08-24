@@ -1,5 +1,27 @@
 # Upgrading
 
+## Table of contents
+
+- [From 1.4.6 to 1.4.7](#from-146-to-147)
+
+## From 1.4.6 to 1.4.7
+
+No breaking changes. **No application upgrade steps.**
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+## From 1.4.6 to 1.4.7
+
+No breaking changes. **No application upgrade steps.**
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+# Upgrading
+
 This document describes how to upgrade between versions of Vault Bundle.
 
 ## 1.3.0 (2026-08-03)
