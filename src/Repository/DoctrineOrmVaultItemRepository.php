@@ -11,6 +11,7 @@ use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 
 use function count;
+use SortDirection;
 
 final readonly class DoctrineOrmVaultItemRepository implements VaultItemRepositoryInterface
 {
@@ -47,7 +48,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
             ->setParameter('creator', $creator)
-            ->orderBy('i.updatedAt', 'DESC');
+            ->orderBy('i.updatedAt', SortDirection::Descending);
 
         if (!$includeDeleted) {
             $qb->andWhere('i.deletedAt IS NULL');
@@ -66,7 +67,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->andWhere('i.itemType = :itemType')
             ->setParameter('creator', $creator)
             ->setParameter('itemType', $itemType)
-            ->orderBy('i.updatedAt', 'DESC');
+            ->orderBy('i.updatedAt', SortDirection::Descending);
 
         if (!$includeDeleted) {
             $qb->andWhere('i.deletedAt IS NULL');
@@ -83,7 +84,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
             ->setParameter('creator', $creator)
-            ->orderBy('i.updatedAt', 'DESC');
+            ->orderBy('i.updatedAt', SortDirection::Descending);
 
         if ($folderId === null) {
             $qb->andWhere('i.folder IS NULL');
@@ -108,7 +109,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->where('i.creator = :creator')
             ->andWhere('i.deletedAt IS NOT NULL')
             ->setParameter('creator', $creator)
-            ->orderBy('i.deletedAt', 'DESC')
+            ->orderBy('i.deletedAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }
@@ -140,7 +141,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->setParameter('creator', $creator)
             ->setParameter('q', '%' . mb_strtolower($query) . '%')
             ->setMaxResults($limit)
-            ->orderBy('i.title', 'ASC')
+            ->orderBy('i.title', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }
@@ -156,7 +157,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->andWhere('t.id = :tagId')
             ->setParameter('creator', $creator)
             ->setParameter('tagId', $tagId)
-            ->orderBy('i.updatedAt', 'DESC');
+            ->orderBy('i.updatedAt', SortDirection::Descending);
 
         if ($folderId !== null && $folderId !== '') {
             $qb->andWhere('i.folder = :folderId')->setParameter('folderId', $folderId);
@@ -181,7 +182,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->setParameter('creator', $creator)
             ->setParameter('q', $needle)
             ->setMaxResults($limit)
-            ->orderBy('i.title', 'ASC')
+            ->orderBy('i.title', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }
@@ -201,7 +202,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->andWhere('i.deletedAt IS NULL')
             ->setParameter('ids', $ids)
             ->setParameter('viewer', $viewer)
-            ->orderBy('i.title', 'ASC')
+            ->orderBy('i.title', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }
@@ -223,7 +224,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->setParameter('ids', $ids)
             ->setParameter('viewer', $viewer)
             ->setParameter('itemType', $itemType)
-            ->orderBy('i.title', 'ASC')
+            ->orderBy('i.title', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }
@@ -286,7 +287,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         $qb = $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
-            ->orderBy('i.id', 'ASC')
+            ->orderBy('i.id', SortDirection::Ascending)
             ->setFirstResult(max(0, $offset))
             ->setMaxResults(max(1, $limit));
 

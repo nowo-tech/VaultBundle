@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Repository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultFolder;
+use SortDirection;
 
 final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepositoryInterface
 {
@@ -43,7 +44,7 @@ final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepo
             ->from(VaultFolder::class, 'f')
             ->where('f.creator = :creator')
             ->setParameter('creator', $creator)
-            ->orderBy('f.name', 'ASC');
+            ->orderBy('f.name', SortDirection::Ascending);
 
         if (!$includeDeleted) {
             $qb->andWhere('f.deletedAt IS NULL');
@@ -62,7 +63,7 @@ final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepo
             ->where('f.creator = :creator')
             ->andWhere('f.deletedAt IS NOT NULL')
             ->setParameter('creator', $creator)
-            ->orderBy('f.deletedAt', 'DESC')
+            ->orderBy('f.deletedAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();
     }

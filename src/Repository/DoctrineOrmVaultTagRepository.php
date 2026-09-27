@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Repository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultTag;
+use SortDirection;
 
 final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepositoryInterface
 {
@@ -53,7 +54,7 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
             ->from(VaultTag::class, 't')
             ->where('t.creator = :creator')
             ->setParameter('creator', $creator)
-            ->orderBy('t.name', 'ASC')
+            ->orderBy('t.name', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }
