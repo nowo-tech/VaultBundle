@@ -9,9 +9,9 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use SortDirection;
 
 use function count;
-use SortDirection;
 
 final readonly class DoctrineOrmVaultItemRepository implements VaultItemRepositoryInterface
 {
