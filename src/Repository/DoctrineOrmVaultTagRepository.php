@@ -5,30 +5,35 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Repository;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultTag;
 
 final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepositoryInterface
 {
+    use ResolvesEntityManagerTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private ?ManagerRegistry $registry = null,
+        private ?string $managerName = null,
     ) {
     }
 
     public function save(VaultTag $tag): void
     {
-        $this->entityManager->persist($tag);
-        $this->entityManager->flush();
+        $this->em()->persist($tag);
+        $this->em()->flush();
     }
 
     public function findById(string $id): ?VaultTag
     {
-        return $this->entityManager->find(VaultTag::class, $id);
+        return $this->em()->find(VaultTag::class, $id);
     }
 
     public function findOneByCreatorAndName(object $creator, string $name): ?VaultTag
     {
         /* @var VaultTag|null */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('t')
             ->from(VaultTag::class, 't')
             ->where('t.creator = :creator')
@@ -43,7 +48,7 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
     public function findByCreator(object $creator): array
     {
         /* @var list<VaultTag> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('t')
             ->from(VaultTag::class, 't')
             ->where('t.creator = :creator')
@@ -55,7 +60,7 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
 
     public function remove(VaultTag $tag): void
     {
-        $this->entityManager->remove($tag);
-        $this->entityManager->flush();
+        $this->em()->remove($tag);
+        $this->em()->flush();
     }
 }

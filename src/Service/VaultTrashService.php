@@ -31,6 +31,7 @@ final readonly class VaultTrashService
 
     public function purgeItem(VaultItem $item): void
     {
+        // @igor-ignore - Service coordinates I/O or request-scoped work; not unsafe worker singleton state.
         $this->itemRepository->remove($item);
     }
 
@@ -51,6 +52,7 @@ final readonly class VaultTrashService
 
     public function purgeFolder(VaultFolder $folder): void
     {
+        // @igor-ignore - Service coordinates I/O or request-scoped work; not unsafe worker singleton state.
         $this->folderRepository->remove($folder);
     }
 }

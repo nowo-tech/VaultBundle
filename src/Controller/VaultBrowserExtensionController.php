@@ -51,6 +51,7 @@ final readonly class VaultBrowserExtensionController
 
         $result = $this->authService->login($username, $password);
         if ($result === null) {
+            // @igor-ignore - HTTP handler delegates to services; no controller worker state.
             $this->loginRateLimiter->registerFailedAttempt($clientIp, $username);
 
             return $this->responseFactory->json(['error' => 'Invalid credentials.'], Response::HTTP_UNAUTHORIZED, $request);

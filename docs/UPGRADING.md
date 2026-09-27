@@ -2,7 +2,28 @@
 
 ## Table of contents
 
+- [Unreleased](#unreleased)
+- [To 1.4.8](#to-148)
 - [From 1.4.6 to 1.4.7](#from-146-to-147)
+
+## Unreleased
+
+## To 1.4.8
+
+From **1.4.7** — REQ-CS-008 Igor FrankenPHP worker audit (igor-php require-dev, igor.json, make igor).
+
+```bash
+composer update nowo-tech/vault-bundle
+php bin/console cache:clear
+```
+
+No breaking changes. Behaviour notes (FrankenPHP worker hardening):
+
+- `ITEM_READ_ONLY_RESOLVE` listeners are now called on every access check instead of once per (user, item) for the worker life. Keep them cheap, or cache inside the listener with a per-request scope.
+- The `DoctrineOrm*Repository` constructors accept two new optional arguments (`?ManagerRegistry $registry`, `?string $managerName`); the bundle wires them automatically. Subclassing is not possible (classes are `final`), so no action is needed.
+- With `config_storage.enabled: true`, runtime config is read from `config_storage.cache_pool` on every call. Use a pool shared by all workers (for example `cache.app` on Redis or a shared filesystem); a per-process pool such as `cache.adapter.array` would still diverge between workers.
+- No application upgrade steps for require-dev Igor tooling (REQ-CS-008). Consumers do not pull `igor-php/igor-php` transitively.
+
 
 ## From 1.4.6 to 1.4.7
 

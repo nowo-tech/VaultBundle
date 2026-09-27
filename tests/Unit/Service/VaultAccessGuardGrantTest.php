@@ -124,7 +124,7 @@ final class VaultAccessGuardGrantTest extends TestCase
         self::assertFalse($guard->canAccessFolder($user, $folder, VaultAccessAction::View));
     }
 
-    public function testReadOnlyCache(): void
+    public function testReadOnlyResolvesConsistentlyOnRepeatedCalls(): void
     {
         $guard = $this->guard([]);
         $user  = new TestUser('1');

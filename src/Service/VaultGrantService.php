@@ -41,6 +41,7 @@ final readonly class VaultGrantService
 
     public function revoke(VaultGrant $grant): void
     {
+        // @igor-ignore - Service coordinates I/O or request-scoped work; not unsafe worker singleton state.
         $this->grantRepository->remove($grant);
     }
 

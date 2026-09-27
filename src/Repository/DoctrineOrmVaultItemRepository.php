@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Repository;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
@@ -13,31 +14,35 @@ use function count;
 
 final readonly class DoctrineOrmVaultItemRepository implements VaultItemRepositoryInterface
 {
+    use ResolvesEntityManagerTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private ?ManagerRegistry $registry = null,
+        private ?string $managerName = null,
     ) {
     }
 
     public function save(VaultItem $item): void
     {
-        $this->entityManager->persist($item);
-        $this->entityManager->flush();
+        $this->em()->persist($item);
+        $this->em()->flush();
     }
 
     public function remove(VaultItem $item): void
     {
-        $this->entityManager->remove($item);
-        $this->entityManager->flush();
+        $this->em()->remove($item);
+        $this->em()->flush();
     }
 
     public function findById(string $id): ?VaultItem
     {
-        return $this->entityManager->find(VaultItem::class, $id);
+        return $this->em()->find(VaultItem::class, $id);
     }
 
     public function findByCreator(object $creator, bool $includeDeleted = false): array
     {
-        $qb = $this->entityManager->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
@@ -54,7 +59,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
 
     public function findByCreatorAndItemType(object $creator, VaultItemType $itemType, bool $includeDeleted = false): array
     {
-        $qb = $this->entityManager->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
@@ -73,7 +78,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
 
     public function findByCreatorAndFolder(object $creator, ?string $folderId, bool $includeDeleted = false): array
     {
-        $qb = $this->entityManager->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
@@ -97,7 +102,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
     public function findDeletedByCreator(object $creator): array
     {
         /* @var list<VaultItem> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
@@ -110,7 +115,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
 
     public function countByCreator(object $creator, bool $includeDeleted = false): int
     {
-        $qb = $this->entityManager->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->select('COUNT(i.id)')
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
@@ -126,7 +131,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
     public function searchByTitle(object $creator, string $query, int $limit = 50): array
     {
         /* @var list<VaultItem> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
@@ -142,7 +147,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
 
     public function findByCreatorAndTag(object $creator, string $tagId, ?string $folderId = null): array
     {
-        $qb = $this->entityManager->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->innerJoin('i.tags', 't')
@@ -166,7 +171,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         $needle = '%' . mb_strtolower($query) . '%';
 
         /* @var list<VaultItem> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('DISTINCT i')
             ->from(VaultItem::class, 'i')
             ->leftJoin('i.tags', 't')
@@ -188,7 +193,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         }
 
         /* @var list<VaultItem> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.id IN (:ids)')
@@ -208,7 +213,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         }
 
         /* @var list<VaultItem> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.id IN (:ids)')
@@ -226,7 +231,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
     public function findActiveByFolder(string $folderId): array
     {
         /* @var list<VaultItem> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.folder = :folderId')
@@ -238,7 +243,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
 
     public function countActiveByFolder(string $folderId): int
     {
-        return (int) $this->entityManager->createQueryBuilder()
+        return (int) $this->em()->createQueryBuilder()
             ->select('COUNT(i.id)')
             ->from(VaultItem::class, 'i')
             ->where('i.folder = :folderId')
@@ -253,11 +258,11 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         $items = $this->findActiveByFolder($folder->getId());
         foreach ($items as $item) {
             $item->setFolder(null);
-            $this->entityManager->persist($item);
+            $this->em()->persist($item);
         }
 
         if ($items !== []) {
-            $this->entityManager->flush();
+            $this->em()->flush();
         }
 
         return count($items);
@@ -265,7 +270,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
 
     public function countAll(bool $includeDeleted = true): int
     {
-        $qb = $this->entityManager->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->select('COUNT(i.id)')
             ->from(VaultItem::class, 'i');
 
@@ -278,7 +283,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
 
     public function findBatch(int $offset, int $limit, bool $includeDeleted = true): array
     {
-        $qb = $this->entityManager->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->orderBy('i.id', 'ASC')
@@ -296,11 +301,11 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
     public function saveBatch(array $items): void
     {
         foreach ($items as $item) {
-            $this->entityManager->persist($item);
+            $this->em()->persist($item);
         }
 
         if ($items !== []) {
-            $this->entityManager->flush();
+            $this->em()->flush();
         }
     }
 }

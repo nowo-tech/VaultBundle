@@ -87,6 +87,7 @@ final readonly class VaultTagService
             throw new InvalidArgumentException('Tag not found or not owned by the current user.');
         }
 
+        // @igor-ignore - Service coordinates I/O or request-scoped work; not unsafe worker singleton state.
         $this->tagRepository->remove($tag);
     }
 

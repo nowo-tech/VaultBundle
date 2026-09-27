@@ -7,9 +7,8 @@ namespace Nowo\VaultBundle\Entity;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
-use Nowo\VaultBundle\Repository\DoctrineOrmVaultSettingsRepository;
 
-#[ORM\Entity(repositoryClass: DoctrineOrmVaultSettingsRepository::class)]
+#[ORM\Entity]
 #[ORM\Table(name: 'vault_settings')]
 class VaultSettings
 {
@@ -51,7 +50,9 @@ class VaultSettings
      */
     public function setValues(array $values): self
     {
-        $this->values    = $values;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->values = $values;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = new DateTimeImmutable();
 
         return $this;
@@ -77,8 +78,10 @@ class VaultSettings
 
     public function setEncryptionKey(?string $encryptionKey): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->encryptionKey = $encryptionKey;
-        $this->updatedAt     = new DateTimeImmutable();
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->updatedAt = new DateTimeImmutable();
 
         return $this;
     }

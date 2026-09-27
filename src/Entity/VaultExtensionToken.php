@@ -6,10 +6,10 @@ namespace Nowo\VaultBundle\Entity;
 
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
-use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
 use Nowo\VaultBundle\ValueObject\Uuid;
+use Symfony\Component\Security\Core\User\UserInterface;
 
-#[ORM\Entity(repositoryClass: DoctrineOrmVaultExtensionTokenRepository::class)]
+#[ORM\Entity]
 #[ORM\Table(name: 'vault_extension_tokens')]
 #[ORM\Index(name: 'vault_extension_tokens_hash_idx', columns: ['token_hash'])]
 #[ORM\Index(name: 'vault_extension_tokens_expires_idx', columns: ['expires_at'])]
@@ -30,7 +30,7 @@ class VaultExtensionToken
         private string $tokenHash,
         #[ORM\Column(name: 'expires_at', type: 'datetime_immutable')]
         private DateTimeImmutable $expiresAt,
-        #[ORM\ManyToOne(targetEntity: 'App\Entity\User')]
+        #[ORM\ManyToOne(targetEntity: UserInterface::class)]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         private object $user,
     ) {
@@ -75,6 +75,7 @@ class VaultExtensionToken
 
     public function touch(): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->lastUsedAt = new DateTimeImmutable();
 
         return $this;

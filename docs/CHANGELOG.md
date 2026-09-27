@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.8] - 2026-09-27
+
+### Added
+
+- **REQ-CS-008:** `igor-php/igor-php` (require-dev only), root `igor.json`, Composer/`Makefile` `igor` target, and `release-check` wiring for FrankenPHP worker-state audit.
+
+### Changed
+
+- **Worker safety (Igor):** justified `// @igor-ignore` annotations and/or `ResetInterface` / request-scoped fixes so `make igor` passes on package `src/`.
+
+### Fixed
+
+- **FrankenPHP worker mode (no kernel reset):** `VaultRuntimeConfigProvider` no longer memoizes the DB-merged runtime config (including `encryption_key`) in the service; it reads the shared cache pool on every call, so a config change or key rotation from another worker or the CLI is seen on the next request (W-01).
+- **FrankenPHP worker mode:** `VaultAccessGuard` no longer caches `ITEM_READ_ONLY_RESOLVE` decisions across requests (stale authorization, unbounded memory) (W-02).
+- **FrankenPHP worker mode:** Doctrine repositories resolve the EntityManager from `ManagerRegistry` per call and reset it when a previous flush closed it; `DoctrineOrmVaultSettingsRepository::findByScope()` always refreshes the settings row from the database (W-03).
+- **Routing:** `VaultRouteLoader` can be loaded more than once in the same process (W-04).
+- **Doctrine:** entities no longer declare `repositoryClass` pointing to the standalone `DoctrineOrm*Repository` services, so `EntityManager::getRepository(VaultItem::class)` (and the other vault entities) returns a default `EntityRepository` instead of throwing a `TypeError`.
+- **Doctrine ORM 2:** `VaultMetadataListener` also remaps array association mappings, so the user association target and the item/tag join table name are applied on ORM 2 as well (user associations now use `UserInterface` as the placeholder target until remapped to `user_class`).
+- Fixed PHPStan findings (0 errors at level 8); `src/Entity` and `src/Doctrine` are analysed again.
+
+[1.4.8]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.4.8
 
 ## [1.4.7] - 2026-08-24
 

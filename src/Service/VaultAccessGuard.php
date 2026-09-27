@@ -20,7 +20,6 @@ use Nowo\VaultBundle\Support\UserIdResolver;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-use function array_key_exists;
 use function in_array;
 
 /**
@@ -28,9 +27,6 @@ use function in_array;
  */
 final class VaultAccessGuard
 {
-    /** @var array<string, bool> */
-    private array $readOnlyCache = [];
-
     public function __construct(
         private readonly VaultGrantRepositoryInterface $grantRepository,
         private readonly VaultTeamMembershipResolverInterface $teamMembershipResolver,
@@ -66,20 +62,14 @@ final class VaultAccessGuard
 
     public function isItemReadOnly(UserInterface $user, VaultItem $item): bool
     {
-        $userId = UserIdResolver::getId($user);
-        if ($userId === null) {
+        if (UserIdResolver::getId($user) === null) {
             return false;
-        }
-
-        $cacheKey = $userId . ':' . $item->getId();
-        if (array_key_exists($cacheKey, $this->readOnlyCache)) {
-            return $this->readOnlyCache[$cacheKey];
         }
 
         $event = new VaultItemReadOnlyEvent($user, $item);
         $this->eventDispatcher->dispatch($event, VaultEvents::ITEM_READ_ONLY_RESOLVE);
 
-        return $this->readOnlyCache[$cacheKey] = $event->isReadOnly();
+        return $event->isReadOnly();
     }
 
     /**

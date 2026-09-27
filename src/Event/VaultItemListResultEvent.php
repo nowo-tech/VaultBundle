@@ -38,6 +38,7 @@ final class VaultItemListResultEvent extends Event
      */
     public function setItems(array $items): void
     {
+        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
         $this->items = $items;
     }
 
@@ -48,6 +49,7 @@ final class VaultItemListResultEvent extends Event
 
     public function setTotal(int $total): void
     {
+        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
         $this->total = $total;
     }
 }

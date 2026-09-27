@@ -124,6 +124,7 @@ final class ReencryptVaultPayloadsCommand extends Command
                 batchSize: $batchSize,
                 includeDeleted: !$input->getOption('skip-trash'),
                 dryRun: $dryRun,
+                // @igor-ignore - Console command; not executed in FrankenPHP worker HTTP requests.
                 onProgress: static function (int $processed, int $total) use ($progress): void {
                     if (!$progress instanceof ProgressBar) {
                         return;

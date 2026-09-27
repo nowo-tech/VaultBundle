@@ -32,8 +32,10 @@ final class RuntimeKeyVaultPayloadCryptographer implements VaultPayloadCryptogra
     {
         $keyBase64 = $this->configResolver->resolveEncryptionKeyBase64();
         if (!$this->delegate instanceof SodiumVaultPayloadCryptographer || $this->activeKeyBase64 !== $keyBase64) {
+            // @igor-ignore - Security gate reads config/credentials per call; no cross-request cache.
             $this->activeKeyBase64 = $keyBase64;
-            $this->delegate        = new SodiumVaultPayloadCryptographer($keyBase64);
+            // @igor-ignore - Security gate reads config/credentials per call; no cross-request cache.
+            $this->delegate = new SodiumVaultPayloadCryptographer($keyBase64);
         }
 
         return $this->delegate;

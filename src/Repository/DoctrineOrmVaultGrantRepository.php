@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Repository;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
@@ -12,27 +13,31 @@ use Nowo\VaultBundle\Support\UserIdResolver;
 
 final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantRepositoryInterface
 {
+    use ResolvesEntityManagerTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private ?ManagerRegistry $registry = null,
+        private ?string $managerName = null,
     ) {
     }
 
     public function save(VaultGrant $grant): void
     {
-        $this->entityManager->persist($grant);
-        $this->entityManager->flush();
+        $this->em()->persist($grant);
+        $this->em()->flush();
     }
 
     public function remove(VaultGrant $grant): void
     {
-        $this->entityManager->remove($grant);
-        $this->entityManager->flush();
+        $this->em()->remove($grant);
+        $this->em()->flush();
     }
 
     public function findByResource(VaultResourceType $type, string $resourceId): array
     {
         /* @var list<VaultGrant> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('g')
             ->from(VaultGrant::class, 'g')
             ->where('g.resourceType = :type')
@@ -46,7 +51,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
     public function findByGrantee(GranteeType $type, string $granteeId): array
     {
         /* @var list<VaultGrant> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('g')
             ->from(VaultGrant::class, 'g')
             ->where('g.granteeType = :type')
@@ -64,7 +69,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
         string $granteeId,
     ): ?VaultGrant {
         /* @var VaultGrant|null */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('g')
             ->from(VaultGrant::class, 'g')
             ->where('g.resourceType = :rt')
@@ -82,7 +87,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
     public function findById(string $id): ?VaultGrant
     {
         /* @var VaultGrant|null */
-        return $this->entityManager->find(VaultGrant::class, $id);
+        return $this->em()->find(VaultGrant::class, $id);
     }
 
     public function countByResources(VaultResourceType $type, array $resourceIds): array
@@ -92,7 +97,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
         }
 
         /** @var list<array{resourceId: string, grantCount: int|string}> $rows */
-        $rows = $this->entityManager->createQueryBuilder()
+        $rows = $this->em()->createQueryBuilder()
             ->select('g.resourceId AS resourceId, COUNT(g.id) AS grantCount')
             ->from(VaultGrant::class, 'g')
             ->where('g.resourceType = :type')

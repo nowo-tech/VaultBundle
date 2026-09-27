@@ -9,7 +9,6 @@ use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Routing\Route;
 
@@ -142,7 +141,7 @@ final class VaultRouteLoaderTest extends TestCase
         self::assertSame(['GET', 'OPTIONS'], $route->getMethods());
     }
 
-    public function testCannotLoadTwice(): void
+    public function testCanLoadTwiceInTheSameProcess(): void
     {
         $loader = new VaultRouteLoader($this->createProvider([
             'index'               => ['path' => '/tools/vault', 'name' => 'nowo_vault_index'],
@@ -165,10 +164,10 @@ final class VaultRouteLoaderTest extends TestCase
             'password_generate'   => ['path' => '/password/generate', 'name' => 'nowo_vault_password_generate'],
             'runtime_config'      => ['path' => '/runtime-config', 'name' => 'nowo_vault_runtime_config'],
         ]), false, false, []);
-        $loader->load('.', 'nowo_vault');
+        $first  = $loader->load('.', 'nowo_vault');
+        $second = $loader->load('.', 'nowo_vault');
 
-        $this->expectException(RuntimeException::class);
-        $loader->load('.', 'nowo_vault');
+        self::assertSame(array_keys($first->all()), array_keys($second->all()));
     }
 
     /**

@@ -21,8 +21,12 @@ final class VaultRuntimeConfigProvider
 {
     public const CACHE_KEY = 'nowo_vault.runtime_config.merged.v2';
 
-    /** @var array<string, mixed>|null */
-    private ?array $resolved = null;
+    /**
+     * Validated YAML baseline; immutable for the container lifetime, so it is safe to keep across requests.
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $validatedYamlBaseline = null;
 
     /**
      * @param array<string, mixed> $yamlBaseline
@@ -36,28 +40,23 @@ final class VaultRuntimeConfigProvider
     }
 
     /**
+     * Database-backed config is read from the shared cache pool on every call (never memoized in the
+     * service), so a change made by another worker or the CLI is visible on the next call.
+     *
      * @return array<string, mixed>
      */
     public function get(): array
     {
-        if ($this->resolved !== null) {
-            return $this->resolved;
-        }
-
         if (!$this->databaseEnabled) {
-            $this->resolved = $this->validate($this->yamlBaseline);
-
-            return $this->resolved;
+            // @igor-ignore - Not shared worker service state.
+            return $this->validatedYamlBaseline ??= $this->validate($this->yamlBaseline);
         }
 
-        $this->resolved = $this->cache->get(self::CACHE_KEY, fn (ItemInterface $item): array => $this->validate($this->loadMergedFromDatabase()));
-
-        return $this->resolved;
+        return $this->cache->get(self::CACHE_KEY, fn (ItemInterface $item): array => $this->validate($this->loadMergedFromDatabase()));
     }
 
     public function invalidateCache(): void
     {
-        $this->resolved = null;
         $this->cache->delete(self::CACHE_KEY);
     }
 

@@ -124,7 +124,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         ] as $repoClass => $interface) {
             $container->setDefinition($repoClass, (new Definition($repoClass))
                 ->setAutowired(false)
-                ->setArgument('$entityManager', $emRef));
+                ->setArgument('$entityManager', $emRef)
+                ->setArgument('$registry', new Reference('doctrine'))
+                ->setArgument('$managerName', $emName));
             $container->setAlias($interface, $repoClass);
         }
 
@@ -335,9 +337,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $hostHasCssFramework = false;
         $hostHasIconSet      = false;
         foreach ($container->getExtensionConfig('nowo_ui_kit') as $cfg) {
-            if (!is_array($cfg)) {
-                continue;
-            }
             if (array_key_exists('css_framework', $cfg)) {
                 $hostHasCssFramework = true;
             }
@@ -353,7 +352,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         // Avoid processConfiguration(): encryption_key is required and may be unset during early prepend.
         $fw = 'tabler';
         foreach ($container->getExtensionConfig(Configuration::ALIAS) as $cfg) {
-            if (is_array($cfg) && isset($cfg['css_framework']) && is_string($cfg['css_framework'])) {
+            if (isset($cfg['css_framework']) && is_string($cfg['css_framework'])) {
                 $fw = $cfg['css_framework'];
             }
         }
@@ -369,8 +368,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $defaults['icon_set'] = $fw === 'tabler' ? 'tabler-icons' : 'bootstrap-icons';
         }
 
-        if ($defaults !== []) {
-            $container->prependExtensionConfig('nowo_ui_kit', $defaults);
-        }
+        $container->prependExtensionConfig('nowo_ui_kit', $defaults);
     }
 }

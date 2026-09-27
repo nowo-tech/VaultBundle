@@ -5,35 +5,40 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Repository;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultFolder;
 
 final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepositoryInterface
 {
+    use ResolvesEntityManagerTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private ?ManagerRegistry $registry = null,
+        private ?string $managerName = null,
     ) {
     }
 
     public function save(VaultFolder $folder): void
     {
-        $this->entityManager->persist($folder);
-        $this->entityManager->flush();
+        $this->em()->persist($folder);
+        $this->em()->flush();
     }
 
     public function remove(VaultFolder $folder): void
     {
-        $this->entityManager->remove($folder);
-        $this->entityManager->flush();
+        $this->em()->remove($folder);
+        $this->em()->flush();
     }
 
     public function findById(string $id): ?VaultFolder
     {
-        return $this->entityManager->find(VaultFolder::class, $id);
+        return $this->em()->find(VaultFolder::class, $id);
     }
 
     public function findByCreator(object $creator, bool $includeDeleted = false): array
     {
-        $qb = $this->entityManager->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->select('f')
             ->from(VaultFolder::class, 'f')
             ->where('f.creator = :creator')
@@ -51,7 +56,7 @@ final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepo
     public function findDeletedByCreator(object $creator): array
     {
         /* @var list<VaultFolder> */
-        return $this->entityManager->createQueryBuilder()
+        return $this->em()->createQueryBuilder()
             ->select('f')
             ->from(VaultFolder::class, 'f')
             ->where('f.creator = :creator')

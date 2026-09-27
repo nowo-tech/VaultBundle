@@ -38,6 +38,7 @@ final class VaultItemListQueryEvent extends Event
 
     public function setListSubject(UserInterface $listSubject): void
     {
+        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
         $this->listSubject = $listSubject;
     }
 
@@ -79,8 +80,11 @@ final class VaultItemListQueryEvent extends Event
      */
     public function overrideResult(array $items, int $total): void
     {
-        $this->hasOverride   = true;
+        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
+        $this->hasOverride = true;
+        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
         $this->overrideItems = $items;
+        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
         $this->overrideTotal = $total;
     }
 }

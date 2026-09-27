@@ -77,6 +77,7 @@ final readonly class VaultBrowserExtensionAuthService
     {
         $entity = $this->tokenRepository->findValidByTokenHash(self::hashToken($plainToken));
         if ($entity instanceof VaultExtensionToken) {
+            // @igor-ignore - Service coordinates I/O or request-scoped work; not unsafe worker singleton state.
             $this->tokenRepository->remove($entity);
         }
     }

@@ -4,9 +4,6 @@ parameters:
         - src
     excludePaths:
         - src/Resources/assets/*
-        # Doctrine ORM attribute generics / association mapping noise (covered by runtime + tests)
-        - src/Entity/*
-        - src/Doctrine/*
     reportUnmatchedIgnoredErrors: false
     ignoreErrors: []
 

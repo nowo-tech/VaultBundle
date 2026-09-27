@@ -9,10 +9,10 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\VaultBundle\Enum\VaultItemType;
-use Nowo\VaultBundle\Repository\DoctrineOrmVaultItemRepository;
 use Nowo\VaultBundle\ValueObject\Uuid;
+use Symfony\Component\Security\Core\User\UserInterface;
 
-#[ORM\Entity(repositoryClass: DoctrineOrmVaultItemRepository::class)]
+#[ORM\Entity]
 #[ORM\Table(name: 'vault_items')]
 #[ORM\Index(name: 'vault_items_type_idx', columns: ['item_type'])]
 #[ORM\Index(name: 'vault_items_deleted_idx', columns: ['deleted_at'])]
@@ -43,7 +43,7 @@ class VaultItem
         private VaultItemType $itemType,
         #[ORM\Column(type: 'string', length: 255)]
         private string $title,
-        #[ORM\ManyToOne(targetEntity: 'App\Entity\User')]
+        #[ORM\ManyToOne(targetEntity: UserInterface::class)]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         private object $creator,
         /** Encrypted JSON payload (libsodium). */
@@ -76,7 +76,9 @@ class VaultItem
 
     public function setTitle(string $title): self
     {
-        $this->title     = $title;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->title = $title;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = new DateTimeImmutable();
 
         return $this;
@@ -94,7 +96,9 @@ class VaultItem
 
     public function setFolder(?VaultFolder $folder): self
     {
-        $this->folder    = $folder;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->folder = $folder;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = new DateTimeImmutable();
 
         return $this;
@@ -107,8 +111,10 @@ class VaultItem
 
     public function setCiphertext(string $ciphertext): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->ciphertext = $ciphertext;
-        $this->updatedAt  = new DateTimeImmutable();
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->updatedAt = new DateTimeImmutable();
 
         return $this;
     }
@@ -125,7 +131,9 @@ class VaultItem
 
     public function markDeleted(): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->deletedAt = new DateTimeImmutable();
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = new DateTimeImmutable();
 
         return $this;
@@ -133,7 +141,9 @@ class VaultItem
 
     public function restore(): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->deletedAt = null;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = new DateTimeImmutable();
 
         return $this;
@@ -166,6 +176,7 @@ class VaultItem
         foreach ($tags as $tag) {
             $this->tags->add($tag);
         }
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = new DateTimeImmutable();
 
         return $this;

@@ -16,7 +16,9 @@ use Nowo\VaultBundle\Entity\VaultSettings;
 use Nowo\VaultBundle\Entity\VaultTag;
 
 use function array_replace_recursive;
+use function get_debug_type;
 use function in_array;
+use function is_scalar;
 use function ltrim;
 use function sprintf;
 
@@ -53,16 +55,13 @@ final readonly class VaultMetadataListener
         };
 
         if ($class === VaultItem::class && isset($metadata->associationMappings['tags'])) {
-            $mapping = $metadata->associationMappings['tags'];
-            if ($mapping instanceof AssociationMapping) {
-                $newMapping = array_replace_recursive(
-                    $mapping->toArray(),
-                    ['joinTable' => ['name' => $this->itemTagsTableName]],
-                );
-                $newMapping['fieldName'] = $mapping->fieldName;
-                unset($metadata->associationMappings['tags']);
-                $metadata->mapManyToMany($newMapping);
-            }
+            $newMapping = array_replace_recursive(
+                self::mappingToArray($metadata->associationMappings['tags']),
+                ['joinTable' => ['name' => $this->itemTagsTableName]],
+            );
+            $newMapping['fieldName'] = 'tags';
+            unset($metadata->associationMappings['tags']);
+            $metadata->mapManyToMany($newMapping);
         }
 
         if (!in_array($class, [VaultItem::class, VaultFolder::class, VaultGrant::class, VaultTag::class, VaultExtensionToken::class], true)) {
@@ -76,27 +75,34 @@ final readonly class VaultMetadataListener
         }
     }
 
+    /**
+     * @param ClassMetadata<object> $metadata
+     */
     private function remapUserAssociation(ClassMetadata $metadata, string $fieldName): void
     {
-        $mapping      = $metadata->associationMappings[$fieldName];
-        $targetEntity = ltrim($this->userClass, '\\');
+        $newMapping = array_replace_recursive(
+            self::mappingToArray($metadata->associationMappings[$fieldName]),
+            ['targetEntity' => ltrim($this->userClass, '\\')],
+        );
+        $newMapping['fieldName'] = $fieldName;
+        $type                    = $newMapping['type'] ?? null;
 
-        if ($mapping instanceof AssociationMapping) {
-            $newMapping = array_replace_recursive(
-                $mapping->toArray(),
-                ['targetEntity' => $targetEntity],
-            );
-            $newMapping['fieldName'] = $mapping->fieldName;
+        unset($metadata->associationMappings[$fieldName]);
 
-            unset($metadata->associationMappings[$fieldName]);
+        match ($type) {
+            ClassMetadata::MANY_TO_ONE => $metadata->mapManyToOne($newMapping),
+            ClassMetadata::ONE_TO_ONE  => $metadata->mapOneToOne($newMapping),
+            default                    => throw new LogicException(sprintf('Unsupported association type for %s: %s', $fieldName, is_scalar($type) ? (string) $type : get_debug_type($type))),
+        };
+    }
 
-            match ($mapping->type()) {
-                ClassMetadata::MANY_TO_ONE => $metadata->mapManyToOne($newMapping),
-                ClassMetadata::ONE_TO_ONE  => $metadata->mapOneToOne($newMapping),
-                default                    => throw new LogicException(sprintf('Unsupported association type for %s: %d', $fieldName, $mapping->type())),
-            };
-
-            return;
-        }
+    /**
+     * Doctrine ORM 3 exposes association mappings as objects, ORM 2 as arrays.
+     *
+     * @return array<string, mixed>
+     */
+    private static function mappingToArray(mixed $mapping): array
+    {
+        return $mapping instanceof AssociationMapping ? $mapping->toArray() : (array) $mapping;
     }
 }

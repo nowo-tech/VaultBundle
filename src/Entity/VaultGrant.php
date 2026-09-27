@@ -9,10 +9,10 @@ use Doctrine\ORM\Mapping as ORM;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
-use Nowo\VaultBundle\Repository\DoctrineOrmVaultGrantRepository;
 use Nowo\VaultBundle\ValueObject\Uuid;
+use Symfony\Component\Security\Core\User\UserInterface;
 
-#[ORM\Entity(repositoryClass: DoctrineOrmVaultGrantRepository::class)]
+#[ORM\Entity]
 #[ORM\Table(name: 'vault_grants')]
 #[ORM\UniqueConstraint(name: 'vault_grants_unique', columns: ['resource_type', 'resource_id', 'grantee_type', 'grantee_id'])]
 class VaultGrant
@@ -36,7 +36,7 @@ class VaultGrant
         private string $granteeId,
         #[ORM\Column(type: 'string', length: 16, enumType: VaultPermission::class)]
         private VaultPermission $permission,
-        #[ORM\ManyToOne(targetEntity: 'App\Entity\User')]
+        #[ORM\ManyToOne(targetEntity: UserInterface::class)]
         #[ORM\JoinColumn(name: 'created_by_id', nullable: false, onDelete: 'CASCADE')]
         private object $createdBy,
     ) {
@@ -76,6 +76,7 @@ class VaultGrant
 
     public function setPermission(VaultPermission $permission): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->permission = $permission;
 
         return $this;

@@ -59,6 +59,7 @@ final class VaultGrantListQueryEvent extends Event
 
     public function addGrantee(VaultGranteeChoice $grantee): void
     {
+        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
         $this->grantees[$grantee->getKey()] = $grantee;
     }
 

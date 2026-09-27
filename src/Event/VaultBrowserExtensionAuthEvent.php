@@ -43,6 +43,7 @@ final class VaultBrowserExtensionAuthEvent extends Event
 
     public function setResult(VaultBrowserExtensionAuthResult $result): void
     {
+        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
         $this->result = $result;
     }
 }

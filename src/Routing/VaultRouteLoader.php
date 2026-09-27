@@ -8,15 +8,12 @@ use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Controller\VaultBrowserExtensionController;
 use Nowo\VaultBundle\Controller\VaultManageController;
 use Nowo\VaultBundle\Controller\VaultRuntimeConfigController;
-use RuntimeException;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
 final class VaultRouteLoader extends Loader
 {
-    private bool $loaded = false;
-
     public function __construct(
         private readonly VaultRuntimeConfigProvider $runtimeConfig,
         private readonly bool $configStorageEnabled,
@@ -28,12 +25,7 @@ final class VaultRouteLoader extends Loader
 
     public function load(mixed $resource, ?string $type = null): RouteCollection
     {
-        if ($this->loaded) {
-            throw new RuntimeException('Vault routes already loaded.');
-        }
-
-        $this->loaded = true;
-        $config       = $this->runtimeConfig->get();
+        $config = $this->runtimeConfig->get();
         /** @var array<string, array{path: string, name: string}> $routes */
         $routes      = $config['routes'];
         $routePrefix = (string) $config['route_prefix'];

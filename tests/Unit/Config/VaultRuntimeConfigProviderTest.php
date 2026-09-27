@@ -217,6 +217,65 @@ final class VaultRuntimeConfigProviderTest extends TestCase
         $writer->reset();
     }
 
+    public function testChangeWrittenByAnotherWorkerIsSeenOnNextRequestWithoutReset(): void
+    {
+        $baseline = VaultRuntimeConfigFactory::baseline(['max_attachment_bytes' => 512_000]);
+        $settings = new VaultSettings(values: ['max_attachment_bytes' => 100_000], encryptionKey: 'key-v1');
+
+        $repo = $this->createMock(VaultSettingsRepositoryInterface::class);
+        $repo->method('findByScope')->willReturn($settings);
+
+        $sharedPool = $this->createCache();
+        $worker1    = new VaultRuntimeConfigProvider($baseline, true, $repo, $sharedPool);
+        $worker2    = new VaultRuntimeConfigProvider($baseline, true, $repo, $sharedPool);
+        $writer1    = new VaultRuntimeConfigWriter(true, $repo, $worker1);
+
+        // Request 1 on each worker.
+        self::assertSame(100_000, $worker1->get()['max_attachment_bytes']);
+        self::assertSame('key-v1', $worker2->get()['encryption_key']);
+
+        // Request 2: admin rotates config/key through worker 1.
+        $writer1->update(['max_attachment_bytes' => 2048, 'encryption_key' => 'key-v2']);
+
+        // Request 3 on worker 2 (no reset() called anywhere) sees the new values.
+        self::assertSame(2048, $worker2->get()['max_attachment_bytes']);
+        self::assertSame('key-v2', $worker2->get()['encryption_key']);
+        self::assertSame('key-v2', $worker1->get()['encryption_key']);
+    }
+
+    public function testCliInvalidationIsSeenByLongLivedProviderWithoutReset(): void
+    {
+        $baseline = VaultRuntimeConfigFactory::baseline();
+        $settings = new VaultSettings(encryptionKey: 'key-v1');
+
+        $repo = $this->createMock(VaultSettingsRepositoryInterface::class);
+        $repo->method('findByScope')->willReturn($settings);
+
+        $sharedPool = $this->createCache();
+        $worker     = new VaultRuntimeConfigProvider($baseline, true, $repo, $sharedPool);
+        self::assertSame('key-v1', $worker->get()['encryption_key']);
+
+        $settings->setEncryptionKey('key-v2');
+        (new VaultRuntimeConfigProvider($baseline, true, $repo, $sharedPool))->invalidateCache();
+
+        self::assertSame('key-v2', $worker->get()['encryption_key']);
+    }
+
+    public function testYamlOnlyConfigIsValidatedOnce(): void
+    {
+        $provider = new VaultRuntimeConfigProvider(
+            VaultRuntimeConfigFactory::baseline(['max_attachment_bytes' => 1024]),
+            false,
+            $this->createMock(VaultSettingsRepositoryInterface::class),
+            $this->createCache(),
+        );
+
+        $first = $provider->get();
+        $provider->invalidateCache();
+
+        self::assertSame($first, $provider->get());
+    }
+
     private function createCache(): CacheInterface
     {
         return new ArrayAdapter();

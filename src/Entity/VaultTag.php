@@ -8,10 +8,10 @@ use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Nowo\VaultBundle\Repository\DoctrineOrmVaultTagRepository;
 use Nowo\VaultBundle\ValueObject\Uuid;
+use Symfony\Component\Security\Core\User\UserInterface;
 
-#[ORM\Entity(repositoryClass: DoctrineOrmVaultTagRepository::class)]
+#[ORM\Entity]
 #[ORM\Table(name: 'vault_tags')]
 #[ORM\UniqueConstraint(name: 'vault_tags_creator_name_unique', columns: ['creator_id', 'name'])]
 class VaultTag
@@ -30,7 +30,7 @@ class VaultTag
     public function __construct(
         #[ORM\Column(type: 'string', length: 64)]
         private string $name,
-        #[ORM\ManyToOne(targetEntity: 'App\Entity\User')]
+        #[ORM\ManyToOne(targetEntity: UserInterface::class)]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         private object $creator,
     ) {

@@ -27,7 +27,8 @@ final class PurgeExtensionTokensCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io      = new SymfonyStyle($input, $output);
+        $io = new SymfonyStyle($input, $output);
+        // @igor-ignore - Console command; not executed in FrankenPHP worker HTTP requests.
         $removed = $this->tokenRepository->removeExpired();
 
         $io->success(sprintf('Removed %d expired extension token(s).', $removed));
