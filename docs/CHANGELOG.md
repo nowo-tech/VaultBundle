@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-09
+
 ### Changed
 
-- **Doctrine ORM SortDirection:** replace string `'ASC'`/`'DESC'` in `#[ORM\OrderBy]` and QueryBuilder `orderBy`/`addOrderBy` with `SortDirection::Ascending`/`Descending` (doctrine/orm deprecation, https://github.com/doctrine/orm/issues/11313); require `doctrine/orm` `^3.7` where applicable.
+- **Doctrine ORM SortDirection:** replace string `'ASC'`/`'DESC'` in `#[ORM\OrderBy]` and QueryBuilder `orderBy`/`addOrderBy` with `SortDirection::Ascending`/`Descending` (doctrine/orm deprecation, https://github.com/doctrine/orm/issues/11313); `doctrine/orm` requirement raised to `^3.7` (was `^2.15 || ^3.0`).
 
+### Dependencies
+
+- `igor-php/igor-php` require-dev constraint bumped to `^0.10.0`; Dependabot bumps for `doctrine/orm`, `nowo-tech/form-kit-bundle`, `nowo-tech/ui-kit-bundle`, PHPStan, PHP CS Fixer and npm (`vite` 8.3.2, `jsdom` 30.1.1, `@types/chrome` 0.3.4).
+- Lock refreshed: `doctrine/orm` 3.7.4, `nowo-tech/form-kit-bundle` 2.6.1, `nowo-tech/ui-kit-bundle` 1.9.2, Symfony 7.4.20, PHPStan 2.3.1, Rector 2.7.0.
+- Demo `symfony8`: Symfony 8.1.8, `doctrine/orm` 3.7.4, `doctrine/dbal` 4.5.0, Twig 3.30.0, latest nowo-tech form widget bundles.
+
+[1.5.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.5.0
 
 ## [1.4.8] - 2026-09-27
 

@@ -3,10 +3,23 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.5.0](#to-150)
 - [To 1.4.8](#to-148)
 - [From 1.4.6 to 1.4.7](#from-146-to-147)
 
 ## Unreleased
+
+## To 1.5.0
+
+From **1.4.8** — Doctrine ORM `SortDirection`; `doctrine/orm` `^3.7` required.
+
+```bash
+composer update nowo-tech/vault-bundle doctrine/orm --with-all-dependencies
+php bin/console cache:clear
+```
+
+- **Requirement:** `doctrine/orm` **^3.7** (ORM 2.x and 3.0–3.6 are no longer supported). Upgrade Doctrine ORM first if your application is on an older version.
+- No configuration or public API changes.
 
 ## To 1.4.8
 
