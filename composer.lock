@@ -698,16 +698,16 @@
         },
         {
             "name": "doctrine/orm",
-            "version": "3.7.4",
+            "version": "3.7.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/orm.git",
-                "reference": "84e21e325e3da22e46d7facbccdc9258f2332b1e"
+                "reference": "00c2fd70da291cca1ec75f4dae5344fe3df588fa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/orm/zipball/84e21e325e3da22e46d7facbccdc9258f2332b1e",
-                "reference": "84e21e325e3da22e46d7facbccdc9258f2332b1e",
+                "url": "https://api.github.com/repos/doctrine/orm/zipball/00c2fd70da291cca1ec75f4dae5344fe3df588fa",
+                "reference": "00c2fd70da291cca1ec75f4dae5344fe3df588fa",
                 "shasum": ""
             },
             "require": {
@@ -782,9 +782,9 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/orm/issues",
-                "source": "https://github.com/doctrine/orm/tree/3.7.4"
+                "source": "https://github.com/doctrine/orm/tree/3.7.5"
             },
-            "time": "2026-10-05T18:31:26+00:00"
+            "time": "2026-10-09T05:58:13+00:00"
         },
         {
             "name": "doctrine/persistence",
@@ -7026,16 +7026,16 @@
         },
         {
             "name": "nowo-tech/doctrine-encrypt-bundle",
-            "version": "v2.4.3",
+            "version": "v2.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/DoctrineEncryptBundle.git",
-                "reference": "a376c182eb4c91da2742d0b1148833c4e9a09fb8"
+                "reference": "7a9c8163c5d7a50d75b606905a6aab1be5148613"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/a376c182eb4c91da2742d0b1148833c4e9a09fb8",
-                "reference": "a376c182eb4c91da2742d0b1148833c4e9a09fb8",
+                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/7a9c8163c5d7a50d75b606905a6aab1be5148613",
+                "reference": "7a9c8163c5d7a50d75b606905a6aab1be5148613",
                 "shasum": ""
             },
             "require": {
@@ -7115,7 +7115,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-09T07:29:24+00:00"
+            "time": "2026-10-09T08:59:09+00:00"
         },
         {
             "name": "nowo-tech/phpstan-frankenphp",
