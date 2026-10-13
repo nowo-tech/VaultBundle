@@ -44,6 +44,7 @@ final readonly class VaultPayloadReencryptionService
 
         $total     = $this->itemRepository->countAll($includeDeleted);
         $processed = 0;
+        $skipped   = 0;
         $offset    = 0;
 
         while ($offset < $total) {
@@ -58,6 +59,14 @@ final readonly class VaultPayloadReencryptionService
                 try {
                     $plaintext = $oldCryptographer->decrypt($item->getCiphertext());
                 } catch (RuntimeException $exception) {
+                    // Resumable re-runs: an item an earlier (interrupted) run already
+                    // re-encrypted decrypts with the new key, so it is skipped instead of aborting.
+                    if ($this->isEncryptedWith($newCryptographer, $item->getCiphertext())) {
+                        ++$skipped;
+
+                        continue;
+                    }
+
                     throw new RuntimeException(sprintf('Failed to decrypt vault item %s.', $item->getId()), 0, $exception);
                 }
 
@@ -69,17 +78,28 @@ final readonly class VaultPayloadReencryptionService
                 ++$processed;
             }
 
-            if (!$dryRun) {
+            if (!$dryRun && $updated !== []) {
                 $this->itemRepository->saveBatch($updated);
             }
 
             if ($onProgress !== null) {
-                $onProgress($processed, $total);
+                $onProgress($processed + $skipped, $total);
             }
 
             $offset += count($batch);
         }
 
-        return new VaultPayloadReencryptionResult($total, $processed, $dryRun);
+        return new VaultPayloadReencryptionResult($total, $processed, $dryRun, $skipped);
+    }
+
+    private function isEncryptedWith(SodiumVaultPayloadCryptographer $cryptographer, string $ciphertext): bool
+    {
+        try {
+            $cryptographer->decrypt($ciphertext);
+        } catch (RuntimeException) {
+            return false;
+        }
+
+        return true;
     }
 }

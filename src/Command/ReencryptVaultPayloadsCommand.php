@@ -171,6 +171,13 @@ final class ReencryptVaultPayloadsCommand extends Command
             $result->totalItems,
         ));
 
+        if ($result->skippedItems > 0) {
+            $io->note(sprintf(
+                'Skipped %d vault item payload(s) already encrypted with the new key (resumed run).',
+                $result->skippedItems,
+            ));
+        }
+
         if ($persistKey) {
             $this->configWriter->update(['encryption_key' => $newKey]);
             $io->success('Stored the new encryption key in database runtime config.');

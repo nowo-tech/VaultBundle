@@ -148,6 +148,70 @@ final class VaultPayloadReencryptionServiceTest extends TestCase
         }
     }
 
+    public function testResumedRunSkipsItemsAlreadyEncryptedWithNewKey(): void
+    {
+        $oldKey    = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $newKey    = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $newCrypto = new SodiumVaultPayloadCryptographer($newKey);
+
+        // First item was re-encrypted by an earlier, interrupted run; the second was not.
+        $migratedCipher = $newCrypto->encrypt(['username' => 'done']);
+        $migrated       = new VaultItem(VaultItemType::Login, 'Migrated', new TestUser('1'), $migratedCipher);
+        $pending        = new VaultItem(
+            VaultItemType::Login,
+            'Pending',
+            new TestUser('1'),
+            (new SodiumVaultPayloadCryptographer($oldKey))->encrypt(['username' => 'todo']),
+        );
+
+        $repository = $this->createMock(VaultItemRepositoryInterface::class);
+        $repository->method('countAll')->willReturn(2);
+        $repository->method('findBatch')->willReturn([$migrated, $pending]);
+        $repository->expects(self::once())
+            ->method('saveBatch')
+            ->with(self::callback(static function (array $saved) use ($pending): bool {
+                self::assertSame([$pending], $saved);
+
+                return true;
+            }));
+
+        $lastProgress = null;
+        $service      = new VaultPayloadReencryptionService($repository, $this->createResolver($newKey));
+        $result       = $service->reencrypt($oldKey, $newKey, onProgress: static function (int $processed, int $total) use (&$lastProgress): void {
+            $lastProgress = [$processed, $total];
+        });
+
+        self::assertSame(2, $result->totalItems);
+        self::assertSame(1, $result->processedItems);
+        self::assertSame(1, $result->skippedItems);
+        self::assertSame([2, 2], $lastProgress);
+        self::assertSame($migratedCipher, $migrated->getCiphertext());
+        self::assertSame(['username' => 'todo'], $newCrypto->decrypt($pending->getCiphertext()));
+    }
+
+    public function testDoesNotSaveBatchWhenEveryItemIsAlreadyMigrated(): void
+    {
+        $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $newKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $item   = new VaultItem(
+            VaultItemType::SecureNote,
+            'Note',
+            new TestUser('1'),
+            (new SodiumVaultPayloadCryptographer($newKey))->encrypt(['a' => 1]),
+        );
+
+        $repository = $this->createMock(VaultItemRepositoryInterface::class);
+        $repository->method('countAll')->willReturn(1);
+        $repository->method('findBatch')->willReturn([$item]);
+        $repository->expects(self::never())->method('saveBatch');
+
+        $service = new VaultPayloadReencryptionService($repository, $this->createResolver($newKey));
+        $result  = $service->reencrypt($oldKey, $newKey);
+
+        self::assertSame(0, $result->processedItems);
+        self::assertSame(1, $result->skippedItems);
+    }
+
     public function testInvokesProgressCallback(): void
     {
         $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();

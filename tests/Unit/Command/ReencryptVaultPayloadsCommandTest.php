@@ -61,6 +61,39 @@ final class ReencryptVaultPayloadsCommandTest extends TestCase
         self::assertStringContainsString('Verified 1 of 1', $tester->getDisplay());
     }
 
+    public function testReportsItemsAlreadyEncryptedWithNewKeyAsSkipped(): void
+    {
+        $oldKey   = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $newKey   = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $migrated = new VaultItem(
+            VaultItemType::Login,
+            'Migrated',
+            new TestUser('1'),
+            (new SodiumVaultPayloadCryptographer($newKey))->encrypt(['username' => 'u']),
+        );
+        $pending = new VaultItem(
+            VaultItemType::Login,
+            'Pending',
+            new TestUser('1'),
+            (new SodiumVaultPayloadCryptographer($oldKey))->encrypt(['username' => 'v']),
+        );
+
+        $repository = $this->createMock(VaultItemRepositoryInterface::class);
+        $repository->method('countAll')->willReturn(2);
+        $repository->method('findBatch')->willReturn([$migrated, $pending]);
+
+        $tester = new CommandTester($this->createCommand($repository, $newKey));
+        $tester->execute([
+            '--old-key' => $oldKey,
+            '--new-key' => $newKey,
+            '--dry-run' => true,
+        ]);
+
+        self::assertSame(Command::SUCCESS, $tester->getStatusCode());
+        self::assertStringContainsString('Verified 1 of 2', $tester->getDisplay());
+        self::assertStringContainsString('Skipped 1 vault item', $tester->getDisplay());
+    }
+
     public function testPersistNewKeyUpdatesRuntimeConfig(): void
     {
         $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();

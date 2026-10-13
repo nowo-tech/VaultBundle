@@ -10,6 +10,8 @@ final readonly class VaultPayloadReencryptionResult
         public int $totalItems,
         public int $processedItems,
         public bool $dryRun,
+        /** Items skipped because they already decrypt with the new key (resumed run). */
+        public int $skippedItems = 0,
     ) {
     }
 }

@@ -69,6 +69,8 @@ Options:
 | `--persist-new-key` | Store the new key (from `--new-key-file` / `--new-key`) via `VaultRuntimeConfigWriter` (requires DB runtime config and `nowo-tech/doctrine-encrypt-bundle`; checked before any item is re-encrypted). |
 | `--force` | Skip confirmation; **required** for non-interactive writes (CI, cron, `make vault-reencrypt`). |
 
+Re-running after an interruption is safe: each batch is flushed on its own (the run is not one transaction), so an interrupted run leaves some items on the new key. When an item does not decrypt with the old key but does with the new key, it is skipped as already migrated and reported as "Skipped N … (resumed run)". An item that decrypts with neither key still aborts the run.
+
 ### 2. Custom script (optional)
 
 For advanced workflows you can still inject `VaultPayloadReencryptionService` or replicate the batch loop manually:
