@@ -98,7 +98,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$cache', new Reference((string) $loginRateLimit['cache_pool']))
             ->setArgument('$maxAttempts', (int) $loginRateLimit['max_attempts'])
             ->setArgument('$intervalSeconds', (int) $loginRateLimit['interval_seconds'])
-            ->setArgument('$enabled', (bool) $loginRateLimit['enabled']));
+            ->setArgument('$enabled', (bool) $loginRateLimit['enabled'])
+            ->setArgument('$maxAttemptsPerIp', (int) $loginRateLimit['max_attempts_per_ip']));
         $container->setParameter('nowo_vault.database', $database);
         $container->setParameter('nowo_vault.config_storage', $configStorage);
         $container->setParameter('nowo_vault.config_storage.enabled', (bool) $configStorage['enabled']);

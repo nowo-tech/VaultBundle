@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- **Extension login per-IP limit:** failed extension logins are now also counted per client IP across all usernames; after `browser_extension.login_rate_limit.max_attempts_per_ip` failures (default `20`) in `interval_seconds`, that IP gets HTTP 429 for every username. If many users log in through one shared IP (corporate NAT, reverse proxy without trusted proxies configured), raise the value or set `0` to disable. Make sure `framework.trusted_proxies` is set so the real client IP is used.
+
 ## To 1.6.0
 
 From **1.5.1** — security - master key protection, user checker on extension login, CORS allow-list honoured.

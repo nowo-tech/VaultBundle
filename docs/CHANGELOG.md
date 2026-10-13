@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Browser extension login: new per-IP rate-limit bucket `browser_extension.login_rate_limit.max_attempts_per_ip` (default `20`, `0` disables) blocks credential stuffing across many usernames from one IP. The existing IP + username bucket (`max_attempts`) is unchanged; a successful login clears only that bucket.
+
 ### Fixed
 
 - `nowo:vault:reencrypt` / `VaultPayloadReencryptionService` can be re-run after an interruption: items that already decrypt with the new key are skipped (reported as skipped, `VaultPayloadReencryptionResult::$skippedItems`) instead of aborting on the first migrated item. Batches with only skipped items are not saved.

@@ -174,7 +174,8 @@ Optional Chrome/Firefox extension API (Bearer token auth, not session CSRF). See
 | `browser_extension.user_checker` | null | User checker run by the default authenticator (`checkPreAuth` before the password, `checkPostAuth` after). Null uses the `UserCheckerInterface` alias (`security.user_checker`); set `security.user_checker.<firewall>` to reuse your firewall's checker (disabled / locked accounts) |
 | `browser_extension.cors_allowed_origins` | `[]` | CORS whitelist; empty allows any `chrome-extension://` and `moz-extension://` origin; when set, only the listed origins (list your extension ID, e.g. `chrome-extension://<id>`); use `*` in dev only |
 | `browser_extension.login_rate_limit.enabled` | `true` | Cache-backed brute-force protection on login |
-| `browser_extension.login_rate_limit.max_attempts` | `5` | Failed logins before lockout |
+| `browser_extension.login_rate_limit.max_attempts` | `5` | Failed logins per client IP + username before lockout |
+| `browser_extension.login_rate_limit.max_attempts_per_ip` | `20` | Failed logins per client IP across **all** usernames before that IP is locked out (credential stuffing). A successful login does not clear this counter. `0` disables the per-IP bucket. Raise it when many users share one egress IP (NAT, proxy) |
 | `browser_extension.login_rate_limit.interval_seconds` | `900` | Lockout window (seconds) |
 | `browser_extension.login_rate_limit.cache_pool` | `cache.app` | Symfony cache pool for attempt counters |
 
@@ -190,6 +191,7 @@ nowo_vault:
         cors_allowed_origins: []   # any extension origin; list chrome-extension://<id> to pin yours
         login_rate_limit:
             max_attempts: 5
+            max_attempts_per_ip: 20
             interval_seconds: 900
 ```
 
