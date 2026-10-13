@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.7.0](#to-170)
 - [To 1.6.0](#to-160)
 - [To 1.5.1](#to-151)
 - [To 1.5.0](#to-150)
@@ -10,6 +11,14 @@
 - [From 1.4.6 to 1.4.7](#from-146-to-147)
 
 ## Unreleased
+
+## To 1.7.0
+
+From **1.6.0** — resumable re-encryption, per-IP extension login limit, docs, vitest 4.
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 - **Extension login per-IP limit:** failed extension logins are now also counted per client IP across all usernames; after `browser_extension.login_rate_limit.max_attempts_per_ip` failures (default `20`) in `interval_seconds`, that IP gets HTTP 429 for every username. If many users log in through one shared IP (corporate NAT, reverse proxy without trusted proxies configured), raise the value or set `0` to disable. Make sure `framework.trusted_proxies` is set so the real client IP is used.
 

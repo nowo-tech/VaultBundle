@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-13
+
 ### Security
 
 - Browser extension login: new per-IP rate-limit bucket `browser_extension.login_rate_limit.max_attempts_per_ip` (default `20`, `0` disables) blocks credential stuffing across many usernames from one IP. The existing IP + username bucket (`max_attempts`) is unchanged; a successful login clears only that bucket.
@@ -19,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Docs: `password_field.generator_mode` and `password_field.use_password_toggle` are documented in `docs/CONFIGURATION.md`.
 - Development: `vitest` and `@vitest/coverage-v8` upgraded from `^3.0.0` to `^4.1.11` (test tooling only; shipped assets unchanged). The config needed no changes; vitest 4's AST-based V8 coverage reports slightly different percentages for the same files.
+
+[1.7.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.7.0
 
 ## [1.6.0] - 2026-10-13
 
