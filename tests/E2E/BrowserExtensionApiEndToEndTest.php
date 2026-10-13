@@ -48,6 +48,34 @@ final class BrowserExtensionApiEndToEndTest extends WebTestCase
         self::assertSame(Response::HTTP_UNAUTHORIZED, $client->getResponse()->getStatusCode());
     }
 
+    /**
+     * The test firewall "main" sets a custom user_checker (so SecurityBundle registers no
+     * UserCheckerInterface alias) and browser_extension.user_checker is not configured:
+     * the default authenticator must still run the firewall checker.
+     */
+    public function testLoginRejectsUserDisabledByFirewallUserCheckerByDefault(): void
+    {
+        $client        = $this->prepareClient();
+        $entityManager = self::getContainer()->get('doctrine')->getManager();
+        $hasher        = self::getContainer()->get(UserPasswordHasherInterface::class);
+        $disabled      = new User();
+        $disabled
+            ->setEmail('disabled@example.com')
+            ->setPassword($hasher->hashPassword($disabled, 'secret'));
+        $entityManager->persist($disabled);
+        $entityManager->flush();
+
+        $client->request(
+            'POST',
+            '/api/vault/extension/login',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['username' => 'disabled@example.com', 'password' => 'secret'], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertSame(Response::HTTP_UNAUTHORIZED, $client->getResponse()->getStatusCode());
+        self::assertStringNotContainsString('token', (string) $client->getResponse()->getContent());
+    }
+
     public function testFullBrowserExtensionApiFlow(): void
     {
         $client = $this->prepareClient();

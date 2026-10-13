@@ -47,6 +47,9 @@
 
 ## Unreleased
 
+- **Extension login user checker:** with `browser_extension.user_checker` unset, the default authenticator now runs `security.user_checker.<firewall>` (firewall `main`, else the first secured firewall) instead of the global `UserCheckerInterface` alias. Users your firewall checker rejects (disabled, locked, unverified…) can no longer obtain extension tokens. To use another firewall set `browser_extension.firewall: <name>` (must have security enabled, otherwise the container fails to compile); an explicit `browser_extension.user_checker` keeps priority.
+- `browser_extension.user_provider` / `user_checker` are now actually applied (they were overridden by autowiring); verify the configured service ids exist. CORS wildcard `*` now works in `dev`/`test` as documented (still rejected in `prod`).
+
 ## To 1.7.0
 
 From **1.6.0** — resumable re-encryption, per-IP extension login limit, docs, vitest 4.

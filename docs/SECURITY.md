@@ -25,7 +25,7 @@ Default: **creator-only**. Extend via:
 
 - Extension endpoints use **Bearer tokens** (not cookie sessions). CSRF does not apply to Bearer API calls; protect tokens (HTTPS, short TTL, purge cron) and keep login rate limits enabled.
 - `cors_allowed_origins`: empty allows any `chrome-extension://` / `moz-extension://` origin; a non-empty list allows only the listed origins (other extensions are rejected).
-- Extension login runs the user checker (`browser_extension.user_checker`) so disabled or locked users cannot obtain Bearer tokens. Wildcard `*` is ignored in `prod` (factory rejects it). Never rely on `*` outside local demos.
+- Extension login runs the firewall user checker (`security.user_checker.<firewall>`, firewall from `browser_extension.firewall`, default `main` or the first secured firewall; `browser_extension.user_checker` overrides it) so disabled or locked users cannot obtain Bearer tokens. Before the Unreleased fix the default fell back to the no-op global `security.user_checker` (or no checker at all when a firewall set a custom `user_checker`): upgrade, or set `browser_extension.user_checker` explicitly. Wildcard `*` is ignored in `prod` (factory rejects it). Never rely on `*` outside local demos.
 
 ## Secrets and CLI
 

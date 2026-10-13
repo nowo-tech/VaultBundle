@@ -6,8 +6,11 @@ namespace Nowo\VaultBundle\Tests\Integration;
 
 use Doctrine\Bundle\DoctrineBundle\DependencyInjection\DoctrineExtension;
 use LogicException;
+use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
+use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
 use Nowo\VaultBundle\Command\PurgeExtensionTokensCommand;
 use Nowo\VaultBundle\Command\ReencryptVaultPayloadsCommand;
+use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
@@ -135,5 +138,42 @@ final class VaultBundleIntegrationTest extends TestCase
         $container = new ContainerBuilder();
         (new VaultExtension())->prepend($container);
         self::assertFalse($container->hasExtension('framework'));
+    }
+
+    public function testExplicitBrowserExtensionUserCheckerAndProviderSurviveServiceScan(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class]);
+        (new VaultExtension())->load([[
+            'user_class'        => 'App\\Entity\\User',
+            'encryption_key'    => self::ENCRYPTION_KEY,
+            'browser_extension' => [
+                'user_provider' => 'app.user_provider',
+                'user_checker'  => 'app.user_checker',
+            ],
+        ]], $container);
+
+        $definition = $container->getDefinition(DefaultVaultBrowserExtensionAuthenticator::class);
+        self::assertSame('app.user_provider', (string) $definition->getArgument('$userProvider'));
+        self::assertSame('app.user_checker', (string) $definition->getArgument('$userChecker'));
+        self::assertFalse($definition->hasTag(BrowserExtensionUserCheckerPass::TAG));
+        self::assertSame(
+            '%kernel.environment%',
+            $container->getDefinition(VaultBrowserExtensionResponseFactory::class)->getArgument('$kernelEnvironment'),
+        );
+    }
+
+    public function testDefaultBrowserExtensionUserCheckerIsResolvedFromFirewall(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', ['SecurityBundle' => SecurityBundle::class]);
+        (new VaultExtension())->load([[
+            'user_class'        => 'App\\Entity\\User',
+            'encryption_key'    => self::ENCRYPTION_KEY,
+            'browser_extension' => ['firewall' => 'api'],
+        ]], $container);
+
+        $definition = $container->getDefinition(DefaultVaultBrowserExtensionAuthenticator::class);
+        self::assertSame([['firewall' => 'api']], $definition->getTag(BrowserExtensionUserCheckerPass::TAG));
     }
 }

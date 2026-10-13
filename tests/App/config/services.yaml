@@ -2,3 +2,5 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
+
+    Nowo\VaultBundle\Tests\App\Security\DisabledAccountUserChecker: ~

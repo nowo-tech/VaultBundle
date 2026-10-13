@@ -33,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Browser-extension login now runs the **firewall** user checker by default, so disabled/locked users really are refused Bearer tokens (the 1.6.0 fix did not hold by default). The default used the global `UserCheckerInterface` alias, which is the no-op `security.user_checker` for entity users and is not registered at all once any firewall sets a custom `user_checker` (no checker ran). It now resolves `security.user_checker.<firewall>` (the firewall's checker or chain, incl. UserKit's account-status checker) in a compiler pass.
+- New option `browser_extension.firewall` (default null = the firewall named `main`, else the first firewall with security enabled) selects whose user checker the extension login runs. `browser_extension.user_checker` still wins when set; an unknown firewall fails at compile time.
+
+### Fixed
+
+- `browser_extension.user_provider` / `browser_extension.user_checker` were silently ignored: the bundle's resource scan re-registered `DefaultVaultBrowserExtensionAuthenticator` (and `VaultBrowserExtensionResponseFactory`) as plain autowired services after the extension had configured them. Explicit definitions are now applied after the scan, so the configured services are used and the response factory receives `kernel.environment` (CORS wildcard `*` honoured in non-`prod` environments as documented, still rejected in `prod`).
+
 ## [1.7.0] - 2026-10-13
 
 ### Security

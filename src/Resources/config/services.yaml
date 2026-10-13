@@ -40,10 +40,6 @@ services:
         arguments:
             $databaseEnabled: '%nowo_vault.config_storage.enabled%'
 
-    Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory:
-        arguments:
-            $allowedOrigins: '%nowo_vault.browser_extension.cors_allowed_origins%'
-
     Nowo\VaultBundle\Controller\VaultManageController:
         public: true
         arguments:

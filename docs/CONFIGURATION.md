@@ -189,7 +189,8 @@ Optional Chrome/Firefox extension API (Bearer token auth, not session CSRF). See
 | `browser_extension.token_ttl` | `86400` | Bearer token lifetime (seconds, min 60) |
 | `browser_extension.authenticator` | null | Custom `VaultBrowserExtensionAuthenticatorInterface` service id |
 | `browser_extension.user_provider` | null | User provider for the default password authenticator |
-| `browser_extension.user_checker` | null | User checker run by the default authenticator (`checkPreAuth` before the password, `checkPostAuth` after). Null uses the `UserCheckerInterface` alias (`security.user_checker`); set `security.user_checker.<firewall>` to reuse your firewall's checker (disabled / locked accounts) |
+| `browser_extension.firewall` | null | Firewall whose user checker the default authenticator runs (`security.user_checker.<firewall>`: the firewall `user_checker`, or its chain incl. UserKit's account-status checker). Null = auto: the firewall named `main` if present, else the first firewall with security enabled. An unknown firewall fails at container compile time. Ignored when `user_checker` is set |
+| `browser_extension.user_checker` | null | Explicit user checker service id run by the default authenticator (`checkPreAuth` before the password, `checkPostAuth` after); wins over `firewall`. Null resolves the firewall checker (see `firewall`); only without any secured firewall does it fall back to the `UserCheckerInterface` alias |
 | `browser_extension.cors_allowed_origins` | `[]` | CORS whitelist; empty allows any `chrome-extension://` and `moz-extension://` origin; when set, only the listed origins (list your extension ID, e.g. `chrome-extension://<id>`); use `*` in dev only |
 | `browser_extension.login_rate_limit.enabled` | `true` | Cache-backed brute-force protection on login |
 | `browser_extension.login_rate_limit.max_attempts` | `5` | Failed logins per client IP + username before lockout |
@@ -204,7 +205,8 @@ nowo_vault:
     browser_extension:
         enabled: true
         user_provider: security.user.provider.concrete.app_user_provider
-        user_checker: security.user_checker.main   # firewall user checker (disabled/locked users)
+        # firewall: main          # optional; defaults to "main" or the first secured firewall
+        # user_checker: app.checker  # optional explicit override (wins over firewall)
         token_ttl: 86400
         cors_allowed_origins: []   # any extension origin; list chrome-extension://<id> to pin yours
         login_rate_limit:

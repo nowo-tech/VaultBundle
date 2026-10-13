@@ -17,6 +17,8 @@ security:
         main:
             lazy: true
             provider: app_user_provider
+            # Custom per-firewall checker: SecurityBundle then registers no UserCheckerInterface alias.
+            user_checker: Nowo\VaultBundle\Tests\App\Security\DisabledAccountUserChecker
 
     access_control:
         - { path: ^/api/vault/extension, roles: PUBLIC_ACCESS }

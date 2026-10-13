@@ -10,7 +10,7 @@ nowo_vault:
     browser_extension:
         enabled: true
         user_provider: security.user.provider.concrete.app_user_provider
-        user_checker: security.user_checker.main   # firewall user checker; disabled/locked users cannot log in
+        # firewall: main   # whose user checker runs (default: "main" or the first secured firewall)
         token_ttl: 86400
         cors_allowed_origins: []   # any extension origin; list chrome-extension://<id> to pin yours
 ```
@@ -49,7 +49,7 @@ Routes and paths are configurable under `nowo_vault.browser_extension.routes`.
 
 By default (`cors_allowed_origins: []`), any `chrome-extension://` and `moz-extension://` origin receives CORS headers. When the list is not empty, only the listed origins do (add your extension's `chrome-extension://<id>` / `moz-extension://<uuid>`).
 
-The default login authenticator runs the configured user checker (`browser_extension.user_checker`, falling back to the `UserCheckerInterface` alias): `checkPreAuth` before the password, `checkPostAuth` after. Disabled, locked, or expired accounts are rejected with the generic `Invalid credentials.` message. For local development you may set `['*']` — never use wildcard in production.
+The default login authenticator runs the firewall user checker (`security.user_checker.<firewall>` for `browser_extension.firewall`, auto-detected by default; `browser_extension.user_checker` overrides it): `checkPreAuth` before the password, `checkPostAuth` after. Disabled, locked, or expired accounts are rejected with the generic `Invalid credentials.` message. For local development you may set `['*']` — never use wildcard in production.
 
 ## Rate limiting
 

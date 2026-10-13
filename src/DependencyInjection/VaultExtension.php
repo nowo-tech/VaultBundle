@@ -11,6 +11,7 @@ use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
+use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
@@ -56,6 +57,12 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
     {
         $configuration = new Configuration();
         $config        = $this->processConfiguration($configuration, $configs);
+
+        // Load the resource-scanned services first: the explicit definitions below (default
+        // browser-extension authenticator, response factory) must not be replaced by autowired
+        // prototypes, or their configured arguments (user_provider, user_checker, environment) are lost.
+        $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
+        $loader->load('services.yaml');
 
         if (
             !$config['security']['allow_unauthenticated']
@@ -193,9 +200,15 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                 $authenticatorDef->setAutowired(true);
             }
             $userCheckerId = $browserExtension['user_checker'] ?? null;
-            $authenticatorDef->setArgument('$userChecker', is_string($userCheckerId) && $userCheckerId !== ''
-                ? new Reference($userCheckerId)
-                : new Reference(UserCheckerInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE));
+            if (is_string($userCheckerId) && $userCheckerId !== '') {
+                $authenticatorDef->setArgument('$userChecker', new Reference($userCheckerId));
+            } else {
+                // Fallback when no firewall with security is configured; BrowserExtensionUserCheckerPass
+                // replaces it with security.user_checker.<firewall> (the firewall's checker / chain).
+                $authenticatorDef
+                    ->setArgument('$userChecker', new Reference(UserCheckerInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE))
+                    ->addTag(BrowserExtensionUserCheckerPass::TAG, ['firewall' => $browserExtension['firewall'] ?? null]);
+            }
             $container->setDefinition(DefaultVaultBrowserExtensionAuthenticator::class, $authenticatorDef);
         }
         $container->setAlias(VaultBrowserExtensionAuthenticatorInterface::class, $authenticatorId);
@@ -205,8 +218,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$allowedOrigins', $browserExtension['cors_allowed_origins'])
             ->setArgument('$kernelEnvironment', '%kernel.environment%'));
 
-        $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
-        $loader->load('services.yaml');
     }
 
     public function getAlias(): string
