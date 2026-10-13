@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-13
+
 ### Security
 
 - Runtime config screen: a YAML/env `nowo_vault.encryption_key` now counts as an existing key, so "Generate" or a pasted key can no longer silently switch the master key and make every item undecryptable. Rotate with `nowo:vault:reencrypt --persist-new-key`.
@@ -14,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The master key is no longer stored in `vault_settings` unless `nowo-tech/doctrine-encrypt-bundle` is installed (encryption at rest). The runtime config screen shows a warning and `nowo:vault:reencrypt --persist-new-key` exits before re-encrypting.
 - Browser extension login runs the Symfony user checker (`checkPreAuth` / `checkPostAuth`): disabled or locked users no longer receive Bearer tokens. New option `browser_extension.user_checker` (defaults to the `UserCheckerInterface` alias).
 - Browser extension CORS: when `cors_allowed_origins` is set, only the listed origins are allowed; the "any `chrome-extension://` / `moz-extension://`" fallback now applies only when the list is empty.
+
+[1.6.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.6.0
 
 ## [1.5.1] - 2026-10-13
 

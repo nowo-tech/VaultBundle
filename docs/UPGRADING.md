@@ -3,12 +3,26 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.6.0](#to-160)
 - [To 1.5.1](#to-151)
 - [To 1.5.0](#to-150)
 - [To 1.4.8](#to-148)
 - [From 1.4.6 to 1.4.7](#from-146-to-147)
 
 ## Unreleased
+
+## To 1.6.0
+
+From **1.5.1** — security - master key protection, user checker on extension login, CORS allow-list honoured.
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+- With a YAML/env `encryption_key`, the runtime config screen no longer stores a database key; rotate with `nowo:vault:reencrypt --persist-new-key`.
+- Storing the master key in the database now requires `nowo-tech/doctrine-encrypt-bundle` (it was stored in plaintext before).
+- Disabled/locked users can no longer obtain browser-extension tokens. Apps with a custom firewall user checker should set `browser_extension.user_checker: security.user_checker.<firewall>`.
+- A non-empty `cors_allowed_origins` must now list the extension origin explicitly (`chrome-extension://<id>`).
 
 ## To 1.5.1
 
