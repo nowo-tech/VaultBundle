@@ -36,11 +36,13 @@ use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Security\Core\User\UserCheckerInterface;
 
 use function array_key_exists;
 use function is_array;
@@ -189,6 +191,10 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             } else {
                 $authenticatorDef->setAutowired(true);
             }
+            $userCheckerId = $browserExtension['user_checker'] ?? null;
+            $authenticatorDef->setArgument('$userChecker', is_string($userCheckerId) && $userCheckerId !== ''
+                ? new Reference($userCheckerId)
+                : new Reference(UserCheckerInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE));
             $container->setDefinition(DefaultVaultBrowserExtensionAuthenticator::class, $authenticatorDef);
         }
         $container->setAlias(VaultBrowserExtensionAuthenticatorInterface::class, $authenticatorId);

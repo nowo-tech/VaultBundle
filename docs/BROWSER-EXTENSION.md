@@ -10,8 +10,9 @@ nowo_vault:
     browser_extension:
         enabled: true
         user_provider: security.user.provider.concrete.app_user_provider
+        user_checker: security.user_checker.main   # firewall user checker; disabled/locked users cannot log in
         token_ttl: 86400
-        cors_allowed_origins: []   # production: extension schemes only
+        cors_allowed_origins: []   # any extension origin; list chrome-extension://<id> to pin yours
 ```
 
 Expose the extension routes publicly in `security.yaml` (Bearer auth is enforced by the bundle, not Symfony session):
@@ -46,7 +47,9 @@ Routes and paths are configurable under `nowo_vault.browser_extension.routes`.
 
 ## CORS
 
-By default (`cors_allowed_origins: []`), only `chrome-extension://` and `moz-extension://` origins receive CORS headers. For local development you may set `['*']` — never use wildcard in production.
+By default (`cors_allowed_origins: []`), any `chrome-extension://` and `moz-extension://` origin receives CORS headers. When the list is not empty, only the listed origins do (add your extension's `chrome-extension://<id>` / `moz-extension://<uuid>`).
+
+The default login authenticator runs the configured user checker (`browser_extension.user_checker`, falling back to the `UserCheckerInterface` alias): `checkPreAuth` before the password, `checkPostAuth` after. Disabled, locked, or expired accounts are rejected with the generic `Invalid credentials.` message. For local development you may set `['*']` — never use wildcard in production.
 
 ## Rate limiting
 

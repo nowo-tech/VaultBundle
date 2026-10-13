@@ -79,6 +79,11 @@ final readonly class VaultBrowserExtensionResponseFactory
             return true;
         }
 
+        // Any extension origin only while no allow-list is configured.
+        if ($this->allowedOrigins !== []) {
+            return false;
+        }
+
         return str_starts_with($origin, 'chrome-extension://')
             || str_starts_with($origin, 'moz-extension://');
     }

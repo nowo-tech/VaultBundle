@@ -38,6 +38,9 @@ final class VaultBrowserExtensionResponseFactoryTest extends TestCase
         yield 'wildcard blocked in prod' => [['*'], 'https://evil.example', false, 'prod'];
         yield 'explicit whitelist' => [['https://app.example'], 'https://app.example', true, 'prod'];
         yield 'explicit whitelist rejects other' => [['https://app.example'], 'https://other.example', false, 'prod'];
+        yield 'configured list rejects unlisted chrome extension' => [['chrome-extension://trusted'], 'chrome-extension://attacker', false, 'prod'];
+        yield 'configured list rejects unlisted moz extension' => [['https://app.example'], 'moz-extension://attacker', false, 'prod'];
+        yield 'configured list allows listed extension' => [['chrome-extension://trusted'], 'chrome-extension://trusted', true, 'prod'];
     }
 
     public function testNoCorsWithoutOriginHeader(): void

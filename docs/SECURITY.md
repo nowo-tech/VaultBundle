@@ -24,9 +24,13 @@ Default: **creator-only**. Extend via:
 ## Browser extension API
 
 - Extension endpoints use **Bearer tokens** (not cookie sessions). CSRF does not apply to Bearer API calls; protect tokens (HTTPS, short TTL, purge cron) and keep login rate limits enabled.
-- `cors_allowed_origins`: empty allows `chrome-extension://` / `moz-extension://` only. Wildcard `*` is ignored in `prod` (factory rejects it). Never rely on `*` outside local demos.
+- `cors_allowed_origins`: empty allows any `chrome-extension://` / `moz-extension://` origin; a non-empty list allows only the listed origins (other extensions are rejected).
+- Extension login runs the user checker (`browser_extension.user_checker`) so disabled or locked users cannot obtain Bearer tokens. Wildcard `*` is ignored in `prod` (factory rejects it). Never rely on `*` outside local demos.
 
 ## Secrets and CLI
+
+- The runtime config screen never replaces an existing master key (YAML/env or DB) and validates pasted keys (base64, 32 bytes). Rotation goes through `nowo:vault:reencrypt --persist-new-key`.
+- The master key is stored in `vault_settings.encryption_key` only when `nowo-tech/doctrine-encrypt-bundle` is installed (encryption at rest); otherwise storage is refused.
 
 - Never commit `VAULT_ENCRYPTION_KEY` or production `.env`
 - Demo `.env.example` uses a placeholder key for local use only
