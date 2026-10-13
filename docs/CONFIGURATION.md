@@ -50,6 +50,24 @@ Manage UI requires `symfony/security-bundle` when `allow_unauthenticated` is `fa
 |--------|---------|-------------|
 | `max_attachment_bytes` | `512000` | Max document attachment size (stored encrypted in payload) |
 
+## Password field
+
+Options for the login item password field. They apply only when `nowo-tech/password-strength-bundle` is installed (the field is then a `PasswordStrengthType`); without it the bundle renders a plain password input and ignores these keys.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `password_field.level` | `medium` | Strength meter level and validator policy (`weak`, `medium`, `strong`). DB-eligible (runtime config screen). |
+| `password_field.generator_mode` | `input` | Password generator shown next to the field: `off` (no generator), `input` (the generated password is written straight into the input) or `modal` (the generated password is shown in a modal the user confirms). YAML-only. |
+| `password_field.use_password_toggle` | `true` | Show the show/hide toggle when `nowo-tech/password-toggle-bundle` is installed (passed to the field's `use_password_toggle` option); `false` keeps a plain masked input. YAML-only. |
+
+```yaml
+nowo_vault:
+    password_field:
+        level: strong
+        generator_mode: modal
+        use_password_toggle: true
+```
+
 ## Routes
 
 All routes are configurable under `nowo_vault.routes` (see `Configuration.php` defaults). Loader type: `nowo_vault`.

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `nowo:vault:reencrypt` / `VaultPayloadReencryptionService` can be re-run after an interruption: items that already decrypt with the new key are skipped (reported as skipped, `VaultPayloadReencryptionResult::$skippedItems`) instead of aborting on the first migrated item. Batches with only skipped items are not saved.
 
+### Changed
+
+- Docs: `password_field.generator_mode` and `password_field.use_password_toggle` are documented in `docs/CONFIGURATION.md`.
+
 ## [1.6.0] - 2026-10-13
 
 ### Security
