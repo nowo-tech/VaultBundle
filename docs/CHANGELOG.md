@@ -7,9 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-13
+
 ### Changed
 
 - Development: `composer.json` pins `config.platform.php` to 8.2.0 so the committed lock stays installable on the minimum PHP; CI overrides the platform per matrix cell.
+- Repository: `.twig-cs-fixer.cache` is now git-ignored.
+
+### Dependencies
+
+- `nowo-tech/form-kit-bundle` 2.6.1 → 2.7.1 (development lock; #77).
+- `nowo-tech/ui-kit-bundle` 1.9.2 → 1.11.0 (development lock; #78).
+- `@types/chrome` 0.3.4 → 0.3.5 (frontend tooling; #79).
+- `doctrine/orm` 3.7.4 → 3.7.5 (development lock; #80).
+- `nowo-tech/doctrine-encrypt-bundle` 2.4.3 → 2.5.0 (development lock; #81).
+- `vite` 8.3.2 → 8.3.4 (frontend tooling; #82).
+- `jsdom` 30.1.1 → 30.1.2 (frontend tooling; #83).
+
+[1.5.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.5.1
 
 ## [1.5.0] - 2026-10-09
 

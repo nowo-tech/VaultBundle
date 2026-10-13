@@ -3,11 +3,22 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.5.1](#to-151)
 - [To 1.5.0](#to-150)
 - [To 1.4.8](#to-148)
 - [From 1.4.6 to 1.4.7](#from-146-to-147)
 
 ## Unreleased
+
+## To 1.5.1
+
+From **1.5.0** — dependency refresh and repository maintenance.
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+- No breaking changes. No application upgrade steps.
 
 ## To 1.5.0
 
@@ -36,7 +47,6 @@ No breaking changes. Behaviour notes (FrankenPHP worker hardening):
 - The `DoctrineOrm*Repository` constructors accept two new optional arguments (`?ManagerRegistry $registry`, `?string $managerName`); the bundle wires them automatically. Subclassing is not possible (classes are `final`), so no action is needed.
 - With `config_storage.enabled: true`, runtime config is read from `config_storage.cache_pool` on every call. Use a pool shared by all workers (for example `cache.app` on Redis or a shared filesystem); a per-process pool such as `cache.adapter.array` would still diverge between workers.
 - No application upgrade steps for require-dev Igor tooling (REQ-CS-008). Consumers do not pull `igor-php/igor-php` transitively.
-
 
 ## From 1.4.6 to 1.4.7
 
