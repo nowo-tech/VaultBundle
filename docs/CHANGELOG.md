@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Docs: `password_field.generator_mode` and `password_field.use_password_toggle` are documented in `docs/CONFIGURATION.md`.
+- Development: `vitest` and `@vitest/coverage-v8` upgraded from `^3.0.0` to `^4.1.11` (test tooling only; shipped assets unchanged). The config needed no changes; vitest 4's AST-based V8 coverage reports slightly different percentages for the same files.
 
 ## [1.6.0] - 2026-10-13
 
