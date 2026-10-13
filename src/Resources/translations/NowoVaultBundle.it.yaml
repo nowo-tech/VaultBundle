@@ -161,6 +161,9 @@ vault:
             key_stored: Impostazioni salvate nel database. Chiave di crittografia memorizzata.
             key_generated: Chiave di crittografia generata e salvata nel database (crittografata a riposo).
             key_exists: Una chiave di crittografia del vault è già memorizzata nel database.
+            key_exists_yaml: "Una chiave di crittografia del vault è già configurata in YAML/env (nowo_vault.encryption_key). Per cambiarla, ricifra gli elementi con bin/console nowo:vault:reencrypt --persist-new-key."
+            key_invalid: "La chiave di crittografia deve essere una chiave libsodium di 32 byte codificata in base64. Non è stato salvato nulla."
+            key_storage_unavailable: "La chiave di crittografia non può essere memorizzata nel database: installa nowo-tech/doctrine-encrypt-bundle per crittografarla a riposo, oppure configura nowo_vault.encryption_key tramite YAML/env."
             max_attachment_invalid: max_attachment_bytes deve essere zero o maggiore.
     runtime_config:
         title: Configurazione runtime
@@ -169,6 +172,8 @@ vault:
         last_update: 'Ultimo aggiornamento: %datetime%'
         encryption_key: Chiave di crittografia vault
         encryption_key_stored_help: Memorizzata in vault_settings.encryption_key (crittografata a riposo). Non può essere modificata da questa schermata.
+        encryption_key_yaml_help: "Configurata in YAML/env (nowo_vault.encryption_key). Non può essere sostituita da questa schermata; usa bin/console nowo:vault:reencrypt --persist-new-key per ruotarla."
+        encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle non è installato, quindi una chiave memorizzata in vault_settings non sarebbe crittografata a riposo. Configura invece nowo_vault.encryption_key tramite YAML/env."
         encryption_key_empty_help: Nessuna chiave di crittografia nel database. Generane una o incolla una chiave base64, poi salva.
         encryption_key_placeholder: Incolla una chiave base64 o generane una sotto
         encryption_key_configured: "Configurata (nascosta per sicurezza)"

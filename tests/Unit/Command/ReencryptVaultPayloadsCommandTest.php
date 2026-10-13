@@ -103,6 +103,32 @@ final class ReencryptVaultPayloadsCommandTest extends TestCase
         self::assertStringContainsString('Stored the new encryption key', $tester->getDisplay());
     }
 
+    public function testPersistNewKeyRefusedBeforeReencryptWhenKeyCannotBeEncryptedAtRest(): void
+    {
+        $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+        $newKey = SodiumVaultPayloadCryptographer::generateKeyBase64();
+
+        $repository = $this->createMock(VaultItemRepositoryInterface::class);
+        $repository->expects(self::never())->method('saveBatch');
+
+        $baseline = VaultRuntimeConfigFactory::baseline(['encryption_key' => $oldKey]);
+        $settings = $this->createMock(VaultSettingsRepositoryInterface::class);
+        $settings->expects(self::never())->method('save');
+        $provider = new VaultRuntimeConfigProvider($baseline, true, $settings, new ArrayAdapter());
+        $writer   = new VaultRuntimeConfigWriter(true, $settings, $provider, false);
+
+        $tester = new CommandTester($this->createCommand($repository, $newKey, $writer, databaseEnabled: true));
+        $tester->execute([
+            '--old-key'         => $oldKey,
+            '--new-key'         => $newKey,
+            '--persist-new-key' => true,
+            '--force'           => true,
+        ]);
+
+        self::assertSame(Command::INVALID, $tester->getStatusCode());
+        self::assertStringContainsString('doctrine-encrypt-bundle', $tester->getDisplay());
+    }
+
     public function testRequiresForceForNonInteractiveWrite(): void
     {
         $oldKey = SodiumVaultPayloadCryptographer::generateKeyBase64();

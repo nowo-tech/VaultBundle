@@ -37,7 +37,7 @@
                                        class="form-control font-monospace"
                                        value="{{ encryptionKeyDisplay }}"
                                        readonly>
-                            {% elseif hasDbEncryptionKey %}
+                            {% elseif hasDbEncryptionKey or hasYamlEncryptionKey %}
                                 <input type="text"
                                        id="encryption_key"
                                        class="form-control font-monospace"
@@ -46,7 +46,15 @@
                                        disabled
                                        placeholder="{{ 'vault.runtime_config.encryption_key_configured'|trans({}, 'NowoVaultBundle') }}">
                                 <div class="form-text">
-                                    {{ 'vault.runtime_config.encryption_key_stored_help'|trans({}, 'NowoVaultBundle') }}
+                                    {% if hasDbEncryptionKey %}
+                                        {{ 'vault.runtime_config.encryption_key_stored_help'|trans({}, 'NowoVaultBundle') }}
+                                    {% else %}
+                                        {{ 'vault.runtime_config.encryption_key_yaml_help'|trans({}, 'NowoVaultBundle') }}
+                                    {% endif %}
+                                </div>
+                            {% elseif not canStoreEncryptionKey %}
+                                <div class="alert alert-warning" role="alert">
+                                    {{ 'vault.runtime_config.encryption_key_storage_unavailable'|trans({}, 'NowoVaultBundle') }}
                                 </div>
                             {% else %}
                                 <input type="text"

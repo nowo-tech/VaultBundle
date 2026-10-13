@@ -93,6 +93,13 @@ final class ReencryptVaultPayloadsCommand extends Command
             return Command::INVALID;
         }
 
+        if ($persistKey && !$this->configWriter->canStoreEncryptionKey()) {
+            // Checked before re-encrypting so items are never rewritten with a key that cannot be persisted.
+            $io->error('Option --persist-new-key requires nowo-tech/doctrine-encrypt-bundle so vault_settings.encryption_key is encrypted at rest.');
+
+            return Command::INVALID;
+        }
+
         try {
             new SodiumVaultPayloadCryptographer($oldKey);
             if ($newKey !== null) {

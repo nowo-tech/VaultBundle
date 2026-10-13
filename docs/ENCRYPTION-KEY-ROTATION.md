@@ -66,7 +66,7 @@ Options:
 | `--batch-size` | Items per flush (default `50`). |
 | `--dry-run` | Decrypt-check only. |
 | `--skip-trash` | Skip soft-deleted items. |
-| `--persist-new-key` | Store the new key (from `--new-key-file` / `--new-key`) via `VaultRuntimeConfigWriter` (requires DB runtime config). |
+| `--persist-new-key` | Store the new key (from `--new-key-file` / `--new-key`) via `VaultRuntimeConfigWriter` (requires DB runtime config and `nowo-tech/doctrine-encrypt-bundle`; checked before any item is re-encrypted). |
 | `--force` | Skip confirmation; **required** for non-interactive writes (CI, cron, `make vault-reencrypt`). |
 
 ### 2. Custom script (optional)

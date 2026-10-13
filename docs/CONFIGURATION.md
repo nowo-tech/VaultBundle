@@ -116,7 +116,9 @@ When `enabled: true`, Doctrine creates/uses `{table_prefix}_settings` (default `
 | `css_framework` | Look-and-feel hint (Twig global) |
 | `security.*_roles` | Role lists (not `access_checker`) |
 
-When storing `encryption_key` in the database, install `nowo-tech/doctrine-encrypt-bundle` and configure a bootstrap Halite/Defuse key (`DOCTRINE_ENCRYPT_KEY` or secret file). The column `vault_settings.encryption_key` is encrypted at rest via `#[Encrypted]`; YAML/env still provides the initial bootstrap until a DB override is saved.
+When storing `encryption_key` in the database, install `nowo-tech/doctrine-encrypt-bundle` and configure a bootstrap Halite/Defuse key (`DOCTRINE_ENCRYPT_KEY` or secret file). The column `vault_settings.encryption_key` is encrypted at rest via `#[Encrypted]`. Without that bundle the key is **not** stored in the database: `VaultRuntimeConfigWriter` refuses it, the runtime config screen shows a warning, and `nowo:vault:reencrypt --persist-new-key` exits before re-encrypting.
+
+The runtime config screen only stores a key when **no key exists yet** (neither YAML/env `nowo_vault.encryption_key` nor a DB key), and only a valid base64 32-byte libsodium key. Once a key encrypts items, rotate it with `nowo:vault:reencrypt --persist-new-key` (see [ENCRYPTION-KEY-ROTATION.md](ENCRYPTION-KEY-ROTATION.md)); generating or pasting a new key would make existing items undecryptable.
 
 ### DB-eligible (optional overrides in `{table_prefix}_settings`)
 
@@ -169,7 +171,8 @@ Optional Chrome/Firefox extension API (Bearer token auth, not session CSRF). See
 | `browser_extension.token_ttl` | `86400` | Bearer token lifetime (seconds, min 60) |
 | `browser_extension.authenticator` | null | Custom `VaultBrowserExtensionAuthenticatorInterface` service id |
 | `browser_extension.user_provider` | null | User provider for the default password authenticator |
-| `browser_extension.cors_allowed_origins` | `[]` | CORS whitelist; empty allows `chrome-extension://` and `moz-extension://` only; use `*` in dev only |
+| `browser_extension.user_checker` | null | User checker run by the default authenticator (`checkPreAuth` before the password, `checkPostAuth` after). Null uses the `UserCheckerInterface` alias (`security.user_checker`); set `security.user_checker.<firewall>` to reuse your firewall's checker (disabled / locked accounts) |
+| `browser_extension.cors_allowed_origins` | `[]` | CORS whitelist; empty allows any `chrome-extension://` and `moz-extension://` origin; when set, only the listed origins (list your extension ID, e.g. `chrome-extension://<id>`); use `*` in dev only |
 | `browser_extension.login_rate_limit.enabled` | `true` | Cache-backed brute-force protection on login |
 | `browser_extension.login_rate_limit.max_attempts` | `5` | Failed logins before lockout |
 | `browser_extension.login_rate_limit.interval_seconds` | `900` | Lockout window (seconds) |
@@ -182,8 +185,9 @@ nowo_vault:
     browser_extension:
         enabled: true
         user_provider: security.user.provider.concrete.app_user_provider
+        user_checker: security.user_checker.main   # firewall user checker (disabled/locked users)
         token_ttl: 86400
-        cors_allowed_origins: []   # extension origins only in production
+        cors_allowed_origins: []   # any extension origin; list chrome-extension://<id> to pin yours
         login_rate_limit:
             max_attempts: 5
             interval_seconds: 900

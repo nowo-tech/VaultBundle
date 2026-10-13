@@ -179,9 +179,10 @@ final class VaultRuntimeConfigProviderTest extends TestCase
             new VaultRuntimeConfigProvider(VaultRuntimeConfigFactory::baseline(), true, $repo, new ArrayAdapter()),
         );
 
-        $writer->update(['encryption_key' => 'base64-key']);
+        $key = base64_encode(str_repeat('k', 32));
+        $writer->update(['encryption_key' => $key]);
 
-        self::assertSame('base64-key', $settings->getEncryptionKey());
+        self::assertSame($key, $settings->getEncryptionKey());
         self::assertSame([], $settings->getValues());
     }
 
@@ -235,12 +236,13 @@ final class VaultRuntimeConfigProviderTest extends TestCase
         self::assertSame('key-v1', $worker2->get()['encryption_key']);
 
         // Request 2: admin rotates config/key through worker 1.
-        $writer1->update(['max_attachment_bytes' => 2048, 'encryption_key' => 'key-v2']);
+        $keyV2 = base64_encode(str_repeat('2', 32));
+        $writer1->update(['max_attachment_bytes' => 2048, 'encryption_key' => $keyV2]);
 
         // Request 3 on worker 2 (no reset() called anywhere) sees the new values.
         self::assertSame(2048, $worker2->get()['max_attachment_bytes']);
-        self::assertSame('key-v2', $worker2->get()['encryption_key']);
-        self::assertSame('key-v2', $worker1->get()['encryption_key']);
+        self::assertSame($keyV2, $worker2->get()['encryption_key']);
+        self::assertSame($keyV2, $worker1->get()['encryption_key']);
     }
 
     public function testCliInvalidationIsSeenByLongLivedProviderWithoutReset(): void

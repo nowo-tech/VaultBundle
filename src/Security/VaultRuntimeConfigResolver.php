@@ -24,6 +24,35 @@ final readonly class VaultRuntimeConfigResolver
     ) {
     }
 
+    /**
+     * True when nowo_vault.encryption_key is set in YAML/env (it may already encrypt items).
+     */
+    public function hasYamlEncryptionKey(): bool
+    {
+        $bootstrap = $this->yamlBaseline['encryption_key'] ?? null;
+
+        return is_string($bootstrap) && $bootstrap !== '';
+    }
+
+    /**
+     * True when an effective key already exists (YAML/env or database). Replacing it
+     * without re-encrypting items makes every stored item undecryptable.
+     */
+    public function hasConfiguredEncryptionKey(): bool
+    {
+        if ($this->hasYamlEncryptionKey()) {
+            return true;
+        }
+
+        if (!$this->databaseEnabled) {
+            return false;
+        }
+
+        $key = $this->runtimeConfig->get()['encryption_key'] ?? null;
+
+        return is_string($key) && $key !== '';
+    }
+
     public function resolveEncryptionKeyBase64(): string
     {
         if ($this->databaseEnabled) {

@@ -161,6 +161,9 @@ vault:
             key_stored: Instellingen opgeslagen in de database. Encryptiesleutel opgeslagen.
             key_generated: Vault-encryptiesleutel gegenereerd en opgeslagen in de database (versleuteld at rest).
             key_exists: Er is al een vault-encryptiesleutel opgeslagen in de database.
+            key_exists_yaml: "Er is al een vault-encryptiesleutel geconfigureerd in YAML/env (nowo_vault.encryption_key). Versleutel bestaande items opnieuw met bin/console nowo:vault:reencrypt --persist-new-key om hem te wijzigen."
+            key_invalid: "De encryptiesleutel moet een base64-gecodeerde libsodium-sleutel van 32 bytes zijn. Er is niets opgeslagen."
+            key_storage_unavailable: "De encryptiesleutel kan niet in de database worden opgeslagen: installeer nowo-tech/doctrine-encrypt-bundle zodat hij at rest versleuteld is, of configureer nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes moet nul of groter zijn.
     runtime_config:
         title: Runtimeconfiguratie
@@ -169,6 +172,8 @@ vault:
         last_update: 'Laatste update: %datetime%'
         encryption_key: Vault-encryptiesleutel
         encryption_key_stored_help: Opgeslagen in vault_settings.encryption_key (versleuteld at rest). Deze waarde kan niet vanaf dit scherm worden gewijzigd.
+        encryption_key_yaml_help: "Geconfigureerd in YAML/env (nowo_vault.encryption_key). Kan niet vanaf dit scherm worden vervangen; gebruik bin/console nowo:vault:reencrypt --persist-new-key om hem te roteren."
+        encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle is niet geïnstalleerd, dus een sleutel in vault_settings zou niet at rest versleuteld zijn. Configureer nowo_vault.encryption_key in plaats daarvan via YAML/env."
         encryption_key_empty_help: Nog geen encryptiesleutel in de database. Genereer er een of plak een base64-sleutel en sla op.
         encryption_key_placeholder: Plak een base64-sleutel of genereer er een hieronder
         encryption_key_configured: "Geconfigureerd (verborgen om veiligheidsredenen)"

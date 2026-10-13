@@ -161,6 +161,9 @@ vault:
             key_stored: Settings saved to the database. Encryption key stored.
             key_generated: Vault encryption key generated and saved to the database (encrypted at rest).
             key_exists: A vault encryption key is already stored in the database.
+            key_exists_yaml: "A vault encryption key is already configured in YAML/env (nowo_vault.encryption_key). To change it, re-encrypt existing items with bin/console nowo:vault:reencrypt --persist-new-key."
+            key_invalid: "The encryption key must be a base64-encoded 32-byte libsodium key. Nothing was saved."
+            key_storage_unavailable: "The encryption key cannot be stored in the database: install nowo-tech/doctrine-encrypt-bundle so it is encrypted at rest, or configure nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes must be zero or greater.
     runtime_config:
         title: Runtime configuration
@@ -169,6 +172,8 @@ vault:
         last_update: 'Last update: %datetime%'
         encryption_key: Vault encryption key
         encryption_key_stored_help: Stored in vault_settings.encryption_key (encrypted at rest). This value cannot be changed from this screen.
+        encryption_key_yaml_help: "Configured in YAML/env (nowo_vault.encryption_key). It cannot be replaced from this screen; use bin/console nowo:vault:reencrypt --persist-new-key to rotate it."
+        encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle is not installed, so a key stored in vault_settings would not be encrypted at rest. Configure nowo_vault.encryption_key via YAML/env instead."
         encryption_key_empty_help: No encryption key in the database yet. Generate one or paste a base64 key, then save.
         encryption_key_placeholder: Paste a base64 key or generate one below
         encryption_key_configured: "Configured (hidden for security)"

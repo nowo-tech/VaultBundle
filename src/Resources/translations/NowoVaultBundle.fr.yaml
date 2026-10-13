@@ -161,6 +161,9 @@ vault:
             key_stored: Paramètres enregistrés dans la base de données. Clé de chiffrement stockée.
             key_generated: Clé de chiffrement générée et enregistrée dans la base de données (chiffrée au repos).
             key_exists: Une clé de chiffrement du vault est déjà stockée dans la base de données.
+            key_exists_yaml: "Une clé de chiffrement du vault est déjà configurée en YAML/env (nowo_vault.encryption_key). Pour la changer, rechiffrez les éléments avec bin/console nowo:vault:reencrypt --persist-new-key."
+            key_invalid: "La clé de chiffrement doit être une clé libsodium de 32 octets encodée en base64. Rien n’a été enregistré."
+            key_storage_unavailable: "La clé de chiffrement ne peut pas être stockée en base de données : installez nowo-tech/doctrine-encrypt-bundle pour la chiffrer au repos, ou configurez nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes doit être zéro ou supérieur.
     runtime_config:
         title: Configuration runtime
@@ -169,6 +172,8 @@ vault:
         last_update: 'Dernière mise à jour : %datetime%'
         encryption_key: Clé de chiffrement du vault
         encryption_key_stored_help: Stockée dans vault_settings.encryption_key (chiffrée au repos). Cette valeur ne peut pas être modifiée depuis cet écran.
+        encryption_key_yaml_help: "Configurée en YAML/env (nowo_vault.encryption_key). Elle ne peut pas être remplacée depuis cet écran ; utilisez bin/console nowo:vault:reencrypt --persist-new-key pour la faire tourner."
+        encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle n’est pas installé : une clé stockée dans vault_settings ne serait pas chiffrée au repos. Configurez plutôt nowo_vault.encryption_key via YAML/env."
         encryption_key_empty_help: Aucune clé de chiffrement en base de données. Générez-en une ou collez une clé base64, puis enregistrez.
         encryption_key_placeholder: Collez une clé base64 ou générez-en une ci-dessous
         encryption_key_configured: "Configurée (masquée pour la sécurité)"

@@ -161,6 +161,9 @@ vault:
             key_stored: Einstellungen in der Datenbank gespeichert. Verschlüsselungsschlüssel gespeichert.
             key_generated: Vault-Verschlüsselungsschlüssel generiert und in der Datenbank gespeichert (verschlüsselt at rest).
             key_exists: Ein Vault-Verschlüsselungsschlüssel ist bereits in der Datenbank gespeichert.
+            key_exists_yaml: "Ein Vault-Verschlüsselungsschlüssel ist bereits in YAML/env konfiguriert (nowo_vault.encryption_key). Zum Ändern vorhandene Einträge mit bin/console nowo:vault:reencrypt --persist-new-key neu verschlüsseln."
+            key_invalid: "Der Verschlüsselungsschlüssel muss ein base64-kodierter 32-Byte-libsodium-Schlüssel sein. Es wurde nichts gespeichert."
+            key_storage_unavailable: "Der Verschlüsselungsschlüssel kann nicht in der Datenbank gespeichert werden: Installieren Sie nowo-tech/doctrine-encrypt-bundle (Verschlüsselung at rest) oder konfigurieren Sie nowo_vault.encryption_key über YAML/env."
             max_attachment_invalid: max_attachment_bytes muss null oder größer sein.
     runtime_config:
         title: Laufzeitkonfiguration
@@ -169,6 +172,8 @@ vault:
         last_update: 'Letzte Aktualisierung: %datetime%'
         encryption_key: Vault-Verschlüsselungsschlüssel
         encryption_key_stored_help: Gespeichert in vault_settings.encryption_key (verschlüsselt at rest). Dieser Wert kann auf diesem Bildschirm nicht geändert werden.
+        encryption_key_yaml_help: "In YAML/env konfiguriert (nowo_vault.encryption_key). Kann auf diesem Bildschirm nicht ersetzt werden; zum Rotieren bin/console nowo:vault:reencrypt --persist-new-key verwenden."
+        encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle ist nicht installiert, daher wäre ein in vault_settings gespeicherter Schlüssel nicht at rest verschlüsselt. Konfigurieren Sie nowo_vault.encryption_key stattdessen über YAML/env."
         encryption_key_empty_help: Noch kein Verschlüsselungsschlüssel in der Datenbank. Generieren Sie einen oder fügen Sie einen Base64-Schlüssel ein und speichern Sie.
         encryption_key_placeholder: Base64-Schlüssel einfügen oder unten generieren
         encryption_key_configured: "Konfiguriert (aus Sicherheitsgründen ausgeblendet)"

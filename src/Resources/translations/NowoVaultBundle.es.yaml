@@ -161,6 +161,9 @@ vault:
             key_stored: Ajustes guardados en la base de datos. Clave de cifrado almacenada.
             key_generated: Clave de cifrado generada y guardada en la base de datos (cifrada en reposo).
             key_exists: Ya hay una clave de cifrado almacenada en la base de datos.
+            key_exists_yaml: "Ya hay una clave de cifrado configurada en YAML/env (nowo_vault.encryption_key). Para cambiarla, vuelve a cifrar los elementos con bin/console nowo:vault:reencrypt --persist-new-key."
+            key_invalid: "La clave de cifrado debe ser una clave libsodium de 32 bytes codificada en base64. No se ha guardado nada."
+            key_storage_unavailable: "La clave de cifrado no se puede guardar en la base de datos: instala nowo-tech/doctrine-encrypt-bundle para cifrarla en reposo, o configura nowo_vault.encryption_key vía YAML/env."
             max_attachment_invalid: max_attachment_bytes debe ser cero o mayor.
     runtime_config:
         title: Configuración en tiempo de ejecución
@@ -169,6 +172,8 @@ vault:
         last_update: 'Última actualización: %datetime%'
         encryption_key: Clave de cifrado del vault
         encryption_key_stored_help: Almacenada en vault_settings.encryption_key (cifrada en reposo). No se puede cambiar desde esta pantalla.
+        encryption_key_yaml_help: "Configurada en YAML/env (nowo_vault.encryption_key). No se puede sustituir desde esta pantalla; usa bin/console nowo:vault:reencrypt --persist-new-key para rotarla."
+        encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle no está instalado, así que una clave guardada en vault_settings no estaría cifrada en reposo. Configura nowo_vault.encryption_key vía YAML/env."
         encryption_key_empty_help: Aún no hay clave de cifrado en la base de datos. Genera una o pega una clave base64 y guarda.
         encryption_key_placeholder: Pega una clave base64 o genera una abajo
         encryption_key_configured: "Configurada (oculta por seguridad)"

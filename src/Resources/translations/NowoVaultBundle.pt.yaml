@@ -161,6 +161,9 @@ vault:
             key_stored: Definições guardadas na base de dados. Chave de encriptação armazenada.
             key_generated: Chave de encriptação gerada e guardada na base de dados (encriptada em repouso).
             key_exists: Já existe uma chave de encriptação do vault armazenada na base de dados.
+            key_exists_yaml: "Já existe uma chave de encriptação do vault configurada em YAML/env (nowo_vault.encryption_key). Para a alterar, volte a encriptar os itens com bin/console nowo:vault:reencrypt --persist-new-key."
+            key_invalid: "A chave de encriptação deve ser uma chave libsodium de 32 bytes codificada em base64. Nada foi guardado."
+            key_storage_unavailable: "A chave de encriptação não pode ser guardada na base de dados: instale nowo-tech/doctrine-encrypt-bundle para a encriptar em repouso, ou configure nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes deve ser zero ou superior.
     runtime_config:
         title: Configuração em tempo de execução
@@ -169,6 +172,8 @@ vault:
         last_update: 'Última atualização: %datetime%'
         encryption_key: Chave de encriptação do vault
         encryption_key_stored_help: Armazenada em vault_settings.encryption_key (encriptada em repouso). Este valor não pode ser alterado neste ecrã.
+        encryption_key_yaml_help: "Configurada em YAML/env (nowo_vault.encryption_key). Não pode ser substituída neste ecrã; use bin/console nowo:vault:reencrypt --persist-new-key para a rodar."
+        encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle não está instalado, pelo que uma chave guardada em vault_settings não estaria encriptada em repouso. Configure nowo_vault.encryption_key via YAML/env."
         encryption_key_empty_help: Ainda não há chave de encriptação na base de dados. Gere uma ou cole uma chave base64 e guarde.
         encryption_key_placeholder: Cole uma chave base64 ou gere uma abaixo
         encryption_key_configured: "Configurada (oculta por segurança)"

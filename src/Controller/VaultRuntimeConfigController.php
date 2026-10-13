@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Controller;
 
+use InvalidArgumentException;
 use LogicException;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer;
+use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,6 +29,7 @@ final class VaultRuntimeConfigController extends AbstractController
         private readonly VaultRuntimeConfigWriter $configWriter,
         private readonly VaultSettingsRepositoryInterface $settingsRepository,
         private readonly TranslatorInterface $translator,
+        private readonly VaultRuntimeConfigResolver $configResolver,
         private readonly bool $databaseEnabled,
         private readonly bool $allowUnauthenticated = false,
     ) {
@@ -46,11 +49,20 @@ final class VaultRuntimeConfigController extends AbstractController
             $this->denyUnlessValidCsrf('vault_runtime_config', $request);
 
             $stored         = $this->settingsRepository->findByScope();
-            $hasExistingKey = $this->hasEncryptionKey($stored?->getEncryptionKey());
+            $hasDbKey       = $this->hasEncryptionKey($stored?->getEncryptionKey());
+            $hasYamlKey     = $this->configResolver->hasYamlEncryptionKey();
+            $hasExistingKey = $hasDbKey || $hasYamlKey;
 
             if ($request->request->has('generate_encryption_key')) {
                 if ($hasExistingKey) {
-                    $this->addFlash('info', $this->translator->trans('vault.flash.runtime_config.key_exists', [], 'NowoVaultBundle'));
+                    // Replacing a key that already encrypts items needs nowo:vault:reencrypt --persist-new-key.
+                    $this->addFlash('info', $this->translator->trans($hasDbKey ? 'vault.flash.runtime_config.key_exists' : 'vault.flash.runtime_config.key_exists_yaml', [], 'NowoVaultBundle'));
+
+                    return $this->redirectToRoute($routeName);
+                }
+
+                if (!$this->configWriter->canStoreEncryptionKey()) {
+                    $this->addFlash('error', $this->translator->trans('vault.flash.runtime_config.key_storage_unavailable', [], 'NowoVaultBundle'));
 
                     return $this->redirectToRoute($routeName);
                 }
@@ -83,6 +95,20 @@ final class VaultRuntimeConfigController extends AbstractController
             if (!$hasExistingKey) {
                 $encryptionKey = trim($request->request->getString('encryption_key'));
                 if ($encryptionKey !== '') {
+                    if (!$this->configWriter->canStoreEncryptionKey()) {
+                        $this->addFlash('error', $this->translator->trans('vault.flash.runtime_config.key_storage_unavailable', [], 'NowoVaultBundle'));
+
+                        return $this->redirectToRoute($routeName);
+                    }
+
+                    try {
+                        VaultRuntimeConfigWriter::assertValidEncryptionKey($encryptionKey);
+                    } catch (InvalidArgumentException) {
+                        $this->addFlash('error', $this->translator->trans('vault.flash.runtime_config.key_invalid', [], 'NowoVaultBundle'));
+
+                        return $this->redirectToRoute($routeName);
+                    }
+
                     $update['encryption_key'] = $encryptionKey;
                 }
             }
@@ -116,6 +142,8 @@ final class VaultRuntimeConfigController extends AbstractController
             'maxAttachmentBytes'    => (int) ($dbValues['max_attachment_bytes'] ?? $effective['max_attachment_bytes'] ?? 512_000),
             'passwordLevel'         => (string) ($dbValues['password_field']['level'] ?? $effective['password_field']['level'] ?? 'medium'),
             'hasDbEncryptionKey'    => $this->hasEncryptionKey($storedKey),
+            'hasYamlEncryptionKey'  => $this->configResolver->hasYamlEncryptionKey(),
+            'canStoreEncryptionKey' => $this->configWriter->canStoreEncryptionKey(),
             'encryptionKeyDisplay'  => $oneTimeKey,
             'showOneTimeKeyWarning' => $oneTimeKey !== null,
         ]);
