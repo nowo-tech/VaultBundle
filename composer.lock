@@ -6032,16 +6032,16 @@
         },
         {
             "name": "doctrine/mongodb-odm",
-            "version": "2.17.1",
+            "version": "2.17.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/mongodb-odm.git",
-                "reference": "c2bb52d4498901d91b4014d86b193f5eca7885d5"
+                "reference": "855df9bcf1a5aa0cd2605ac3c87e7d258bce8115"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/mongodb-odm/zipball/c2bb52d4498901d91b4014d86b193f5eca7885d5",
-                "reference": "c2bb52d4498901d91b4014d86b193f5eca7885d5",
+                "url": "https://api.github.com/repos/doctrine/mongodb-odm/zipball/855df9bcf1a5aa0cd2605ac3c87e7d258bce8115",
+                "reference": "855df9bcf1a5aa0cd2605ac3c87e7d258bce8115",
                 "shasum": ""
             },
             "require": {
@@ -6075,7 +6075,7 @@
                 "ext-bcmath": "*",
                 "jmikola/geojson": "^1.0",
                 "phpbench/phpbench": "^1.4.0",
-                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan": "2.3.1",
                 "phpstan/phpstan-deprecation-rules": "^2.0",
                 "phpstan/phpstan-phpunit": "^2.0",
                 "phpunit/phpunit": "^10.5.58|^11.5.43",
@@ -6088,6 +6088,13 @@
                 "ext-bcmath": "Decimal128 type support"
             },
             "type": "library",
+            "extra": {
+                "ai-mate": {
+                    "skills": [
+                        "skills"
+                    ]
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "Doctrine\\ODM\\MongoDB\\": "src"
@@ -6132,7 +6139,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/mongodb-odm/issues",
-                "source": "https://github.com/doctrine/mongodb-odm/tree/2.17.1"
+                "source": "https://github.com/doctrine/mongodb-odm/tree/2.17.2"
             },
             "funding": [
                 {
@@ -6148,7 +6155,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-03T12:19:37+00:00"
+            "time": "2026-10-14T12:21:08+00:00"
         },
         {
             "name": "doctrine/mongodb-odm-bundle",
