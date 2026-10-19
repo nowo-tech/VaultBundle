@@ -937,16 +937,16 @@
         },
         {
             "name": "nowo-tech/form-kit-bundle",
-            "version": "v2.11.0",
+            "version": "v2.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/FormKitBundle.git",
-                "reference": "520461e5effe951f09430f69efcbe76f0eed4684"
+                "reference": "92ef7e392f0eacd38a42f6472ef51898b83604ee"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/FormKitBundle/zipball/520461e5effe951f09430f69efcbe76f0eed4684",
-                "reference": "520461e5effe951f09430f69efcbe76f0eed4684",
+                "url": "https://api.github.com/repos/nowo-tech/FormKitBundle/zipball/92ef7e392f0eacd38a42f6472ef51898b83604ee",
+                "reference": "92ef7e392f0eacd38a42f6472ef51898b83604ee",
                 "shasum": ""
             },
             "require": {
@@ -1042,7 +1042,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-13T13:55:40+00:00"
+            "time": "2026-10-13T14:36:41+00:00"
         },
         {
             "name": "nowo-tech/ui-kit-bundle",
@@ -2552,16 +2552,16 @@
         },
         {
             "name": "symfony/form",
-            "version": "v7.4.20",
+            "version": "v7.4.21",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/form.git",
-                "reference": "a36c175f54bbe0320e096a857d67780053a28f44"
+                "reference": "2e6d6eb0ec53461535f9e98c7f740c8d5f8dedcc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/form/zipball/a36c175f54bbe0320e096a857d67780053a28f44",
-                "reference": "a36c175f54bbe0320e096a857d67780053a28f44",
+                "url": "https://api.github.com/repos/symfony/form/zipball/2e6d6eb0ec53461535f9e98c7f740c8d5f8dedcc",
+                "reference": "2e6d6eb0ec53461535f9e98c7f740c8d5f8dedcc",
                 "shasum": ""
             },
             "require": {
@@ -2631,7 +2631,7 @@
             "description": "Allows to easily create, process and reuse HTML forms",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/form/tree/v7.4.20"
+                "source": "https://github.com/symfony/form/tree/v7.4.21"
             },
             "funding": [
                 {
@@ -2651,7 +2651,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-29T12:35:16+00:00"
+            "time": "2026-10-13T16:17:38+00:00"
         },
         {
             "name": "symfony/framework-bundle",
@@ -5005,16 +5005,16 @@
         },
         {
             "name": "symfony/twig-bundle",
-            "version": "v7.4.19",
+            "version": "v7.4.21",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/twig-bundle.git",
-                "reference": "231c0b37dada053458d47281261a3af0270a634d"
+                "reference": "991586116d99e549621c70eeafe496dfcceeb1ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/twig-bundle/zipball/231c0b37dada053458d47281261a3af0270a634d",
-                "reference": "231c0b37dada053458d47281261a3af0270a634d",
+                "url": "https://api.github.com/repos/symfony/twig-bundle/zipball/991586116d99e549621c70eeafe496dfcceeb1ce",
+                "reference": "991586116d99e549621c70eeafe496dfcceeb1ce",
                 "shasum": ""
             },
             "require": {
@@ -5071,7 +5071,7 @@
             "description": "Provides a tight integration of Twig into the Symfony full-stack framework",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/twig-bundle/tree/v7.4.19"
+                "source": "https://github.com/symfony/twig-bundle/tree/v7.4.21"
             },
             "funding": [
                 {
@@ -5091,7 +5091,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-11T14:46:58+00:00"
+            "time": "2026-10-09T16:12:31+00:00"
         },
         {
             "name": "symfony/type-info",
@@ -5178,16 +5178,16 @@
         },
         {
             "name": "symfony/validator",
-            "version": "v7.4.20",
+            "version": "v7.4.21",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/validator.git",
-                "reference": "75a30e116016554477f662e106fd8e337f0c4dac"
+                "reference": "6c9b169bf3a1e46b2f2edc1c47be36c3b879d793"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/validator/zipball/75a30e116016554477f662e106fd8e337f0c4dac",
-                "reference": "75a30e116016554477f662e106fd8e337f0c4dac",
+                "url": "https://api.github.com/repos/symfony/validator/zipball/6c9b169bf3a1e46b2f2edc1c47be36c3b879d793",
+                "reference": "6c9b169bf3a1e46b2f2edc1c47be36c3b879d793",
                 "shasum": ""
             },
             "require": {
@@ -5258,7 +5258,7 @@
             "description": "Provides tools to validate values",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/validator/tree/v7.4.20"
+                "source": "https://github.com/symfony/validator/tree/v7.4.21"
             },
             "funding": [
                 {
@@ -5278,7 +5278,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-29T12:35:16+00:00"
+            "time": "2026-10-13T16:17:38+00:00"
         },
         {
             "name": "symfony/var-dumper",
