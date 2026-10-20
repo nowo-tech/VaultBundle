@@ -1,5 +1,14 @@
 # Security
 
+## Table of contents
+
+- [Threat model](#threat-model)
+- [Access control](#access-control)
+- [Browser extension API](#browser-extension-api)
+- [Secrets and CLI](#secrets-and-cli)
+- [Accepted residuals (REQ-SEC-004)](#accepted-residuals-req-sec-004)
+- [Release checklist (12.4.1)](#release-checklist-1241)
+
 ## Threat model
 
 | Asset | Risk | Mitigation |

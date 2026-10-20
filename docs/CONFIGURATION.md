@@ -2,6 +2,25 @@
 
 All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 
+## Table of contents
+
+- [Required](#required)
+- [Database](#database)
+- [Security](#security)
+- [Teams](#teams)
+- [Attachments](#attachments)
+- [Password field](#password-field)
+- [Routes](#routes)
+- [Templates](#templates)
+- [Look-and-feel (REQ-UI-001)](#look-and-feel-req-ui-001)
+- [Firewall](#firewall)
+- [Database-backed runtime configuration](#database-backed-runtime-configuration)
+  - [YAML-only (bootstrap — never stored in DB)](#yaml-only-bootstrap--never-stored-in-db)
+  - [DB-eligible (optional overrides in `{table_prefix}_settings`)](#db-eligible-optional-overrides-in-table_prefix_settings)
+  - [Updating from your application](#updating-from-your-application)
+- [Browser extension](#browser-extension)
+  - [Purging expired tokens](#purging-expired-tokens)
+
 ## Required
 
 | Option | Description |

@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Documentation: wave-1 REQ compliance — README Coverage badge, Symfony badge lists 8.1, stars badge uses the package name, documentation list order (extras under Additional documentation), canonical issue templates, CONTRIBUTING Code of Conduct link and Cursor Agent queue settings (REQ-IDE-006), SDD functional scope / non-goals and Engram relationship, demo `.env.test` / `.gitignore` cleanup, tables of contents on long docs, Spec Kit inventory refresh (123/123).
+
 ## [1.8.1] - 2026-10-18
 
 Allows nowo-tech/ui-kit-bundle 2.x (^1.4 || ^2.2) so hosts can move to UiKit 2.2. See [UPGRADING](UPGRADING.md#to-181).

@@ -1,6 +1,6 @@
 # Vault Bundle
 
-[![CI](https://github.com/nowo-tech/VaultBundle/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/VaultBundle/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/vault-bundle.svg?style=flat)](https://packagist.org/packages/nowo-tech/vault-bundle) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/vault-bundle.svg)](https://packagist.org/packages/nowo-tech/vault-bundle) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-7.4%2B%20%7C%208.0%2B-000000?logo=symfony)](https://symfony.com) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/VaultBundle.svg?style=social&label=Star)](https://github.com/nowo-tech/VaultBundle)
+[![CI](https://github.com/nowo-tech/VaultBundle/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/VaultBundle/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/vault-bundle.svg?style=flat)](https://packagist.org/packages/nowo-tech/vault-bundle) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/vault-bundle.svg)](https://packagist.org/packages/nowo-tech/vault-bundle) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-7.4%20%7C%208.0%20%7C%208.1%2B-000000?logo=symfony)](https://symfony.com) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/vault-bundle.svg?style=social&label=Star)](https://github.com/nowo-tech/VaultBundle) [![Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen)](#tests-and-coverage)
 
 > ⭐ **Found this useful?** Give it a **star** on [GitHub](https://github.com/nowo-tech/VaultBundle) so more developers can find it.
 
@@ -53,11 +53,8 @@ make -C demo/symfony8 up
 
 ## Documentation
 
-- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
-- [PSR evaluation (REQ-CS-007)](docs/PSR.md)
-- [Browser extension](docs/BROWSER-EXTENSION.md)
 - [Usage](docs/USAGE.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
@@ -65,13 +62,16 @@ make -C demo/symfony8 up
 - [Upgrading](docs/UPGRADING.md)
 - [Release process](docs/RELEASE.md)
 - [Security](docs/SECURITY.md)
-- [Encryption key rotation](docs/ENCRYPTION-KEY-ROTATION.md)
 - [Engram](docs/ENGRAM.md)
 - [Spec-driven development](docs/SPEC-DRIVEN-DEVELOPMENT.md)
 - [GitHub Spec Kit](docs/SPEC-KIT.md)
 
 ### Additional documentation
 
+- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
+- [PSR evaluation (REQ-CS-007)](docs/PSR.md)
+- [Browser extension](docs/BROWSER-EXTENSION.md)
+- [Encryption key rotation](docs/ENCRYPTION-KEY-ROTATION.md)
 - [Access control & read-only events](docs/examples/AccessControl.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
 

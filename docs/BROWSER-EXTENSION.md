@@ -2,6 +2,18 @@
 
 The VaultBundle ships a Chrome/Firefox extension under `extension/` that autofill login items from the vault by domain.
 
+## Table of contents
+
+- [Enable the API](#enable-the-api)
+- [Authentication flow](#authentication-flow)
+- [API endpoints](#api-endpoints)
+- [CORS](#cors)
+- [Rate limiting](#rate-limiting)
+- [Token maintenance](#token-maintenance)
+- [Custom authentication](#custom-authentication)
+- [Build and install](#build-and-install)
+- [Security checklist](#security-checklist)
+
 ## Enable the API
 
 ```yaml

@@ -9,6 +9,20 @@
 | **Verdict** | ✅ **Viable under scenario B** (after remediation) — no bundle service keeps per-request or DB-derived state across requests; clearing the Doctrine identity map between requests remains the application's responsibility (W-03) |
 | Remediation (2026-09-23) | W-01, W-02, W-03 (bundle side), W-04 resolved; W-05 accepted. Regression tests simulate consecutive requests on the same service instances without `reset()` |
 
+## Table of contents
+
+- [Execution model assumed](#execution-model-assumed)
+- [Summary](#summary)
+- [Services reviewed](#services-reviewed)
+- [Findings](#findings)
+  - [W-01 — Merged runtime config (and encryption key) memoized per worker with no reset (High)](#w-01--merged-runtime-config-and-encryption-key-memoized-per-worker-with-no-reset-high)
+  - [W-02 — Item read-only decisions cached across requests and users' lifetimes (High)](#w-02--item-read-only-decisions-cached-across-requests-and-users-lifetimes-high)
+  - [W-03 — Repositories rely on Doctrine's resetter for the EntityManager (Medium, scenario B)](#w-03--repositories-rely-on-doctrines-resetter-for-the-entitymanager-medium-scenario-b)
+  - [W-04 — Route loader refuses a second load in the same process (Low)](#w-04--route-loader-refuses-a-second-load-in-the-same-process-low)
+  - [W-05 — Key material stays in worker memory (Info)](#w-05--key-material-stays-in-worker-memory-info)
+- [Usage recommendations in worker mode](#usage-recommendations-in-worker-mode)
+- [Re-audit triggers](#re-audit-triggers)
+
 ## Execution model assumed
 
 FrankenPHP worker mode boots the Symfony kernel once per worker and serves many requests with the same container. This audit assumes the **strict** variant: the kernel is **not** rebooted between requests, so every shared service, static property and PHP global survives from one request to the next. Two scenarios are evaluated:

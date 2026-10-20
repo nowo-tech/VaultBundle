@@ -1,5 +1,17 @@
 # Usage
 
+## Table of contents
+
+- [Manage UI](#manage-ui)
+- [Item types](#item-types)
+- [Tags](#tags)
+- [Folders](#folders)
+- [Sharing](#sharing)
+- [Read-only access](#read-only-access)
+- [Events](#events)
+- [Twig overrides](#twig-overrides)
+- [Translations](#translations)
+
 ## Manage UI
 
 Authenticated users open the vault at `/tools/vault` (configurable via `nowo_vault.routes`).

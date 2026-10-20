@@ -88,16 +88,37 @@ As an integrator, I hook list/access events to enforce custom team rules.
 - **FR-UI-010–012**: Vault frontend assets (Stimulus/controllers, styles).
 - **FR-CLI-004**: Purge extension tokens, reencrypt payloads.
 
+### Runtime configuration, domain events and supporting types
+
+- **FR-CFG-003**: Runtime (database-stored) configuration: `VaultRuntimeConfigProvider` / `Schema` / `Writer`, `VaultRuntimeConfigResolver` and the runtime-config controller.
+- **FR-EVT-001**: Domain events (`VaultEvents`, access-check, list-query / list-result, read-only, browser-extension auth events) for host extension points.
+- **FR-DTO-001**: Form / transfer objects (item and share form data, grantee choice, password generator options, extension login match).
+- **FR-MDL-001**: Domain enums (`GranteeType`, `VaultItemType`, `VaultPermission`, `VaultResourceType`).
+- **FR-UTIL-001**: Support utilities (`UserIdResolver`, `Uuid` value object).
+- **FR-SEC-003**: CSRF validation on every state-changing manage action (`VaultCsrfTrait`).
+- **FR-UI-001**: `VaultManageController` serves the manage Web UI (items, folders, shares, trash).
+- **FR-VIEW-001**: `layout.html.twig` and `vault/base.html.twig` page shell (extends the controller layout, UiKit, REQ-UI-001).
+- **FR-VIEW-002**: `VaultExtension` exposes the manage Web UI globals to Twig.
+- **FR-BUILD-001**: Vite builds `Resources/public/vault.js` / `vault.css` from `Resources/assets/src/` (documented as outputs, not orphan files).
+- **FR-WORKER-001**: FrankenPHP worker safety without kernel reset: repositories resolve the EntityManager per call and reopen a closed one (`ResolvesEntityManagerTrait`); no per-request state in shared services.
+
 ---
 
 ## Success Criteria
 
-- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (118/118 mapped).
+- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (123/123 mapped, audited 2026-10-20; 1 co-located `*.test.ts` excluded).
 - **SC-002**: Configuration keys in `docs/CONFIGURATION.md` match `Configuration.php`.
 - **SC-003**: `composer qa` / `make release-check` pass in CI (PHPUnit, PHPStan, Vitest where applicable).
 - **SC-004**: No Packagist-visible behavior change without spec, inventory, and test updates.
 
 ---
+
+## Non-goals
+
+- User management, authentication and SSO (owned by the host application).
+- Automatic key management / HSM integration — key rotation is operational (`docs/ENCRYPTION-KEY-ROTATION.md`).
+- Browser-extension client behavior: the reference client under `extension/` is a separate deliverable outside the `src/` inventory; this spec covers the extension API only.
+- `demo/` trees (illustrative, not Packagist API).
 
 ## Validation
 

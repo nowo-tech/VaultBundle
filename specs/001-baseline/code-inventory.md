@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/vault-bundle`  
-**Last audited**: 2026-07-07
+**Last audited**: 2026-10-20
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -18,6 +18,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `DependencyInjection/VaultExtension.php` | DI extension | FR-CFG-002 |
 | `Security/VaultRuntimeConfigResolver.php` | Runtime config resolver | FR-CFG-003 |
 | `VaultBundle.php` | Bundle entry | FR-BUNDLE-001 |
+| `DependencyInjection/Compiler/BrowserExtensionUserCheckerPass.php` | Points the extension authenticator at the firewall user checker | FR-EXT-002 |
 
 ## CLI
 
@@ -56,6 +57,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Repository/VaultItemRepositoryInterface.php` | Repository contract | FR-REPO-001 |
 | `Repository/VaultSettingsRepositoryInterface.php` | Repository contract | FR-REPO-001 |
 | `Repository/VaultTagRepositoryInterface.php` | Repository contract | FR-REPO-001 |
+| `Repository/ResolvesEntityManagerTrait.php` | Per-call EntityManager resolution; reopens a closed EM (worker-safe) | FR-REPO-002, FR-WORKER-001 |
 
 ## Forms
 
@@ -122,6 +124,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Service/VaultAccessGuard.php` | Access guard + events | FR-SEC-001 |
 | `Service/VaultPayloadReencryptionResult.php` | Re-encryption result DTO | FR-CRYPT-003 |
 | `Service/VaultPayloadReencryptionService.php` | Payload re-encryption | FR-CRYPT-003 |
+| `Security/AllowAllVaultAccessChecker.php` | Permissive checker when `security.allow_unauthenticated` (demo/dev) | FR-SEC-001 |
 
 ## Browser extension
 
@@ -203,19 +206,26 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/vault/share.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/shared.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/trash.html.twig` | Manage UI template | FR-VIEW-005 |
+| `Resources/views/vault/base.html.twig` | Page shell extending the controller layout (UiKit, REQ-UI-001) | FR-VIEW-001 |
+
+## Twig integration
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Twig/VaultExtension.php` | Manage Web UI globals for Twig (REQ-UI-001) | FR-VIEW-002 |
 
 ## Coverage summary
 
 | Category | Files | Mapped |
 | --- | ---: | ---: |
-| Bundle & DI | 8 | 8 |
+| Bundle & DI | 9 | 9 |
 | CLI | 2 | 2 |
 | Controllers | 3 | 3 |
-| Persistence | 18 | 18 |
+| Persistence | 19 | 19 |
 | Forms | 3 | 3 |
 | Domain models | 9 | 9 |
 | Application services | 24 | 24 |
-| Security | 10 | 10 |
+| Security | 11 | 11 |
 | Browser extension | 8 | 8 |
 | Routing | 1 | 1 |
 | Persistence integration | 5 | 5 |
@@ -223,7 +233,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | Frontend TypeScript | 3 | 3 |
 | Symfony config | 1 | 1 |
 | Translations | 7 | 7 |
-| Twig views | 14 | 14 |
-| **Total production sources** | **118** | **118** |
+| Twig views | 15 | 15 |
+| Twig integration | 1 | 1 |
+| **Total production sources** | **123** | **123** |
 
-Audit: `find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l`
+Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 123.

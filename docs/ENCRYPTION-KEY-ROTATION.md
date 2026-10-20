@@ -2,6 +2,17 @@
 
 Vault item payloads are encrypted with libsodium secretbox using `nowo_vault.encryption_key` (YAML/env bootstrap, optional encrypted DB override). Rotating the key requires **re-encrypting every stored payload** with the new key.
 
+## Table of contents
+
+- [Before you start](#before-you-start)
+- [Procedure](#procedure)
+  - [1. Re-encrypt payloads](#1-re-encrypt-payloads)
+  - [2. Custom script (optional)](#2-custom-script-optional)
+  - [3. Verify](#3-verify)
+  - [4. Retire the old key](#4-retire-the-old-key)
+- [Runtime config UI limitation](#runtime-config-ui-limitation)
+- [Related examples](#related-examples)
+
 ## Before you start
 
 1. Take a full database backup.
