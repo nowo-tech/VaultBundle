@@ -115,7 +115,17 @@
 
             {{ form_row(form.note) }}
 
-            {{ form_widget(form._token) }}
+            {#
+              REQ-TWIG-003 rule 3: the fields above follow a per-item-type layout. VaultItemFormType adds the fields of
+              every item type, so the loop skips the type-specific ones not shown for this type (render_rest stays off);
+              any other child (CSRF token, fields added later) is rendered here.
+            #}
+            {% set _vault_type_fields = ['username', 'password', 'websites', 'secureNote', 'cardholderName', 'cardNumber', 'expiry', 'cvv', 'cardPin', 'fullName', 'email', 'phone', 'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'documentNumber', 'issuedBy', 'issuedDate', 'expiryDate'] %}
+            {% for child in form %}
+                {% if not child.rendered and child.vars.name not in _vault_type_fields %}
+                    {{ form_row(child) }}
+                {% endif %}
+            {% endfor %}
 
             <div class="d-flex gap-2 mt-4">
                 {% if not readOnly|default(false) %}

@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dependencies refreshed (Composer and pnpm/npm lock files of the bundle and its demos, campaign 2026-10-19).
 - `.php-cs-fixer.dist.php`: `new ParallelConfig(2)` (REQ-CS-001).
+- Views: `vault/share.html.twig` / `_share_form_fields.html.twig` render the share form through the child loop
+  (`{% for child in form %}` + `not child.rendered` + `form_row(child)`, grid column per child) and
+  `vault/item_form.html.twig` keeps its per-item-type layout (rule 3) and ends with the same loop instead of a
+  hand-placed `_token` widget, per REQ-TWIG-003. The item loop skips the type-specific fields that the current item
+  type does not show, so the rendered fields are unchanged.
 
 ### Documentation
 
