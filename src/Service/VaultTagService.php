@@ -100,7 +100,7 @@ final readonly class VaultTagService
         }
 
         if (mb_strlen($normalized) > self::MAX_NAME_LENGTH) {
-            $normalized = mb_substr($normalized, 0, self::MAX_NAME_LENGTH);
+            return mb_substr($normalized, 0, self::MAX_NAME_LENGTH);
         }
 
         return $normalized;

@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Developer tooling: `make release-check` runs the full REQ-MAKE-002 chain in order (`ensure-up` first, then `check-no-cursor-coauthor`, `check-open-prs`, `check-twig-extra`, `composer-sync`, `cs-fix`, `cs-check`, `rector-dry`, `phpstan`, `igor`, `validate-translations`, `coverage-check`, demo release-check, `test-ts`). `check-no-raw-html-form` (REQ-TWIG-005) is wired once the remaining raw form markup is migrated.
+- Internal: applied the pending Rector suggestions (`VaultMetadataListener` private static helper made non-static, `readonly` on the final `VaultAccessGuard`, early return in `VaultTagService` name normalisation, redundant `@var` dropped in `VaultItemFormData`); no behaviour change. `make rector-dry` is clean again.
 
 ## [1.8.2] - 2026-10-24
 

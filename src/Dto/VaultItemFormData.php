@@ -129,8 +129,7 @@ final class VaultItemFormData
     {
         $data->username = (string) ($payload['username'] ?? '');
         $data->password = (string) ($payload['password'] ?? '');
-        /** @var mixed $rawWebsites */
-        $rawWebsites = $payload['websites'] ?? [''];
+        $rawWebsites    = $payload['websites'] ?? [''];
         if (!is_array($rawWebsites) || $rawWebsites === []) {
             $data->websites = [''];
         } else {

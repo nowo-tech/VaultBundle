@@ -56,7 +56,7 @@ final readonly class VaultMetadataListener
 
         if ($class === VaultItem::class && isset($metadata->associationMappings['tags'])) {
             $newMapping = array_replace_recursive(
-                self::mappingToArray($metadata->associationMappings['tags']),
+                $this->mappingToArray($metadata->associationMappings['tags']),
                 ['joinTable' => ['name' => $this->itemTagsTableName]],
             );
             $newMapping['fieldName'] = 'tags';
@@ -81,7 +81,7 @@ final readonly class VaultMetadataListener
     private function remapUserAssociation(ClassMetadata $metadata, string $fieldName): void
     {
         $newMapping = array_replace_recursive(
-            self::mappingToArray($metadata->associationMappings[$fieldName]),
+            $this->mappingToArray($metadata->associationMappings[$fieldName]),
             ['targetEntity' => ltrim($this->userClass, '\\')],
         );
         $newMapping['fieldName'] = $fieldName;
@@ -101,7 +101,7 @@ final readonly class VaultMetadataListener
      *
      * @return array<string, mixed>
      */
-    private static function mappingToArray(mixed $mapping): array
+    private function mappingToArray(mixed $mapping): array
     {
         return $mapping instanceof AssociationMapping ? $mapping->toArray() : (array) $mapping;
     }

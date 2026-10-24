@@ -25,12 +25,12 @@ use function in_array;
 /**
  * Checks vault item/folder access: creator ownership, grants, read-only events, and extensible ACL.
  */
-final class VaultAccessGuard
+final readonly class VaultAccessGuard
 {
     public function __construct(
-        private readonly VaultGrantRepositoryInterface $grantRepository,
-        private readonly VaultTeamMembershipResolverInterface $teamMembershipResolver,
-        private readonly EventDispatcherInterface $eventDispatcher,
+        private VaultGrantRepositoryInterface $grantRepository,
+        private VaultTeamMembershipResolverInterface $teamMembershipResolver,
+        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
