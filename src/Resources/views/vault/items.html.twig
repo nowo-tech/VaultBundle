@@ -12,21 +12,21 @@
 
     <div class="card mb-4">
         <div class="card-body">
-            <form class="row g-3 align-items-end" method="get" action="{{ path(routes.items.name) }}">
-                {% if activeFolder|default(null) %}
-                    <input type="hidden" name="folder" value="{{ activeFolder }}">
-                {% endif %}
-                {% if activeTag|default(null) %}
-                    <input type="hidden" name="tag" value="{{ activeTag }}">
-                {% endif %}
+            {# REQ-TWIG-005: VaultItemSearchType (GET, flat q + active folder / tag filters). #}
+            {{ form_start(searchForm, {attr: {class: 'row g-3 align-items-end'}}) }}
                 <div class="col-md-8">
-                    <label class="form-label" for="vault-search">{{ 'vault.search.placeholder'|trans({}, 'NowoVaultBundle') }}</label>
-                    <input id="vault-search" type="search" name="q" class="form-control" value="{{ searchQuery|default('') }}" placeholder="{{ 'vault.search.placeholder_tags'|trans({}, 'NowoVaultBundle') }}">
+                    {{ form_label(searchForm.q) }}
+                    {{ form_widget(searchForm.q) }}
                 </div>
+                {% for child in searchForm %}
+                    {% if not child.rendered %}
+                        {{ form_row(child) }}
+                    {% endif %}
+                {% endfor %}
                 <div class="col-md-4">
                     <button type="submit" class="btn btn-primary w-100">{{ 'vault.action.search'|trans({}, 'NowoVaultBundle') }}</button>
                 </div>
-            </form>
+            {{ form_end(searchForm) }}
         </div>
     </div>
 
@@ -57,26 +57,23 @@
                                class="btn btn-sm {% if tagActive %}btn-primary{% else %}btn-outline-secondary{% endif %}">
                                 {{ tag.name }}
                             </a>
-                            <form method="post"
-                                  action="{{ path(routes.tag_delete.name, {id: tag.id}) }}"
-                                  class="vault-tag-action-form"
-                                  onsubmit="return confirm('{{ 'vault.confirm.delete_tag'|trans({'%name%': tag.name}, 'NowoVaultBundle')|e('js') }}');">
-                                <input type="hidden" name="_token" value="{{ csrf_token('vault_tag_delete_' ~ tag.id) }}">
-                                {% if activeFolder|default(null) %}
-                                    <input type="hidden" name="folder" value="{{ activeFolder }}">
-                                {% endif %}
-                                {% if searchQuery|default('') %}
-                                    <input type="hidden" name="q" value="{{ searchQuery }}">
-                                {% endif %}
-                                {% if activeTag|default(null) %}
-                                    <input type="hidden" name="tag" value="{{ activeTag }}">
-                                {% endif %}
+                            {# REQ-TWIG-005: VaultActionType with the list filters as hidden fields (tagDeleteForms[tag.id]). #}
+                            {% set tag_delete_form = tagDeleteForms[tag.id] %}
+                            {{ form_start(tag_delete_form, {attr: {
+                                class: 'vault-tag-action-form',
+                                onsubmit: "return confirm('" ~ ('vault.confirm.delete_tag'|trans({'%name%': tag.name}, 'NowoVaultBundle')|e('js')) ~ "');",
+                            }}) }}
+                                {% for child in tag_delete_form %}
+                                    {% if not child.rendered %}
+                                        {{ form_row(child) }}
+                                    {% endif %}
+                                {% endfor %}
                                 <button type="submit"
                                         class="btn btn-sm btn-icon {% if tagActive %}btn-primary{% else %}btn-outline-secondary{% endif %} text-danger"
                                         title="{{ 'vault.action.delete_tag'|trans({}, 'NowoVaultBundle') }}">
                                     <i class="ti ti-trash" aria-hidden="true"></i>
                                 </button>
-                            </form>
+                                                        {{ form_end(tag_delete_form) }}
                         </div>
                     {% endfor %}
                 </div>
@@ -92,15 +89,20 @@
             </button>
         </div>
         <div class="card-body">
-            <form method="post" action="{{ path(routes.folder_create.name) }}" class="row g-2 mb-3" data-vault-folder-form hidden>
-                <input type="hidden" name="_token" value="{{ csrf_token('vault_folder_create') }}">
+            {# REQ-TWIG-005: VaultFolderCreateType (flat name / _token). #}
+            {{ form_start(folderForm, {attr: {class: 'row g-2 mb-3', 'data-vault-folder-form': true, hidden: true}}) }}
                 <div class="col">
-                    <input type="text" name="name" class="form-control" placeholder="{{ 'vault.folder.name_placeholder'|trans({}, 'NowoVaultBundle') }}" required>
+                    {{ form_widget(folderForm.name) }}
                 </div>
+                {% for child in folderForm %}
+                    {% if not child.rendered %}
+                        {{ form_row(child) }}
+                    {% endif %}
+                {% endfor %}
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary">{{ 'vault.action.save'|trans({}, 'NowoVaultBundle') }}</button>
                 </div>
-            </form>
+            {{ form_end(folderForm) }}
             <div class="d-flex flex-wrap align-items-center gap-2 vault-folder-list">
                 <a href="{{ path(routes.items.name, searchQuery|default('') ? {q: searchQuery} : {}) }}"
                    class="btn btn-sm {% if activeFolder|default(null) is null %}btn-primary{% else %}btn-outline-secondary{% endif %}">
@@ -122,17 +124,23 @@
                            title="{{ 'vault.share.manage'|trans({}, 'NowoVaultBundle') }}">
                             <i class="ti ti-share" aria-hidden="true"></i>
                         </a>
-                        <form method="post"
-                              action="{{ path(routes.folder_trash.name, {id: folder.id}) }}"
-                              class="vault-folder-action-form"
-                              onsubmit="return confirm('{{ trashFolderConfirm|e('js') }}');">
-                            <input type="hidden" name="_token" value="{{ csrf_token('vault_folder_trash_' ~ folder.id) }}">
+                        {# REQ-TWIG-005: CSRF-only VaultActionType (folderTrashForms[folder.id]). #}
+                        {% set folder_trash_form = folderTrashForms[folder.id] %}
+                        {{ form_start(folder_trash_form, {attr: {
+                            class: 'vault-folder-action-form',
+                            onsubmit: "return confirm('" ~ (trashFolderConfirm|e('js')) ~ "');",
+                        }}) }}
+                            {% for child in folder_trash_form %}
+                                {% if not child.rendered %}
+                                    {{ form_row(child) }}
+                                {% endif %}
+                            {% endfor %}
                             <button type="submit"
                                     class="btn btn-sm btn-icon {% if folderActive %}btn-primary{% else %}btn-outline-secondary{% endif %} text-danger"
                                     title="{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}">
                                 <i class="ti ti-trash" aria-hidden="true"></i>
                             </button>
-                        </form>
+                                                {{ form_end(folder_trash_form) }}
                     </div>
                 {% endfor %}
             </div>

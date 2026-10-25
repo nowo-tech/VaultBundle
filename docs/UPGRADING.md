@@ -50,6 +50,22 @@
 
 ## Unreleased
 
+### Forms rendered through Form Types (REQ-TWIG-005)
+
+The controllers now always pass form variables for every action that used hand-rolled markup (see [USAGE — Forms in templates](USAGE.md#forms-in-templates-req-twig-005)). **If you override one of these templates**, render the new variables with `form_start` / the child loop / `form_end`:
+
+| Template | New variable(s) |
+| -------- | --------------- |
+| `vault/items.html.twig` | `searchForm`, `folderForm`, `tagDeleteForms[tag.id]`, `folderTrashForms[folder.id]`, `trashForms[item.id]` |
+| `vault/shared.html.twig` / `vault/_item_row_actions.html.twig` | `trashForms[item.id]` (the partial reads it from the including context) |
+| `vault/trash.html.twig` | `restoreForms[item.id]`, `purgeForms[item.id]` |
+| `vault/share.html.twig` / `vault/_grants_table.html.twig` | `revokeGrantForms[grant.id]` |
+| `vault/home.html.twig` / `vault/_password_generator.html.twig` | `generatorForm` |
+| `vault/item_form.html.twig` | `form.attachment` (new unmapped child of `VaultItemFormType`; list it among the per-type fields excluded from the trailing loop, as the shipped template does) |
+| `vault/runtime_config.html.twig` | `form` (`VaultRuntimeConfigType`) |
+
+Posted names and token ids are unchanged, so existing overrides keep working until migrated. `VaultItemFormType` now contains a `FileType` child, so the item form is rendered as `multipart/form-data`; the identity-card attachment is therefore actually uploaded with the form.
+
 ## To 1.8.2
 
 From **1.8.1**:

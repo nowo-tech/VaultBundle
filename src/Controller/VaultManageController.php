@@ -12,11 +12,16 @@ use Nowo\VaultBundle\Dto\VaultShareFormData;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
+use Nowo\VaultBundle\Entity\VaultTag;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultGrantListQueryEvent;
+use Nowo\VaultBundle\Form\VaultActionType;
+use Nowo\VaultBundle\Form\VaultFolderCreateType;
 use Nowo\VaultBundle\Form\VaultItemFormType;
+use Nowo\VaultBundle\Form\VaultItemSearchType;
+use Nowo\VaultBundle\Form\VaultPasswordGeneratorType;
 use Nowo\VaultBundle\Form\VaultShareType;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
@@ -34,6 +39,7 @@ use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -85,6 +91,7 @@ final class VaultManageController extends AbstractController
             'itemTypes'               => VaultItemType::cases(),
             'configStorageEnabled'    => $this->configStorage['enabled'],
             'configStorageAdminRoute' => $this->configStorageAdminRoute(),
+            'generatorForm'           => $this->createForm(VaultPasswordGeneratorType::class)->createView(),
         ]);
     }
 
@@ -146,6 +153,20 @@ final class VaultManageController extends AbstractController
             'routes'           => $this->routes(),
             'dashboardRoute'   => $this->dashboardRoute(),
             'itemTypes'        => VaultItemType::cases(),
+            'searchForm'       => $this->createForm(VaultItemSearchType::class, ['q' => $searchQuery], [
+                'action'  => $this->generateUrl($this->routes()['items']['name']),
+                'filters' => ['folder' => $folderId, 'tag' => $tagId],
+            ])->createView(),
+            'folderForm' => $this->createForm(VaultFolderCreateType::class, null, [
+                'action' => $this->generateUrl($this->routes()['folder_create']['name']),
+            ])->createView(),
+            'tagDeleteForms' => $this->actionForms($tags, 'tag_delete', 'vault_tag_delete_', [
+                'folder' => $folderId,
+                'q'      => $searchQuery,
+                'tag'    => $tagId,
+            ]),
+            'folderTrashForms' => $this->actionForms($folders, 'folder_trash', 'vault_folder_trash_'),
+            'trashForms'       => $this->actionForms($result['items'], 'item_trash', 'vault_trash_'),
         ]);
     }
 
@@ -163,6 +184,7 @@ final class VaultManageController extends AbstractController
             'readOnlyMap'    => $this->accessGuard->resolveReadOnlyMap($user, $result['items']),
             'routes'         => $this->routes(),
             'dashboardRoute' => $this->dashboardRoute(),
+            'trashForms'     => $this->actionForms($result['items'], 'item_trash', 'vault_trash_'),
         ]);
     }
 
@@ -179,6 +201,8 @@ final class VaultManageController extends AbstractController
             'items'          => $result['items'],
             'routes'         => $this->routes(),
             'dashboardRoute' => $this->dashboardRoute(),
+            'restoreForms'   => $this->actionForms($result['items'], 'item_restore', 'vault_restore_'),
+            'purgeForms'     => $this->actionForms($result['items'], 'item_purge', 'vault_purge_'),
         ]);
     }
 
@@ -717,7 +741,51 @@ final class VaultManageController extends AbstractController
             'dashboardRoute'   => $this->dashboardRoute(),
             'backRoute'        => $backRoute,
             'backParams'       => $backParams,
+            'revokeGrantForms' => $this->revokeGrantForms($grants, $resourceId, $grantRevokeRoute),
         ]);
+    }
+
+    /**
+     * One CSRF-only form per row (REQ-TWIG-005): flat {@code _token}, token id {@code <prefix><id>}.
+     *
+     * @param iterable<VaultFolder|VaultItem|VaultTag> $rows
+     * @param array<string, string|null> $hiddenFields
+     *
+     * @return array<string, FormView>
+     */
+    private function actionForms(iterable $rows, string $routeKey, string $tokenPrefix, array $hiddenFields = []): array
+    {
+        $forms = [];
+        $route = $this->routes()[$routeKey]['name'];
+        foreach ($rows as $row) {
+            $id         = $row->getId();
+            $forms[$id] = $this->createForm(VaultActionType::class, null, [
+                'action'        => $this->generateUrl($route, ['id' => $id]),
+                'csrf_token_id' => $tokenPrefix . $id,
+                'hidden_fields' => $hiddenFields,
+            ])->createView();
+        }
+
+        return $forms;
+    }
+
+    /**
+     * @param list<VaultGrant> $grants
+     *
+     * @return array<string, FormView>
+     */
+    private function revokeGrantForms(array $grants, string $resourceId, string $route): array
+    {
+        $forms = [];
+        foreach ($grants as $grant) {
+            $grantId         = $grant->getId();
+            $forms[$grantId] = $this->createForm(VaultActionType::class, null, [
+                'action'        => $this->generateUrl($route, ['id' => $resourceId, 'grantId' => $grantId]),
+                'csrf_token_id' => 'vault_revoke_grant_' . $grantId,
+            ])->createView();
+        }
+
+        return $forms;
     }
 
     /**

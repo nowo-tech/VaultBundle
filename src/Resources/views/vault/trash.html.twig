@@ -28,16 +28,27 @@
                                 <tr>
                                     <td>{{ item.title }}</td>
                                     <td class="text-end text-nowrap">
-                                        <form method="post" action="{{ path(routes.item_restore.name, {id: item.id}) }}" class="d-inline">
-                                            <input type="hidden" name="_token" value="{{ csrf_token('vault_restore_' ~ item.id) }}">
+                                        {# REQ-TWIG-005: CSRF-only VaultActionType forms (restoreForms / purgeForms). #}
+                                        {% set restore_form = restoreForms[item.id] %}
+                                        {{ form_start(restore_form, {attr: {class: 'd-inline'}}) }}
+                                            {% for child in restore_form %}
+                                                {% if not child.rendered %}
+                                                    {{ form_row(child) }}
+                                                {% endif %}
+                                            {% endfor %}
                                             <button type="submit" class="btn btn-sm btn-outline-primary">{{ 'vault.action.restore'|trans({}, 'NowoVaultBundle') }}</button>
-                                        </form>
-                                        <form method="post" action="{{ path(routes.item_purge.name, {id: item.id}) }}" class="d-inline">
-                                            <input type="hidden" name="_token" value="{{ csrf_token('vault_purge_' ~ item.id) }}">
+                                                                                {{ form_end(restore_form) }}
+                                        {% set purge_form = purgeForms[item.id] %}
+                                        {{ form_start(purge_form, {attr: {class: 'd-inline'}}) }}
+                                            {% for child in purge_form %}
+                                                {% if not child.rendered %}
+                                                    {{ form_row(child) }}
+                                                {% endif %}
+                                            {% endfor %}
                                             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('{{ 'vault.confirm.purge'|trans({}, 'NowoVaultBundle')|e('js') }}');">
                                                 {{ 'vault.action.purge'|trans({}, 'NowoVaultBundle') }}
                                             </button>
-                                        </form>
+                                                                                {{ form_end(purge_form) }}
                                     </td>
                                 </tr>
                             {% endfor %}

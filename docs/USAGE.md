@@ -10,6 +10,7 @@
 - [Read-only access](#read-only-access)
 - [Events](#events)
 - [Twig overrides](#twig-overrides)
+  - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
 - [Translations](#translations)
 
 ## Manage UI
@@ -89,6 +90,35 @@ nowo_vault:
     templates:
         layout: 'layouts/app.html.twig'
 ```
+
+### Forms in templates (REQ-TWIG-005)
+
+Every control in the manage views comes from a PHP Symfony Form Type (Form Kit `vault` profile) built by the controller and rendered with `form_start` / the child loop / `form_end`:
+
+| View | Variable(s) | Form Type |
+| ---- | ----------- | --------- |
+| `vault/items.html.twig` | `searchForm`, `folderForm`, `tagDeleteForms`, `folderTrashForms`, `trashForms` | `VaultItemSearchType` (GET `q` + `folder` / `tag`), `VaultFolderCreateType` (`name`), `VaultActionType` |
+| `vault/shared.html.twig`, `vault/_item_row_actions.html.twig` | `trashForms` (item id → form) | `VaultActionType` |
+| `vault/trash.html.twig` | `restoreForms`, `purgeForms` | `VaultActionType` |
+| `vault/share.html.twig`, `vault/_grants_table.html.twig` | `revokeGrantForms` (grant id → form) | `VaultActionType` |
+| `vault/home.html.twig`, `vault/_password_generator.html.twig` | `generatorForm` | `VaultPasswordGeneratorType` (browser-only, never submitted) |
+| `vault/item_form.html.twig` | `form.attachment` | `VaultItemFormType` (unmapped, posted as `attachment`) |
+| `vault/runtime_config.html.twig` | `form` | `VaultRuntimeConfigType` |
+
+Posted names and CSRF token ids are unchanged (flat `_token`, `vault_trash_<id>`, `vault_folder_create`, …); the controllers keep validating the token through `VaultCsrfTrait`, which also accepts the `X-CSRF-Token` header and JSON bodies used by API clients. Render form bodies with the canonical loop after any custom children:
+
+```twig
+{{ form_start(trash_form, {attr: {class: 'd-inline'}}) }}
+    {% for child in trash_form %}
+        {% if not child.rendered %}
+            {{ form_row(child) }}
+        {% endif %}
+    {% endfor %}
+    <button type="submit" class="btn btn-sm btn-outline-danger">…</button>
+{{ form_end(trash_form) }}
+```
+
+Template overrides and demos **must not** reintroduce raw `<form>`, `<input>`, `<textarea>` or `<select>` markup; `make check-no-raw-html-form` (part of `release-check`) fails when they do.
 
 ## Translations
 

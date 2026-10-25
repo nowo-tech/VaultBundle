@@ -14,10 +14,13 @@ use Nowo\VaultBundle\Integration\TagInputIntegration;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -103,6 +106,26 @@ final class VaultItemFormType extends AbstractType
                 'label'        => 'vault.form.folder',
             ]);
         });
+
+        // REQ-TWIG-005: identity card scan, read by the controller from the request files as "attachment".
+        $builder->add('attachment', FileType::class, [
+            'mapped'     => false,
+            'required'   => false,
+            'label'      => 'vault.form.attachment',
+            'label_attr' => ['class' => 'form-label'],
+            'row_attr'   => ['class' => 'mb-3'],
+            'attr'       => ['class' => 'form-control', 'accept' => '.pdf,.jpg,.jpeg,.png,.webp'],
+        ]);
+    }
+
+    /**
+     * Keeps the historical flat {@code attachment} upload name the controller reads.
+     */
+    public function finishView(FormView $view, FormInterface $form, array $options): void
+    {
+        if (isset($view->children['attachment'])) {
+            $view->children['attachment']->vars['full_name'] = 'attachment';
+        }
     }
 
     /**

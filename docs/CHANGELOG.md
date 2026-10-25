@@ -38,6 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Manage views render every control through Symfony Form Types (REQ-TWIG-005): trash / restore / purge / revoke grant / trash folder / delete tag use `VaultActionType` (flat `_token`, same token ids, still validated by `VaultCsrfTrait` so header / JSON clients keep working), the item search uses `VaultItemSearchType` (GET, same query names), folder creation `VaultFolderCreateType`, the runtime configuration page `VaultRuntimeConfigType`, the password generator modal the browser-only `VaultPasswordGeneratorType`, and the identity-card attachment is an unmapped `attachment` child of `VaultItemFormType` (still posted as `attachment`; the item form is now multipart, so the upload reaches the controller). Template overrides must render the new form variables (see UPGRADING).
+
+### Added
+
+- `make check-no-raw-html-form` (REQ-TWIG-005) fails on raw `<form>` / `<input>` / `<textarea>` / `<select>` in bundle and demo Twig; it runs in `release-check`.
+
+### Changed
+
 - Developer tooling: `make release-check` runs the full REQ-MAKE-002 chain in order (`ensure-up` first, then `check-no-cursor-coauthor`, `check-open-prs`, `check-twig-extra`, `composer-sync`, `cs-fix`, `cs-check`, `rector-dry`, `phpstan`, `igor`, `validate-translations`, `coverage-check`, demo release-check, `test-ts`). `check-no-raw-html-form` (REQ-TWIG-005) is wired once the remaining raw form markup is migrated.
 - Internal: applied the pending Rector suggestions (`VaultMetadataListener` private static helper made non-static, `readonly` on the final `VaultAccessGuard`, early return in `VaultTagService` name normalisation, redundant `@var` dropped in `VaultItemFormData`); no behaviour change. `make rector-dry` is clean again.
 

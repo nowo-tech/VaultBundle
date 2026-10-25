@@ -20,8 +20,14 @@
             <i class="ti ti-pencil" aria-hidden="true"></i>
             <span class="visually-hidden">{{ 'vault.action.edit'|trans({}, 'NowoVaultBundle') }}</span>
         </a>
-        <form method="post" action="{{ path(routes.item_trash.name, {id: item.id}) }}" class="d-inline">
-            <input type="hidden" name="_token" value="{{ csrf_token('vault_trash_' ~ item.id) }}">
+        {# REQ-TWIG-005: CSRF-only VaultActionType built by the controller (trashForms[item.id]). #}
+        {% set trash_form = trashForms[item.id] %}
+        {{ form_start(trash_form, {attr: {class: 'd-inline'}}) }}
+            {% for child in trash_form %}
+                {% if not child.rendered %}
+                    {{ form_row(child) }}
+                {% endif %}
+            {% endfor %}
             <button type="submit"
                     class="{{ ui.action('delete', _vault_fw) }} btn btn-sm btn-icon btn-outline-danger"
                     title="{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}"
@@ -29,6 +35,6 @@
                 <i class="ti ti-trash" aria-hidden="true"></i>
                 <span class="visually-hidden">{{ 'vault.action.trash'|trans({}, 'NowoVaultBundle') }}</span>
             </button>
-        </form>
+                {{ form_end(trash_form) }}
     {% endif %}
 </div>

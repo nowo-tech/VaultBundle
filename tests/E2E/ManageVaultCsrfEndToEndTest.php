@@ -69,6 +69,49 @@ final class ManageVaultCsrfEndToEndTest extends WebTestCase
         self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
     }
 
+    /**
+     * REQ-TWIG-005: the manage pages render their controls through Form Types, and those forms post the
+     * historical flat names / token ids the controllers validate.
+     */
+    public function testManagePagesRenderFormTypesThatSubmit(): void
+    {
+        [$client, $itemId] = $this->prepareAuthenticatedClient();
+        self::assertResponseIsSuccessful();
+        $crawler = $client->getCrawler();
+
+        self::assertCount(1, $crawler->filterXPath('//form[@method="get"]//input[@id="vault-search"][@name="q"]'));
+        self::assertCount(1, $crawler->filterXPath('//form[@data-vault-folder-form]//input[@name="name"]'));
+        self::assertCount(1, $crawler->filterXPath('//form[@data-vault-folder-form]//input[@name="_token"]'));
+
+        $folderForm = $crawler->filterXPath('//form[@data-vault-folder-form]')->form(['name' => 'Work']);
+        $client->submit($folderForm);
+        self::assertTrue($client->getResponse()->isRedirect());
+
+        $crawler   = $client->request('GET', '/tools/vault/items');
+        $trashForm = $crawler->filterXPath('//form[@action="/tools/vault/items/' . $itemId . '/trash"]');
+        self::assertCount(1, $trashForm->filterXPath('//input[@name="_token"]'));
+        $client->submit($trashForm->form());
+        self::assertTrue($client->getResponse()->isRedirect());
+
+        $crawler = $client->request('GET', '/tools/vault/trash');
+        self::assertResponseIsSuccessful();
+        $client->submit($crawler->filterXPath('//form[@action="/tools/vault/items/' . $itemId . '/restore"]')->form());
+        self::assertTrue($client->getResponse()->isRedirect());
+
+        $crawler = $client->request('GET', '/tools/vault');
+        self::assertResponseIsSuccessful();
+        self::assertCount(2, $crawler->filterXPath('//input[@type="radio"][@name="vault-gen-mode"]'));
+        self::assertCount(1, $crawler->filterXPath('//input[@data-vault-password-output][@name=""]'));
+        self::assertCount(1, $crawler->filterXPath('//input[@type="range"][@data-vault-password-length]'));
+
+        $crawler = $client->request('GET', '/tools/vault/items/new/id_card');
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filterXPath('//form[@enctype="multipart/form-data"]//input[@type="file"][@name="attachment"]'));
+
+        $client->request('GET', '/tools/vault/items/' . $itemId . '/share');
+        self::assertResponseIsSuccessful();
+    }
+
     protected static function getKernelClass(): string
     {
         return AppKernel::class;

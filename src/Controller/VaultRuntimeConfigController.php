@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use LogicException;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
+use Nowo\VaultBundle\Form\VaultRuntimeConfigType;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
@@ -131,7 +132,29 @@ final class VaultRuntimeConfigController extends AbstractController
         $storedKey = $stored?->getEncryptionKey();
         $config    = $this->configProvider->get();
 
-        $oneTimeKey = $this->pullOneTimeEncryptionKey($request);
+        $oneTimeKey    = $this->pullOneTimeEncryptionKey($request);
+        $hasDbKey      = $this->hasEncryptionKey($storedKey);
+        $hasYamlKey    = $this->configResolver->hasYamlEncryptionKey();
+        $canStoreKey   = $this->configWriter->canStoreEncryptionKey();
+        $maxBytes      = (int) ($dbValues['max_attachment_bytes'] ?? $effective['max_attachment_bytes'] ?? 512_000);
+        $passwordLevel = (string) ($dbValues['password_field']['level'] ?? $effective['password_field']['level'] ?? 'medium');
+
+        $keyMode = match (true) {
+            $oneTimeKey !== null     => 'one_time',
+            $hasDbKey || $hasYamlKey => 'configured',
+            !$canStoreKey            => 'unavailable',
+            default                  => 'editable',
+        };
+
+        // REQ-TWIG-005: same flat field names and token id; the POST branch above keeps validating them.
+        $form = $this->createForm(VaultRuntimeConfigType::class, [
+            'max_attachment_bytes' => $maxBytes,
+            'password_level'       => $passwordLevel,
+        ], [
+            'action'                 => $this->generateUrl($routeName),
+            'encryption_key_mode'    => $keyMode,
+            'encryption_key_display' => $oneTimeKey ?? '',
+        ]);
 
         return $this->render($this->template(), [
             'layout'                => $config['templates']['layout'],
@@ -139,13 +162,14 @@ final class VaultRuntimeConfigController extends AbstractController
             'dashboardRoute'        => is_string($config['dashboard_route'] ?? null) ? $config['dashboard_route'] : null,
             'runtimeConfigRoute'    => $routeName,
             'dbUpdatedAt'           => $stored?->getUpdatedAt(),
-            'maxAttachmentBytes'    => (int) ($dbValues['max_attachment_bytes'] ?? $effective['max_attachment_bytes'] ?? 512_000),
-            'passwordLevel'         => (string) ($dbValues['password_field']['level'] ?? $effective['password_field']['level'] ?? 'medium'),
-            'hasDbEncryptionKey'    => $this->hasEncryptionKey($storedKey),
-            'hasYamlEncryptionKey'  => $this->configResolver->hasYamlEncryptionKey(),
-            'canStoreEncryptionKey' => $this->configWriter->canStoreEncryptionKey(),
+            'maxAttachmentBytes'    => $maxBytes,
+            'passwordLevel'         => $passwordLevel,
+            'hasDbEncryptionKey'    => $hasDbKey,
+            'hasYamlEncryptionKey'  => $hasYamlKey,
+            'canStoreEncryptionKey' => $canStoreKey,
             'encryptionKeyDisplay'  => $oneTimeKey,
             'showOneTimeKeyWarning' => $oneTimeKey !== null,
+            'form'                  => $form,
         ]);
     }
 
