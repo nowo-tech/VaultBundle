@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.9.0] - 2026-10-26](#190---2026-10-26)
 - [[1.8.2] - 2026-10-24](#182---2026-10-24)
 - [[1.8.1] - 2026-10-18](#181---2026-10-18)
 - [[1.8.0] - 2026-10-13](#180---2026-10-13)
@@ -36,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-26
+
+Forms in the bundle views are Symfony Form Types rendered with form_start / child loop / form_end, no raw form controls (REQ-TWIG-005). See [UPGRADING](UPGRADING.md#to-190).
+
 ### Changed
 
 - Manage views render every control through Symfony Form Types (REQ-TWIG-005): trash / restore / purge / revoke grant / trash folder / delete tag use `VaultActionType` (flat `_token`, same token ids, still validated by `VaultCsrfTrait` so header / JSON clients keep working), the item search uses `VaultItemSearchType` (GET, same query names), folder creation `VaultFolderCreateType`, the runtime configuration page `VaultRuntimeConfigType`, the password generator modal the browser-only `VaultPasswordGeneratorType`, and the identity-card attachment is an unmapped `attachment` child of `VaultItemFormType` (still posted as `attachment`; the item form is now multipart, so the upload reaches the controller). Template overrides must render the new form variables (see UPGRADING).
@@ -48,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Developer tooling: `make release-check` runs the full REQ-MAKE-002 chain in order (`ensure-up` first, then `check-no-cursor-coauthor`, `check-open-prs`, `check-twig-extra`, `composer-sync`, `cs-fix`, `cs-check`, `rector-dry`, `phpstan`, `igor`, `validate-translations`, `coverage-check`, demo release-check, `test-ts`). `check-no-raw-html-form` (REQ-TWIG-005) is wired once the remaining raw form markup is migrated.
 - Internal: applied the pending Rector suggestions (`VaultMetadataListener` private static helper made non-static, `readonly` on the final `VaultAccessGuard`, early return in `VaultTagService` name normalisation, redundant `@var` dropped in `VaultItemFormData`); no behaviour change. `make rector-dry` is clean again.
+
+[1.9.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.9.0
 
 ## [1.8.2] - 2026-10-24
 
@@ -397,7 +404,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.8.2...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.9.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5

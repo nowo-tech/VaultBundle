@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.9.0](#to-190)
+  - [Forms rendered through Form Types (REQ-TWIG-005)](#forms-rendered-through-form-types-req-twig-005)
 - [To 1.8.2](#to-182)
 - [To 1.8.1](#to-181)
 - [To 1.8.0](#to-180)
@@ -49,6 +51,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.9.0
+
+From **1.8.2**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 ### Forms rendered through Form Types (REQ-TWIG-005)
 
