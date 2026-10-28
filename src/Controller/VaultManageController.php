@@ -13,6 +13,7 @@ use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Entity\VaultTag;
+use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
@@ -314,11 +315,16 @@ final class VaultManageController extends AbstractController
 
         if (!$viewMode && $request instanceof Request && $form->isSubmitted() && $form->isValid()) {
             $payload = $this->mergeAttachmentIntoPayload($data->toPayload(), $item->getItemType(), $request, $payload);
-            $this->itemUpdater->update($item, $data->title, $payload, $data->folder);
-            $this->tagService->syncItemTags($item, $user, $data->tags);
+            // Folder and tags are the creator's organisation: a grantee with Write may change the content only (a folder
+            // move was a privilege escalation path, SEC-004 M1; the editor's folders / tags replaced the owner's, L1/L2).
+            $isCreator = UserIdResolver::isSameUser($item->getCreator(), $user);
+            $this->itemUpdater->update($item, $data->title, $payload, $isCreator ? $data->folder : $item->getFolder());
+            if ($isCreator) {
+                $this->tagService->syncItemTags($item, $user, $data->tags);
+            }
             $this->addFlash('success', $this->translator->trans('vault.flash.item_updated', [], 'NowoVaultBundle'));
 
-            return $this->redirectToItems($data->folder);
+            return $this->redirectToItems($isCreator ? $data->folder : null);
         }
 
         return $this->render($this->templates()['item_form'], [
@@ -702,7 +708,10 @@ final class VaultManageController extends AbstractController
         VaultResourceType $resourceType,
         string $resourceId,
     ): bool {
-        if (!$grantList->isGranteeAllowed($data->granteeType, $data->granteeId)) {
+        // Sharing with yourself never adds access you should have; without a grantee list it was a way to raise your own
+        // permission on a resource you only administer through another grant.
+        $isSelf = $data->granteeType === GranteeType::User && $data->granteeId === (string) UserIdResolver::getId($user);
+        if ($isSelf || !$grantList->isGranteeAllowed($data->granteeType, $data->granteeId)) {
             $this->addFlash('error', $this->translator->trans('vault.flash.grantee_not_allowed', [], 'NowoVaultBundle'));
 
             return false;

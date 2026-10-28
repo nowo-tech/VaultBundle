@@ -53,6 +53,17 @@
 
 ## Unreleased
 
+Security release (SEC-004 re-audit 2026-10-28):
+
+- **Update the browser extension** in every browser (rebuild with `make extension-sync` or reinstall `extension/chrome` /
+  `extension/firefox`): old extensions keep working but stay exposed to the autofill click-jacking fix.
+- **Shared items:** a grantee with Write keeps editing the content, but can no longer move the item to another folder
+  or change its tags. Folder grants now cover only items created by the folder's creator: if you shared a folder that
+  holds items other users created, share those items directly.
+- On `http://` pages the extension only offers logins whose website is stored as `http://…`.
+- `security.allow_unauthenticated: true` fails container compilation in `prod`.
+- The extension's vault URL must be `https://` (or `http://localhost`).
+
 ## To 1.10.0
 
 From **1.9.0**:

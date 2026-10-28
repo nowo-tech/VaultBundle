@@ -1,4 +1,4 @@
-//#region extension/src/api-client.ts
+// extension/src/api-client.ts
 async function requestJson(baseUrl, path, options = {}) {
 	if (!baseUrl) throw new Error("Configure the vault URL in extension options.");
 	const headers = {
@@ -24,30 +24,25 @@ async function requestJson(baseUrl, path, options = {}) {
 	}
 	return payload;
 }
-//#endregion
-//#region extension/src/runtime.ts
+// extension/src/runtime.ts
 var ext = typeof globalThis.browser !== "undefined" ? globalThis.browser : globalThis.chrome;
-//#endregion
-//#region extension/src/storage-keys.ts
+// extension/src/storage-keys.ts
 var STORAGE_KEYS = {
 	baseUrl: "nowoVaultBaseUrl",
 	token: "nowoVaultToken",
 	expiresAt: "nowoVaultExpiresAt"
 };
-//#endregion
-//#region extension/src/url.ts
+// extension/src/url.ts
 function normalizeBaseUrl(url) {
 	return String(url || "").trim().replace(/\/+$/, "");
 }
-//#endregion
-//#region extension/src/session.ts
+// extension/src/session.ts
 function isSessionValid(config) {
 	if (!config.token) return false;
 	if (!config.expiresAt) return true;
 	return new Date(config.expiresAt).getTime() > Date.now();
 }
-//#endregion
-//#region extension/src/api.ts
+// extension/src/api.ts
 async function getConfig() {
 	const data = await ext.storage.local.get(Object.values(STORAGE_KEYS));
 	return {
@@ -95,8 +90,7 @@ async function logout() {
 async function me() {
 	return apiRequest("/api/vault/extension/me");
 }
-//#endregion
-//#region extension/src/popup.ts
+// extension/src/popup.ts
 var statusEl = document.getElementById("status");
 var loginForm = document.getElementById("login-form");
 var sessionView = document.getElementById("session-view");
@@ -161,4 +155,3 @@ optionsLink?.addEventListener("click", (event) => {
 	ext.runtime.openOptionsPage();
 });
 refresh();
-//#endregion

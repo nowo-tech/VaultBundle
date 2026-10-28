@@ -177,6 +177,10 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
 
         $accessCheckerId = $config['security']['access_checker'] ?? null;
         if ($config['security']['allow_unauthenticated']) {
+            // Every vault page and secret open to anyone: never in production, whatever the recipe says.
+            if ($container->hasParameter('kernel.environment') && $container->getParameter('kernel.environment') === 'prod') {
+                throw new LogicException('nowo_vault.security.allow_unauthenticated must not be enabled in the prod environment.');
+            }
             $accessCheckerId = 'nowo_vault.access_checker.allow_all';
             $container->setDefinition($accessCheckerId, new Definition(AllowAllVaultAccessChecker::class));
         } elseif (!is_string($accessCheckerId) || $accessCheckerId === '') {

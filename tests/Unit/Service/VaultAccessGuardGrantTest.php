@@ -83,6 +83,26 @@ final class VaultAccessGuardGrantTest extends TestCase
         self::assertTrue($guard->canAccessItem($viewer, $item, VaultAccessAction::Share));
     }
 
+    /** SEC-004 M1: a grantee's own folder must not grant anything on an item someone else created. */
+    public function testFolderGrantDoesNotCoverItemsOfAnotherCreator(): void
+    {
+        $owner       = new TestUser('1');
+        $editor      = new TestUser('2');
+        $accomplice  = new TestUser('3');
+        $editorsDir  = new VaultFolder('Editor folder', $editor);
+        $item        = new VaultItem(VaultItemType::Login, 'Owner item', $owner, 'c', $editorsDir);
+        $writeGrant  = new VaultGrant(VaultResourceType::Item, $item->getId(), GranteeType::User, '2', VaultPermission::Write, $owner);
+        $folderAdmin = new VaultGrant(VaultResourceType::Folder, $editorsDir->getId(), GranteeType::User, '3', VaultPermission::Admin, $editor);
+        $selfAdmin   = new VaultGrant(VaultResourceType::Folder, $editorsDir->getId(), GranteeType::User, '2', VaultPermission::Admin, $editor);
+
+        $guard = $this->guard([$writeGrant, $folderAdmin, $selfAdmin]);
+
+        self::assertTrue($guard->canAccessItem($editor, $item, VaultAccessAction::Edit));
+        self::assertFalse($guard->canAccessItem($editor, $item, VaultAccessAction::Share));
+        self::assertFalse($guard->canAccessItem($editor, $item, VaultAccessAction::Purge));
+        self::assertFalse($guard->canAccessItem($accomplice, $item, VaultAccessAction::View));
+    }
+
     public function testFolderAccessForNonOwnerWithGrant(): void
     {
         $owner  = new TestUser('1');

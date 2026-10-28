@@ -40,6 +40,17 @@ final class VaultLoginDomainMatcherTest extends TestCase
         self::assertSame(1003, $score);
     }
 
+    /** SEC-004 H1: a stored https (or scheme-less) site is never offered on its plain-HTTP twin. */
+    public function testHttpPagesOnlyMatchWebsitesStoredAsHttp(): void
+    {
+        $matcher = new VaultLoginDomainMatcher();
+
+        self::assertNull($matcher->bestMatchScore('bank.example', ['https://bank.example', 'bank.example'], 'http'));
+        self::assertNotNull($matcher->bestMatchScore('intranet.example', ['http://intranet.example'], 'http'));
+        self::assertNotNull($matcher->bestMatchScore('bank.example', ['https://bank.example'], 'https'));
+        self::assertNotNull($matcher->bestMatchScore('bank.example', ['bank.example']));
+    }
+
     public function testExtractHostFromBareDomain(): void
     {
         self::assertSame('example.com', VaultLoginDomainMatcher::extractHost('example.com'));

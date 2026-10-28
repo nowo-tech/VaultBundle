@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    AUTOFILL_PANEL_ID,
+    debounce,
     fillCredentials,
     findLoginFields,
     isLikelyUsernameField,
@@ -61,7 +61,7 @@ describe('login-fields', () => {
         const inputSpy = vi.spyOn(username, 'dispatchEvent');
 
         fillCredentials(
-            { title: 'GitHub', username: 'demo', password: 'secret' },
+            { username: 'demo', password: 'secret' },
             { usernameField: username, passwordField: password },
         );
 
@@ -81,25 +81,86 @@ describe('login-fields', () => {
         expect(changeSpy).toHaveBeenCalled();
     });
 
-    it('renders and removes autofill panel', () => {
+    function passwordField(): HTMLInputElement {
         const password = document.createElement('input');
         password.type = 'password';
         document.body.appendChild(password);
-
         Object.defineProperty(password, 'getBoundingClientRect', {
             value: () => ({ bottom: 100, left: 20, top: 70, right: 200, width: 180, height: 30, x: 20, y: 70, toJSON: () => ({}) }),
         });
 
-        renderAutofillPanel(
+        return password;
+    }
+
+    it('renders the panel in a closed shadow root and removes it', () => {
+        const password = passwordField();
+        const before = document.body.children.length;
+
+        const root = renderAutofillPanel(
             document,
-            [{ title: 'App', username: 'demo', password: 'secret' }],
+            [{ id: 'i1', title: 'App', username: 'demo' }],
             { usernameField: null, passwordField: password },
             () => undefined,
         );
 
-        expect(document.getElementById(AUTOFILL_PANEL_ID)).not.toBeNull();
+        expect(root).not.toBeNull();
+        expect(document.body.children.length).toBe(before + 1);
+        const host = document.body.lastElementChild as HTMLElement;
+        expect(host.shadowRoot).toBeNull();
+        expect(document.querySelector('button')).toBeNull();
+        expect(root?.querySelector('button')?.textContent).toBe('App (demo)');
+        expect(root?.querySelector('style')?.textContent).toContain('.nowo-vault-panel');
 
         removeAutofillPanel(document);
-        expect(document.getElementById(AUTOFILL_PANEL_ID)).toBeNull();
+        expect(document.body.children.length).toBe(before);
+        removeAutofillPanel(document);
+    });
+
+    it('ignores clicks that are not trusted user gestures', () => {
+        const password = passwordField();
+        const onSelect = vi.fn();
+        const root = renderAutofillPanel(
+            document,
+            [{ id: 'i1', title: 'App', username: 'demo' }],
+            { usernameField: null, passwordField: password },
+            onSelect,
+        );
+
+        root?.querySelector('button')?.click();
+        expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('selects a login on a trusted click and closes the panel', () => {
+        const password = passwordField();
+        const onSelect = vi.fn();
+        const root = renderAutofillPanel(
+            document,
+            [{ id: 'i1', title: 'App', username: 'demo' }, { id: 'i2', title: 'Other', username: 'x' }],
+            { usernameField: null, passwordField: password },
+            onSelect,
+            () => true,
+        );
+        const host = document.body.lastElementChild;
+
+        root?.querySelectorAll('button')[1]?.click();
+        expect(onSelect).toHaveBeenCalledWith({ id: 'i2', title: 'Other', username: 'x' });
+        expect(host?.isConnected).toBe(false);
+    });
+
+    it('renders nothing without logins', () => {
+        expect(renderAutofillPanel(document, [], { usernameField: null, passwordField: passwordField() }, () => undefined)).toBeNull();
+    });
+
+    it('debounces bursts of calls', () => {
+        vi.useFakeTimers();
+        const callback = vi.fn();
+        const run = debounce(callback, 300);
+        run();
+        run();
+        run();
+        expect(callback).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(300);
+        expect(callback).toHaveBeenCalledTimes(1);
+        vi.useRealTimers();
     });
 });

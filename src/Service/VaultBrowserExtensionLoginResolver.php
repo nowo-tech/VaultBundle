@@ -30,7 +30,7 @@ final readonly class VaultBrowserExtensionLoginResolver
     /**
      * @return list<VaultBrowserExtensionLoginMatch>
      */
-    public function resolveForDomain(UserInterface $user, string $domain): array
+    public function resolveForDomain(UserInterface $user, string $domain, string $scheme = 'https'): array
     {
         $host = VaultLoginDomainMatcher::normalizeHost($domain);
         if ($host === '') {
@@ -47,7 +47,7 @@ final readonly class VaultBrowserExtensionLoginResolver
 
             $payload = $this->cryptographer->decrypt($item->getCiphertext());
             $data    = VaultItemFormData::fromPayload(VaultItemType::Login, $payload);
-            $score   = $this->domainMatcher->bestMatchScore($host, $data->websites);
+            $score   = $this->domainMatcher->bestMatchScore($host, $data->websites, $scheme);
 
             if ($score === null) {
                 continue;

@@ -78,7 +78,9 @@ final readonly class VaultBrowserExtensionController
             return $this->responseFactory->json(['error' => 'domain query parameter is required.'], Response::HTTP_BAD_REQUEST, $request);
         }
 
-        $matches = $this->loginResolver->resolveForDomain($user, $domain);
+        // Page scheme sent by extension >= 1.11 (older clients: https semantics, as before).
+        $scheme  = $request->query->get('scheme') === 'http' ? 'http' : 'https';
+        $matches = $this->loginResolver->resolveForDomain($user, $domain, $scheme);
 
         return $this->responseFactory->json([
             'domain' => $domain,

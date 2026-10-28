@@ -20,7 +20,7 @@ final class VaultBrowserExtensionResponseFactoryTest extends TestCase
 
         if ($expectsCors) {
             self::assertSame($origin, $response->headers->get('Access-Control-Allow-Origin'));
-            self::assertSame('true', $response->headers->get('Access-Control-Allow-Credentials'));
+            self::assertNull($response->headers->get('Access-Control-Allow-Credentials'), 'Bearer API: never credentialed CORS');
         } else {
             self::assertNull($response->headers->get('Access-Control-Allow-Origin'));
         }

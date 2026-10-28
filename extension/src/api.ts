@@ -71,8 +71,12 @@ export async function me(): Promise<VaultProfile> {
     return apiRequest<VaultProfile>('/api/vault/extension/me');
 }
 
-export async function loginsForDomain(domain: string): Promise<LoginsResponse> {
-    const query = new URLSearchParams({ domain });
+/**
+ * @param scheme scheme of the page: on `http` the server only returns logins whose website is explicitly `http://`
+ *               (a stored https site is never offered on its plain-HTTP twin, SEC-004 H1)
+ */
+export async function loginsForDomain(domain: string, scheme: 'http' | 'https' = 'https'): Promise<LoginsResponse> {
+    const query = new URLSearchParams({ domain, scheme });
 
     return apiRequest<LoginsResponse>(`/api/vault/extension/logins?${query.toString()}`);
 }

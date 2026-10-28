@@ -93,11 +93,14 @@ final readonly class VaultAccessGuard
             return true;
         }
 
+        // Folder grants cover only items the folder's creator created: otherwise a Write grantee could move someone
+        // else's item into a folder they own and grant themselves Admin on it through the folder (SEC-004 M1).
+        $folder     = $item->getFolder();
         $permission = $this->resolveGrantPermission(
             VaultResourceType::Item,
             $item->getId(),
             $user,
-            $item->getFolder()?->getId(),
+            $folder instanceof VaultFolder && UserIdResolver::isSameUser($folder->getCreator(), $item->getCreator()) ? $folder->getId() : null,
         );
 
         return $this->actionAllowed($permission, $action);

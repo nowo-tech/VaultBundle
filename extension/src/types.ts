@@ -5,9 +5,17 @@ export interface SessionConfig {
 }
 
 export interface VaultLoginMatch {
+    id: string;
     title: string;
     username: string;
     password: string;
+}
+
+/** What the content script (page context) receives: never the password (SEC-004 H1). */
+export interface VaultLoginSummary {
+    id: string;
+    title: string;
+    username: string;
 }
 
 export interface VaultProfile {

@@ -38,6 +38,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Browser extension: the page could trigger the autofill and read the password (High).** The autofill panel was
+  plain page DOM with a fixed id and its buttons did not check `event.isTrusted`, and the content script received
+  every matching password before any click: page JavaScript (an XSS, a subdomain owner, or a network attacker serving
+  the plain-HTTP twin of a stored https site) could `click()` the panel and read the filled field. Now:
+  - the panel lives in a closed shadow root, clicks are honoured only when trusted, and the content script receives
+    id / title / username only; the password is released by the background after the trusted click;
+  - the background takes the page host and scheme from the sender tab (not from the message) and only answers its
+    own extension;
+  - on `http:` pages only logins whose website is stored explicitly as `http://…` are offered (new `scheme` query
+    parameter of `/api/vault/extension/logins`; older extensions keep the previous behaviour);
+  - DOM rescans are debounced; the options page requires an `https://` vault URL (http only for localhost).
+  **Reinstall / update the extension** from `extension/chrome` or `extension/firefox`.
+- **Write grantee could escalate to Admin (Medium).** The edit form saved the folder the editor chose from their own
+  folders, and folder grants applied to every item in the folder: a grantee with Write could move the owner's item
+  into a folder they own and share that folder as Admin (re-share, delete, purge). Folder grants now cover only items
+  created by the folder's creator, and grantees can no longer change an item's folder or tags (which also stopped
+  non-owner edits from moving the item to "no folder" and replacing the owner's tags). Sharing with yourself is
+  refused.
+- `security.allow_unauthenticated: true` refuses to compile in the `prod` environment.
+- The extension API no longer sends `Access-Control-Allow-Credentials` (Bearer tokens, no cookies).
+
 ## [1.10.0] - 2026-10-28
 
 Performance: items page folder counts in one query and item tags fetch-joined. See [UPGRADING](UPGRADING.md#to-1100).

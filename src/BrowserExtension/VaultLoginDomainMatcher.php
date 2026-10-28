@@ -8,6 +8,7 @@ use function is_string;
 use function parse_url;
 use function preg_replace;
 use function str_ends_with;
+use function str_starts_with;
 use function strtolower;
 use function substr_count;
 use function trim;
@@ -21,8 +22,11 @@ final class VaultLoginDomainMatcher
 {
     /**
      * @param list<string> $websites
+     * @param string $currentScheme scheme of the page asking: on `http` only websites stored explicitly as
+     *                              `http://…` match, so a stored https site (or a scheme-less one) is never
+     *                              offered on its plain-HTTP twin, which a network attacker can serve
      */
-    public function bestMatchScore(string $currentHost, array $websites): ?int
+    public function bestMatchScore(string $currentHost, array $websites, string $currentScheme = 'https'): ?int
     {
         $current = self::normalizeHost($currentHost);
         if ($current === '') {
@@ -33,6 +37,9 @@ final class VaultLoginDomainMatcher
         foreach ($websites as $website) {
             $stored = self::extractHost((string) $website);
             if ($stored === '') {
+                continue;
+            }
+            if (strtolower($currentScheme) === 'http' && !str_starts_with(strtolower(trim((string) $website)), 'http://')) {
                 continue;
             }
 

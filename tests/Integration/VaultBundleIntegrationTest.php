@@ -115,6 +115,21 @@ final class VaultBundleIntegrationTest extends TestCase
         ]], $container);
     }
 
+    public function testAllowUnauthenticatedIsRefusedInProd(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.environment', 'prod');
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('prod environment');
+
+        (new VaultExtension())->load([[
+            'user_class'     => 'App\\Entity\\User',
+            'encryption_key' => self::ENCRYPTION_KEY,
+            'security'       => ['allow_unauthenticated' => true],
+        ]], $container);
+    }
+
     public function testLoadRegistersAllowAllAccessCheckerWhenUnauthenticatedAllowed(): void
     {
         $container = new ContainerBuilder();
