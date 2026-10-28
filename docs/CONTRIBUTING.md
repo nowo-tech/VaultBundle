@@ -14,6 +14,7 @@ Thank you for contributing to Vault Bundle.
 - [Cursor Agent](#cursor-agent)
 - [Git hooks (REQ-GIT-001)](#git-hooks-req-git-001)
 - [Igor worker audit (REQ-CS-008)](#igor-worker-audit-req-cs-008)
+- [End-to-end tests and screenshots (REQ-DEMO-013)](#end-to-end-tests-and-screenshots-req-demo-013)
 
 ## Code of Conduct
 
@@ -88,3 +89,14 @@ If CI fails because trailers are already on the remote, see [GITHUB_CI.md](GITHU
 ## Igor worker audit (REQ-CS-008)
 
 Run `make igor` (or `composer igor`) before release. Igor audits package `src/` for FrankenPHP worker-state issues. It is require-dev only.
+
+## End-to-end tests and screenshots (REQ-DEMO-013)
+
+The Symfony 8 demo ships a Playwright suite in `demo/symfony8/e2e/` (official Playwright image, nothing to install on the host). It is separate from the PHPUnit HTTP tests in `tests/E2E/` (`make -C demo/symfony8 test-http-e2e`):
+
+```bash
+make -C demo/symfony8 test-e2e          # starts the demo if needed, runs the happy-path specs
+make -C demo/symfony8 demo-screenshots  # resets the demo DB, recaptures docs/images/demo/*.webp (PNG → WebP via sharp)
+```
+
+Screenshots use the demo fixture data only. Refresh them when the demo UI changes and commit only the `.webp` files.

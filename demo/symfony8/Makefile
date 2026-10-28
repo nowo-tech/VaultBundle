@@ -22,6 +22,8 @@ help:
 	@echo "  shell          Open shell in PHP container"
 	@echo "  test           Run demo PHPUnit tests (kernel E2E)"
 	@echo "  test-http-e2e  Run HTTP E2E against running FrankenPHP (requires make up)"
+	@echo "  test-e2e       Playwright e2e against the demo (REQ-DEMO-013)"
+	@echo "  demo-screenshots Recapture README WebP screenshots (docs/images/demo)"
 	@echo "  update-bundle  Sync bundle autoload and clear cache"
 	@echo "  vault-purge-tokens        Remove expired browser extension Bearer tokens"
 	@echo "  vault-reencrypt-dry-run   Verify payloads decrypt with VAULT_OLD_KEY (no writes)"
@@ -118,6 +120,43 @@ vault-reencrypt-persist:
 vault-rotation-demo:
 	@chmod +x scripts/vault-key-rotation-demo.sh
 	@./scripts/vault-key-rotation-demo.sh $(ARGS)
+
+# REQ-DEMO-013: Playwright e2e + README screenshots (official Playwright image, host network).
+# Separate from the PHPUnit HTTP tests (test-http-e2e / tests/E2E).
+PLAYWRIGHT_IMAGE ?= mcr.microsoft.com/playwright:v1.63.0-jammy
+E2E_PORT = PORT=$$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
+	[ -z "$$PORT" ] && PORT=$$(grep -E '^PORT=' .env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); PORT=$${PORT:-8023}
+
+.PHONY: ensure-up test-e2e demo-screenshots
+
+# Start the demo (migrations + fixtures) only when it is not running; make sure demo items exist.
+ensure-up: ensure-env
+	@if ! $(COMPOSE) ps --status running --services 2>/dev/null | grep -qx $(SERVICE_PHP); then $(MAKE) up; fi
+	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console app:vault-demo:seed --no-interaction >/dev/null || true
+
+test-e2e: ensure-up
+	@mkdir -p e2e/node_modules
+	@$(E2E_PORT); \
+	docker run --rm --network host \
+		-v "$(CURDIR)/e2e:/e2e" -w /e2e \
+		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
+		$(PLAYWRIGHT_IMAGE) \
+		bash -lc 'npm install --no-fund --no-audit && npx playwright test --project=chromium'
+
+# Screenshots start from a clean demo DB (database-empty reloads the fixtures: demo user + fake logins).
+demo-screenshots: ensure-up
+	@$(MAKE) --no-print-directory database-empty
+	@mkdir -p ../../docs/images/demo e2e/node_modules
+	@$(E2E_PORT); \
+	docker run --rm --network host \
+		-v "$(CURDIR)/e2e:/e2e" \
+		-v "$(CURDIR)/../../docs/images/demo:/screenshots" \
+		-w /e2e \
+		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
+		-e SCREENSHOT_DIR=/screenshots \
+		$(PLAYWRIGHT_IMAGE) \
+		bash -lc 'npm install --no-fund --no-audit && npx playwright test --project=screenshots && node scripts/to-webp.mjs /screenshots'
+	@echo "Screenshots written under docs/images/demo/ (WebP)"
 
 # REQ-MAKE-008: update-deps (REQ-MAKE-008)
 # Optional: monorepo helper absent on standalone GitHub Actions checkout (REQ-MAKE-009).

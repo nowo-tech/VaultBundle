@@ -10,6 +10,8 @@ Symfony bundle for a **password and secrets vault**: logins, secure notes, credi
 
 This bundle is **FrankenPHP worker mode friendly**.
 
+![Vault manage UI: items list with search, folders, item-type shortcuts and per-item view, share, edit and trash actions](docs/images/demo/vault-items.webp)
+
 ## Features
 
 - Item types: login, secure note, credit card, contact, ID card, driver's license, passport, document
@@ -50,6 +52,8 @@ See [Installation](docs/INSTALLATION.md).
 make -C demo/symfony8 up
 # Demo started at: http://localhost:8023  →  /tools/vault (auto-login)
 ```
+
+The screenshot at the top of this README comes from this demo (fixture data only); refresh it with `make -C demo/symfony8 demo-screenshots` (`make -C demo/symfony8 test-e2e` runs the Playwright happy path).
 
 ## Documentation
 
