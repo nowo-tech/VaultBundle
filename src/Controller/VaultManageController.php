@@ -23,6 +23,7 @@ use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Form\VaultItemSearchType;
 use Nowo\VaultBundle\Form\VaultPasswordGeneratorType;
 use Nowo\VaultBundle\Form\VaultShareType;
+use Nowo\VaultBundle\Repository\VaultItemFolderCounterInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
@@ -129,11 +130,17 @@ final class VaultManageController extends AbstractController
             searchQuery: $searchQuery !== '' ? $searchQuery : null,
             tagId: $tagId,
         );
-        $folders          = $this->folderService->listForCreator($user);
-        $tags             = $this->tagService->listForCreator($user);
-        $folderItemCounts = [];
-        foreach ($folders as $folder) {
-            $folderItemCounts[$folder->getId()] = $this->itemRepository->countActiveByFolder($folder->getId());
+        $folders   = $this->folderService->listForCreator($user);
+        $tags      = $this->tagService->listForCreator($user);
+        $folderIds = array_map(static fn (VaultFolder $folder): string => $folder->getId(), $folders);
+        if ($this->itemRepository instanceof VaultItemFolderCounterInterface) {
+            // One GROUP BY instead of one COUNT per folder.
+            $folderItemCounts = $this->itemRepository->countActiveByFolders($folderIds);
+        } else {
+            $folderItemCounts = [];
+            foreach ($folderIds as $folderId) {
+                $folderItemCounts[$folderId] = $this->itemRepository->countActiveByFolder($folderId);
+            }
         }
         $itemIds     = array_map(static fn (VaultItem $item): string => $item->getId(), $result['items']);
         $grantCounts = $this->grantService->countForResources(VaultResourceType::Item, $itemIds);

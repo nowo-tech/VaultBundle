@@ -11,9 +11,10 @@ use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use SortDirection;
 
+use function array_fill_keys;
 use function count;
 
-final readonly class DoctrineOrmVaultItemRepository implements VaultItemRepositoryInterface
+final readonly class DoctrineOrmVaultItemRepository implements VaultItemRepositoryInterface, VaultItemFolderCounterInterface
 {
     use ResolvesEntityManagerTrait;
 
@@ -46,6 +47,8 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         $qb = $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
+            // The items page loops item.tags: fetch-join (no LIMIT here) instead of one lazy load per item.
+            ->leftJoin('i.tags', 't')->addSelect('t')
             ->where('i.creator = :creator')
             ->setParameter('creator', $creator)
             ->orderBy('i.updatedAt', SortDirection::Descending);
@@ -63,6 +66,8 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         $qb = $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
+            // The items page loops item.tags: fetch-join (no LIMIT here) instead of one lazy load per item.
+            ->leftJoin('i.tags', 't')->addSelect('t')
             ->where('i.creator = :creator')
             ->andWhere('i.itemType = :itemType')
             ->setParameter('creator', $creator)
@@ -82,6 +87,8 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         $qb = $this->em()->createQueryBuilder()
             ->select('i')
             ->from(VaultItem::class, 'i')
+            // The items page loops item.tags: fetch-join (no LIMIT here) instead of one lazy load per item.
+            ->leftJoin('i.tags', 't')->addSelect('t')
             ->where('i.creator = :creator')
             ->setParameter('creator', $creator)
             ->orderBy('i.updatedAt', SortDirection::Descending);
@@ -240,6 +247,30 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->setParameter('folderId', $folderId)
             ->getQuery()
             ->getResult();
+    }
+
+    public function countActiveByFolders(array $folderIds): array
+    {
+        $counts = array_fill_keys($folderIds, 0);
+        if ($folderIds === []) {
+            return $counts;
+        }
+
+        /** @var list<array{folderId: string, n: int|string}> $rows */
+        $rows = $this->em()->createQueryBuilder()
+            ->select('IDENTITY(i.folder) AS folderId', 'COUNT(i.id) AS n')
+            ->from(VaultItem::class, 'i')
+            ->where('i.folder IN (:folderIds)')
+            ->andWhere('i.deletedAt IS NULL')
+            ->setParameter('folderIds', $folderIds)
+            ->groupBy('i.folder')
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($rows as $row) {
+            $counts[(string) $row['folderId']] = (int) $row['n'];
+        }
+
+        return $counts;
     }
 
     public function countActiveByFolder(string $folderId): int

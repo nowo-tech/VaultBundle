@@ -37,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance
+
+- **Items page without per-folder and per-item queries.** The folder list ran one `COUNT` per folder and the item
+  table loaded `item.tags` lazily per row. Folder counts now come from one `GROUP BY` (new optional
+  `VaultItemFolderCounterInterface`, implemented by `DoctrineOrmVaultItemRepository`; custom item repositories without
+  it keep the per-folder count), and `findByCreator()` / `findByCreatorAndItemType()` / `findByCreatorAndFolder()`
+  fetch-join the tags.
+
 ## [1.9.0] - 2026-10-26
 
 Forms in the bundle views are Symfony Form Types rendered with form_start / child loop / form_end, no raw form controls (REQ-TWIG-005). See [UPGRADING](UPGRADING.md#to-190).
