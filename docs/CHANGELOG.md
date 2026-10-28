@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.13.0] - 2026-10-28](#1130---2026-10-28)
 - [[1.12.0] - 2026-10-28](#1120---2026-10-28)
 - [[1.11.1] - 2026-10-28](#1111---2026-10-28)
 - [[1.11.0] - 2026-10-28](#1110---2026-10-28)
@@ -41,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-28
+
+Vault: no raw translation keys in item forms, password widget copy or generator labels. See [UPGRADING](UPGRADING.md#to-1130).
+
 ### Fixed
 
 - **Raw translation keys in the item forms.** FormKit's convention keys (`vault_item_form.<field>.help` /
@@ -56,6 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `nowo-tech/form-kit-bundle` constraint raised to `^2.13`; `composer-runtime-api ^2.0` required (installed-version
   check). Demo: PasswordStrengthBundle `^2.10`.
+
+[1.13.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.13.0
 
 ## [1.12.0] - 2026-10-28
 
@@ -495,7 +502,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.13.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
