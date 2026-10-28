@@ -333,16 +333,16 @@
         },
         {
             "name": "doctrine/doctrine-bundle",
-            "version": "3.3.2",
+            "version": "3.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/DoctrineBundle.git",
-                "reference": "e6cd6aca912a5701fdc9bf4f0ad8f18f3f1448ed"
+                "reference": "a371e286af45e4971535361f9c1aa2653e37f52f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/DoctrineBundle/zipball/e6cd6aca912a5701fdc9bf4f0ad8f18f3f1448ed",
-                "reference": "e6cd6aca912a5701fdc9bf4f0ad8f18f3f1448ed",
+                "url": "https://api.github.com/repos/doctrine/DoctrineBundle/zipball/a371e286af45e4971535361f9c1aa2653e37f52f",
+                "reference": "a371e286af45e4971535361f9c1aa2653e37f52f",
                 "shasum": ""
             },
             "require": {
@@ -376,6 +376,7 @@
                 "symfony/doctrine-messenger": "^6.4 || ^7.0 || ^8.0",
                 "symfony/expression-language": "^6.4 || ^7.0 || ^8.0",
                 "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0",
+                "symfony/lock": "^6.4 || ^7.0 || ^8.0",
                 "symfony/messenger": "^6.4 || ^7.0 || ^8.0",
                 "symfony/property-info": "^6.4 || ^7.0 || ^8.0",
                 "symfony/runtime": "^6.4 || ^7.0 || ^8.0",
@@ -431,7 +432,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/DoctrineBundle/issues",
-                "source": "https://github.com/doctrine/DoctrineBundle/tree/3.3.2"
+                "source": "https://github.com/doctrine/DoctrineBundle/tree/3.3.3"
             },
             "funding": [
                 {
@@ -447,7 +448,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-09T11:58:04+00:00"
+            "time": "2026-10-24T21:36:43+00:00"
         },
         {
             "name": "doctrine/doctrine-fixtures-bundle",
@@ -720,23 +721,23 @@
         },
         {
             "name": "doctrine/inflector",
-            "version": "2.1.0",
+            "version": "2.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/inflector.git",
-                "reference": "6d6c96277ea252fc1304627204c3d5e6e15faa3b"
+                "reference": "46351b6812b7b6d52b82c3efa5dfb786a198ec88"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/inflector/zipball/6d6c96277ea252fc1304627204c3d5e6e15faa3b",
-                "reference": "6d6c96277ea252fc1304627204c3d5e6e15faa3b",
+                "url": "https://api.github.com/repos/doctrine/inflector/zipball/46351b6812b7b6d52b82c3efa5dfb786a198ec88",
+                "reference": "46351b6812b7b6d52b82c3efa5dfb786a198ec88",
                 "shasum": ""
             },
             "require": {
                 "php": "^7.2 || ^8.0"
             },
             "require-dev": {
-                "doctrine/coding-standard": "^12.0 || ^13.0",
+                "doctrine/coding-standard": "^12.0 || ^14.0",
                 "phpstan/phpstan": "^1.12 || ^2.0",
                 "phpstan/phpstan-phpunit": "^1.4 || ^2.0",
                 "phpstan/phpstan-strict-rules": "^1.6 || ^2.0",
@@ -790,7 +791,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/inflector/issues",
-                "source": "https://github.com/doctrine/inflector/tree/2.1.0"
+                "source": "https://github.com/doctrine/inflector/tree/2.1.1"
             },
             "funding": [
                 {
@@ -806,7 +807,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-08-10T19:31:58+00:00"
+            "time": "2026-10-26T08:14:14+00:00"
         },
         {
             "name": "doctrine/instantiator",
@@ -1296,16 +1297,16 @@
         },
         {
             "name": "nowo-tech/doctrine-encrypt-bundle",
-            "version": "v2.8.2",
+            "version": "v2.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/DoctrineEncryptBundle.git",
-                "reference": "8b2ef4494dffe28fd180f76346dc3202d7e6f8fd"
+                "reference": "c3b4640acd899c6ec40ee2a745d3656c3974c030"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/8b2ef4494dffe28fd180f76346dc3202d7e6f8fd",
-                "reference": "8b2ef4494dffe28fd180f76346dc3202d7e6f8fd",
+                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/c3b4640acd899c6ec40ee2a745d3656c3974c030",
+                "reference": "c3b4640acd899c6ec40ee2a745d3656c3974c030",
                 "shasum": ""
             },
             "require": {
@@ -1393,20 +1394,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-21T05:09:33+00:00"
+            "time": "2026-10-28T13:32:44+00:00"
         },
         {
             "name": "nowo-tech/form-kit-bundle",
-            "version": "v2.13.2",
+            "version": "v2.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/FormKitBundle.git",
-                "reference": "1d8f8f9686e23b93090c7f4e0419d3d97fea3ba4"
+                "reference": "d51bc9505d2104b2e71f4013c1ff6a516bfe38fc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/FormKitBundle/zipball/1d8f8f9686e23b93090c7f4e0419d3d97fea3ba4",
-                "reference": "1d8f8f9686e23b93090c7f4e0419d3d97fea3ba4",
+                "url": "https://api.github.com/repos/nowo-tech/FormKitBundle/zipball/d51bc9505d2104b2e71f4013c1ff6a516bfe38fc",
+                "reference": "d51bc9505d2104b2e71f4013c1ff6a516bfe38fc",
                 "shasum": ""
             },
             "require": {
@@ -1454,6 +1455,7 @@
                 "nowo-tech/tag-input-bundle": "For addTagInput() / addTagInputField() / addTagInputFieldType()",
                 "nowo-tech/tiptap-editor-bundle": "For addTiptapEditor() / addTiptapEditorField() / addTiptapEditorFieldType()",
                 "nowo-tech/ui-kit-bundle": "^2.5.3: locale tabs (locale_tabs option, TranslatableMapType, _locale_tabs include) render through the UiKit locale_tabs partial (WAI-ARIA tabs, no-JS fieldsets, keyboard, browser validation, Live Component safe); without it FormKit keeps its neutral markup",
+                "symfony/security-csrf": "Required by CsrfOnlyType / HiddenFieldsCsrfType / CsrfOnlyFormFactory / csrf_action_form(): without the form CSRF extension they throw (fail closed)",
                 "symfony/ux-autocomplete": "Entity autocomplete fields; use addAutocompleteField() / addAutocompleteFieldType() with your autocomplete FormType FQCN",
                 "symfony/ux-cropperjs": "For addCropper() / addCropperField() / addCropperFieldType() (image crop widget)",
                 "symfony/ux-dropzone": "For addDropzone() / addDropzoneField() / addDropzoneFieldType() (drag-and-drop file upload)",
@@ -1506,7 +1508,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-20T08:21:50+00:00"
+            "time": "2026-10-28T09:25:58+00:00"
         },
         {
             "name": "nowo-tech/password-strength-bundle",
@@ -1604,16 +1606,16 @@
         },
         {
             "name": "nowo-tech/password-toggle-bundle",
-            "version": "v2.5.0",
+            "version": "v2.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/PasswordToggleBundle.git",
-                "reference": "997ebdcb9362f0d3ee558ee88b59855332dc367a"
+                "reference": "5016fc25a4b78401b01078e30e8b00e01da883cf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/PasswordToggleBundle/zipball/997ebdcb9362f0d3ee558ee88b59855332dc367a",
-                "reference": "997ebdcb9362f0d3ee558ee88b59855332dc367a",
+                "url": "https://api.github.com/repos/nowo-tech/PasswordToggleBundle/zipball/5016fc25a4b78401b01078e30e8b00e01da883cf",
+                "reference": "5016fc25a4b78401b01078e30e8b00e01da883cf",
                 "shasum": ""
             },
             "require": {
@@ -1693,20 +1695,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-22T06:00:18+00:00"
+            "time": "2026-10-27T11:55:05+00:00"
         },
         {
             "name": "nowo-tech/tag-input-bundle",
-            "version": "v1.5.2",
+            "version": "v1.5.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/TagInputBundle.git",
-                "reference": "1706eee62df82b439db2f48a37ab37cf24fa5e5f"
+                "reference": "1e532d282a88f97e62e143c2d57bd309758b793a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/TagInputBundle/zipball/1706eee62df82b439db2f48a37ab37cf24fa5e5f",
-                "reference": "1706eee62df82b439db2f48a37ab37cf24fa5e5f",
+                "url": "https://api.github.com/repos/nowo-tech/TagInputBundle/zipball/1e532d282a88f97e62e143c2d57bd309758b793a",
+                "reference": "1e532d282a88f97e62e143c2d57bd309758b793a",
                 "shasum": ""
             },
             "require": {
@@ -1784,20 +1786,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-20T12:27:00+00:00"
+            "time": "2026-10-25T11:03:15+00:00"
         },
         {
             "name": "nowo-tech/ui-kit-bundle",
-            "version": "v2.6.1",
+            "version": "v2.17.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/UiKitBundle.git",
-                "reference": "1e0944a99055b820204e3c64aa024d088de06fc7"
+                "reference": "d70caefb15c160e6417a3dec938e2e2399797ed9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/1e0944a99055b820204e3c64aa024d088de06fc7",
-                "reference": "1e0944a99055b820204e3c64aa024d088de06fc7",
+                "url": "https://api.github.com/repos/nowo-tech/UiKitBundle/zipball/d70caefb15c160e6417a3dec938e2e2399797ed9",
+                "reference": "d70caefb15c160e6417a3dec938e2e2399797ed9",
                 "shasum": ""
             },
             "require": {
@@ -1878,7 +1880,7 @@
                 "issues": "https://github.com/nowo-tech/UiKitBundle/issues",
                 "source": "https://github.com/nowo-tech/UiKitBundle"
             },
-            "time": "2026-10-21T19:29:07+00:00"
+            "time": "2026-10-28T13:23:13+00:00"
         },
         {
             "name": "nowo-tech/vault-bundle",
@@ -1886,7 +1888,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/vault-bundle",
-                "reference": "84b86726fca32d91f3268b5b1071493d29ea3e75"
+                "reference": "2a4ce16bea3717f1ae972009dbb6cef514dfbe48"
             },
             "require": {
                 "doctrine/doctrine-bundle": "^2.10 || ^3.0",
@@ -4885,16 +4887,16 @@
         },
         {
             "name": "symfony/polyfill-intl-grapheme",
-            "version": "v1.43.0",
+            "version": "v1.43.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-grapheme.git",
-                "reference": "5cac8f4db97208823aa353f59a01faad2da52c75"
+                "reference": "5a8f33c87aeecffce24e721b5064fab05f4becf8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/5cac8f4db97208823aa353f59a01faad2da52c75",
-                "reference": "5cac8f4db97208823aa353f59a01faad2da52c75",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/5a8f33c87aeecffce24e721b5064fab05f4becf8",
+                "reference": "5a8f33c87aeecffce24e721b5064fab05f4becf8",
                 "shasum": ""
             },
             "require": {
@@ -4943,7 +4945,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.43.0"
+                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.43.3"
             },
             "funding": [
                 {
@@ -4963,20 +4965,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-25T15:46:47+00:00"
+            "time": "2026-10-15T09:18:53+00:00"
         },
         {
             "name": "symfony/polyfill-intl-icu",
-            "version": "v1.43.0",
+            "version": "v1.43.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-icu.git",
-                "reference": "d13cf82f40af144e5e5a867dc54ec3c7b4544b2e"
+                "reference": "aad9cd259a9a4d2810e7ba778ed093bbd76a5ab9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-intl-icu/zipball/d13cf82f40af144e5e5a867dc54ec3c7b4544b2e",
-                "reference": "d13cf82f40af144e5e5a867dc54ec3c7b4544b2e",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-icu/zipball/aad9cd259a9a4d2810e7ba778ed093bbd76a5ab9",
+                "reference": "aad9cd259a9a4d2810e7ba778ed093bbd76a5ab9",
                 "shasum": ""
             },
             "require": {
@@ -5031,7 +5033,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-icu/tree/v1.43.0"
+                "source": "https://github.com/symfony/polyfill-intl-icu/tree/v1.43.3"
             },
             "funding": [
                 {
@@ -5051,7 +5053,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-25T15:46:47+00:00"
+            "time": "2026-10-27T15:55:21+00:00"
         },
         {
             "name": "symfony/polyfill-intl-idn",
@@ -5227,16 +5229,16 @@
         },
         {
             "name": "symfony/polyfill-mbstring",
-            "version": "v1.43.0",
+            "version": "v1.43.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-mbstring.git",
-                "reference": "4d5d331bf731e0aedbc6b2f5e61135b7b7996a72"
+                "reference": "122889ed24dc000165bcbfd77ec412f15cbdfc6a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/4d5d331bf731e0aedbc6b2f5e61135b7b7996a72",
-                "reference": "4d5d331bf731e0aedbc6b2f5e61135b7b7996a72",
+                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/122889ed24dc000165bcbfd77ec412f15cbdfc6a",
+                "reference": "122889ed24dc000165bcbfd77ec412f15cbdfc6a",
                 "shasum": ""
             },
             "require": {
@@ -5288,7 +5290,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.43.0"
+                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.43.3"
             },
             "funding": [
                 {
@@ -5308,7 +5310,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-24T15:19:04+00:00"
+            "time": "2026-10-28T09:35:49+00:00"
         },
         {
             "name": "symfony/polyfill-php84",
@@ -7858,16 +7860,16 @@
         },
         {
             "name": "nowo-tech/twig-inspector-bundle",
-            "version": "v1.2.0",
+            "version": "v1.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/TwigInspectorBundle.git",
-                "reference": "827d2284be47e86f344faf2f0b32b2a252154b1d"
+                "reference": "3944cf2ec11fcd24e59257d12de7a9c9a52e7d03"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/TwigInspectorBundle/zipball/827d2284be47e86f344faf2f0b32b2a252154b1d",
-                "reference": "827d2284be47e86f344faf2f0b32b2a252154b1d",
+                "url": "https://api.github.com/repos/nowo-tech/TwigInspectorBundle/zipball/3944cf2ec11fcd24e59257d12de7a9c9a52e7d03",
+                "reference": "3944cf2ec11fcd24e59257d12de7a9c9a52e7d03",
                 "shasum": ""
             },
             "require": {
@@ -7965,7 +7967,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-13T10:24:28+00:00"
+            "time": "2026-10-25T10:18:15+00:00"
         },
         {
             "name": "phar-io/manifest",
