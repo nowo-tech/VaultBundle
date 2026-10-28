@@ -41,6 +41,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Raw translation keys in the item forms.** FormKit's convention keys (`vault_item_form.<field>.help` /
+  `.placeholder`, `vault_share.grantee_id.placeholder`) were printed as is; the `vault` FormKit profile now sets
+  `convention_requires_translation: true`, so only translated conventions are applied (requires FormKit ^2.13).
+- **Password widget copy.** With PasswordStrengthBundle >= 2.8 the requirements list and generator button use the
+  `NowoPasswordStrengthBundle` catalogue (`ui_translation_domain`) instead of showing `requirement.*` /
+  `generator.button` keys; the strength constraint is built with named arguments there.
+- **Password generator labels.** The modal forces `form_div_layout.html.twig` with `only`: a host Bootstrap form theme
+  rendered the checkbox / radio labels empty.
+
+### Changed
+
+- `nowo-tech/form-kit-bundle` constraint raised to `^2.13`; `composer-runtime-api ^2.0` required (installed-version
+  check). Demo: PasswordStrengthBundle `^2.10`.
+
 ## [1.12.0] - 2026-10-28
 
 Vault: the browser extension API applies the Vault role gate and re-validates tokens on every request. See [UPGRADING](UPGRADING.md#to-1120).

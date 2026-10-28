@@ -319,7 +319,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                 'vault' => [
                     'alias'              => 'vault',
                     'translation_domain' => 'NowoVaultBundle',
-                    'defaults'           => [
+                    // Help / placeholder convention keys only when translated (no raw `vault_item_form.*` keys).
+                    'convention_requires_translation' => true,
+                    'defaults'                        => [
                         'attr'     => ['class' => 'nowo-ui-input form-control'],
                         'row_attr' => ['class' => 'mb-2'],
                     ],

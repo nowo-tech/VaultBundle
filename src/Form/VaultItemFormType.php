@@ -183,8 +183,7 @@ final class VaultItemFormType extends AbstractType
             $passwordType   = PasswordStrengthIntegration::PASSWORD_STRENGTH_TYPE;
             $validatorClass = PasswordStrengthIntegration::PASSWORD_STRENGTH_VALIDATOR;
 
-            // @phpstan-ignore argument.type (optional PasswordStrengthBundle form type resolved at runtime)
-            $this->addTypedField('password', $passwordType, [
+            $options = [
                 'required'            => false,
                 'empty_data'          => '',
                 'label'               => 'vault.form.password',
@@ -194,14 +193,19 @@ final class VaultItemFormType extends AbstractType
                 'level'               => $level,
                 'generator_mode'      => $passwordFieldConfig['generator_mode'] ?? 'input',
                 'use_password_toggle' => $passwordFieldConfig['use_password_toggle'] ?? true,
-                'constraints'         => [
-                    // @phpstan-ignore class.notFound (optional PasswordStrengthBundle validator)
-                    new $validatorClass([
-                        'policyMode' => 'level',
-                        'level'      => $level,
-                    ]),
-                ],
-            ]);
+            ];
+            if (PasswordStrengthIntegration::supportsUiTranslationDomain()) {
+                // The widget copy (requirements, generator button) lives in the PasswordStrength catalogue.
+                $options['ui_translation_domain'] = 'NowoPasswordStrengthBundle';
+                // @phpstan-ignore class.notFound (optional PasswordStrengthBundle validator)
+                $options['constraints'] = [new $validatorClass(policyMode: 'level', level: $level)];
+            } else {
+                // @phpstan-ignore class.notFound (optional PasswordStrengthBundle validator)
+                $options['constraints'] = [new $validatorClass(['policyMode' => 'level', 'level' => $level])];
+            }
+
+            // @phpstan-ignore argument.type (optional PasswordStrengthBundle form type resolved at runtime)
+            $this->addTypedField('password', $passwordType, $options);
 
             return;
         }
