@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.11.1] - 2026-10-28](#1111---2026-10-28)
 - [[1.11.0] - 2026-10-28](#1110---2026-10-28)
 - [[1.10.0] - 2026-10-28](#1100---2026-10-28)
 - [[1.9.0] - 2026-10-26](#190---2026-10-26)
@@ -39,10 +40,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-10-28
+
+Security: trashed items and folders answer 404 except for restore, purge and grant revocation. See [UPGRADING](UPGRADING.md#to-1111).
+
 ### Security
 
 - **Trashed items and folders answer 404.** A trashed item or folder stayed viewable, editable and shareable by id
   (only the lists hid it). Only restore, purge and grant revocation act on trashed resources now.
+
+[1.11.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.11.1
 
 ## [1.11.0] - 2026-10-28
 
@@ -454,7 +461,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.11.1...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
