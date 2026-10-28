@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.10.0] - 2026-10-28](#1100---2026-10-28)
 - [[1.9.0] - 2026-10-26](#190---2026-10-26)
 - [[1.8.2] - 2026-10-24](#182---2026-10-24)
 - [[1.8.1] - 2026-10-18](#181---2026-10-18)
@@ -37,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-28
+
+Performance: items page folder counts in one query and item tags fetch-joined. See [UPGRADING](UPGRADING.md#to-1100).
+
 ### Performance
 
 - **Items page without per-folder and per-item queries.** The folder list ran one `COUNT` per folder and the item
@@ -44,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `VaultItemFolderCounterInterface`, implemented by `DoctrineOrmVaultItemRepository`; custom item repositories without
   it keep the per-folder count), and `findByCreator()` / `findByCreatorAndItemType()` / `findByCreatorAndFolder()`
   fetch-join the tags.
+
+[1.10.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.10.0
 
 ## [1.9.0] - 2026-10-26
 
@@ -412,7 +419,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.10.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
