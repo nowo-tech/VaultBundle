@@ -7,10 +7,12 @@ namespace Nowo\VaultBundle\Tests\Unit\Security;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
+use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 use function in_array;
 
@@ -88,5 +90,46 @@ final class ConfigurableVaultAccessCheckerTest extends TestCase
             $this->createMock(VaultSettingsRepositoryInterface::class),
             new ArrayAdapter(),
         );
+    }
+
+    public function testExplicitUserIsCheckedInsteadOfTheRequestToken(): void
+    {
+        $alice    = new TestUser('1', 'alice@example.com', ['ROLE_VAULT_USER']);
+        $security = $this->createMock(Security::class);
+        $security->method('getUser')->willReturn(null);
+        $security->expects(self::never())->method('isGranted');
+        $security->method('isGrantedForUser')->willReturnCallback(
+            static fn (UserInterface $user, string $role): bool => in_array($role, $user->getRoles(), true),
+        );
+
+        $checker = new ConfigurableVaultAccessChecker($security, $this->createProvider([
+            'admin_roles'  => ['ROLE_VAULT_ADMIN'],
+            'access_roles' => ['ROLE_VAULT_USER'],
+            'create_roles' => [],
+            'list_roles'   => [],
+            'delete_roles' => [],
+        ]));
+
+        self::assertTrue($checker->canAccess($alice));
+        self::assertFalse($checker->canAccess(new TestUser('2', 'bob@example.com', ['ROLE_USER'])));
+    }
+
+    public function testCurrentUserUsesTheRequestToken(): void
+    {
+        $alice    = new TestUser('1', 'alice@example.com', ['ROLE_VAULT_USER']);
+        $security = $this->createMock(Security::class);
+        $security->method('getUser')->willReturn($alice);
+        $security->expects(self::never())->method('isGrantedForUser');
+        $security->method('isGranted')->willReturnCallback(static fn (string $role): bool => $role === 'ROLE_VAULT_USER');
+
+        $checker = new ConfigurableVaultAccessChecker($security, $this->createProvider([
+            'admin_roles'  => ['ROLE_VAULT_ADMIN'],
+            'access_roles' => ['ROLE_VAULT_USER'],
+            'create_roles' => [],
+            'list_roles'   => [],
+            'delete_roles' => [],
+        ]));
+
+        self::assertTrue($checker->canAccess($alice));
     }
 }

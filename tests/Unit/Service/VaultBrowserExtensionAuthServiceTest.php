@@ -11,11 +11,15 @@ use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Event\VaultBrowserExtensionAuthEvent;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
+use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use stdClass;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Security\Core\Exception\DisabledException;
+use Symfony\Component\Security\Core\User\UserCheckerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class VaultBrowserExtensionAuthServiceTest extends TestCase
@@ -181,5 +185,86 @@ final class VaultBrowserExtensionAuthServiceTest extends TestCase
         }
 
         return $instance;
+    }
+
+    public function testLoginIsRefusedWithoutVaultAccess(): void
+    {
+        $authenticator = $this->createMock(VaultBrowserExtensionAuthenticatorInterface::class);
+        $authenticator->method('authenticate')->willReturn(VaultBrowserExtensionAuthResult::success(new TestUser('1')));
+        $tokens = $this->createMock(VaultExtensionTokenRepositoryInterface::class);
+        $tokens->expects(self::never())->method('save');
+        $checker = $this->createMock(VaultAccessCheckerInterface::class);
+        $checker->method('canAccess')->willReturn(false);
+
+        $service = new VaultBrowserExtensionAuthService($authenticator, $tokens, new EventDispatcher(), 3600, $checker);
+
+        self::assertNull($service->login('alice@example.com', 'secret'));
+    }
+
+    public function testResolveUserRevokesAllTokensWhenAccessWasRemoved(): void
+    {
+        $user   = new TestUser('1');
+        $entity = new VaultExtensionToken(VaultBrowserExtensionAuthService::hashToken('t1'), new DateTimeImmutable('+1 hour'), $user);
+        $other  = new VaultExtensionToken(VaultBrowserExtensionAuthService::hashToken('t2'), new DateTimeImmutable('+1 hour'), $user);
+
+        $tokens = $this->createMock(VaultExtensionTokenRepositoryInterface::class);
+        $tokens->method('findValidByTokenHash')->willReturn($entity);
+        $tokens->method('findByUser')->with($user)->willReturn([$entity, $other]);
+        $tokens->expects(self::exactly(2))->method('remove');
+        $tokens->expects(self::never())->method('save');
+        $checker = $this->createMock(VaultAccessCheckerInterface::class);
+        $checker->method('canAccess')->with($user)->willReturn(false);
+
+        $service = new VaultBrowserExtensionAuthService(
+            $this->createMock(VaultBrowserExtensionAuthenticatorInterface::class),
+            $tokens,
+            new EventDispatcher(),
+            3600,
+            $checker,
+        );
+
+        self::assertNull($service->resolveUser('t1'));
+    }
+
+    public function testResolveUserRejectsAccountRefusedByUserChecker(): void
+    {
+        $user   = new TestUser('1');
+        $entity = new VaultExtensionToken(VaultBrowserExtensionAuthService::hashToken('t1'), new DateTimeImmutable('+1 hour'), $user);
+        $tokens = $this->createMock(VaultExtensionTokenRepositoryInterface::class);
+        $tokens->method('findValidByTokenHash')->willReturn($entity);
+        $tokens->method('findByUser')->willReturn([$entity]);
+        $tokens->expects(self::once())->method('remove')->with($entity);
+        $userChecker = $this->createMock(UserCheckerInterface::class);
+        $userChecker->method('checkPreAuth')->willThrowException(new DisabledException());
+        $checker = $this->createMock(VaultAccessCheckerInterface::class);
+        $checker->method('canAccess')->willReturn(true);
+
+        $service = new VaultBrowserExtensionAuthService(
+            $this->createMock(VaultBrowserExtensionAuthenticatorInterface::class),
+            $tokens,
+            new EventDispatcher(),
+            3600,
+            $checker,
+            $userChecker,
+        );
+
+        self::assertNull($service->resolveUser('t1'));
+    }
+
+    public function testResolveUserIgnoresTokenWithoutSecurityUser(): void
+    {
+        $entity = new VaultExtensionToken(VaultBrowserExtensionAuthService::hashToken('t1'), new DateTimeImmutable('+1 hour'), new stdClass());
+        $tokens = $this->createMock(VaultExtensionTokenRepositoryInterface::class);
+        $tokens->method('findValidByTokenHash')->willReturn($entity);
+        $tokens->expects(self::never())->method('save');
+
+        $service = new VaultBrowserExtensionAuthService(
+            $this->createMock(VaultBrowserExtensionAuthenticatorInterface::class),
+            $tokens,
+            new EventDispatcher(),
+            3600,
+        );
+
+        self::assertNull($service->resolveUser('t1'));
     }
 }

@@ -55,6 +55,8 @@
 
 ## Unreleased
 
+- Browser extension: users need `security.access_roles` (or an admin role) to log in to the extension and to use an existing token; tokens of users the firewall user checker refuses are revoked on their next use. Custom `VaultAccessCheckerInterface` implementations receive the token's user as `$user` on these calls and must evaluate it (not the request token, which is empty on Bearer requests).
+
 ## To 1.11.1
 
 From **1.11.0**:

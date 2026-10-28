@@ -12,10 +12,14 @@ use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Event\VaultBrowserExtensionAuthEvent;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
+use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Symfony\Component\Security\Core\Exception\AccountStatusException;
+use Symfony\Component\Security\Core\User\UserCheckerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function base64_encode;
+use function count;
 use function hash;
 use function random_bytes;
 use function rtrim;
@@ -32,6 +36,8 @@ final readonly class VaultBrowserExtensionAuthService
         private VaultExtensionTokenRepositoryInterface $tokenRepository,
         private EventDispatcherInterface $eventDispatcher,
         private int $tokenTtlSeconds,
+        private ?VaultAccessCheckerInterface $accessChecker = null,
+        private ?UserCheckerInterface $userChecker = null,
     ) {
     }
 
@@ -52,7 +58,7 @@ final readonly class VaultBrowserExtensionAuthService
         }
 
         $user = $result->getUser();
-        if (!$user instanceof UserInterface) {
+        if (!$user instanceof UserInterface || !$this->isStillAllowed($user)) {
             return null;
         }
 
@@ -66,11 +72,58 @@ final readonly class VaultBrowserExtensionAuthService
             return null;
         }
 
+        $user = $entity->getUser();
+        if (!$user instanceof UserInterface) {
+            return null;
+        }
+
+        // Tokens live for token_ttl: a user disabled, locked or stripped of the Vault roles after login loses access
+        // on the next request, and every token of that user is revoked.
+        if (!$this->isStillAllowed($user)) {
+            $this->revokeAllFor($user);
+
+            return null;
+        }
+
         $this->touchIfStale($entity);
 
-        $user = $entity->getUser();
+        return $user;
+    }
 
-        return $user instanceof UserInterface ? $user : null;
+    /**
+     * Removes every extension token of the user (e.g. after a password change or when the account is disabled).
+     *
+     * @return int Number of revoked tokens
+     */
+    public function revokeAllFor(UserInterface $user): int
+    {
+        $tokens = $this->tokenRepository->findByUser($user);
+        foreach ($tokens as $token) {
+            // @igor-ignore - Service coordinates I/O or request-scoped work; not unsafe worker singleton state.
+            $this->tokenRepository->remove($token);
+        }
+
+        return count($tokens);
+    }
+
+    /**
+     * Vault role gate ({@see VaultAccessCheckerInterface::canAccess()}) and the firewall user checker (disabled,
+     * locked, expired accounts), both evaluated for the token's user.
+     */
+    private function isStillAllowed(UserInterface $user): bool
+    {
+        if ($this->accessChecker instanceof VaultAccessCheckerInterface && !$this->accessChecker->canAccess($user)) {
+            return false;
+        }
+
+        try {
+            $this->userChecker?->checkPreAuth($user);
+            $this->userChecker?->checkPostAuth($user);
+        } catch (AccountStatusException) {
+            return false;
+        }
+
+        return true;
     }
 
     public function logout(string $plainToken): void

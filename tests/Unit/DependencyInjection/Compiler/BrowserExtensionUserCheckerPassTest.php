@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Tests\Unit\DependencyInjection\Compiler;
 use LogicException;
 use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
+use Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -135,5 +136,31 @@ final class BrowserExtensionUserCheckerPassTest extends TestCase
         $container->setDefinition(DefaultVaultBrowserExtensionAuthenticator::class, $definition);
 
         return $definition;
+    }
+
+    public function testResolvedCheckerIsSharedWithTheTokenService(): void
+    {
+        $container  = $this->container(['main']);
+        $definition = (new Definition(DefaultVaultBrowserExtensionAuthenticator::class))
+            ->setArgument('$userChecker', new Reference('app.checker'));
+        $container->setDefinition(DefaultVaultBrowserExtensionAuthenticator::class, $definition);
+        $authService = new Definition(VaultBrowserExtensionAuthService::class);
+        $container->setDefinition(VaultBrowserExtensionAuthService::class, $authService);
+
+        (new BrowserExtensionUserCheckerPass())->process($container);
+
+        self::assertSame('app.checker', (string) $authService->getArgument('$userChecker'));
+    }
+
+    public function testTokenServiceWithoutAuthenticatorCheckerIsUntouched(): void
+    {
+        $container = $this->container([]);
+        $container->setDefinition(DefaultVaultBrowserExtensionAuthenticator::class, new Definition(DefaultVaultBrowserExtensionAuthenticator::class));
+        $authService = new Definition(VaultBrowserExtensionAuthService::class);
+        $container->setDefinition(VaultBrowserExtensionAuthService::class, $authService);
+
+        (new BrowserExtensionUserCheckerPass())->process($container);
+
+        self::assertSame([], $authService->getArguments());
     }
 }

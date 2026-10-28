@@ -21,58 +21,55 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
 
     public function canAccess(?UserInterface $user = null): bool
     {
-        if ($this->isAdmin()) {
+        if ($this->isAdmin($user)) {
             return true;
         }
 
-        return $this->hasAnyRole($this->securityRoles()['access_roles']);
+        return $this->hasAnyRole($this->securityRoles()['access_roles'], $user);
     }
 
     public function canCreate(?UserInterface $user = null): bool
     {
-        if ($this->isAdmin()) {
+        if ($this->isAdmin($user)) {
             return true;
         }
 
-        return $this->hasAnyRole($this->securityRoles()['create_roles']);
+        return $this->hasAnyRole($this->securityRoles()['create_roles'], $user);
     }
 
     public function canList(?UserInterface $user = null): bool
     {
-        if ($this->isAdmin()) {
+        if ($this->isAdmin($user)) {
             return true;
         }
 
-        return $this->hasAnyRole($this->securityRoles()['list_roles']);
+        return $this->hasAnyRole($this->securityRoles()['list_roles'], $user);
     }
 
     public function canRevoke(?UserInterface $user = null): bool
     {
-        if ($this->isAdmin()) {
+        if ($this->isAdmin($user)) {
             return true;
         }
 
-        return $this->hasAnyRole($this->securityRoles()['delete_roles']);
+        return $this->hasAnyRole($this->securityRoles()['delete_roles'], $user);
     }
 
-    private function isAdmin(): bool
+    private function isAdmin(?UserInterface $user): bool
     {
-        foreach ($this->securityRoles()['admin_roles'] as $role) {
-            if ($this->security->isGranted($role)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->hasAnyRole($this->securityRoles()['admin_roles'], $user);
     }
 
     /**
      * @param list<string> $roles
+     * @param UserInterface|null $user Checked instead of the request token when it is not the current user (browser
+     *                                 extension Bearer requests have no security token)
      */
-    private function hasAnyRole(array $roles): bool
+    private function hasAnyRole(array $roles, ?UserInterface $user): bool
     {
+        $forUser = $user instanceof UserInterface && $user !== $this->security->getUser();
         foreach ($roles as $role) {
-            if ($this->security->isGranted($role)) {
+            if ($forUser ? $this->security->isGrantedForUser($user, $role) : $this->security->isGranted($role)) {
                 return true;
             }
         }

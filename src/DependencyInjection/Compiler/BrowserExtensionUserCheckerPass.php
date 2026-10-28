@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\DependencyInjection\Compiler;
 
 use LogicException;
 use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
+use Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
@@ -35,6 +36,20 @@ final class BrowserExtensionUserCheckerPass implements CompilerPassInterface
     private const DEFAULT_FIREWALL = 'main';
 
     public function process(ContainerBuilder $container): void
+    {
+        $this->resolveAuthenticatorChecker($container);
+
+        // Bearer tokens are re-checked on every request with the same checker as the login.
+        $authService = VaultBrowserExtensionAuthService::class;
+        if ($container->hasDefinition(DefaultVaultBrowserExtensionAuthenticator::class) && $container->hasDefinition($authService)) {
+            $arguments = $container->getDefinition(DefaultVaultBrowserExtensionAuthenticator::class)->getArguments();
+            if (isset($arguments['$userChecker'])) {
+                $container->getDefinition($authService)->setArgument('$userChecker', $arguments['$userChecker']);
+            }
+        }
+    }
+
+    private function resolveAuthenticatorChecker(ContainerBuilder $container): void
     {
         $serviceId = DefaultVaultBrowserExtensionAuthenticator::class;
         if (!$container->hasDefinition($serviceId)) {

@@ -35,6 +35,8 @@ services:
     Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService:
         arguments:
             $tokenTtlSeconds: '%nowo_vault.browser_extension.token_ttl%'
+            $accessChecker: '@Nowo\VaultBundle\Security\VaultAccessCheckerInterface'
+            $userChecker: null
 
     Nowo\VaultBundle\Command\ReencryptVaultPayloadsCommand:
         arguments:

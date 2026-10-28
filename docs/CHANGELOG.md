@@ -40,6 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Browser extension API honours the Vault role gate.** The Bearer API never called `VaultAccessCheckerInterface`, so a
+  user without `security.access_roles` still obtained a token and their login passwords. Login and every Bearer request
+  now require `canAccess()` for the token's user; `ConfigurableVaultAccessChecker` evaluates an explicit user with
+  `Security::isGrantedForUser()` (role hierarchy included) because extension requests have no security token.
+- **Extension tokens are re-validated on every request.** The firewall user checker (disabled, locked, expired
+  accounts) also runs when a token is used, not only at login. A user who fails it or lost the Vault roles gets 401 and
+  all their tokens are revoked. New `VaultBrowserExtensionAuthService::revokeAllFor($user)` for hosts that want to
+  revoke on password change.
+
 ## [1.11.1] - 2026-10-28
 
 Security: trashed items and folders answer 404 except for restore, purge and grant revocation. See [UPGRADING](UPGRADING.md#to-1111).
