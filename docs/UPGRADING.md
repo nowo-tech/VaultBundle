@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.12.0](#to-1120)
 - [To 1.11.1](#to-1111)
 - [To 1.11.0](#to-1110)
 - [To 1.10.0](#to-1100)
@@ -54,6 +55,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.12.0
+
+From **1.11.1**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 - Browser extension: users need `security.access_roles` (or an admin role) to log in to the extension and to use an existing token; tokens of users the firewall user checker refuses are revoked on their next use. Custom `VaultAccessCheckerInterface` implementations receive the token's user as `$user` on these calls and must evaluate it (not the request token, which is empty on Bearer requests).
 

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.12.0] - 2026-10-28](#1120---2026-10-28)
 - [[1.11.1] - 2026-10-28](#1111---2026-10-28)
 - [[1.11.0] - 2026-10-28](#1110---2026-10-28)
 - [[1.10.0] - 2026-10-28](#1100---2026-10-28)
@@ -40,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-28
+
+Vault: the browser extension API applies the Vault role gate and re-validates tokens on every request. See [UPGRADING](UPGRADING.md#to-1120).
+
 ### Security
 
 - **Browser extension API honours the Vault role gate.** The Bearer API never called `VaultAccessCheckerInterface`, so a
@@ -50,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accounts) also runs when a token is used, not only at login. A user who fails it or lost the Vault roles gets 401 and
   all their tokens are revoked. New `VaultBrowserExtensionAuthService::revokeAllFor($user)` for hosts that want to
   revoke on password change.
+
+[1.12.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.12.0
 
 ## [1.11.1] - 2026-10-28
 
@@ -472,7 +479,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.11.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.12.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
