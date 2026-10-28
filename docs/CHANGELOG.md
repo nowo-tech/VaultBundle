@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.11.0] - 2026-10-28](#1110---2026-10-28)
 - [[1.10.0] - 2026-10-28](#1100---2026-10-28)
 - [[1.9.0] - 2026-10-26](#190---2026-10-26)
 - [[1.8.2] - 2026-10-24](#182---2026-10-24)
@@ -38,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-28
+
+Security: browser-extension autofill can no longer be triggered by the page; Write grantees cannot escalate through folders. See [UPGRADING](UPGRADING.md#to-1110).
+
 ### Security
 
 - **Browser extension: the page could trigger the autofill and read the password (High).** The autofill panel was
@@ -60,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   refused.
 - `security.allow_unauthenticated: true` refuses to compile in the `prod` environment.
 - The extension API no longer sends `Access-Control-Allow-Credentials` (Bearer tokens, no cookies).
+
+[1.11.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.11.0
 
 ## [1.10.0] - 2026-10-28
 
@@ -442,7 +449,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.11.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
