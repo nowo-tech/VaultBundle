@@ -46,6 +46,22 @@ final class ManageVaultCsrfEndToEndTest extends WebTestCase
         self::assertTrue($client->getResponse()->isRedirect());
     }
 
+    public function testTrashedItemIsNotViewableEditableOrShareableButRestoreFindsIt(): void
+    {
+        [$client, $itemId] = $this->prepareAuthenticatedClient();
+        $client->request('POST', '/tools/vault/items/' . $itemId . '/trash', ['_token' => $this->csrfToken($client, 'vault_trash_' . $itemId)]);
+        self::assertTrue($client->getResponse()->isRedirect());
+
+        foreach (['', '/edit', '/share'] as $suffix) {
+            $client->request('GET', '/tools/vault/items/' . $itemId . $suffix);
+            self::assertSame(Response::HTTP_NOT_FOUND, $client->getResponse()->getStatusCode(), 'trashed item' . $suffix);
+        }
+
+        // Restore still finds the trashed item (the action itself needs the revoke permission).
+        $client->request('POST', '/tools/vault/items/' . $itemId . '/restore', ['_token' => $this->csrfToken($client, 'vault_restore_' . $itemId)]);
+        self::assertNotSame(Response::HTTP_NOT_FOUND, $client->getResponse()->getStatusCode());
+    }
+
     public function testCreateFolderWithoutCsrfIsDenied(): void
     {
         $client = $this->prepareAuthenticatedClient()[0];

@@ -348,7 +348,7 @@ final class VaultManageController extends AbstractController
         $this->denyUnlessFeature('access');
         $this->denyUnlessValidCsrf('vault_revoke_grant_' . $grantId, $request);
 
-        $item = $this->findItemOr404($id);
+        $item = $this->findItemOr404($id, allowTrashed: true);
         $this->denyUnlessItemAccess($item, VaultAccessAction::Share);
 
         $grant = $this->grantService->findById($grantId);
@@ -367,7 +367,7 @@ final class VaultManageController extends AbstractController
         $this->denyUnlessFeature('access');
         $this->denyUnlessValidCsrf('vault_revoke_grant_' . $grantId, $request);
 
-        $folder = $this->findFolderOr404($id);
+        $folder = $this->findFolderOr404($id, allowTrashed: true);
         $this->denyUnlessFolderAccess($folder, VaultAccessAction::Share);
 
         $grant = $this->grantService->findById($grantId);
@@ -399,7 +399,7 @@ final class VaultManageController extends AbstractController
         $this->denyUnlessFeature('revoke');
         $this->denyUnlessValidCsrf('vault_restore_' . $id, $request);
 
-        $item = $this->findItemOr404($id);
+        $item = $this->findItemOr404($id, allowTrashed: true);
         $this->denyUnlessItemAccess($item, VaultAccessAction::Restore);
         $this->trashService->restoreItem($item);
         $this->addFlash('success', $this->translator->trans('vault.flash.item_restored', [], 'NowoVaultBundle'));
@@ -412,7 +412,7 @@ final class VaultManageController extends AbstractController
         $this->denyUnlessFeature('revoke');
         $this->denyUnlessValidCsrf('vault_purge_' . $id, $request);
 
-        $item = $this->findItemOr404($id);
+        $item = $this->findItemOr404($id, allowTrashed: true);
         $this->denyUnlessItemAccess($item, VaultAccessAction::Purge);
         $this->trashService->purgeItem($item);
         $this->addFlash('success', $this->translator->trans('vault.flash.item_purged', [], 'NowoVaultBundle'));
@@ -552,18 +552,31 @@ final class VaultManageController extends AbstractController
         ]);
     }
 
-    private function findItemOr404(string $id): VaultItem
+    /**
+     * @param bool $allowTrashed only restore / purge / grant revocation act on trashed items; every other action answers
+     *                           404 for them (a trashed item must not stay viewable, editable or shareable by id)
+     */
+    private function findItemOr404(string $id, bool $allowTrashed = false): VaultItem
     {
         $item = $this->itemRepository->findById($id);
+        if (!$item instanceof VaultItem || (!$allowTrashed && $item->isDeleted())) {
+            throw $this->createNotFoundException('Vault item not found.');
+        }
 
-        return $item ?? throw $this->createNotFoundException('Vault item not found.');
+        return $item;
     }
 
-    private function findFolderOr404(string $id): VaultFolder
+    /**
+     * @param bool $allowTrashed only grant revocation acts on trashed folders
+     */
+    private function findFolderOr404(string $id, bool $allowTrashed = false): VaultFolder
     {
         $folder = $this->folderService->find($id);
+        if (!$folder instanceof VaultFolder || (!$allowTrashed && $folder->isDeleted())) {
+            throw $this->createNotFoundException('Vault folder not found.');
+        }
 
-        return $folder ?? throw $this->createNotFoundException('Vault folder not found.');
+        return $folder;
     }
 
     /**

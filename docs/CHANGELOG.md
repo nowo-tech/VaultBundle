@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Trashed items and folders answer 404.** A trashed item or folder stayed viewable, editable and shareable by id
+  (only the lists hid it). Only restore, purge and grant revocation act on trashed resources now.
+
 ## [1.11.0] - 2026-10-28
 
 Security: browser-extension autofill can no longer be triggered by the page; Write grantees cannot escalate through folders. See [UPGRADING](UPGRADING.md#to-1110).
