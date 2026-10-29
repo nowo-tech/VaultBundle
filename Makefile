@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 # Vault Bundle - Development
-.PHONY: help up down down-dev build shell install test test-coverage test-coverage-100 coverage-check coverage-php-percent cs-check cs-fix qa clean assets assets-build assets-watch assets-test test-ts test-e2e ensure-up rector rector-dry phpstan igor release-check release-check-demos demo-smoke composer-sync update validate validate-translations extension-sync extension-build vault-purge-tokens check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history setup-hooks check-twig-extra check-no-raw-html-form
+.PHONY: help update-deps up down down-dev build shell install test test-coverage test-coverage-100 coverage-check coverage-php-percent cs-check cs-fix qa clean assets assets-build assets-watch assets-test test-ts test-e2e ensure-up rector rector-dry phpstan igor release-check release-check-demos demo-smoke composer-sync update validate validate-translations extension-sync extension-build vault-purge-tokens check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history setup-hooks check-twig-extra check-no-raw-html-form
 
 COMPOSE_FILE ?= docker-compose.yml
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -12,14 +12,50 @@ SERVICE_PHP ?= php
 help:
 	@echo "Vault Bundle - Development Commands"
 	@echo ""
-	@echo "  up / down / down-dev / build / shell / install"
-	@echo "  test / test-coverage / coverage-check / test-ts / test-e2e"
-	@echo "  cs-check / cs-fix / rector / phpstan / qa"
-	@echo "  validate-translations / check-open-prs / demo-smoke / release-check"
-	@echo "  check-no-raw-html-form  Fail on raw <form>/<input>/<textarea>/<select> in Twig (REQ-TWIG-005)"
-	@echo "  extension-sync / vault-purge-tokens"
+	@echo "Container:"
+	@echo "  up                 Build and start the PHP container (composer + pnpm install)"
+	@echo "  down               Stop the container"
+	@echo "  build              Rebuild the image without cache"
+	@echo "  shell              Open a shell in the PHP container"
+	@echo "Dependencies:"
+	@echo "  install            composer install + pnpm install in the container"
+	@echo "Assets:"
+	@echo "  assets             Build Vite assets into src/Resources/public"
+	@echo "Tests:"
+	@echo "  test               PHPUnit (unit + integration + e2e suites)"
+	@echo "  test-coverage      PHPUnit with coverage (text + clover + HTML)"
+	@echo "Quality:"
+	@echo "  cs-check           PHP-CS-Fixer dry-run"
+	@echo "  cs-fix             PHP-CS-Fixer apply"
+	@echo "  rector             Rector apply"
+	@echo "  rector-dry         Rector dry-run"
+	@echo "  phpstan            PHPStan (level 8)"
+	@echo "  igor               Igor FrankenPHP worker-state audit"
+	@echo "  qa                 cs-check + tests"
+	@echo "Release:"
+	@echo "  release-check      Full pre-release pipeline (REQ-MAKE-002)"
+	@echo "  composer-sync      composer validate --strict + install"
+	@echo "Cleanup:"
+	@echo "  clean              Remove vendor, node_modules, caches and coverage"
+	@echo "Composer:"
+	@echo "  update             composer update in the bundle container"
+	@echo "  update-deps        composer update in the bundle and every demo"
+	@echo "  validate           composer validate --strict"
 	@echo ""
-	@echo "Demos: make -C demo up-symfony8"
+	@echo "Bundle-specific:"
+	@echo "  down-dev           Alias of down"
+	@echo "  test-coverage-100  Coverage + fail below 100% lines (alias: coverage-check)"
+	@echo "  test-ts            Vitest with coverage (TypeScript)"
+	@echo "  test-e2e           PHPUnit e2e suite only"
+	@echo "  validate-translations  Parse every translation YAML"
+	@echo "  check-twig-extra   Twig Extra requirement check (REQ-TWIG-004)"
+	@echo "  check-no-raw-html-form  Fail on raw <form>/<input>/<textarea>/<select> in Twig (REQ-TWIG-005)"
+	@echo "  check-no-cursor-coauthor / check-open-prs / setup-hooks"
+	@echo "  extension-build / extension-sync / vault-purge-tokens"
+	@echo ""
+	@echo "Demos:"
+	@echo "  demo-smoke / release-check-demos   Demo healthcheck (make -C demo release-check)"
+	@echo "  make -C demo up-symfony8 | down-symfony8 | test-symfony8   (see make -C demo help)"
 
 build:
 	$(COMPOSE) build --no-cache
@@ -161,6 +197,12 @@ setup-hooks:
 BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 # Optional: monorepo helper absent on standalone GitHub Actions checkout (REQ-MAKE-009).
 -include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk
+ifeq ($(wildcard $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk),)
+# Standalone checkout: composer update in the bundle container, then in each demo (REQ-MAKE-008 contract).
+update-deps: ensure-up
+	$(COMPOSE) exec -T $(SERVICE_PHP) composer update --no-interaction
+	@for d in demo/symfony*/; do [ -f "$$d/Makefile" ] && $(MAKE) -C "$$d" update-deps || true; done
+endif
 
 check-no-cursor-coauthor:
 	@chmod +x .scripts/check-no-cursor-coauthor.sh

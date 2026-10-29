@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/vault-bundle`  
-**Last audited**: 2026-10-20
+**Last audited**: 2026-10-29
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -55,6 +55,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Repository/VaultFolderRepositoryInterface.php` | Repository contract | FR-REPO-001 |
 | `Repository/VaultGrantRepositoryInterface.php` | Repository contract | FR-REPO-001 |
 | `Repository/VaultItemRepositoryInterface.php` | Repository contract | FR-REPO-001 |
+| `Repository/VaultItemFolderCounterInterface.php` | Optional batch folder counter contract | FR-REPO-001 |
+| `Repository/VaultItemPaginatorInterface.php` | Optional database pagination contract for the manage lists (REQ-PERF-001) | FR-REPO-001 |
 | `Repository/VaultSettingsRepositoryInterface.php` | Repository contract | FR-REPO-001 |
 | `Repository/VaultTagRepositoryInterface.php` | Repository contract | FR-REPO-001 |
 | `Repository/ResolvesEntityManagerTrait.php` | Per-call EntityManager resolution; reopens a closed EM (worker-safe) | FR-REPO-002, FR-WORKER-001 |
@@ -196,6 +198,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/vault/_flashes.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/_grants_table.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/_item_row_actions.html.twig` | Manage UI template | FR-VIEW-005 |
+| `Resources/views/vault/_pagination.html.twig` | Manage UI template (list pager) | FR-VIEW-005 |
 | `Resources/views/vault/_page_header.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/_password_generator.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/_share_form_fields.html.twig` | Manage UI template | FR-VIEW-005 |

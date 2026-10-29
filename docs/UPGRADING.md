@@ -57,6 +57,39 @@
 
 ## Unreleased
 
+From **1.13.0**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+What changes for hosts:
+
+- **Lists are paginated.** The items, shared and trash pages now show 50 entries per page with previous / next links
+  (`?page=N`). To keep the previous single-page behaviour for small vaults, raise the limit (max 1000):
+
+  ```yaml
+  nowo_vault:
+      pagination:
+          per_page: 1000
+  ```
+
+  Overridden `items.html.twig` / `shared.html.twig` / `trash.html.twig` keep working but show only the first page
+  until you add `{% include '@NowoVaultBundle/vault/_pagination.html.twig' with {pagination: pagination|default(null), routeName: routes.items.name} %}`
+  (use `routes.shared.name` / `routes.trash.name` on those pages). Search results are unchanged (capped at 50).
+- **Custom item repository** (`VaultItemRepositoryInterface` alias replaced): nothing to do; implement the new
+  optional `VaultItemPaginatorInterface` to page in the database instead of in PHP.
+- **`VaultItemListQueryEvent` overrides** are returned as given (not sliced): page them in your listener if needed.
+- **Browser extension:** `/logins` decrypts at most `browser_extension.max_login_items` (default 1000) login items per
+  lookup. Raise it if a single user really has more login items.
+- **Logs:** with a logger (MonologBundle) the bundle now writes info / notice / warning / error records for extension
+  logins, grant changes, purges, runtime config changes and re-encryption (see `docs/SECURITY.md#logging`; no secrets).
+  Silence them with a Monolog channel / level filter if unwanted.
+- **Routes:** declared with `#[Route]` attributes but still loaded only through `type: nowo_vault`; keep your
+  `config/routes/nowo_vault.yaml` as is and do **not** add an `attribute` import of the bundle controllers.
+- **Clock:** token expiry uses `Psr\Clock\ClockInterface` when registered (FrameworkBundle + `symfony/clock`); a
+  host `MockClock` in tests now also drives extension token expiry.
+
 ## To 1.13.0
 
 From **1.12.0**:

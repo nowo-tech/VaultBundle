@@ -9,6 +9,7 @@
 - [Sharing](#sharing)
 - [Read-only access](#read-only-access)
 - [Events](#events)
+- [Lists and pagination](#lists-and-pagination)
 - [Twig overrides](#twig-overrides)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
 - [Translations](#translations)
@@ -72,13 +73,60 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 | `FOLDER_ACCESS_CHECK` | Folder ACL |
 | `GRANT_LIST_QUERY` | Limit users/teams (groups) in share UI for items and folders |
 
+## Lists and pagination
+
+The items, shared and trash pages are paginated (`?page=N`, `nowo_vault.pagination.per_page`, default 50; see [CONFIGURATION.md](CONFIGURATION.md#pagination)). Own / folder / tag / trash lists page in the database (Doctrine `Paginator`, tags fetch-joined, so the page costs a constant number of queries); shared items are loaded through the grant ids and sliced in PHP; search results stay capped at 50 and are not paginated. A custom `VaultItemRepositoryInterface` keeps working: implement `VaultItemPaginatorInterface` to page in the database, otherwise the lister slices the full list. Items returned by a `VaultEvents::ITEM_LIST_QUERY` override are used as given (your listener owns paging).
+
+The browser extension `/logins` lookup decrypts at most `browser_extension.max_login_items` login items (default 1000, own items first, most recently updated first) and logs a warning when the limit truncates the scan.
+
 ## Twig overrides
 
 The bundle registers **`@NowoVaultBundle/`**. Application files under **`templates/bundles/NowoVaultBundle/`** win over vendor (`TwigPathsPass`).
 
-**Freeze rule:** a full-file override hides vendor updates for that path until you delete or merge it. Prefer **`templates.layout`** + **`css_framework`** over copying every manage page.
+**Freeze rule:** an application file at the override path always wins and will **not** pick up vendor changes for that path until you remove or merge it. Prefer **`templates.layout`** + **`css_framework`** (and the per-page `templates.*` keys in [CONFIGURATION.md](CONFIGURATION.md#templates)) over copying every manage page.
 
-Copy templates to `templates/bundles/NowoVaultBundle/vault/` only when you must customise that page.
+Registration: `TwigPathsPass` prepends `templates/bundles/NowoVaultBundle/` (when it exists) and appends the bundle's `src/Resources/views` to the `NowoVaultBundle` namespace, so overrides are searched first. It is always active (the manage UI is not optional).
+
+**Upgrade-safe customisation (preferred → last resort):**
+
+| Depth | How | On a bundle update |
+|-------|-----|--------------------|
+| No Twig fork | `templates.layout` (host shell / bridge), `css_framework`, CSS on `nowo-ui-*` / `nowo-vault-*` classes | Every vendor template fix applies automatically |
+| Surgical override | Copy one partial (e.g. `vault/_item_row_actions.html.twig`) or point a single `templates.<page>` key at your own file that `{% extends %}` the vendor page and overrides one block with `{{ parent() }}` | Only that file is frozen |
+| Full-file override | Copy a page into `templates/bundles/NowoVaultBundle/<subpath>` | That `<subpath>` is frozen until you delete or merge it |
+
+**Procedure**
+
+1. Pick the `<subpath>` from the table below.
+2. Create `templates/bundles/NowoVaultBundle/<subpath>` in the application (same relative path and filename).
+3. Clear the cache in dev if needed: `php bin/console cache:clear`.
+4. Treat the copy as a fork: it no longer receives vendor changes for that path.
+
+**Recovering upstream after a freeze:** delete (or rename aside) the app override, clear the Twig cache, then re-apply only the surgical customisations you still need. Diff against the new vendor file under `vendor/nowo-tech/vault-bundle/src/Resources/views/` before re-copying.
+
+**Overridable `<subpath>` values** (relative to `src/Resources/views`):
+
+| `<subpath>` | Purpose |
+|-------------|---------|
+| `layout.html.twig` | Default outer HTML shell (`templates.layout`); replace via config rather than overriding |
+| `vault/base.html.twig` | Manage base: flashes, page header, `body` block, `vault.css` / `vault.js` |
+| `vault/home.html.twig` | Landing page (item types, password generator, runtime config link) |
+| `vault/items.html.twig` | Items list with folders, tags, search and pager |
+| `vault/shared.html.twig` | Items shared with the user (pager) |
+| `vault/trash.html.twig` | Trashed items with restore / purge forms (pager) |
+| `vault/item_form.html.twig` | Create / edit / view form of one item |
+| `vault/share.html.twig` | Share form + existing grants of an item or folder |
+| `vault/runtime_config.html.twig` | Database-backed runtime configuration screen |
+| `vault/_flashes.html.twig` | Flash messages partial |
+| `vault/_page_header.html.twig` | Page title / actions header partial |
+| `vault/_item_row_actions.html.twig` | Row action buttons (view, edit, share, trash) |
+| `vault/_grants_table.html.twig` | Grants table with revoke forms |
+| `vault/_share_form_fields.html.twig` | Share form fields (grantee picker, permission) |
+| `vault/_password_generator.html.twig` | Password generator widget |
+| `vault/_pagination.html.twig` | Previous / next pager of the list pages |
+| `Form/vault_item_form_theme.html.twig` | Form theme of the item form (per-type layouts) |
+
+Renaming or removing a `<subpath>` or a stable `{% block %}` is treated as a breaking change and is listed in [UPGRADING.md](UPGRADING.md).
 
 Manage pages extend `@NowoVaultBundle/vault/base.html.twig`, which stacks `vault.css` / `vault.js` with `{{ parent() }}` on `stylesheets` / `javascripts` (REQ-UI-001). Point `templates.layout` at the host layout (or a bridge) so chrome comes from the project without forking every page.
 

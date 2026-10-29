@@ -6,6 +6,7 @@
 - [Access control](#access-control)
 - [Browser extension API](#browser-extension-api)
 - [Secrets and CLI](#secrets-and-cli)
+- [Logging](#logging)
 - [Accepted residuals (REQ-SEC-004)](#accepted-residuals-req-sec-004)
 - [Release checklist (12.4.1)](#release-checklist-1241)
 
@@ -44,6 +45,23 @@ Default: **creator-only**. Extend via:
 - Never commit `VAULT_ENCRYPTION_KEY` or production `.env`
 - Demo `.env.example` uses a placeholder key for local use only
 - `nowo:vault:reencrypt --old-key=…` / `--new-key=…` may expose key material on the process argv — **prefer `--old-key-file` / `--new-key-file`** (file wins when both argv and file options are set). Rotate shell history after any argv use.
+
+## Logging
+
+The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service; no-op when none is registered). Every record carries `bundle: nowo_vault` and an `action` key; context holds identifiers and counters only.
+
+| Event | Level | Context |
+|-------|-------|---------|
+| Extension login rejected (bad credentials / account or Vault role denied) | notice | `reason` only — **never** the submitted username or password |
+| Extension token issued / all tokens of a user revoked | info | `user_id`, `count` |
+| `/logins` lookup truncated by `max_login_items` | warning | `user_id`, `available`, `scanned` |
+| Grant created / updated / revoked | info | `resource_type`, `resource_id`, `grantee_type`, `grantee_id`, `permission` |
+| Item / folder purged | info | `item_id` / `folder_id` |
+| Runtime configuration updated / reset | notice | changed top-level **keys** and `encryption_key_change` (bool) — never the values |
+| `nowo:vault:reencrypt` started / finished / rejected / failed; key persisted to DB | info / error / notice | `dry_run`, `include_deleted`, counters, error message (no key material) |
+| `nowo:vault:extension-tokens:purge` | info | `count` |
+
+Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, notes, attachments, card data), item titles, Bearer tokens or their hashes, usernames typed in the extension, session ids. Route your Monolog handlers so these records do not reach third parties you would not trust with resource ids.
 
 ## Accepted residuals (REQ-SEC-004)
 

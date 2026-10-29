@@ -8,19 +8,26 @@ endif
 DOCKER_COMPOSE = $(COMPOSE)
 SERVICE_PHP = php
 
-.PHONY: help ensure-env up down build install database database-empty shell test test-http-e2e update-bundle fixtures update-deps vault-purge-tokens vault-reencrypt-dry-run vault-reencrypt vault-reencrypt-persist vault-rotation-demo
+.PHONY: help ensure-env up down restart build install setup database database-empty shell test test-coverage test-http-e2e verify update-bundle fixtures update-deps vault-purge-tokens vault-reencrypt-dry-run vault-reencrypt vault-reencrypt-persist vault-rotation-demo
 
 help:
 	@echo "Vault Bundle — Symfony 8.1 Demo"
 	@echo ""
 	@echo "  up             Start demo (FrankenPHP, port from .env)"
 	@echo "  down           Stop containers"
+	@echo "  restart        Stop and start the demo again"
+	@echo "  build          Rebuild demo images"
+	@echo "  ensure-up      Start the demo only when it is not running (and seed demo items)"
 	@echo "  install        Install Composer dependencies"
+	@echo "  setup          Create DB, run migrations and load fixtures"
 	@echo "  database       Create DB and run migrations"
 	@echo "  database-empty Drop DB, migrate, reload fixtures (wipe shares)"
 	@echo "  fixtures       Load demo user (auto-login, no password needed)"
 	@echo "  shell          Open shell in PHP container"
 	@echo "  test           Run demo PHPUnit tests (kernel E2E)"
+	@echo "  test-coverage  Demo PHPUnit tests with coverage (needs pcov/xdebug in the image)"
+	@echo "  verify         HTTP healthcheck of the running demo (expects 200/302 on /tools/vault)"
+	@echo "  update-deps    composer update inside the demo"
 	@echo "  test-http-e2e  Run HTTP E2E against running FrankenPHP (requires make up)"
 	@echo "  test-e2e       Playwright e2e against the demo (REQ-DEMO-013)"
 	@echo "  demo-screenshots Recapture README WebP screenshots (docs/images/demo)"
@@ -58,6 +65,10 @@ up: ensure-env
 down:
 	@$(COMPOSE) down
 
+restart:
+	@$(MAKE) --no-print-directory down
+	@$(MAKE) --no-print-directory up
+
 build:
 	@$(COMPOSE) build
 
@@ -66,6 +77,12 @@ install:
 
 database:
 	@$(COMPOSE) exec -T $(SERVICE_PHP) composer database
+
+# Schema + demo fixtures on the running demo (idempotent; fixtures are appended).
+setup:
+	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:database:create --if-not-exists
+	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:migrations:migrate --no-interaction
+	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:fixtures:load --no-interaction --append
 
 database-empty:
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:database:drop --force --if-exists
@@ -83,6 +100,22 @@ shell:
 
 test: update-bundle
 	@$(COMPOSE) exec -T $(SERVICE_PHP) vendor/bin/phpunit --exclude-group http-e2e --testsuite unit,integration
+
+# The demo image ships no coverage driver by default; without pcov/xdebug the tests still run, without a report.
+test-coverage: update-bundle
+	@if $(COMPOSE) exec -T $(SERVICE_PHP) php -m | grep -qiE '^(pcov|xdebug)$$'; then \
+		$(COMPOSE) exec -T -e XDEBUG_MODE=coverage $(SERVICE_PHP) vendor/bin/phpunit --exclude-group http-e2e --testsuite unit,integration --coverage-text; \
+	else \
+		echo "No pcov/xdebug in the demo image: running the tests without coverage (bundle coverage: make -C ../.. test-coverage)."; \
+		$(COMPOSE) exec -T $(SERVICE_PHP) vendor/bin/phpunit --exclude-group http-e2e --testsuite unit,integration; \
+	fi
+
+# Healthcheck: the manage UI answers 200 (auto-login) or 302 (login redirect) on the configured PORT.
+verify:
+	@PORT=$$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
+	[ -z "$$PORT" ] && PORT=$$(grep -E '^PORT=' .env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
+	CODE=$$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$${PORT:-8023}/tools/vault"); \
+	case "$$CODE" in 200|302) echo "Demo healthcheck OK (HTTP $$CODE)";; *) echo "Demo healthcheck failed (HTTP $$CODE)"; exit 1;; esac
 
 test-http-e2e: update-bundle
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:database:drop --force --if-exists
@@ -160,4 +193,10 @@ demo-screenshots: ensure-up
 
 # REQ-MAKE-008: update-deps (REQ-MAKE-008)
 # Optional: monorepo helper absent on standalone GitHub Actions checkout (REQ-MAKE-009).
--include $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../../.scripts/Makefile.demo-update-deps.mk)
+DEMO_UPDATE_DEPS_MK := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../../.scripts/Makefile.demo-update-deps.mk)
+-include $(DEMO_UPDATE_DEPS_MK)
+ifeq ($(wildcard $(DEMO_UPDATE_DEPS_MK)),)
+# Standalone checkout: same contract (start the demo, composer update inside it).
+update-deps: ensure-up
+	@$(COMPOSE) exec -T -e COMPOSER_MEMORY_LIMIT=-1 $(SERVICE_PHP) composer update --no-interaction
+endif

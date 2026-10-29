@@ -11,6 +11,8 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 - [Attachments](#attachments)
 - [Password field](#password-field)
 - [Routes](#routes)
+- [Pagination](#pagination)
+- [Clock and logger](#clock-and-logger)
 - [Templates](#templates)
 - [Look-and-feel (REQ-UI-001)](#look-and-feel-req-ui-001)
 - [Firewall](#firewall)
@@ -89,7 +91,27 @@ nowo_vault:
 
 ## Routes
 
-All routes are configurable under `nowo_vault.routes` (see `Configuration.php` defaults). Loader type: `nowo_vault`.
+All routes are configurable under `nowo_vault.routes` and `nowo_vault.browser_extension.routes` (`path` + `name` per key; see `Configuration.php` defaults) and `route_prefix` is prepended to every path. Import them once with the loader type `nowo_vault` (see [INSTALLATION.md](INSTALLATION.md)).
+
+Each controller action declares its route with a Symfony `#[Route]` attribute (REQ-SF-004): HTTP methods, requirements, the default path / name and the configuration key (`options: {nowo_vault_route: <key>}`). The `nowo_vault` loader reads those attributes and applies the configured `path` / `name`, so the attribute defaults equal the configuration defaults and existing overrides keep working. Do **not** import `vendor/nowo-tech/vault-bundle/src/Controller/` as an `attribute` resource: that would register the routes a second time with the default paths, ignoring your configuration.
+
+## Pagination
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `pagination.per_page` | `50` | Items per page on the items, shared and trash lists (`?page=N`, 1–1000). Search results are capped at 50 and not paginated |
+
+```yaml
+nowo_vault:
+    pagination:
+        per_page: 25
+```
+
+## Clock and logger
+
+Services that compare times (extension token expiry and last-use touch) use the `Psr\Clock\ClockInterface` service when the host registers one (FrameworkBundle does with `symfony/clock`), so tests can freeze time; without it they use the system clock. Doctrine entities still stamp `createdAt` / `updatedAt` / `deletedAt` with the system time (entities cannot receive services, REQ-ORM-001); `VaultExtensionToken::isExpired()` / `touch()` accept an optional `$now`.
+
+Sensitive operations log through the injected `logger` service (`Psr\Log\LoggerInterface`, default Monolog channel `app` when MonologBundle is installed; nothing is logged without a logger). See [SECURITY.md](SECURITY.md#logging) for what is and is not logged.
 
 ## Templates
 
@@ -206,6 +228,7 @@ Optional Chrome/Firefox extension API (Bearer token auth, not session CSRF). See
 |--------|---------|-------------|
 | `browser_extension.enabled` | `false` | Register extension API routes |
 | `browser_extension.token_ttl` | `86400` | Bearer token lifetime (seconds, min 60) |
+| `browser_extension.max_login_items` | `1000` | Upper bound of login items (own first, most recently updated first, then shared) decrypted per `/logins` lookup (REQ-PERF-001). A warning is logged when the limit truncates the scan |
 | `browser_extension.authenticator` | null | Custom `VaultBrowserExtensionAuthenticatorInterface` service id |
 | `browser_extension.user_provider` | null | User provider for the default password authenticator |
 | `browser_extension.firewall` | null | Firewall whose user checker the default authenticator runs (`security.user_checker.<firewall>`: the firewall `user_checker`, or its chain incl. UserKit's account-status checker). Null = auto: the firewall named `main` if present, else the first firewall with security enabled. An unknown firewall fails at container compile time. Ignored when `user_checker` is set |

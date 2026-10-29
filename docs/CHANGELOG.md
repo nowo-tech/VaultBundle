@@ -42,6 +42,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Paginated manage lists, logging of sensitive operations, injectable clock, attribute-declared routes and full
+coverage of `src/`. See [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **Pagination (REQ-PERF-001).** The items, shared and trash pages show `nowo_vault.pagination.per_page` items
+  (default **50**) with a `?page=N` pager (`vault/_pagination.html.twig`, translated in the 7 locales). Own / folder /
+  tag / trash lists page in the database through the new optional `VaultItemPaginatorInterface` (implemented by the
+  Doctrine repository with Doctrine's `Paginator`, tags fetch-joined); custom repositories without it are sliced in
+  PHP. `VaultItemLister::list()` gains optional `page` / `perPage` arguments (null = full list, as before).
+- **`browser_extension.max_login_items`** (default 1000): upper bound of login items decrypted per `/logins`
+  lookup; a warning is logged when it truncates the scan.
+- **Logging (REQ-OBS-001).** Optional `Psr\Log\LoggerInterface` in the extension auth service, grant service, trash
+  service, runtime config writer, login resolver and both commands: rejected / successful extension logins, token
+  revocation, grant changes, purges, runtime config changes (keys only), re-encryption runs. No credentials, keys,
+  payloads or titles are logged; policy in `docs/SECURITY.md#logging`.
+- **Clock (REQ-DI-001).** Extension token expiry and last-use touch read an injected `Psr\Clock\ClockInterface`
+  (system clock fallback); `VaultExtensionToken::isExpired()` / `touch()` accept an optional `$now`.
+- Demo Makefile: `restart`, `setup`, `test-coverage`, `verify` and a standalone `update-deps`; root `update-deps`
+  fallback for standalone checkouts (REQ-MAKE-003 / REQ-MAKE-008).
+
+### Changed
+
+- **Routes are declared with `#[Route]` attributes on the controllers (REQ-SF-004)** (`#[AsController]` too). The
+  `nowo_vault` loader now reads those attributes and still applies `routes.*` / `browser_extension.routes.*` paths,
+  names and `route_prefix`; the generated collection (names, paths, methods, requirements, controllers) is unchanged
+  (locked by `VaultRouteLoaderAttributesTest`). Routes are added in controller declaration order.
+- New runtime requirements: `psr/clock`, `psr/log`, `symfony/clock` (already installed transitively by Symfony).
+- PHP coverage gate measures **all of `src/`** (only `src/Resources` excluded): the controller, repository, form,
+  Doctrine, routing, command and DI exclusions were removed and the missing tests added; CI now fails below 100%
+  (`scripts/check-coverage.php`). Vitest measures every TypeScript source (99.69% lines) with thresholds in
+  `vitest.config.ts`, run by a new CI job (REQ-TEST-003).
+- `make help` lists targets in the canonical block order (REQ-MAKE-001); every public class and method in `src/`
+  has a PHPDoc description (REQ-CS-001).
+
+### Documentation
+
+- USAGE: lists and pagination; Twig overrides with the freeze rule, upgrade-safe depths, procedure, recovery and the
+  table of every overridable `<subpath>` (REQ-TWIG-001). CONFIGURATION: routes, pagination, clock and logger.
+  README: numeric PHP / TS coverage (REQ-TEST-007).
+
 ## [1.13.0] - 2026-10-28
 
 Vault: no raw translation keys in item forms, password widget copy or generator labels. See [UPGRADING](UPGRADING.md#to-1130).

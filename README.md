@@ -81,16 +81,17 @@ The screenshot at the top of this README comes from this demo (fixture data only
 
 ## Tests and coverage
 
+- **PHP: 100%** lines (3376/3376 of `src/`, PHPUnit unit + integration + kernel E2E suites; only `src/Resources` — Twig, translations, config, built assets — is outside the measure). Gate: `make test-coverage-100` / CI fail below 100%.
+- **TS/JS: 99.69%** lines (326/327; 95.28% branches) over every TypeScript source of `src/Resources/assets/src` and `extension/src` (Vitest + jsdom). Gate: thresholds in `vitest.config.ts` (lines 98%), enforced by `pnpm run test:coverage` locally and in CI.
+- **Python:** N/A (no Python code).
+
 ```bash
 make test              # PHPUnit
-make test-ts           # Vitest
-make test-coverage     # PHP coverage report
+make test-coverage     # PHP coverage report (text + clover + HTML)
+make test-coverage-100 # Same, failing below 100% lines
+make test-ts           # Vitest with coverage thresholds
 make release-check     # Full pre-release QA
 ```
-
-The `test-coverage-100` / `release-check` gate targets **100% line coverage on the measured subset of `src/`** (see `phpunit.xml.dist`). Controllers, repositories, forms, and Doctrine listeners are **excluded** from that metric; they are covered by E2E and integration tests instead. New services and domain logic under `src/Service/`, `src/Security/`, etc. must remain fully covered to pass release checks.
-
-Run `make test-coverage` and `make test-ts` for current PHP and TS coverage percentages.
 
 ## License
 
