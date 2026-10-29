@@ -9,10 +9,16 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use SortDirection;
 
+/**
+ * Doctrine ORM implementation of the vault folder repository.
+ */
 final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepositoryInterface
 {
     use ResolvesEntityManagerTrait;
 
+    /**
+     * Creates the repository with the entity manager and an optional registry / manager name.
+     */
     public function __construct(
         private EntityManagerInterface $entityManager,
         private ?ManagerRegistry $registry = null,
@@ -20,23 +26,35 @@ final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepo
     ) {
     }
 
+    /**
+     * Persists and flushes the folder.
+     */
     public function save(VaultFolder $folder): void
     {
         $this->em()->persist($folder);
         $this->em()->flush();
     }
 
+    /**
+     * Removes and flushes the folder.
+     */
     public function remove(VaultFolder $folder): void
     {
         $this->em()->remove($folder);
         $this->em()->flush();
     }
 
+    /**
+     * Finds a folder by id.
+     */
     public function findById(string $id): ?VaultFolder
     {
         return $this->em()->find(VaultFolder::class, $id);
     }
 
+    /**
+     * Returns the creator's folders, optionally including trashed ones.
+     */
     public function findByCreator(object $creator, bool $includeDeleted = false): array
     {
         $qb = $this->em()->createQueryBuilder()
@@ -54,6 +72,9 @@ final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepo
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * Returns the creator's trashed folders.
+     */
     public function findDeletedByCreator(object $creator): array
     {
         /* @var list<VaultFolder> */

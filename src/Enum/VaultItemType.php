@@ -19,6 +19,8 @@ enum VaultItemType: string
     case Document       = 'document';
 
     /**
+     * Returns every item type value.
+     *
      * @return list<string>
      */
     public static function values(): array
@@ -27,6 +29,8 @@ enum VaultItemType: string
     }
 
     /**
+     * Returns the item types that represent identity documents.
+     *
      * @return list<VaultItemType>
      */
     public static function documentTypes(): array

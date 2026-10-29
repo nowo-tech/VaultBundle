@@ -1,0 +1,29 @@
+{#
+    Pager for the items / shared / trash lists (REQ-PERF-001).
+    Expects: pagination = {page, pages, perPage, total, query} (or null to render nothing) and routeName.
+    Rendered only when the list spans more than one page.
+#}
+{% if pagination is defined and pagination is not null and pagination.pages > 1 %}
+    {% set baseQuery = pagination.query|default({}) %}
+    <div class="card-footer d-flex align-items-center nowo-vault-pagination">
+        <p class="m-0 text-secondary">
+            {{ 'vault.pagination.summary'|trans({'%page%': pagination.page, '%pages%': pagination.pages, '%total%': pagination.total}, 'NowoVaultBundle') }}
+        </p>
+        <ul class="pagination m-0 ms-auto">
+            <li class="page-item{{ pagination.page <= 1 ? ' disabled' }}">
+                {% if pagination.page > 1 %}
+                    <a class="page-link" href="{{ path(routeName, baseQuery|merge({page: pagination.page - 1})) }}" rel="prev">{{ 'vault.pagination.previous'|trans({}, 'NowoVaultBundle') }}</a>
+                {% else %}
+                    <span class="page-link" aria-disabled="true">{{ 'vault.pagination.previous'|trans({}, 'NowoVaultBundle') }}</span>
+                {% endif %}
+            </li>
+            <li class="page-item{{ pagination.page >= pagination.pages ? ' disabled' }}">
+                {% if pagination.page < pagination.pages %}
+                    <a class="page-link" href="{{ path(routeName, baseQuery|merge({page: pagination.page + 1})) }}" rel="next">{{ 'vault.pagination.next'|trans({}, 'NowoVaultBundle') }}</a>
+                {% else %}
+                    <span class="page-link" aria-disabled="true">{{ 'vault.pagination.next'|trans({}, 'NowoVaultBundle') }}</span>
+                {% endif %}
+            </li>
+        </ul>
+    </div>
+{% endif %}

@@ -15,6 +15,8 @@ use function is_string;
 final readonly class VaultRuntimeConfigResolver
 {
     /**
+     * Creates the resolver from the runtime configuration provider and the YAML baseline.
+     *
      * @param array<string, mixed> $yamlBaseline
      */
     public function __construct(
@@ -53,6 +55,9 @@ final readonly class VaultRuntimeConfigResolver
         return is_string($key) && $key !== '';
     }
 
+    /**
+     * Returns the active base64 encryption key (database value when enabled and set, otherwise the YAML key).
+     */
     public function resolveEncryptionKeyBase64(): string
     {
         if ($this->databaseEnabled) {

@@ -13,16 +13,25 @@ final class RuntimeKeyVaultPayloadCryptographer implements VaultPayloadCryptogra
 
     private ?string $activeKeyBase64 = null;
 
+    /**
+     * Creates the cryptographer that resolves the active encryption key at runtime.
+     */
     public function __construct(
         private readonly VaultRuntimeConfigResolver $configResolver,
     ) {
     }
 
+    /**
+     * Encrypts the payload with the currently configured key.
+     */
     public function encrypt(array $payload): string
     {
         return $this->delegate()->encrypt($payload);
     }
 
+    /**
+     * Decrypts the ciphertext with the currently configured key.
+     */
     public function decrypt(string $ciphertext): array
     {
         return $this->delegate()->decrypt($ciphertext);

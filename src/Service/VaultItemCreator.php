@@ -11,8 +11,14 @@ use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+/**
+ * Creates vault items with an encrypted payload.
+ */
 final readonly class VaultItemCreator
 {
+    /**
+     * Creates the service with the item repository and the payload cryptographer.
+     */
     public function __construct(
         private VaultItemRepositoryInterface $itemRepository,
         private VaultPayloadCryptographerInterface $cryptographer,
@@ -20,6 +26,8 @@ final readonly class VaultItemCreator
     }
 
     /**
+     * Encrypts the payload and persists a new item.
+     *
      * @param array<string, mixed> $payload
      */
     public function create(

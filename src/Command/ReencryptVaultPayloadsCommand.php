@@ -8,6 +8,8 @@ use InvalidArgumentException;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer;
 use Nowo\VaultBundle\Service\VaultPayloadReencryptionService;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -26,13 +28,20 @@ use function trim;
 #[AsCommand(
     name: 'nowo:vault:reencrypt',
     description: 'Re-encrypt all vault item payloads from an old encryption key to a new one.',
+    /*
+     * Console command that re-encrypts every vault item payload from an old encryption key to a new one.
+     */
 )]
 final class ReencryptVaultPayloadsCommand extends Command
 {
+    /**
+     * Stores the re-encryption service, the runtime config writer, the config-storage flag and the optional logger.
+     */
     public function __construct(
         private readonly VaultPayloadReencryptionService $reencryptionService,
         private readonly VaultRuntimeConfigWriter $configWriter,
         private readonly bool $databaseEnabled,
+        private readonly ?LoggerInterface $logger = null,
     ) {
         parent::__construct();
     }
@@ -124,6 +133,10 @@ final class ReencryptVaultPayloadsCommand extends Command
             $progress->start();
         }
 
+        // Key material is never logged (REQ-OBS-001): only the mode and the counters.
+        $logContext = ['bundle' => 'nowo_vault', 'action' => 'reencrypt', 'dry_run' => $dryRun, 'include_deleted' => !$input->getOption('skip-trash')];
+        $this->logger()->info('Vault payload re-encryption started.', $logContext);
+
         try {
             $result = $this->reencryptionService->reencrypt(
                 oldKeyBase64: $oldKey,
@@ -145,9 +158,11 @@ final class ReencryptVaultPayloadsCommand extends Command
             $progress?->finish();
             $io->newLine(2);
             $io->error($exception->getMessage());
+            $this->logger()->error('Vault payload re-encryption rejected.', $logContext + ['error' => $exception->getMessage()]);
 
             return Command::INVALID;
         } catch (RuntimeException $exception) {
+            $this->logger()->error('Vault payload re-encryption failed.', $logContext + ['error' => $exception->getMessage()]);
             $progress?->finish();
             $io->newLine(2);
             $io->error($exception->getMessage());
@@ -157,6 +172,11 @@ final class ReencryptVaultPayloadsCommand extends Command
 
         $progress?->finish();
         $io->newLine(2);
+        $this->logger()->info('Vault payload re-encryption finished.', $logContext + [
+            'total'     => $result->totalItems,
+            'processed' => $result->processedItems,
+            'skipped'   => $result->skippedItems,
+        ]);
 
         if ($result->totalItems === 0) {
             $io->warning('No vault items found.');
@@ -180,6 +200,7 @@ final class ReencryptVaultPayloadsCommand extends Command
 
         if ($persistKey) {
             $this->configWriter->update(['encryption_key' => $newKey]);
+            $this->logger()->notice('Vault encryption key replaced in database runtime config.', ['bundle' => 'nowo_vault', 'action' => 'reencrypt_persist_key']);
             $io->success('Stored the new encryption key in database runtime config.');
         } elseif (!$dryRun) {
             $io->writeln('Remember to update nowo_vault.encryption_key (YAML/env or runtime config) if it still points to the old key.');
@@ -197,13 +218,10 @@ final class ReencryptVaultPayloadsCommand extends Command
     {
         $fileOptionValue = $input->getOption($fileOption);
         if (is_string($fileOptionValue) && $fileOptionValue !== '') {
-            if (!is_readable($fileOptionValue)) {
-                throw new InvalidArgumentException(sprintf('Key file "%s" is not readable.', $fileOptionValue));
-            }
-
-            $contents = file_get_contents($fileOptionValue);
+            // One guard for "not readable" and "read failed" (the latter only happens in a race after is_readable()).
+            $contents = is_readable($fileOptionValue) ? file_get_contents($fileOptionValue) : false;
             if ($contents === false) {
-                throw new InvalidArgumentException(sprintf('Unable to read key file "%s".', $fileOptionValue));
+                throw new InvalidArgumentException(sprintf('Key file "%s" is not readable.', $fileOptionValue));
             }
 
             return trim($contents);
@@ -233,5 +251,13 @@ final class ReencryptVaultPayloadsCommand extends Command
         $io->error('Non-interactive re-encryption requires --force (or use --dry-run to verify only).');
 
         return false;
+    }
+
+    /**
+     * Returns the injected logger (REQ-OBS-001), or a no-op logger when none is wired.
+     */
+    private function logger(): LoggerInterface
+    {
+        return $this->logger ?? new NullLogger();
     }
 }

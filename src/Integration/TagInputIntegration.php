@@ -11,6 +11,9 @@ final class TagInputIntegration
 {
     public const TAG_INPUT_TYPE = 'Nowo\\TagInputBundle\\Form\\TagType';
 
+    /**
+     * Whether the tag input bundle form type is installed.
+     */
     public static function isAvailable(): bool
     {
         return class_exists(self::TAG_INPUT_TYPE);

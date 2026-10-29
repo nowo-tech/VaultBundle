@@ -32,6 +32,8 @@ final class DatabaseDriver
     public const PLATFORM_OTHER = 'other';
 
     /**
+     * Returns every supported persistence driver identifier.
+     *
      * @return list<string>
      */
     public static function drivers(): array
@@ -44,6 +46,8 @@ final class DatabaseDriver
     }
 
     /**
+     * Returns every supported database platform identifier.
+     *
      * @return list<string>
      */
     public static function platforms(): array
@@ -61,6 +65,8 @@ final class DatabaseDriver
     }
 
     /**
+     * Returns the relational (Doctrine ORM) database platform identifiers.
+     *
      * @return list<string>
      */
     public static function relationalPlatforms(): array
@@ -76,6 +82,9 @@ final class DatabaseDriver
         ];
     }
 
+    /**
+     * Resolves the effective persistence driver for a configured driver and platform.
+     */
     public static function resolveDriver(string $driver, string $platform): string
     {
         if ($driver !== self::DOCTRINE_ORM) {

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Command;
 
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -16,11 +18,18 @@ use function sprintf;
 #[AsCommand(
     name: 'nowo:vault:extension-tokens:purge',
     description: 'Remove expired browser extension Bearer tokens from the database.',
+    /*
+     * Console command that deletes expired browser extension Bearer tokens.
+     */
 )]
 final class PurgeExtensionTokensCommand extends Command
 {
+    /**
+     * Stores the token repository and the optional logger.
+     */
     public function __construct(
         private readonly VaultExtensionTokenRepositoryInterface $tokenRepository,
+        private readonly ?LoggerInterface $logger = null,
     ) {
         parent::__construct();
     }
@@ -30,6 +39,7 @@ final class PurgeExtensionTokensCommand extends Command
         $io = new SymfonyStyle($input, $output);
         // @igor-ignore - Console command; not executed in FrankenPHP worker HTTP requests.
         $removed = $this->tokenRepository->removeExpired();
+        ($this->logger ?? new NullLogger())->info('Expired vault browser extension tokens purged.', ['bundle' => 'nowo_vault', 'action' => 'extension_tokens_purge', 'count' => $removed]);
 
         $io->success(sprintf('Removed %d expired extension token(s).', $removed));
 

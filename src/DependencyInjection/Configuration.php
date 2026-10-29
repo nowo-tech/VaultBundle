@@ -18,6 +18,9 @@ final class Configuration implements ConfigurationInterface
     /** @var list<string> */
     public const CSS_FRAMEWORKS = ['bootstrap', 'bootstrap4', 'bootstrap5', 'tailwind', 'foundation', 'custom', 'tabler', 'none'];
 
+    /**
+     * Builds the `nowo_vault` configuration tree.
+     */
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder(self::ALIAS);
@@ -58,6 +61,18 @@ final class Configuration implements ConfigurationInterface
                             ->info('Symfony cache pool service id used for merged runtime config.')
                             ->defaultValue('cache.app')
                             ->cannotBeEmpty()
+                        ->end()
+                    ->end()
+                ->end()
+                ->arrayNode('pagination')
+                    ->info('Page size of the manage lists (items, shared, trash) — REQ-PERF-001.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->integerNode('per_page')
+                            ->info('Items shown per page on the items / shared / trash lists (?page=N). Search results stay capped at 50.')
+                            ->defaultValue(50)
+                            ->min(1)
+                            ->max(1000)
                         ->end()
                     ->end()
                 ->end()
@@ -322,6 +337,11 @@ final class Configuration implements ConfigurationInterface
                             ->info('Bearer token lifetime in seconds.')
                             ->defaultValue(86_400)
                             ->min(60)
+                        ->end()
+                        ->integerNode('max_login_items')
+                            ->info('Upper bound of login items (own + shared, most recently updated first) decrypted per /logins lookup — REQ-PERF-001.')
+                            ->defaultValue(1000)
+                            ->min(1)
                         ->end()
                         ->scalarNode('authenticator')
                             ->info('Service id implementing VaultBrowserExtensionAuthenticatorInterface. Null uses the default password authenticator.')

@@ -11,9 +11,14 @@ use Symfony\Component\HttpFoundation\Response;
 use function in_array;
 use function str_starts_with;
 
+/**
+ * Builds browser extension API responses with the configured CORS headers.
+ */
 final readonly class VaultBrowserExtensionResponseFactory
 {
     /**
+     * Creates the factory with the allowed CORS origins and the kernel environment.
+     *
      * @param list<string> $allowedOrigins use '*' to allow any origin (development only)
      */
     public function __construct(
@@ -23,6 +28,8 @@ final readonly class VaultBrowserExtensionResponseFactory
     }
 
     /**
+     * Returns a JSON response with CORS headers applied for the request origin.
+     *
      * @param array<string, mixed>|list<mixed>|null $data
      */
     public function json(mixed $data, int $status, ?Request $request = null): JsonResponse
@@ -33,6 +40,9 @@ final readonly class VaultBrowserExtensionResponseFactory
         return $response;
     }
 
+    /**
+     * Returns an empty-body response with CORS headers applied for the request origin.
+     */
     public function empty(int $status, ?Request $request = null): Response
     {
         $response = new Response('', $status);

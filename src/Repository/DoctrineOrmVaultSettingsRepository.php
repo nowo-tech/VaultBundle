@@ -9,10 +9,16 @@ use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultSettings;
 
+/**
+ * Doctrine ORM implementation of the runtime settings repository.
+ */
 final readonly class DoctrineOrmVaultSettingsRepository implements VaultSettingsRepositoryInterface
 {
     use ResolvesEntityManagerTrait;
 
+    /**
+     * Creates the repository with the entity manager and an optional registry / manager name.
+     */
     public function __construct(
         private EntityManagerInterface $entityManager,
         private ?ManagerRegistry $registry = null,
@@ -20,6 +26,9 @@ final readonly class DoctrineOrmVaultSettingsRepository implements VaultSettings
     ) {
     }
 
+    /**
+     * Finds the settings row of a scope, or null.
+     */
     public function findByScope(string $scope = VaultSettings::DEFAULT_SCOPE): ?VaultSettings
     {
         /* @var VaultSettings|null */
@@ -33,6 +42,9 @@ final readonly class DoctrineOrmVaultSettingsRepository implements VaultSettings
             ->getOneOrNullResult();
     }
 
+    /**
+     * Persists and flushes the settings.
+     */
     public function save(VaultSettings $settings): void
     {
         $this->em()->persist($settings);

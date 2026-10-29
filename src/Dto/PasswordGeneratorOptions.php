@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Dto;
 
+/**
+ * Options for the vault password generator (mode, length and character classes).
+ */
 final class PasswordGeneratorOptions
 {
+    /**
+     * Creates the options with the given mode, length and character classes.
+     */
     public function __construct(
         public string $mode = 'characters',
         public int $length = 20,
@@ -17,6 +23,8 @@ final class PasswordGeneratorOptions
     }
 
     /**
+     * Builds options from a loosely typed array, falling back to defaults for missing keys.
+     *
      * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self

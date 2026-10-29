@@ -7,11 +7,14 @@ namespace Nowo\VaultBundle\Controller;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
 use Nowo\VaultBundle\Dto\VaultBrowserExtensionLoginMatch;
+use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionLoginResolver;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\AsController;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 use function is_array;
@@ -19,8 +22,12 @@ use function is_array;
 /**
  * Browser extension API (Bearer token auth, CORS). Session CSRF tokens do not apply here.
  */
+#[AsController]
 final readonly class VaultBrowserExtensionController
 {
+    /**
+     * Stores the auth service, login resolver, response factory and login rate limiter.
+     */
     public function __construct(
         private VaultBrowserExtensionAuthService $authService,
         private VaultBrowserExtensionLoginResolver $loginResolver,
@@ -29,6 +36,10 @@ final readonly class VaultBrowserExtensionController
     ) {
     }
 
+    /**
+     * Exchanges username/password for a Bearer token (rate limited, CORS preflight aware).
+     */
+    #[Route(path: '/api/vault/extension/login', name: 'nowo_vault_extension_login', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'login'], methods: ['POST', 'OPTIONS'])]
     public function login(Request $request): Response
     {
         if ($request->isMethod('OPTIONS')) {
@@ -62,6 +73,10 @@ final readonly class VaultBrowserExtensionController
         return $this->responseFactory->json($result, Response::HTTP_OK, $request);
     }
 
+    /**
+     * Returns the login items matching the requested domain for the Bearer token's user.
+     */
+    #[Route(path: '/api/vault/extension/logins', name: 'nowo_vault_extension_logins', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'logins'], methods: ['GET', 'OPTIONS'])]
     public function logins(Request $request): Response
     {
         if ($request->isMethod('OPTIONS')) {
@@ -88,6 +103,10 @@ final readonly class VaultBrowserExtensionController
         ], Response::HTTP_OK, $request);
     }
 
+    /**
+     * Revokes the presented Bearer token.
+     */
+    #[Route(path: '/api/vault/extension/logout', name: 'nowo_vault_extension_logout', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'logout'], methods: ['POST', 'OPTIONS'])]
     public function logout(Request $request): Response
     {
         if ($request->isMethod('OPTIONS')) {
@@ -102,6 +121,10 @@ final readonly class VaultBrowserExtensionController
         return $this->responseFactory->empty(Response::HTTP_NO_CONTENT, $request);
     }
 
+    /**
+     * Returns the identity of the Bearer token's user.
+     */
+    #[Route(path: '/api/vault/extension/me', name: 'nowo_vault_extension_me', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'me'], methods: ['GET', 'OPTIONS'])]
     public function me(Request $request): Response
     {
         if ($request->isMethod('OPTIONS')) {

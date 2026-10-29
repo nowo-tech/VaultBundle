@@ -11,5 +11,8 @@ namespace Nowo\VaultBundle\BrowserExtension;
  */
 interface VaultBrowserExtensionAuthenticatorInterface
 {
+    /**
+     * Verifies browser extension login credentials and returns the authentication outcome.
+     */
     public function authenticate(string $username, string $password): VaultBrowserExtensionAuthResult;
 }

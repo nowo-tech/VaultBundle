@@ -27,6 +27,9 @@ final class VaultActionType extends AbstractType
 {
     use FormOptionsTrait;
 
+    /**
+     * Adds the configured hidden fields (skipping empty values) to the single-button action form.
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         /** @var array<string, string|null> $hidden */
@@ -40,6 +43,9 @@ final class VaultActionType extends AbstractType
         }
     }
 
+    /**
+     * Configures CSRF protection and the hidden_fields / csrf_token_id options.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
@@ -53,6 +59,9 @@ final class VaultActionType extends AbstractType
         $resolver->setAllowedTypes('hidden_fields', 'array');
     }
 
+    /**
+     * Returns an empty block prefix so fields keep their plain names.
+     */
     #[Override]
     public function getBlockPrefix(): string
     {

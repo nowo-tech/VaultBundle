@@ -181,3 +181,7 @@ vault:
         generate_key: Generate VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Max attachment size (bytes)
         password_level: Password strength level
+    pagination:
+        previous: 'Previous'
+        next: 'Next'
+        summary: 'Page %page% of %pages% (%total% entries)'

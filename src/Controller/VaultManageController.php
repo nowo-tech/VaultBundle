@@ -26,6 +26,7 @@ use Nowo\VaultBundle\Form\VaultPasswordGeneratorType;
 use Nowo\VaultBundle\Form\VaultShareType;
 use Nowo\VaultBundle\Repository\VaultItemFolderCounterInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
+use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
@@ -47,17 +48,29 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\AsController;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_filter;
 use function base64_encode;
+use function ceil;
 use function in_array;
 use function is_string;
+use function max;
 
+/**
+ * Manage Web UI: item, folder, tag, sharing, trash and password generator actions.
+ */
+#[AsController]
 final class VaultManageController extends AbstractController
 {
     use VaultCsrfTrait;
 
+    /**
+     * Stores the access, listing, persistence, crypto and configuration collaborators of the manage UI.
+     */
     public function __construct(
         private readonly VaultAccessCheckerInterface $accessChecker,
         private readonly VaultAccessGuard $accessGuard,
@@ -79,9 +92,14 @@ final class VaultManageController extends AbstractController
         /** @var array{enabled: bool, cache_pool: string} */
         private readonly array $configStorage,
         private readonly bool $allowUnauthenticated = false,
+        private readonly int $perPage = 50,
     ) {
     }
 
+    /**
+     * Renders the vault landing page (item types, password generator, runtime config link).
+     */
+    #[Route(path: '/tools/vault', name: 'nowo_vault_index', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'index'], methods: ['GET'])]
     public function home(): Response
     {
         $this->denyUnlessFeature('list');
@@ -95,6 +113,32 @@ final class VaultManageController extends AbstractController
             'configStorageAdminRoute' => $this->configStorageAdminRoute(),
             'generatorForm'           => $this->createForm(VaultPasswordGeneratorType::class)->createView(),
         ]);
+    }
+
+    /**
+     * Reads the 1-based `page` query parameter; anything below 1 or non-numeric falls back to page 1.
+     */
+    private function requestedPage(Request $request): int
+    {
+        return max(1, $request->query->getInt('page', 1));
+    }
+
+    /**
+     * Builds the pager view model consumed by `vault/_pagination.html.twig` (REQ-PERF-001).
+     *
+     * @param array<string, string|null> $query extra query parameters kept on the page links (null values dropped)
+     *
+     * @return array{page: int, pages: int, perPage: int, total: int, query: array<string, string>}
+     */
+    private function pagination(int $page, int $total, array $query = []): array
+    {
+        return [
+            'page'    => $page,
+            'pages'   => max(1, (int) ceil($total / $this->perPage)),
+            'perPage' => $this->perPage,
+            'total'   => $total,
+            'query'   => array_filter($query, static fn (?string $value): bool => $value !== null && $value !== ''),
+        ];
     }
 
     private function configStorageAdminRoute(): ?string
@@ -116,6 +160,10 @@ final class VaultManageController extends AbstractController
         return null;
     }
 
+    /**
+     * Renders the paginated items list with folder / tag filters and search.
+     */
+    #[Route(path: '/tools/vault/items', name: 'nowo_vault_items', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'items'], methods: ['GET'])]
     public function items(Request $request): Response
     {
         $this->denyUnlessFeature('list');
@@ -125,11 +173,14 @@ final class VaultManageController extends AbstractController
         $folderId    = $request->query->getString('folder') ?: null;
         $searchQuery = trim($request->query->getString('q'));
         $tagId       = $request->query->getString('tag') ?: null;
+        $page        = $this->requestedPage($request);
         $result      = $this->itemLister->list(
             $user,
             $folderId,
             searchQuery: $searchQuery !== '' ? $searchQuery : null,
             tagId: $tagId,
+            page: $page,
+            perPage: $searchQuery !== '' ? null : $this->perPage,
         );
         $folders   = $this->folderService->listForCreator($user);
         $tags      = $this->tagService->listForCreator($user);
@@ -158,6 +209,7 @@ final class VaultManageController extends AbstractController
             'activeFolder'     => $folderId,
             'activeTag'        => $tagId,
             'searchQuery'      => $searchQuery,
+            'pagination'       => $searchQuery !== '' ? null : $this->pagination($page, $result['total'], ['folder' => $folderId, 'tag' => $tagId]),
             'routes'           => $this->routes(),
             'dashboardRoute'   => $this->dashboardRoute(),
             'itemTypes'        => VaultItemType::cases(),
@@ -178,17 +230,23 @@ final class VaultManageController extends AbstractController
         ]);
     }
 
-    public function shared(): Response
+    /**
+     * Renders the paginated list of items shared with the user.
+     */
+    #[Route(path: '/tools/vault/shared', name: 'nowo_vault_shared', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'shared'], methods: ['GET'])]
+    public function shared(Request $request): Response
     {
         $this->denyUnlessFeature('list');
 
         /** @var UserInterface $user */
         $user   = $this->getUser();
-        $result = $this->itemLister->list($user, sharedOnly: true);
+        $page   = $this->requestedPage($request);
+        $result = $this->itemLister->list($user, sharedOnly: true, page: $page, perPage: $this->perPage);
 
         return $this->render($this->templates()['shared'], [
             'layout'         => $this->templates()['layout'],
             'items'          => $result['items'],
+            'pagination'     => $this->pagination($page, $result['total']),
             'readOnlyMap'    => $this->accessGuard->resolveReadOnlyMap($user, $result['items']),
             'routes'         => $this->routes(),
             'dashboardRoute' => $this->dashboardRoute(),
@@ -196,17 +254,23 @@ final class VaultManageController extends AbstractController
         ]);
     }
 
-    public function trash(): Response
+    /**
+     * Renders the paginated trash with restore and purge forms.
+     */
+    #[Route(path: '/tools/vault/trash', name: 'nowo_vault_trash', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'trash'], methods: ['GET'])]
+    public function trash(Request $request): Response
     {
         $this->denyUnlessFeature('list');
 
         /** @var UserInterface $user */
         $user   = $this->getUser();
-        $result = $this->itemLister->list($user, trashOnly: true);
+        $page   = $this->requestedPage($request);
+        $result = $this->itemLister->list($user, trashOnly: true, page: $page, perPage: $this->perPage);
 
         return $this->render($this->templates()['trash'], [
             'layout'         => $this->templates()['layout'],
             'items'          => $result['items'],
+            'pagination'     => $this->pagination($page, $result['total']),
             'routes'         => $this->routes(),
             'dashboardRoute' => $this->dashboardRoute(),
             'restoreForms'   => $this->actionForms($result['items'], 'item_restore', 'vault_restore_'),
@@ -214,6 +278,10 @@ final class VaultManageController extends AbstractController
         ]);
     }
 
+    /**
+     * Renders and handles the creation form of a new item of the given type.
+     */
+    #[Route(path: '/tools/vault/items/new/{type}', name: 'nowo_vault_item_new', requirements: ['type' => '[a-z_]+'], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_new'], methods: ['GET', 'POST'])]
     public function newItem(Request $request, string $type): Response
     {
         $this->denyUnlessFeature('create');
@@ -264,11 +332,19 @@ final class VaultManageController extends AbstractController
         ]);
     }
 
+    /**
+     * Renders and handles the edit form of an item (read-only when the user may only view it).
+     */
+    #[Route(path: '/tools/vault/items/{id}/edit', name: 'nowo_vault_item_edit', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_edit'], methods: ['GET', 'POST'])]
     public function editItem(Request $request, string $id): Response
     {
         return $this->renderItemForm($request, $id, viewMode: false);
     }
 
+    /**
+     * Renders an item in read-only view mode.
+     */
+    #[Route(path: '/tools/vault/items/{id}', name: 'nowo_vault_item_view', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_view'], methods: ['GET'])]
     public function viewItem(string $id): Response
     {
         return $this->renderItemForm(null, $id, viewMode: true);
@@ -343,6 +419,10 @@ final class VaultManageController extends AbstractController
         ]);
     }
 
+    /**
+     * Revokes one grant of an item (CSRF protected).
+     */
+    #[Route(path: '/tools/vault/items/{id}/grants/{grantId}/revoke', name: 'nowo_vault_item_grant_revoke', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT, 'grantId' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_grant_revoke'], methods: ['POST'])]
     public function revokeItemGrant(Request $request, string $id, string $grantId): RedirectResponse
     {
         $this->denyUnlessFeature('access');
@@ -362,6 +442,10 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['item_share']['name'], ['id' => $item->getId()]);
     }
 
+    /**
+     * Revokes one grant of a folder (CSRF protected).
+     */
+    #[Route(path: '/tools/vault/folders/{id}/grants/{grantId}/revoke', name: 'nowo_vault_folder_grant_revoke', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT, 'grantId' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'folder_grant_revoke'], methods: ['POST'])]
     public function revokeFolderGrant(Request $request, string $id, string $grantId): RedirectResponse
     {
         $this->denyUnlessFeature('access');
@@ -381,6 +465,10 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['items']['name'], ['folder' => $folder->getId()]);
     }
 
+    /**
+     * Moves an item to the trash (CSRF protected).
+     */
+    #[Route(path: '/tools/vault/items/{id}/trash', name: 'nowo_vault_item_trash', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_trash'], methods: ['POST'])]
     public function trashItem(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('revoke');
@@ -394,6 +482,10 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['items']['name']);
     }
 
+    /**
+     * Restores a trashed item (CSRF protected).
+     */
+    #[Route(path: '/tools/vault/items/{id}/restore', name: 'nowo_vault_item_restore', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_restore'], methods: ['POST'])]
     public function restoreItem(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('revoke');
@@ -407,6 +499,10 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['trash']['name']);
     }
 
+    /**
+     * Permanently deletes a trashed item (CSRF protected).
+     */
+    #[Route(path: '/tools/vault/items/{id}/purge', name: 'nowo_vault_item_purge', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_purge'], methods: ['POST'])]
     public function purgeItem(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('revoke');
@@ -420,6 +516,10 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['trash']['name']);
     }
 
+    /**
+     * Creates a folder for the current user (CSRF protected).
+     */
+    #[Route(path: '/tools/vault/folders', name: 'nowo_vault_folder_create', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'folder_create'], methods: ['POST'])]
     public function createFolder(Request $request): RedirectResponse
     {
         $this->denyUnlessFeature('create');
@@ -440,6 +540,10 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['items']['name']);
     }
 
+    /**
+     * Renders and handles the share form of an item.
+     */
+    #[Route(path: '/tools/vault/items/{id}/share', name: 'nowo_vault_item_share', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_share'], methods: ['GET', 'POST'])]
     public function shareItem(Request $request, string $id): Response
     {
         $this->denyUnlessFeature('access');
@@ -472,6 +576,10 @@ final class VaultManageController extends AbstractController
         );
     }
 
+    /**
+     * Renders and handles the share form of a folder.
+     */
+    #[Route(path: '/tools/vault/folders/{id}/share', name: 'nowo_vault_folder_share', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'folder_share'], methods: ['GET', 'POST'])]
     public function shareFolder(Request $request, string $id): Response
     {
         $this->denyUnlessFeature('access');
@@ -502,6 +610,10 @@ final class VaultManageController extends AbstractController
         );
     }
 
+    /**
+     * Moves a folder to the trash and detaches its items (CSRF protected).
+     */
+    #[Route(path: '/tools/vault/folders/{id}/trash', name: 'nowo_vault_folder_trash', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'folder_trash'], methods: ['POST'])]
     public function trashFolder(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('revoke');
@@ -516,6 +628,10 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['items']['name']);
     }
 
+    /**
+     * Deletes one of the user's tags (CSRF protected).
+     */
+    #[Route(path: '/tools/vault/tags/{id}/delete', name: 'nowo_vault_tag_delete', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'tag_delete'], methods: ['POST'])]
     public function deleteTag(Request $request, string $id): RedirectResponse
     {
         $this->denyUnlessFeature('list');
@@ -536,6 +652,10 @@ final class VaultManageController extends AbstractController
         return $this->redirectToRoute($this->routes()['items']['name'], $this->itemsListRedirectParams($request, $id));
     }
 
+    /**
+     * Generates a password with the submitted options and returns it as JSON (CSRF protected).
+     */
+    #[Route(path: '/tools/vault/password/generate', name: 'nowo_vault_password_generate', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'password_generate'], methods: ['POST'])]
     public function generatePassword(Request $request): JsonResponse
     {
         $this->denyUnlessFeature('access');
@@ -633,6 +753,11 @@ final class VaultManageController extends AbstractController
         }
     }
 
+    /**
+     * Throws AccessDenied unless the access checker grants the feature to the current user.
+     *
+     * @param 'access'|'create'|'list'|'revoke' $feature
+     */
     private function denyUnlessFeature(string $feature): void
     {
         if ($this->allowUnauthenticated) {
@@ -646,7 +771,7 @@ final class VaultManageController extends AbstractController
             'create' => $this->accessChecker->canCreate($user instanceof UserInterface ? $user : null),
             'list'   => $this->accessChecker->canList($user instanceof UserInterface ? $user : null),
             'revoke' => $this->accessChecker->canRevoke($user instanceof UserInterface ? $user : null),
-            default  => false,
+            // No default arm: an unknown feature name is a programming error (UnhandledMatchError), never an allow.
         };
 
         if (!$allowed) {

@@ -8,9 +8,14 @@ use Nowo\VaultBundle\Entity\VaultItem;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 
+/**
+ * Event dispatched after listing vault items; listeners may filter the items and total.
+ */
 final class VaultItemListResultEvent extends Event
 {
     /**
+     * Creates the event with the listed items and total.
+     *
      * @param list<VaultItem> $items
      */
     public function __construct(
@@ -20,12 +25,17 @@ final class VaultItemListResultEvent extends Event
     ) {
     }
 
+    /**
+     * Returns the user viewing the list.
+     */
     public function getViewer(): UserInterface
     {
         return $this->viewer;
     }
 
     /**
+     * Returns the listed items.
+     *
      * @return list<VaultItem>
      */
     public function getItems(): array
@@ -34,6 +44,8 @@ final class VaultItemListResultEvent extends Event
     }
 
     /**
+     * Replaces the listed items.
+     *
      * @param list<VaultItem> $items
      */
     public function setItems(array $items): void
@@ -42,11 +54,17 @@ final class VaultItemListResultEvent extends Event
         $this->items = $items;
     }
 
+    /**
+     * Returns the total item count.
+     */
     public function getTotal(): int
     {
         return $this->total;
     }
 
+    /**
+     * Replaces the total item count.
+     */
     public function setTotal(int $total): void
     {
         // @igor-ignore - Request-scoped Event DTO; not a shared worker service.

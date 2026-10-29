@@ -35,12 +35,18 @@ final class VaultItemFormType extends AbstractType
 {
     use FormOptionsTrait;
 
+    /**
+     * Creates the form type with the runtime configuration provider and the translator.
+     */
     public function __construct(
         private readonly VaultRuntimeConfigProvider $runtimeConfig,
         private readonly TranslatorInterface $translator,
     ) {
     }
 
+    /**
+     * Adds the common fields and the type-specific fields for every vault item type.
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $optional = static fn (array $extra = []): array => array_merge(['required' => false, 'empty_data' => ''], $extra);
@@ -218,6 +224,9 @@ final class VaultItemFormType extends AbstractType
         ]);
     }
 
+    /**
+     * Configures the data class, translation domain and the folders option.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([

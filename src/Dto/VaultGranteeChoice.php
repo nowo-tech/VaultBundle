@@ -13,6 +13,9 @@ use Nowo\VaultBundle\Enum\GranteeType;
  */
 final readonly class VaultGranteeChoice
 {
+    /**
+     * Creates a grantee choice (user or team) with its display label.
+     */
     public function __construct(
         public GranteeType $type,
         public string $id,
@@ -20,11 +23,17 @@ final readonly class VaultGranteeChoice
     ) {
     }
 
+    /**
+     * Returns the choice key in the form type:id.
+     */
     public function getKey(): string
     {
         return self::buildKey($this->type, $this->id);
     }
 
+    /**
+     * Builds the type:id key for a grantee.
+     */
     public static function buildKey(GranteeType $type, string $id): string
     {
         return $type->value . ':' . $id;

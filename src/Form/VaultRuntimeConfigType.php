@@ -37,6 +37,9 @@ final class VaultRuntimeConfigType extends AbstractType
 
     public const PASSWORD_LEVELS = ['weak', 'medium', 'strong'];
 
+    /**
+     * Adds the runtime configuration fields; the encryption key field depends on the encryption_key_mode option.
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $mode = $options['encryption_key_mode'];
@@ -81,6 +84,9 @@ final class VaultRuntimeConfigType extends AbstractType
         ]);
     }
 
+    /**
+     * Uses the field names as DOM ids and keeps a read-only encryption key out of the submitted data.
+     */
     public function finishView(FormView $view, FormInterface $form, array $options): void
     {
         foreach ($view->children as $name => $child) {
@@ -92,6 +98,9 @@ final class VaultRuntimeConfigType extends AbstractType
         }
     }
 
+    /**
+     * Configures CSRF protection and the encryption_key_mode option.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
@@ -107,6 +116,9 @@ final class VaultRuntimeConfigType extends AbstractType
         $resolver->setAllowedTypes('encryption_key_display', 'string');
     }
 
+    /**
+     * Returns an empty block prefix so fields keep their plain names.
+     */
     #[Override]
     public function getBlockPrefix(): string
     {

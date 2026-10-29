@@ -20,6 +20,9 @@ final class PasswordStrengthIntegration
 
     public const PACKAGE = 'nowo-tech/password-strength-bundle';
 
+    /**
+     * Whether nowo-tech/password-strength-bundle is installed.
+     */
     public static function isAvailable(): bool
     {
         return class_exists(self::PASSWORD_STRENGTH_TYPE);
@@ -37,6 +40,8 @@ final class PasswordStrengthIntegration
     }
 
     /**
+     * Whether the given Composer version string is PasswordStrengthBundle 2.8 or newer.
+     *
      * @param string|null $version Installed version as reported by Composer (e.g. `2.10.0.0`, `dev-main`)
      */
     public static function versionSupportsUiTranslationDomain(?string $version): bool

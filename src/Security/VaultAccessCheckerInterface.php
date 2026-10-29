@@ -13,11 +13,23 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 interface VaultAccessCheckerInterface
 {
+    /**
+     * Whether the user may access the vault UI.
+     */
     public function canAccess(?UserInterface $user = null): bool;
 
+    /**
+     * Whether the user may create items.
+     */
     public function canCreate(?UserInterface $user = null): bool;
 
+    /**
+     * Whether the user may list items.
+     */
     public function canList(?UserInterface $user = null): bool;
 
+    /**
+     * Whether the user may revoke grants and delete items.
+     */
     public function canRevoke(?UserInterface $user = null): bool;
 }

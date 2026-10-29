@@ -18,12 +18,18 @@ final class VaultBundle extends Bundle
 {
     public const TRANSLATION_DOMAIN = 'NowoVaultBundle';
 
+    /**
+     * Registers the bundle compiler passes.
+     */
     public function build(ContainerBuilder $container): void
     {
         $container->addCompilerPass(new TwigPathsPass());
         $container->addCompilerPass(new BrowserExtensionUserCheckerPass());
     }
 
+    /**
+     * Returns the bundle DI extension (alias nowo_vault).
+     */
     public function getContainerExtension(): ExtensionInterface
     {
         if (!$this->extension instanceof ExtensionInterface) {

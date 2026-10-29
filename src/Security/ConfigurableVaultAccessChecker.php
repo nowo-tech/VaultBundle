@@ -13,12 +13,18 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class ConfigurableVaultAccessChecker implements VaultAccessCheckerInterface
 {
+    /**
+     * Creates the checker with Symfony Security and the runtime configuration provider.
+     */
     public function __construct(
         private Security $security,
         private VaultRuntimeConfigProvider $runtimeConfig,
     ) {
     }
 
+    /**
+     * Whether the user holds an admin role or one of the configured access_roles.
+     */
     public function canAccess(?UserInterface $user = null): bool
     {
         if ($this->isAdmin($user)) {
@@ -28,6 +34,9 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
         return $this->hasAnyRole($this->securityRoles()['access_roles'], $user);
     }
 
+    /**
+     * Whether the user holds an admin role or one of the configured create_roles.
+     */
     public function canCreate(?UserInterface $user = null): bool
     {
         if ($this->isAdmin($user)) {
@@ -37,6 +46,9 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
         return $this->hasAnyRole($this->securityRoles()['create_roles'], $user);
     }
 
+    /**
+     * Whether the user holds an admin role or one of the configured list_roles.
+     */
     public function canList(?UserInterface $user = null): bool
     {
         if ($this->isAdmin($user)) {
@@ -46,6 +58,9 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
         return $this->hasAnyRole($this->securityRoles()['list_roles'], $user);
     }
 
+    /**
+     * Whether the user holds an admin role or one of the configured delete_roles.
+     */
     public function canRevoke(?UserInterface $user = null): bool
     {
         if ($this->isAdmin($user)) {

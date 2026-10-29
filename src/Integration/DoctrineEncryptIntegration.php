@@ -16,6 +16,9 @@ final class DoctrineEncryptIntegration
 
     public const ENCRYPT_UTIL = EncryptUtil::class;
 
+    /**
+     * Whether nowo-tech/doctrine-encrypt-bundle is installed.
+     */
     public static function isAvailable(): bool
     {
         return class_exists(self::ENCRYPTED_ATTRIBUTE);

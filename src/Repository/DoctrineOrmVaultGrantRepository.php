@@ -11,10 +11,16 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Support\UserIdResolver;
 
+/**
+ * Doctrine ORM implementation of the vault grant repository.
+ */
 final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantRepositoryInterface
 {
     use ResolvesEntityManagerTrait;
 
+    /**
+     * Creates the repository with the entity manager and an optional registry / manager name.
+     */
     public function __construct(
         private EntityManagerInterface $entityManager,
         private ?ManagerRegistry $registry = null,
@@ -22,18 +28,27 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
     ) {
     }
 
+    /**
+     * Persists and flushes the grant.
+     */
     public function save(VaultGrant $grant): void
     {
         $this->em()->persist($grant);
         $this->em()->flush();
     }
 
+    /**
+     * Removes and flushes the grant.
+     */
     public function remove(VaultGrant $grant): void
     {
         $this->em()->remove($grant);
         $this->em()->flush();
     }
 
+    /**
+     * Returns the grants on a resource.
+     */
     public function findByResource(VaultResourceType $type, string $resourceId): array
     {
         /* @var list<VaultGrant> */
@@ -48,6 +63,9 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             ->getResult();
     }
 
+    /**
+     * Returns the grants given to a grantee.
+     */
     public function findByGrantee(GranteeType $type, string $granteeId): array
     {
         /* @var list<VaultGrant> */
@@ -62,6 +80,9 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             ->getResult();
     }
 
+    /**
+     * Finds the grant of a grantee on a resource, or null.
+     */
     public function findOne(
         VaultResourceType $resourceType,
         string $resourceId,
@@ -84,12 +105,18 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             ->getOneOrNullResult();
     }
 
+    /**
+     * Finds a grant by id.
+     */
     public function findById(string $id): ?VaultGrant
     {
         /* @var VaultGrant|null */
         return $this->em()->find(VaultGrant::class, $id);
     }
 
+    /**
+     * Counts grants per resource id for the given resources.
+     */
     public function countByResources(VaultResourceType $type, array $resourceIds): array
     {
         if ($resourceIds === []) {
@@ -116,6 +143,9 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
         return $counts;
     }
 
+    /**
+     * Returns the deduplicated ids of resources granted to the user directly or through the given teams.
+     */
     public function findGrantedResourceIds(object $user, VaultResourceType $resourceType, array $teamIds = []): array
     {
         $ids    = [];

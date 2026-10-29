@@ -21,6 +21,8 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
 final readonly class DefaultVaultBrowserExtensionAuthenticator implements VaultBrowserExtensionAuthenticatorInterface
 {
     /**
+     * Creates the authenticator backed by the host user provider, password hasher and optional user checker.
+     *
      * @param UserProviderInterface<UserInterface> $userProvider
      */
     public function __construct(
@@ -30,6 +32,9 @@ final readonly class DefaultVaultBrowserExtensionAuthenticator implements VaultB
     ) {
     }
 
+    /**
+     * Verifies the username/password pair against the user provider and password hasher.
+     */
     public function authenticate(string $username, string $password): VaultBrowserExtensionAuthResult
     {
         try {

@@ -10,21 +10,31 @@ use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\Form\VaultRuntimeConfigType;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
+use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\AsController;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function is_string;
 
+/**
+ * Admin screen that edits the database-backed runtime configuration.
+ */
+#[AsController]
 final class VaultRuntimeConfigController extends AbstractController
 {
     use VaultCsrfTrait;
 
     private const SESSION_ENCRYPTION_KEY_ONE_TIME = 'vault.encryption_key.one_time';
 
+    /**
+     * Stores the runtime config collaborators, the config-storage flag and the access settings.
+     */
     public function __construct(
         private readonly VaultRuntimeConfigProvider $configProvider,
         private readonly VaultRuntimeConfigWriter $configWriter,
@@ -36,6 +46,10 @@ final class VaultRuntimeConfigController extends AbstractController
     ) {
     }
 
+    /**
+     * Renders and handles the runtime configuration form.
+     */
+    #[Route(path: '/tools/vault/runtime-config', name: 'nowo_vault_runtime_config', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'runtime_config'], methods: ['GET', 'POST'])]
     public function __invoke(Request $request): Response
     {
         if (!$this->databaseEnabled) {

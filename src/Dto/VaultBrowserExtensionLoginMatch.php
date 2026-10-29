@@ -10,6 +10,8 @@ namespace Nowo\VaultBundle\Dto;
 final readonly class VaultBrowserExtensionLoginMatch
 {
     /**
+     * Creates a login match returned to the browser extension.
+     *
      * @param list<string> $websites
      */
     public function __construct(
@@ -23,6 +25,8 @@ final readonly class VaultBrowserExtensionLoginMatch
     }
 
     /**
+     * Returns the match as a JSON-serialisable array.
+     *
      * @return array<string, mixed>
      */
     public function toArray(): array

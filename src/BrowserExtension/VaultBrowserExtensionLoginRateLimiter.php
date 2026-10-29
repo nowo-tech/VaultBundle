@@ -25,6 +25,9 @@ final readonly class VaultBrowserExtensionLoginRateLimiter
     private const CACHE_PREFIX    = 'nowo_vault_ext_login_';
     private const IP_CACHE_PREFIX = 'nowo_vault_ext_login_ip_';
 
+    /**
+     * Creates the limiter with its cache pool, per IP+username and per IP thresholds and lockout window.
+     */
     public function __construct(
         private CacheItemPoolInterface $cache,
         private int $maxAttempts,
@@ -34,6 +37,9 @@ final readonly class VaultBrowserExtensionLoginRateLimiter
     ) {
     }
 
+    /**
+     * Whether further login attempts from this IP (and username) are currently locked out.
+     */
     public function isLimited(string $clientIp, string $username): bool
     {
         if (!$this->enabled) {
@@ -47,6 +53,9 @@ final readonly class VaultBrowserExtensionLoginRateLimiter
         return $this->maxAttemptsPerIp > 0 && $this->readCount($this->ipCacheKey($clientIp)) >= $this->maxAttemptsPerIp;
     }
 
+    /**
+     * Records a failed login attempt for this IP and username.
+     */
     public function registerFailedAttempt(string $clientIp, string $username): void
     {
         if (!$this->enabled) {
@@ -62,6 +71,9 @@ final readonly class VaultBrowserExtensionLoginRateLimiter
         }
     }
 
+    /**
+     * Clears the failed-attempt counter for this IP and username after a successful login.
+     */
     public function reset(string $clientIp, string $username): void
     {
         if (!$this->enabled) {

@@ -14,12 +14,17 @@ final class VaultExtension extends AbstractExtension implements GlobalsInterface
 {
     public const GLOBAL_CSS_FRAMEWORK = 'nowo_vault_css_framework';
 
+    /**
+     * Creates the extension with the configured CSS framework.
+     */
     public function __construct(
         private readonly string $cssFramework = 'tabler',
     ) {
     }
 
     /**
+     * Exposes the CSS framework as a Twig global.
+     *
      * @return array<string, string>
      */
     public function getGlobals(): array

@@ -35,6 +35,9 @@ final class BrowserExtensionUserCheckerPass implements CompilerPassInterface
 
     private const DEFAULT_FIREWALL = 'main';
 
+    /**
+     * Wires the resolved user checker into the browser extension authenticator and auth service.
+     */
     public function process(ContainerBuilder $container): void
     {
         $this->resolveAuthenticatorChecker($container);

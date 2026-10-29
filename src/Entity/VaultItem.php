@@ -12,6 +12,9 @@ use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\ValueObject\Uuid;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+/**
+ * Doctrine entity for a vault item whose secret payload is stored encrypted (ciphertext).
+ */
 #[ORM\Entity]
 #[ORM\Table(name: 'vault_items')]
 #[ORM\Index(name: 'vault_items_type_idx', columns: ['item_type'])]
@@ -38,6 +41,9 @@ class VaultItem
     #[ORM\InverseJoinColumn(name: 'tag_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     private Collection $tags;
 
+    /**
+     * Creates an item of the given type with its title, creator, ciphertext and optional folder.
+     */
     public function __construct(
         #[ORM\Column(name: 'item_type', type: 'string', length: 32, enumType: VaultItemType::class)]
         private VaultItemType $itemType,
@@ -59,21 +65,33 @@ class VaultItem
         $this->tags      = new ArrayCollection();
     }
 
+    /**
+     * Returns the item UUID.
+     */
     public function getId(): string
     {
         return $this->id;
     }
 
+    /**
+     * Returns the item type.
+     */
     public function getItemType(): VaultItemType
     {
         return $this->itemType;
     }
 
+    /**
+     * Returns the item title (stored in plaintext).
+     */
     public function getTitle(): string
     {
         return $this->title;
     }
 
+    /**
+     * Sets the title and touches the update timestamp.
+     */
     public function setTitle(string $title): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -84,16 +102,25 @@ class VaultItem
         return $this;
     }
 
+    /**
+     * Returns the user that created (owns) the item.
+     */
     public function getCreator(): object
     {
         return $this->creator;
     }
 
+    /**
+     * Returns the folder the item belongs to, or null.
+     */
     public function getFolder(): ?VaultFolder
     {
         return $this->folder;
     }
 
+    /**
+     * Moves the item to another folder (or none) and touches the update timestamp.
+     */
     public function setFolder(?VaultFolder $folder): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -104,11 +131,17 @@ class VaultItem
         return $this;
     }
 
+    /**
+     * Returns the encrypted payload.
+     */
     public function getCiphertext(): string
     {
         return $this->ciphertext;
     }
 
+    /**
+     * Replaces the encrypted payload and touches the update timestamp.
+     */
     public function setCiphertext(string $ciphertext): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -119,16 +152,25 @@ class VaultItem
         return $this;
     }
 
+    /**
+     * Returns when the item was moved to the trash, or null when active.
+     */
     public function getDeletedAt(): ?DateTimeImmutable
     {
         return $this->deletedAt;
     }
 
+    /**
+     * Whether the item is in the trash.
+     */
     public function isDeleted(): bool
     {
         return $this->deletedAt instanceof DateTimeImmutable;
     }
 
+    /**
+     * Moves the item to the trash (soft delete).
+     */
     public function markDeleted(): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -139,6 +181,9 @@ class VaultItem
         return $this;
     }
 
+    /**
+     * Restores the item from the trash.
+     */
     public function restore(): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
@@ -149,17 +194,25 @@ class VaultItem
         return $this;
     }
 
+    /**
+     * Returns the creation timestamp.
+     */
     public function getCreatedAt(): DateTimeImmutable
     {
         return $this->createdAt;
     }
 
+    /**
+     * Returns the last update timestamp.
+     */
     public function getUpdatedAt(): DateTimeImmutable
     {
         return $this->updatedAt;
     }
 
     /**
+     * Returns the tags attached to the item.
+     *
      * @return Collection<int, VaultTag>
      */
     public function getTags(): Collection
@@ -168,6 +221,8 @@ class VaultItem
     }
 
     /**
+     * Replaces the item tags with the given list.
+     *
      * @param list<VaultTag> $tags
      */
     public function setTags(array $tags): self
@@ -183,6 +238,8 @@ class VaultItem
     }
 
     /**
+     * Returns the names of the attached tags.
+     *
      * @return list<string>
      */
     public function getTagNames(): array

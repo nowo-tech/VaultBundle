@@ -55,6 +55,7 @@
                         </tbody>
                     </table>
                 </div>
+                {% include '@NowoVaultBundle/vault/_pagination.html.twig' with {pagination: pagination|default(null), routeName: routes.trash.name} %}
             {% endif %}
         </div>
     </div>

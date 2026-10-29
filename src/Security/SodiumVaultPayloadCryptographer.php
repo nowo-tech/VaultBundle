@@ -26,6 +26,9 @@ final readonly class SodiumVaultPayloadCryptographer implements VaultPayloadCryp
 {
     private string $key;
 
+    /**
+     * Creates the cryptographer from a base64-encoded 32-byte libsodium key (throws on an invalid key).
+     */
     public function __construct(string $encryptionKeyBase64)
     {
         $decoded = base64_decode($encryptionKeyBase64, true);
@@ -36,6 +39,9 @@ final readonly class SodiumVaultPayloadCryptographer implements VaultPayloadCryp
         $this->key = $decoded;
     }
 
+    /**
+     * Generates a new random base64-encoded secretbox key.
+     */
     public static function generateKeyBase64(): string
     {
         $key = sodium_crypto_secretbox_keygen();
@@ -43,6 +49,9 @@ final readonly class SodiumVaultPayloadCryptographer implements VaultPayloadCryp
         return base64_encode($key);
     }
 
+    /**
+     * Encrypts the JSON-encoded payload with a random nonce (base64 of nonce + ciphertext).
+     */
     public function encrypt(array $payload): string
     {
         $json   = json_encode($payload, JSON_THROW_ON_ERROR);
@@ -52,6 +61,9 @@ final readonly class SodiumVaultPayloadCryptographer implements VaultPayloadCryp
         return base64_encode($nonce . $cipher);
     }
 
+    /**
+     * Decrypts and JSON-decodes a payload produced by encrypt() (throws on invalid or tampered input).
+     */
     public function decrypt(string $ciphertext): array
     {
         $raw = base64_decode($ciphertext, true);

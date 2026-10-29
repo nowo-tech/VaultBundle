@@ -10,9 +10,12 @@ use Nowo\VaultBundle\Entity\VaultSettings;
 use Nowo\VaultBundle\Integration\DoctrineEncryptIntegration;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use RuntimeException;
 
 use function array_key_exists;
+use function array_keys;
 use function is_string;
 
 /**
@@ -23,6 +26,8 @@ final readonly class VaultRuntimeConfigWriter
     private bool $encryptionKeyStorageAvailable;
 
     /**
+     * Creates the writer; encryption key storage availability defaults to DoctrineEncrypt detection.
+     *
      * @param bool|null $encryptionKeyStorageAvailable whether vault_settings.encryption_key is encrypted at rest; null detects DoctrineEncryptBundle
      */
     public function __construct(
@@ -30,6 +35,7 @@ final readonly class VaultRuntimeConfigWriter
         private VaultSettingsRepositoryInterface $settingsRepository,
         private VaultRuntimeConfigProvider $configProvider,
         ?bool $encryptionKeyStorageAvailable = null,
+        private ?LoggerInterface $logger = null,
     ) {
         $this->encryptionKeyStorageAvailable = $encryptionKeyStorageAvailable ?? DoctrineEncryptIntegration::isAvailable();
     }
@@ -58,6 +64,8 @@ final readonly class VaultRuntimeConfigWriter
     }
 
     /**
+     * Persists the allowed runtime configuration values to the database and invalidates the cache.
+     *
      * @param array<string, mixed> $values Partial runtime config (see VaultRuntimeConfigSchema)
      */
     public function update(array $values): void
@@ -97,6 +105,14 @@ final readonly class VaultRuntimeConfigWriter
 
         $this->settingsRepository->save($settings);
         $this->configProvider->invalidateCache();
+
+        // Only the changed top-level keys are logged, never their values (the encryption key above all; REQ-OBS-001).
+        ($this->logger ?? new NullLogger())->notice('Vault runtime configuration updated.', [
+            'bundle'                => 'nowo_vault',
+            'action'                => 'runtime_config_update',
+            'keys'                  => array_keys($filtered),
+            'encryption_key_change' => $encryptionKey !== null,
+        ]);
     }
 
     /**
@@ -119,5 +135,6 @@ final readonly class VaultRuntimeConfigWriter
         $settings->setEncryptionKey(null);
         $this->settingsRepository->save($settings);
         $this->configProvider->invalidateCache();
+        ($this->logger ?? new NullLogger())->notice('Vault runtime configuration reset to the YAML baseline.', ['bundle' => 'nowo_vault', 'action' => 'runtime_config_reset']);
     }
 }

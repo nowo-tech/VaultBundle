@@ -12,6 +12,9 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
  */
 final class RuntimeConfiguration implements ConfigurationInterface
 {
+    /**
+     * Builds the configuration tree for the runtime (database-overridable) settings.
+     */
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('nowo_vault_runtime');
@@ -151,6 +154,8 @@ final class RuntimeConfiguration implements ConfigurationInterface
     }
 
     /**
+     * Extracts the runtime-overridable subset from the processed bundle configuration.
+     *
      * @param array<string, mixed> $config
      *
      * @return array<string, mixed>

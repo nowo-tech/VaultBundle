@@ -11,21 +11,33 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final class AllowAllVaultAccessChecker implements VaultAccessCheckerInterface
 {
+    /**
+     * Always allows access to the vault UI.
+     */
     public function canAccess(?UserInterface $user = null): bool
     {
         return true;
     }
 
+    /**
+     * Always allows creating items.
+     */
     public function canCreate(?UserInterface $user = null): bool
     {
         return true;
     }
 
+    /**
+     * Always allows listing items.
+     */
     public function canList(?UserInterface $user = null): bool
     {
         return true;
     }
 
+    /**
+     * Always allows revoking and deleting.
+     */
     public function canRevoke(?UserInterface $user = null): bool
     {
         return true;

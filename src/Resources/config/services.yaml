@@ -50,6 +50,11 @@ services:
             $tagInputEnabled: '%nowo_vault.tag_input_enabled%'
             $configStorage: '%nowo_vault.config_storage%'
             $allowUnauthenticated: '%nowo_vault.security.allow_unauthenticated%'
+            $perPage: '%nowo_vault.pagination.per_page%'
+
+    Nowo\VaultBundle\Service\VaultBrowserExtensionLoginResolver:
+        arguments:
+            $maxLoginItems: '%nowo_vault.browser_extension.max_login_items%'
 
     Nowo\VaultBundle\Controller\VaultRuntimeConfigController:
         public: true

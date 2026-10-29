@@ -27,6 +27,9 @@ use function in_array;
  */
 final readonly class VaultAccessGuard
 {
+    /**
+     * Creates the guard with the grant repository, team resolver and event dispatcher.
+     */
     public function __construct(
         private VaultGrantRepositoryInterface $grantRepository,
         private VaultTeamMembershipResolverInterface $teamMembershipResolver,
@@ -34,6 +37,9 @@ final readonly class VaultAccessGuard
     ) {
     }
 
+    /**
+     * Whether the user may perform the action on the item (ownership, grants and access-check listeners).
+     */
     public function canAccessItem(UserInterface $user, VaultItem $item, VaultAccessAction $action): bool
     {
         $granted = $this->baseItemGrant($user, $item, $action);
@@ -50,6 +56,9 @@ final readonly class VaultAccessGuard
         ;
     }
 
+    /**
+     * Whether the user may perform the action on the folder (ownership, grants and access-check listeners).
+     */
     public function canAccessFolder(UserInterface $user, VaultFolder $folder, VaultAccessAction $action): bool
     {
         $granted = $this->baseFolderGrant($user, $folder, $action);
@@ -60,6 +69,9 @@ final readonly class VaultAccessGuard
         return $event->isGranted();
     }
 
+    /**
+     * Whether listeners mark the item read-only for the user.
+     */
     public function isItemReadOnly(UserInterface $user, VaultItem $item): bool
     {
         if (UserIdResolver::getId($user) === null) {
@@ -73,6 +85,8 @@ final readonly class VaultAccessGuard
     }
 
     /**
+     * Returns the read-only flag per item id for the user.
+     *
      * @param list<VaultItem> $items
      *
      * @return array<string, bool> Map of item id => read-only

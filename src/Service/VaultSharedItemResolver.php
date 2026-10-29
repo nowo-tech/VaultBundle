@@ -17,6 +17,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class VaultSharedItemResolver
 {
+    /**
+     * Creates the resolver with the grant and item repositories and the team resolver.
+     */
     public function __construct(
         private VaultGrantRepositoryInterface $grantRepository,
         private VaultItemRepositoryInterface $itemRepository,
@@ -25,6 +28,8 @@ final readonly class VaultSharedItemResolver
     }
 
     /**
+     * Returns the active items shared with the viewer.
+     *
      * @return list<VaultItem>
      */
     public function resolve(UserInterface $viewer): array
@@ -43,6 +48,8 @@ final readonly class VaultSharedItemResolver
     }
 
     /**
+     * Returns the active items of one type shared with the viewer.
+     *
      * @return list<VaultItem>
      */
     public function resolveByItemType(UserInterface $viewer, VaultItemType $itemType): array

@@ -24,6 +24,9 @@ final class VaultFolderCreateType extends AbstractType
 
     public const CSRF_TOKEN_ID = 'vault_folder_create';
 
+    /**
+     * Adds the folder name field.
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->add('name', TextType::class, [
@@ -33,6 +36,9 @@ final class VaultFolderCreateType extends AbstractType
         ]);
     }
 
+    /**
+     * Configures CSRF protection for the folder creation form.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
@@ -44,6 +50,9 @@ final class VaultFolderCreateType extends AbstractType
         ]);
     }
 
+    /**
+     * Returns an empty block prefix so fields keep their plain names.
+     */
     #[Override]
     public function getBlockPrefix(): string
     {

@@ -35,6 +35,7 @@ use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -51,8 +52,14 @@ use function is_string;
 use function rtrim;
 use function sprintf;
 
+/**
+ * Loads the bundle configuration, registers parameters and wires repositories, security and integrations.
+ */
 final class VaultExtension extends Extension implements PrependExtensionInterface
 {
+    /**
+     * Processes the `nowo_vault` configuration and registers the bundle services and parameters.
+     */
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
@@ -97,6 +104,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $browserExtension = $config['browser_extension'];
         $container->setParameter('nowo_vault.browser_extension.enabled', (bool) $browserExtension['enabled']);
         $container->setParameter('nowo_vault.browser_extension.token_ttl', (int) $browserExtension['token_ttl']);
+        $container->setParameter('nowo_vault.browser_extension.max_login_items', (int) $browserExtension['max_login_items']);
+        $container->setParameter('nowo_vault.pagination.per_page', (int) $config['pagination']['per_page']);
         $container->setParameter('nowo_vault.browser_extension.routes', $browserExtension['routes']);
         $container->setParameter('nowo_vault.browser_extension.cors_allowed_origins', $browserExtension['cors_allowed_origins']);
         $loginRateLimit = $browserExtension['login_rate_limit'];
@@ -140,6 +149,10 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $container->setAlias($interface, $repoClass);
         }
 
+        // Token expiry queries read the host clock when one is registered (REQ-DI-001).
+        $container->getDefinition(DoctrineOrmVaultExtensionTokenRepository::class)
+            ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE));
+
         $container->setDefinition(VaultMetadataListener::class, (new Definition(VaultMetadataListener::class))
             ->setArgument('$itemsTableName', $itemsTable)
             ->setArgument('$foldersTableName', $foldersTable)
@@ -162,7 +175,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setAutowired(false)
             ->setArgument('$databaseEnabled', (bool) $configStorage['enabled'])
             ->setArgument('$settingsRepository', new Reference(VaultSettingsRepositoryInterface::class))
-            ->setArgument('$configProvider', new Reference(VaultRuntimeConfigProvider::class)));
+            ->setArgument('$configProvider', new Reference(VaultRuntimeConfigProvider::class))
+            ->setArgument('$logger', new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE)));
 
         $container->setDefinition(VaultRuntimeConfigResolver::class, (new Definition(VaultRuntimeConfigResolver::class))
             ->setAutowired(false)
@@ -224,6 +238,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
 
     }
 
+    /**
+     * Returns the configuration alias (`nowo_vault`).
+     */
     public function getAlias(): string
     {
         return Configuration::ALIAS;
@@ -249,6 +266,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         return isset($bundles['SecurityBundle']);
     }
 
+    /**
+     * Prepends the asset package, the Doctrine attribute mapping and FormKit / UiKit defaults (host values win).
+     */
     public function prepend(ContainerBuilder $container): void
     {
         $this->prependFormKitDefaults($container);

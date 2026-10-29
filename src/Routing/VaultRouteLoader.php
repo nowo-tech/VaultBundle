@@ -8,21 +8,45 @@ use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Controller\VaultBrowserExtensionController;
 use Nowo\VaultBundle\Controller\VaultManageController;
 use Nowo\VaultBundle\Controller\VaultRuntimeConfigController;
+use ReflectionClass;
+use ReflectionMethod;
 use Symfony\Component\Config\Loader\Loader;
+use Symfony\Component\Routing\Attribute\Route as RouteAttribute;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
+/**
+ * Builds the bundle routes from the controllers' #[Route] attributes (REQ-SF-004).
+ *
+ * Each attribute declares the HTTP methods, requirements and the default path / name of one action, and carries the
+ * configuration key in the {@see self::ROUTE_KEY_OPTION} option. The loader keeps the public configuration contract:
+ * the path and name of every route come from `nowo_vault.routes.<key>` / `nowo_vault.browser_extension.routes.<key>`
+ * (runtime config when enabled) and `route_prefix` is prepended, exactly as before the attributes existed.
+ */
 final class VaultRouteLoader extends Loader
 {
+    /** Route option carrying the `routes.<key>` configuration key of an action. */
+    public const ROUTE_KEY_OPTION = 'nowo_vault_route';
+
+    /** Requirement shared by every `{id}` / `{grantId}` placeholder (UUID). */
+    public const UUID_REQUIREMENT = '[0-9a-f-]{36}';
+
+    /**
+     * Stores the runtime configuration source and the feature flags that decide which controllers are routed.
+     *
+     * @param array<string, array{path: string, name: string}> $browserExtensionRoutes
+     */
     public function __construct(
         private readonly VaultRuntimeConfigProvider $runtimeConfig,
         private readonly bool $configStorageEnabled,
         private readonly bool $browserExtensionEnabled,
-        /** @var array<string, array{path: string, name: string}> */
         private readonly array $browserExtensionRoutes,
     ) {
     }
 
+    /**
+     * Returns the bundle route collection for the `nowo_vault` import type.
+     */
     public function load(mixed $resource, ?string $type = null): RouteCollection
     {
         $config = $this->runtimeConfig->get();
@@ -30,97 +54,63 @@ final class VaultRouteLoader extends Loader
         $routes      = $config['routes'];
         $routePrefix = (string) $config['route_prefix'];
         $collection  = new RouteCollection();
-        $controller  = VaultManageController::class;
 
-        /** @var array<string, array{0: string, 1: list<string>, 2: array<string, string>}> $map */
-        $map = [
-            'index'               => ['home', ['GET'], []],
-            'items'               => ['items', ['GET'], []],
-            'shared'              => ['shared', ['GET'], []],
-            'trash'               => ['trash', ['GET'], []],
-            'item_new'            => ['newItem', ['GET', 'POST'], ['type' => '[a-z_]+']],
-            'item_edit'           => ['editItem', ['GET', 'POST'], ['id' => '[0-9a-f-]{36}']],
-            'item_view'           => ['viewItem', ['GET'], ['id' => '[0-9a-f-]{36}']],
-            'item_trash'          => ['trashItem', ['POST'], ['id' => '[0-9a-f-]{36}']],
-            'item_restore'        => ['restoreItem', ['POST'], ['id' => '[0-9a-f-]{36}']],
-            'item_purge'          => ['purgeItem', ['POST'], ['id' => '[0-9a-f-]{36}']],
-            'item_share'          => ['shareItem', ['GET', 'POST'], ['id' => '[0-9a-f-]{36}']],
-            'item_grant_revoke'   => ['revokeItemGrant', ['POST'], ['id' => '[0-9a-f-]{36}', 'grantId' => '[0-9a-f-]{36}']],
-            'folder_create'       => ['createFolder', ['POST'], []],
-            'folder_trash'        => ['trashFolder', ['POST'], ['id' => '[0-9a-f-]{36}']],
-            'tag_delete'          => ['deleteTag', ['POST'], ['id' => '[0-9a-f-]{36}']],
-            'folder_share'        => ['shareFolder', ['GET', 'POST'], ['id' => '[0-9a-f-]{36}']],
-            'folder_grant_revoke' => ['revokeFolderGrant', ['POST'], ['id' => '[0-9a-f-]{36}', 'grantId' => '[0-9a-f-]{36}']],
-            'password_generate'   => ['generatePassword', ['POST'], []],
-        ];
+        $this->addControllerRoutes($collection, VaultManageController::class, $routes, $routePrefix);
 
-        foreach ($map as $key => [$action, $methods, $requirements]) {
-            $collection->add(
-                $routes[$key]['name'],
-                $this->createRoute(
-                    $routes[$key]['path'],
-                    ['_controller' => $controller . '::' . $action],
-                    $methods,
-                    $routePrefix,
-                    $requirements,
-                ),
-            );
-        }
-
-        if ($this->configStorageEnabled && isset($routes['runtime_config'])) {
-            $collection->add(
-                $routes['runtime_config']['name'],
-                $this->createRoute(
-                    $routes['runtime_config']['path'],
-                    ['_controller' => VaultRuntimeConfigController::class . '::__invoke'],
-                    ['GET', 'POST'],
-                    $routePrefix,
-                ),
-            );
+        if ($this->configStorageEnabled) {
+            $this->addControllerRoutes($collection, VaultRuntimeConfigController::class, $routes, $routePrefix);
         }
 
         if ($this->browserExtensionEnabled) {
-            $extensionController = VaultBrowserExtensionController::class;
-            /** @var array<string, array{0: string, 1: list<string>}> $extensionMap */
-            $extensionMap = [
-                'login'  => ['login', ['POST', 'OPTIONS']],
-                'logins' => ['logins', ['GET', 'OPTIONS']],
-                'logout' => ['logout', ['POST', 'OPTIONS']],
-                'me'     => ['me', ['GET', 'OPTIONS']],
-            ];
-
-            foreach ($extensionMap as $key => [$action, $methods]) {
-                if (!isset($this->browserExtensionRoutes[$key])) {
-                    continue;
-                }
-
-                $collection->add(
-                    $this->browserExtensionRoutes[$key]['name'],
-                    $this->createRoute(
-                        $this->browserExtensionRoutes[$key]['path'],
-                        ['_controller' => $extensionController . '::' . $action],
-                        $methods,
-                        $routePrefix,
-                    ),
-                );
-            }
+            $this->addControllerRoutes($collection, VaultBrowserExtensionController::class, $this->browserExtensionRoutes, $routePrefix);
         }
 
         return $collection;
     }
 
+    /**
+     * Tells the routing resolver that this loader handles `type: nowo_vault` imports.
+     */
     public function supports(mixed $resource, ?string $type = null): bool
     {
         return $type === 'nowo_vault';
     }
 
     /**
-     * @param list<string> $methods
-     * @param array<string, string> $requirements
-     * @param array<string, mixed> $defaults
+     * Adds one route per #[Route]-attributed public action of $controllerClass, with the configured path and name.
+     *
+     * @param class-string $controllerClass
+     * @param array<string, array{path: string, name: string}> $configuredRoutes
      */
-    private function createRoute(string $path, array $defaults, array $methods, string $routePrefix, array $requirements = []): Route
-    {
-        return new Route($routePrefix . $path, $defaults, $requirements, [], '', [], $methods);
+    private function addControllerRoutes(
+        RouteCollection $collection,
+        string $controllerClass,
+        array $configuredRoutes,
+        string $routePrefix,
+    ): void {
+        foreach ((new ReflectionClass($controllerClass))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+            foreach ($method->getAttributes(RouteAttribute::class) as $attribute) {
+                $declared = $attribute->newInstance();
+                $key      = (string) ($declared->options[self::ROUTE_KEY_OPTION] ?? '');
+                // Unconfigured keys are skipped, as the pre-attribute loader did for optional routes (the manage keys
+                // always exist: the runtime config provider refills them from the YAML defaults).
+                if (!isset($configuredRoutes[$key])) {
+                    continue;
+                }
+
+                $collection->add(
+                    $configuredRoutes[$key]['name'],
+                    new Route(
+                        $routePrefix . $configuredRoutes[$key]['path'],
+                        ['_controller' => $controllerClass . '::' . $method->getName()],
+                        $declared->requirements,
+                        [],
+                        '',
+                        [],
+                        $declared->methods,
+                    ),
+                );
+            }
+        }
     }
 }

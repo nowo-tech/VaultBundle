@@ -33,6 +33,9 @@ final class VaultPasswordGeneratorType extends AbstractType
 
     public const MODE_NAME = 'vault-gen-mode';
 
+    /**
+     * Adds the password generator output, mode, length and character class fields.
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->add('output', TextType::class, [
@@ -74,6 +77,9 @@ final class VaultPasswordGeneratorType extends AbstractType
         }
     }
 
+    /**
+     * Sets stable DOM ids and unmapped names on the generator widgets.
+     */
     public function finishView(FormView $view, FormInterface $form, array $options): void
     {
         foreach ($view->children as $name => $child) {
@@ -87,6 +93,9 @@ final class VaultPasswordGeneratorType extends AbstractType
         }
     }
 
+    /**
+     * Configures a GET form without CSRF in the bundle translation domain.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
@@ -96,6 +105,9 @@ final class VaultPasswordGeneratorType extends AbstractType
         ]);
     }
 
+    /**
+     * Returns the block prefix used by the generator form theme.
+     */
     #[Override]
     public function getBlockPrefix(): string
     {

@@ -29,6 +29,8 @@ final class VaultRuntimeConfigProvider
     private ?array $validatedYamlBaseline = null;
 
     /**
+     * Creates the provider from the YAML baseline, the database storage flag, the settings repository and the cache.
+     *
      * @param array<string, mixed> $yamlBaseline
      */
     public function __construct(
@@ -55,6 +57,9 @@ final class VaultRuntimeConfigProvider
         return $this->cache->get(self::CACHE_KEY, fn (ItemInterface $item): array => $this->validate($this->loadMergedFromDatabase()));
     }
 
+    /**
+     * Drops the cached merged runtime configuration so the next read reloads it.
+     */
     public function invalidateCache(): void
     {
         $this->cache->delete(self::CACHE_KEY);

@@ -15,10 +15,16 @@ use function mb_strlen;
 use function preg_replace;
 use function trim;
 
+/**
+ * Lists, creates, synchronises and deletes the creator's vault tags.
+ */
 final readonly class VaultTagService
 {
     public const MAX_NAME_LENGTH = 64;
 
+    /**
+     * Creates the service with the tag and item repositories.
+     */
     public function __construct(
         private VaultTagRepositoryInterface $tagRepository,
         private VaultItemRepositoryInterface $itemRepository,
@@ -26,6 +32,8 @@ final readonly class VaultTagService
     }
 
     /**
+     * Returns the creator's tags.
+     *
      * @return list<VaultTag>
      */
     public function listForCreator(object $creator): array
@@ -34,6 +42,8 @@ final readonly class VaultTagService
     }
 
     /**
+     * Replaces the item tags with the normalised, deduplicated names (creating missing tags).
+     *
      * @param list<string> $tagNames
      */
     public function syncItemTags(VaultItem $item, object $creator, array $tagNames): void
@@ -59,6 +69,9 @@ final readonly class VaultTagService
         $this->itemRepository->save($item);
     }
 
+    /**
+     * Returns the creator's tag with this name, creating it when missing.
+     */
     public function findOrCreate(object $creator, string $name): VaultTag
     {
         $normalized = self::normalizeName($name);
@@ -91,6 +104,9 @@ final readonly class VaultTagService
         $this->tagRepository->remove($tag);
     }
 
+    /**
+     * Collapses whitespace, trims and truncates a tag name to the maximum length.
+     */
     public static function normalizeName(string $name): string
     {
         $normalized = trim(preg_replace('/\s+/u', ' ', $name) ?? '');

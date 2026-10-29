@@ -18,32 +18,50 @@ final class VaultItemReadOnlyEvent extends Event
 {
     private bool $readOnly = false;
 
+    /**
+     * Creates the event for a user and item.
+     */
     public function __construct(
         private readonly UserInterface $user,
         private readonly VaultItem $item,
     ) {
     }
 
+    /**
+     * Returns the user being checked.
+     */
     public function getUser(): UserInterface
     {
         return $this->user;
     }
 
+    /**
+     * Returns the item being checked.
+     */
     public function getItem(): VaultItem
     {
         return $this->item;
     }
 
+    /**
+     * Whether the item must be shown read-only.
+     */
     public function isReadOnly(): bool
     {
         return $this->readOnly;
     }
 
+    /**
+     * Marks the item read-only.
+     */
     public function markReadOnly(): void
     {
         $this->readOnly = true;
     }
 
+    /**
+     * Clears the read-only flag.
+     */
     public function clearReadOnly(): void
     {
         $this->readOnly = false;

@@ -31,6 +31,8 @@ final class VaultRuntimeConfigSchema
     ];
 
     /**
+     * Keeps only the allowed runtime configuration root keys from the given values.
+     *
      * @param array<string, mixed> $values
      *
      * @return array<string, mixed>

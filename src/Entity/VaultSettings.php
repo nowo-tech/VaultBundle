@@ -8,6 +8,9 @@ use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
 
+/**
+ * Doctrine entity storing database-backed runtime configuration values per scope.
+ */
 #[ORM\Entity]
 #[ORM\Table(name: 'vault_settings')]
 class VaultSettings
@@ -17,6 +20,9 @@ class VaultSettings
     #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
     private DateTimeImmutable $updatedAt;
 
+    /**
+     * Creates the settings row for a scope with initial values.
+     */
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 64)]
@@ -32,12 +38,17 @@ class VaultSettings
         $this->updatedAt = new DateTimeImmutable();
     }
 
+    /**
+     * Returns the settings scope.
+     */
     public function getScope(): string
     {
         return $this->scope;
     }
 
     /**
+     * Returns the stored configuration values.
+     *
      * @return array<string, mixed>
      */
     public function getValues(): array
@@ -46,6 +57,8 @@ class VaultSettings
     }
 
     /**
+     * Replaces the stored values and touches the update timestamp.
+     *
      * @param array<string, mixed> $values
      */
     public function setValues(array $values): self
@@ -59,6 +72,8 @@ class VaultSettings
     }
 
     /**
+     * Recursively merges values over the stored ones.
+     *
      * @param array<string, mixed> $values
      */
     public function mergeValues(array $values): self
@@ -66,16 +81,25 @@ class VaultSettings
         return $this->setValues(array_replace_recursive($this->values, $values));
     }
 
+    /**
+     * Returns the last update timestamp.
+     */
     public function getUpdatedAt(): DateTimeImmutable
     {
         return $this->updatedAt;
     }
 
+    /**
+     * Returns the stored encryption key, or null when none is stored.
+     */
     public function getEncryptionKey(): ?string
     {
         return $this->encryptionKey;
     }
 
+    /**
+     * Sets the stored encryption key and touches the update timestamp.
+     */
     public function setEncryptionKey(?string $encryptionKey): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.

@@ -9,6 +9,9 @@ use Nowo\VaultBundle\Enum\VaultItemType;
 
 use function is_array;
 
+/**
+ * Form data object for creating and editing vault items of any type.
+ */
 final class VaultItemFormData
 {
     public string $title        = '';
@@ -50,12 +53,17 @@ final class VaultItemFormData
     public string $issuedDate     = '';
     public string $expiryDate     = '';
 
+    /**
+     * Creates form data for the given item type.
+     */
     public function __construct(
         public VaultItemType $itemType = VaultItemType::Login,
     ) {
     }
 
     /**
+     * Builds the plaintext payload (to be encrypted) for the current item type.
+     *
      * @return array<string, mixed>
      */
     public function toPayload(): array
@@ -104,6 +112,8 @@ final class VaultItemFormData
     }
 
     /**
+     * Builds form data from a decrypted item payload.
+     *
      * @param array<string, mixed> $payload
      */
     public static function fromPayload(VaultItemType $type, array $payload): self

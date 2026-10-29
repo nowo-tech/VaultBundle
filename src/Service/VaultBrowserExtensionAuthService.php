@@ -13,6 +13,11 @@ use Nowo\VaultBundle\Event\VaultBrowserExtensionAuthEvent;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Nowo\VaultBundle\Support\UserIdResolver;
+use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Security\Core\Exception\AccountStatusException;
 use Symfony\Component\Security\Core\User\UserCheckerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -27,10 +32,16 @@ use function strtr;
 
 use const DATE_ATOM;
 
+/**
+ * Issues, resolves and revokes browser extension Bearer tokens.
+ */
 final readonly class VaultBrowserExtensionAuthService
 {
     private const LAST_USED_TOUCH_INTERVAL_SECONDS = 300;
 
+    /**
+     * Stores the authenticator, token repository, dispatcher, TTL and the optional access checker, user checker, clock and logger.
+     */
     public function __construct(
         private VaultBrowserExtensionAuthenticatorInterface $authenticator,
         private VaultExtensionTokenRepositoryInterface $tokenRepository,
@@ -38,10 +49,14 @@ final readonly class VaultBrowserExtensionAuthService
         private int $tokenTtlSeconds,
         private ?VaultAccessCheckerInterface $accessChecker = null,
         private ?UserCheckerInterface $userChecker = null,
+        private ?ClockInterface $clock = null,
+        private ?LoggerInterface $logger = null,
     ) {
     }
 
     /**
+     * Authenticates the credentials and returns a new Bearer token, or null when rejected.
+     *
      * @return array{token: string, expiresAt: string}|null
      */
     public function login(string $username, string $password): ?array
@@ -54,17 +69,27 @@ final readonly class VaultBrowserExtensionAuthService
             : $this->authenticator->authenticate($username, $password);
 
         if (!$result instanceof VaultBrowserExtensionAuthResult || !$result->isSuccess()) {
+            // Never log the submitted username or password (REQ-OBS-001).
+            $this->logger()->notice('Vault browser extension login rejected.', ['bundle' => 'nowo_vault', 'action' => 'extension_login', 'reason' => 'invalid_credentials']);
+
             return null;
         }
 
         $user = $result->getUser();
         if (!$user instanceof UserInterface || !$this->isStillAllowed($user)) {
+            $this->logger()->notice('Vault browser extension login rejected.', ['bundle' => 'nowo_vault', 'action' => 'extension_login', 'reason' => 'access_denied']);
+
             return null;
         }
+
+        $this->logger()->info('Vault browser extension token issued.', ['bundle' => 'nowo_vault', 'action' => 'extension_login', 'user_id' => UserIdResolver::getId($user)]);
 
         return $this->issueToken($user);
     }
 
+    /**
+     * Returns the user of a valid Bearer token, revoking every token of a user who lost access.
+     */
     public function resolveUser(string $plainToken): ?UserInterface
     {
         $entity = $this->tokenRepository->findValidByTokenHash(self::hashToken($plainToken));
@@ -103,6 +128,8 @@ final readonly class VaultBrowserExtensionAuthService
             $this->tokenRepository->remove($token);
         }
 
+        $this->logger()->info('Vault browser extension tokens revoked.', ['bundle' => 'nowo_vault', 'action' => 'extension_revoke_all', 'user_id' => UserIdResolver::getId($user), 'count' => count($tokens)]);
+
         return count($tokens);
     }
 
@@ -126,6 +153,9 @@ final readonly class VaultBrowserExtensionAuthService
         return true;
     }
 
+    /**
+     * Revokes the presented Bearer token when it is valid.
+     */
     public function logout(string $plainToken): void
     {
         $entity = $this->tokenRepository->findValidByTokenHash(self::hashToken($plainToken));
@@ -141,7 +171,7 @@ final readonly class VaultBrowserExtensionAuthService
     private function issueToken(UserInterface $user): array
     {
         $plainToken = $this->generatePlainToken();
-        $expiresAt  = (new DateTimeImmutable())->add(new DateInterval('PT' . max(1, $this->tokenTtlSeconds) . 'S'));
+        $expiresAt  = $this->now()->add(new DateInterval('PT' . max(1, $this->tokenTtlSeconds) . 'S'));
 
         $this->tokenRepository->save(new VaultExtensionToken(
             self::hashToken($plainToken),
@@ -155,6 +185,9 @@ final readonly class VaultBrowserExtensionAuthService
         ];
     }
 
+    /**
+     * Returns the SHA-256 hash stored for a plain Bearer token.
+     */
     public static function hashToken(string $plainToken): string
     {
         return hash('sha256', $plainToken);
@@ -168,13 +201,29 @@ final readonly class VaultBrowserExtensionAuthService
     private function touchIfStale(VaultExtensionToken $entity): void
     {
         $lastUsed = $entity->getLastUsedAt();
-        $now      = new DateTimeImmutable();
+        $now      = $this->now();
 
         if ($lastUsed instanceof DateTimeImmutable && ($now->getTimestamp() - $lastUsed->getTimestamp()) < self::LAST_USED_TOUCH_INTERVAL_SECONDS) {
             return;
         }
 
-        $entity->touch();
+        $entity->touch($now);
         $this->tokenRepository->save($entity);
+    }
+
+    /**
+     * Returns the current time from the injected clock (REQ-DI-001), or the system clock when none is wired.
+     */
+    private function now(): DateTimeImmutable
+    {
+        return ($this->clock ?? new NativeClock())->now();
+    }
+
+    /**
+     * Returns the injected logger (REQ-OBS-001), or a no-op logger when none is wired.
+     */
+    private function logger(): LoggerInterface
+    {
+        return $this->logger ?? new NullLogger();
     }
 }

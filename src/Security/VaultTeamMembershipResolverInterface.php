@@ -15,6 +15,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 interface VaultTeamMembershipResolverInterface
 {
     /**
+     * Returns the ids of the teams the user belongs to.
+     *
      * @return list<string> Team ids the user belongs to
      */
     public function getTeamIdsForUser(UserInterface $user): array;

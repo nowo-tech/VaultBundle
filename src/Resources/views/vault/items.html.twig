@@ -226,6 +226,7 @@
                         </tbody>
                     </table>
                 </div>
+                {% include '@NowoVaultBundle/vault/_pagination.html.twig' with {pagination: pagination|default(null), routeName: routes.items.name} %}
             {% endif %}
         </div>
     </div>

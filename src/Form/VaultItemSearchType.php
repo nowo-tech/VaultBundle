@@ -28,6 +28,9 @@ final class VaultItemSearchType extends AbstractType
 {
     use FormOptionsTrait;
 
+    /**
+     * Adds the search field and the active folder / tag filters as hidden fields.
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         foreach (['folder', 'tag'] as $filter) {
@@ -45,11 +48,17 @@ final class VaultItemSearchType extends AbstractType
         ]);
     }
 
+    /**
+     * Gives the search input a stable DOM id.
+     */
     public function finishView(FormView $view, FormInterface $form, array $options): void
     {
         $view->children['q']->vars['id'] = 'vault-search';
     }
 
+    /**
+     * Configures a GET form without CSRF and with the filters option.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
@@ -62,6 +71,9 @@ final class VaultItemSearchType extends AbstractType
         $resolver->setAllowedTypes('filters', 'array');
     }
 
+    /**
+     * Returns an empty block prefix so query parameters keep their plain names.
+     */
     #[Override]
     public function getBlockPrefix(): string
     {

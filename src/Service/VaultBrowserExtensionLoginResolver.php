@@ -12,22 +12,37 @@ use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
+use Nowo\VaultBundle\Support\UserIdResolver;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function array_slice;
+use function count;
 use function usort;
 
+/**
+ * Finds the login items (own and shared) whose websites match the domain requested by the browser extension.
+ */
 final readonly class VaultBrowserExtensionLoginResolver
 {
+    /**
+     * Stores the collaborators; $maxLoginItems bounds how many login payloads one lookup decrypts (REQ-PERF-001).
+     */
     public function __construct(
         private VaultItemRepositoryInterface $itemRepository,
         private VaultSharedItemResolver $sharedItemResolver,
         private VaultAccessGuard $accessGuard,
         private VaultPayloadCryptographerInterface $cryptographer,
         private VaultLoginDomainMatcher $domainMatcher,
+        private int $maxLoginItems = 1000,
+        private ?LoggerInterface $logger = null,
     ) {
     }
 
     /**
+     * Returns the matching logins for $domain, best match first.
+     *
      * @return list<VaultBrowserExtensionLoginMatch>
      */
     public function resolveForDomain(UserInterface $user, string $domain, string $scheme = 'https'): array
@@ -81,6 +96,19 @@ final readonly class VaultBrowserExtensionLoginResolver
             $byId[$item->getId()] = $item;
         }
 
-        return array_values($byId);
+        $items = array_values($byId);
+        if (count($items) > $this->maxLoginItems) {
+            // Own items come first, most recently updated first; the rest are not decrypted for this lookup.
+            ($this->logger ?? new NullLogger())->warning('Vault browser extension login lookup truncated.', [
+                'bundle'    => 'nowo_vault',
+                'action'    => 'extension_logins',
+                'user_id'   => UserIdResolver::getId($user),
+                'available' => count($items),
+                'scanned'   => $this->maxLoginItems,
+            ]);
+            $items = array_slice($items, 0, $this->maxLoginItems);
+        }
+
+        return $items;
     }
 }

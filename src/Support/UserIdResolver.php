@@ -9,6 +9,9 @@ namespace Nowo\VaultBundle\Support;
  */
 final class UserIdResolver
 {
+    /**
+     * Returns the user id as a string, or null when the user has no id.
+     */
     public static function getId(object $user): ?string
     {
         if (!method_exists($user, 'getId')) {
@@ -24,6 +27,9 @@ final class UserIdResolver
         return (string) $id;
     }
 
+    /**
+     * Whether both users have the same non-null id.
+     */
     public static function isSameUser(object $left, object $right): bool
     {
         $leftId  = self::getId($left);

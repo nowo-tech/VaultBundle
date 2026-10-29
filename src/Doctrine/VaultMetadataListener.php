@@ -27,6 +27,9 @@ use function sprintf;
  */
 final readonly class VaultMetadataListener
 {
+    /**
+     * Creates the listener with the resolved (prefixed) table names and user class.
+     */
     public function __construct(
         private string $itemsTableName,
         private string $foldersTableName,
@@ -39,6 +42,9 @@ final readonly class VaultMetadataListener
     ) {
     }
 
+    /**
+     * Applies the configured table names (and user mapping) to vault entity metadata.
+     */
     public function loadClassMetadata(LoadClassMetadataEventArgs $args): void
     {
         $metadata = $args->getClassMetadata();

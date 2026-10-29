@@ -25,6 +25,9 @@ final class VaultPasswordGenerator
         'north', 'south', 'east', 'west', 'spring', 'summer', 'winter', 'autumn',
     ];
 
+    /**
+     * Generates a random password or passphrase according to the options.
+     */
     public function generate(PasswordGeneratorOptions $options): string
     {
         if ($options->mode === 'words') {
@@ -84,6 +87,9 @@ final class VaultPasswordGenerator
         return implode($sep, $words);
     }
 
+    /**
+     * Returns a coarse length-based strength label (weak, medium or strong).
+     */
     public function estimateStrength(string $password): string
     {
         $len = strlen($password);

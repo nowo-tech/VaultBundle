@@ -13,14 +13,23 @@ use RuntimeException;
 use function count;
 use function sprintf;
 
+/**
+ * Re-encrypts stored item payloads from an old encryption key to a new one in batches.
+ */
 final readonly class VaultPayloadReencryptionService
 {
+    /**
+     * Creates the service with the item repository and the runtime config resolver.
+     */
     public function __construct(
         private VaultItemRepositoryInterface $itemRepository,
         private VaultRuntimeConfigResolver $configResolver,
     ) {
     }
 
+    /**
+     * Re-encrypts item payloads from the old key to the new (or active) key in batches, optionally as a dry run.
+     */
     public function reencrypt(
         string $oldKeyBase64,
         ?string $newKeyBase64 = null,

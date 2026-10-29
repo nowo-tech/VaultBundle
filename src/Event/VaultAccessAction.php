@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Event;
 
+/**
+ * Action checked by vault access events.
+ */
 enum VaultAccessAction: string
 {
     case View    = 'view';
@@ -13,6 +16,9 @@ enum VaultAccessAction: string
     case Share   = 'share';
     case Purge   = 'purge';
 
+    /**
+     * Whether the action is the read-only view action.
+     */
     public function isViewOnly(): bool
     {
         return $this === self::View;

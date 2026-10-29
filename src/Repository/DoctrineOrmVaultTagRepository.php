@@ -9,10 +9,16 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultTag;
 use SortDirection;
 
+/**
+ * Doctrine ORM implementation of the vault tag repository.
+ */
 final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepositoryInterface
 {
     use ResolvesEntityManagerTrait;
 
+    /**
+     * Creates the repository with the entity manager and an optional registry / manager name.
+     */
     public function __construct(
         private EntityManagerInterface $entityManager,
         private ?ManagerRegistry $registry = null,
@@ -20,17 +26,26 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
     ) {
     }
 
+    /**
+     * Persists and flushes the tag.
+     */
     public function save(VaultTag $tag): void
     {
         $this->em()->persist($tag);
         $this->em()->flush();
     }
 
+    /**
+     * Finds a tag by id.
+     */
     public function findById(string $id): ?VaultTag
     {
         return $this->em()->find(VaultTag::class, $id);
     }
 
+    /**
+     * Finds the creator's tag with the given name, or null.
+     */
     public function findOneByCreatorAndName(object $creator, string $name): ?VaultTag
     {
         /* @var VaultTag|null */
@@ -46,6 +61,9 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
             ->getOneOrNullResult();
     }
 
+    /**
+     * Returns the creator's tags.
+     */
     public function findByCreator(object $creator): array
     {
         /* @var list<VaultTag> */
@@ -59,6 +77,9 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
             ->getResult();
     }
 
+    /**
+     * Removes and flushes the tag.
+     */
     public function remove(VaultTag $tag): void
     {
         $this->em()->remove($tag);

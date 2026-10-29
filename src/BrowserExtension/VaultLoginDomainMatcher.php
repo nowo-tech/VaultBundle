@@ -52,6 +52,9 @@ final class VaultLoginDomainMatcher
         return $best;
     }
 
+    /**
+     * Extracts the host part of a stored website URL (a scheme is assumed when missing).
+     */
     public static function extractHost(string $website): string
     {
         $website = trim($website);
@@ -68,6 +71,9 @@ final class VaultLoginDomainMatcher
         return self::normalizeHost(is_string($host) ? $host : '');
     }
 
+    /**
+     * Lower-cases and trims a host and strips a leading www. prefix.
+     */
     public static function normalizeHost(string $host): string
     {
         $host = strtolower(trim($host));

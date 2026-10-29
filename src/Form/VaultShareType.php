@@ -24,6 +24,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use function is_string;
 
 /**
+ * Form to share a vault item or folder with a user or team grantee.
+ *
  * @extends AbstractType<VaultShareFormData>
  */
 #[FormKitConfig('vault')]
@@ -31,11 +33,17 @@ final class VaultShareType extends AbstractType
 {
     use FormOptionsTrait;
 
+    /**
+     * Creates the form type with the translator.
+     */
     public function __construct(
         private readonly TranslatorInterface $translator,
     ) {
     }
 
+    /**
+     * Adds the grantee picker (or free grantee type/id fields) and the permission field.
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         /** @var list<VaultGranteeChoice> $granteeChoices */
@@ -92,11 +100,17 @@ final class VaultShareType extends AbstractType
         ]);
     }
 
+    /**
+     * Exposes whether the grantee picker is used to the template.
+     */
     public function buildView(FormView $view, FormInterface $form, array $options): void
     {
         $view->vars['grantee_picker'] = $options['grantee_choices'] !== [];
     }
 
+    /**
+     * Configures the data class, translation domain and the grantee_choices option.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([

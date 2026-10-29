@@ -181,3 +181,7 @@ vault:
         generate_key: VAULT_ENCRYPTION_KEY genereren
         max_attachment_bytes: Max. bijlengrootte (bytes)
         password_level: Wachtwoordsterkte
+    pagination:
+        previous: 'Vorige'
+        next: 'Volgende'
+        summary: 'Pagina %page% van %pages% (%total% items)'

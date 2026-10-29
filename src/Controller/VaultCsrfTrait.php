@@ -9,6 +9,9 @@ use Symfony\Component\HttpFoundation\Request;
 use function is_array;
 use function is_string;
 
+/**
+ * CSRF validation helpers shared by the vault controllers (fail closed on invalid tokens).
+ */
 trait VaultCsrfTrait
 {
     private function denyUnlessValidCsrf(string $tokenId, Request $request): void
