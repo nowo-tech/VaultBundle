@@ -4,3 +4,5 @@ services:
         autoconfigure: true
 
     Nowo\VaultBundle\Tests\App\Security\DisabledAccountUserChecker: ~
+
+    Nowo\VaultBundle\Tests\App\EventSubscriber\ReadOnlyTitleSubscriber: ~

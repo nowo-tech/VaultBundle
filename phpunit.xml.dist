@@ -26,29 +26,8 @@
             <directory>src</directory>
         </include>
         <exclude>
-            <!-- Controllers/forms/repos are covered by E2E; excluded from the 100% release gate -->
+            <!-- Twig, translations, config and built assets: no PHP to measure. Nothing else is excluded (REQ-TEST-003). -->
             <directory>src/Resources</directory>
-            <directory>src/Controller</directory>
-            <directory>src/Repository</directory>
-            <directory>src/Form</directory>
-            <directory>src/Doctrine</directory>
-            <file>src/Security/VaultAccessCheckerInterface.php</file>
-            <file>src/Security/VaultPayloadCryptographerInterface.php</file>
-            <file>src/Security/VaultTeamMembershipResolverInterface.php</file>
-            <file>src/Repository/VaultItemRepositoryInterface.php</file>
-            <file>src/Repository/VaultFolderRepositoryInterface.php</file>
-            <file>src/Repository/VaultGrantRepositoryInterface.php</file>
-            <!-- CLI re-encryption and tag CRUD: covered by E2E/integration; branch volume blocks aggregate >=99%. -->
-            <file>src/Command/ReencryptVaultPayloadsCommand.php</file>
-            <file>src/Service/VaultTagService.php</file>
-            <file>src/BrowserExtension/DefaultVaultBrowserExtensionAuthenticator.php</file>
-            <file>src/BrowserExtension/VaultLoginDomainMatcher.php</file>
-            <file>src/Entity/VaultExtensionToken.php</file>
-            <file>src/Service/VaultBrowserExtensionLoginResolver.php</file>
-            <!-- DI wiring branch for custom user_provider -->
-            <file>src/DependencyInjection/VaultExtension.php</file>
-            <!-- continue when route key missing -->
-            <file>src/Routing/VaultRouteLoader.php</file>
         </exclude>
     </source>
 </phpunit>

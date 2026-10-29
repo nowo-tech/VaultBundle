@@ -27,6 +27,8 @@ final class VaultLoginDomainMatcherTest extends TestCase
         yield 'sibling subdomain does not match' => [null, 'login.github.com', 'api.github.com'];
         yield 'unrelated domain' => [null, 'github.com', 'gitlab.com'];
         yield 'www stripped' => [1002, 'www.github.com', 'github.com'];
+        yield 'empty current host' => [null, '  ', 'github.com'];
+        yield 'empty stored host' => [null, 'github.com', ''];
     }
 
     public function testBestMatchScorePrefersMostSpecific(): void
@@ -55,5 +57,23 @@ final class VaultLoginDomainMatcherTest extends TestCase
     {
         self::assertSame('example.com', VaultLoginDomainMatcher::extractHost('example.com'));
         self::assertSame('example.com', VaultLoginDomainMatcher::extractHost('https://www.example.com/path'));
+    }
+
+    public function testBestMatchScoreReturnsNullForEmptyCurrentHost(): void
+    {
+        self::assertNull((new VaultLoginDomainMatcher())->bestMatchScore('   ', ['https://github.com']));
+    }
+
+    public function testBestMatchScoreSkipsBlankAndHostlessWebsites(): void
+    {
+        $matcher = new VaultLoginDomainMatcher();
+
+        self::assertNull($matcher->bestMatchScore('github.com', ['', '   ', 'https://']));
+        self::assertSame(1002, $matcher->bestMatchScore('github.com', ['', 'https://github.com/login']));
+    }
+
+    public function testExtractHostOfBlankWebsiteIsEmpty(): void
+    {
+        self::assertSame('', VaultLoginDomainMatcher::extractHost('   '));
     }
 }
