@@ -33,11 +33,9 @@ const MODAL_HTML = `
     <form data-vault-folder-form hidden></form>
 `;
 
-// Placeholders built at runtime (no credential-looking literals in fixtures).
-const GENERATED = `REDACTED-${'TEST'}-GEN`;
-const CSRF = `REDACTED-${'TEST'}-CSRF`;
-// Window key of the generator CSRF token, assembled so secret scanners do not read it as a password assignment.
-const CSRF_GLOBAL = `VAULT_${'PASS'}${'WORD'}_CSRF_TOKEN`;
+const GENERATED = 'test-generated-value';
+// Generated per run: the test only checks that the page token is echoed in the request header.
+const CSRF = crypto.randomUUID();
 
 describe('vault manage UI', () => {
     beforeEach(() => {
@@ -45,13 +43,13 @@ describe('vault manage UI', () => {
         fetchMock.mockResolvedValue({ ok: true, json: async () => ({ password: GENERATED, strength: 'strong' }) });
         vi.stubGlobal('fetch', fetchMock);
         window.VAULT_PASSWORD_URL = '/tools/vault/password/generate';
-        Reflect.set(window, CSRF_GLOBAL, CSRF);
+        window.VAULT_PASSWORD_CSRF_TOKEN = CSRF; // ggignore: random per-run test value, not a credential
     });
 
     afterEach(() => {
         vi.unstubAllGlobals();
         delete window.VAULT_PASSWORD_URL;
-        Reflect.deleteProperty(window, CSRF_GLOBAL);
+        delete window.VAULT_PASSWORD_CSRF_TOKEN;
     });
 
     // Each import adds a DOMContentLoaded listener on the shared jsdom document: counts below are relative.

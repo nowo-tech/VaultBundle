@@ -12,9 +12,8 @@ const api = {
 let listener: Listener;
 let removedListener: (tabId: number) => void;
 
-// Placeholders built at runtime (no credential-looking literals in fixtures).
-const PW_A = ['REDACTED', 'TEST', 'A'].join('-');
-const PW_B = ['REDACTED', 'TEST', 'B'].join('-');
+const PW_A = 'test-placeholder-a';
+const PW_B = 'test-placeholder-b';
 
 const LOGINS: VaultLoginMatch[] = [
     { id: 'a', title: 'Mail', username: 'ann', password: PW_A },
