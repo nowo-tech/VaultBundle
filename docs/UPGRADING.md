@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
 - [To 1.12.0](#to-1120)
 - [To 1.11.1](#to-1111)
@@ -56,6 +57,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.14.0
+
+From **1.13.0**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 From **1.13.0**:
 

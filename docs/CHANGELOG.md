@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.14.0] - 2026-10-29](#1140---2026-10-29)
 - [[1.13.0] - 2026-10-28](#1130---2026-10-28)
 - [[1.12.0] - 2026-10-28](#1120---2026-10-28)
 - [[1.11.1] - 2026-10-28](#1111---2026-10-28)
@@ -41,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-07-04](#100---2026-07-04)
 
 ## [Unreleased]
+
+## [1.14.0] - 2026-10-29
+
+Vault: paginated lists, PSR-3 logging of sensitive operations, attribute routes, 100% coverage gates See [UPGRADING](UPGRADING.md#to-1140).
 
 Paginated manage lists, logging of sensitive operations, injectable clock, attribute-declared routes and full
 coverage of `src/`. See [UPGRADING](UPGRADING.md#unreleased).
@@ -82,6 +87,8 @@ coverage of `src/`. See [UPGRADING](UPGRADING.md#unreleased).
 - USAGE: lists and pagination; Twig overrides with the freeze rule, upgrade-safe depths, procedure, recovery and the
   table of every overridable `<subpath>` (REQ-TWIG-001). CONFIGURATION: routes, pagination, clock and logger.
   README: numeric PHP / TS coverage (REQ-TEST-007).
+
+[1.14.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.14.0
 
 ## [1.13.0] - 2026-10-28
 
@@ -543,7 +550,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.13.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.14.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
