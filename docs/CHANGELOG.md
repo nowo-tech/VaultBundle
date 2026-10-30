@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.15.1] - 2026-10-30](#1151---2026-10-30)
 - [[1.15.0] - 2026-10-30](#1150---2026-10-30)
 - [[1.14.0] - 2026-10-29](#1140---2026-10-29)
 - [[1.13.0] - 2026-10-28](#1130---2026-10-28)
@@ -44,9 +45,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-10-30
+
+Security: Bundle routes are opt-in again: controllers are no longer autoconfigured, so a host's routing.controllers import does not expose them (REQ-SF-004 rule 7). See [UPGRADING](UPGRADING.md#to-1151).
+
 ### Security
 
 - **Vault routes registered without the route loader (REQ-SF-004 rule 7):** on Symfony >= 7.3 `#[AsController]` and the `#[Route]` attributes autoconfigured the vault controllers with the `routing.controller` tag, so a host whose `config/routes.yaml` has the default `controllers: { resource: routing.controllers }` got the default `/tools/vault/...` pages and the browser extension API (`/api/vault/extension/login`, unauthenticated by design) even without importing the `nowo_vault` loader, bypassing the configured routes, `web_ui.enabled` and `browser_extension.enabled: false` (the default). The controllers are registered explicitly (`autoconfigure: false`, `controller.service_arguments`, plus `container.service_subscriber` for the `AbstractController` ones; no `#[AsController]`); the routes exist only where the host imports `type: nowo_vault`. Regression test with a kernel that only loads `routing.controllers`.
+
+[1.15.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.15.1
 
 ## [1.15.0] - 2026-10-30
 
@@ -618,7 +625,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.15.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.15.1...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
