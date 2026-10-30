@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.15.0](#to-1150)
   - [Template contract (REQ-UI-003)](#template-contract-req-ui-003)
   - [Configuration](#configuration)
   - [Security (fail closed)](#security-fail-closed)
@@ -60,6 +61,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.15.0
+
+From **1.14.0**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 ### Template contract (REQ-UI-003)
 

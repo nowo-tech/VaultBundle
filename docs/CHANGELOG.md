@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.15.0] - 2026-10-30](#1150---2026-10-30)
 - [[1.14.0] - 2026-10-29](#1140---2026-10-29)
 - [[1.13.0] - 2026-10-28](#1130---2026-10-28)
 - [[1.12.0] - 2026-10-28](#1120---2026-10-28)
@@ -42,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-07-04](#100---2026-07-04)
 
 ## [Unreleased]
+
+## [1.15.0] - 2026-10-30
+
+Vault: UiKit page contract for every page (scaffolds, confirm dialogs, no inline JS/CDN), fail-closed CSRF and role checks, item form 422 instead of 500 See [UPGRADING](UPGRADING.md#to-1150).
 
 ### Added
 
@@ -99,6 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Submitting the item form with an empty title answered 500 (null on the string title); it now shows the NotBlank
   error with 422.
+
+[1.15.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.15.0
 
 ## [1.14.0] - 2026-10-29
 
@@ -607,7 +614,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.15.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
