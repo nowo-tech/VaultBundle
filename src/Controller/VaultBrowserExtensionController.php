@@ -13,7 +13,6 @@ use Nowo\VaultBundle\Service\VaultBrowserExtensionLoginResolver;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -22,7 +21,6 @@ use function is_array;
 /**
  * Browser extension API (Bearer token auth, CORS). Session CSRF tokens do not apply here.
  */
-#[AsController]
 final readonly class VaultBrowserExtensionController
 {
     /**

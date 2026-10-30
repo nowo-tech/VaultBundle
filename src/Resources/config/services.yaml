@@ -15,10 +15,17 @@ services:
             - '../../Doctrine/'
             - '../../Security/'
             - '../../BrowserExtension/VaultBrowserExtensionLoginRateLimiter.php'
+            - '../../Controller/'
 
+    # REQ-SF-004 rule 7: controllers are registered explicitly, NOT autoconfigured (no #[AsController]). On
+    # Symfony >= 7.3 a #[Route] class is autoconfigured with the routing.controller tag and the host's
+    # `routing.controllers` resource would expose /tools/vault/... and /api/vault/extension/... without the
+    # nowo_vault route loader (bypassing the configured routes, web_ui.enabled and browser_extension.enabled).
     Nowo\VaultBundle\Controller\:
         resource: '../../Controller/'
         public: true
+        autoconfigure: false
+        tags: ['controller.service_arguments', 'container.service_subscriber']
 
     Nowo\VaultBundle\Routing\VaultRouteLoader:
         arguments:
@@ -32,6 +39,8 @@ services:
 
     Nowo\VaultBundle\Controller\VaultBrowserExtensionController:
         public: true
+        autoconfigure: false
+        tags: ['controller.service_arguments']
 
     Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService:
         arguments:
@@ -45,6 +54,8 @@ services:
 
     Nowo\VaultBundle\Controller\VaultManageController:
         public: true
+        autoconfigure: false
+        tags: ['controller.service_arguments', 'container.service_subscriber']
         arguments:
             $runtimeConfig: '@Nowo\VaultBundle\Config\VaultRuntimeConfigProvider'
             $passwordStrengthEnabled: '%nowo_vault.password_strength_enabled%'
@@ -59,6 +70,8 @@ services:
 
     Nowo\VaultBundle\Controller\VaultRuntimeConfigController:
         public: true
+        autoconfigure: false
+        tags: ['controller.service_arguments', 'container.service_subscriber']
         arguments:
             $databaseEnabled: '%nowo_vault.config_storage.enabled%'
             $allowUnauthenticated: '%nowo_vault.security.allow_unauthenticated%'

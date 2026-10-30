@@ -62,6 +62,8 @@
 
 ## Unreleased
 
+No action needed when you import the `nowo_vault` route loader (`resource: .`, `type: nowo_vault`, the documented setup). If on Symfony >= 7.3 the vault pages or the browser extension API answered without that import (through the default `controllers: { resource: routing.controllers }` of `config/routes.yaml`), they are gone now: import the loader (see [INSTALLATION](INSTALLATION.md)).
+
 ## To 1.15.0
 
 From **1.14.0**:
