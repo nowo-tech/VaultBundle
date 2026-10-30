@@ -1,153 +1,139 @@
-{% extends '@NowoVaultBundle/vault/base.html.twig' %}
+{#
+  Item create / edit / view (REQ-UI-003): UiKit form scaffold. Variable: page (View\FormPage from
+  VaultPageFactory::itemForm(): header = item type (intro = item title on edit / view) with a back link to the items
+  list; form = VaultItemFormType; submit vault.action.save; cancel = items list; form attributes class vault-form,
+  data-vault-item-form = item type; formThemes = the tag input theme when nowo-tech/tag-input-bundle is installed;
+  read-only items: formTag false, the page prints the form tag itself without the submit row).
+  Also: itemType, item, readOnly, viewMode, folders, routes, tagInputEnabled, passwordStrengthEnabled, activeFolder.
+  Data block filled: nowo_ui_form_body (per-item-type layout, then the REQ-TWIG-003 child loop for the remaining
+  children; the type-specific fields of the other item types are skipped).
+#}
+{% extends '@NowoUiKit/page/form.html.twig' %}
+{% trans_default_domain 'NowoVaultBundle' %}
 
-{% if tagInputEnabled|default(false) %}
-    {% form_theme form '@NowoVaultBundle/Form/vault_item_form_theme.html.twig' %}
-{% else %}
-    {% form_theme form 'bootstrap_5_layout.html.twig' %}
-{% endif %}
-
-{% block title %}{{ ('vault.type.' ~ itemType.value)|trans({}, 'NowoVaultBundle') }}{% endblock %}
-
-{% block stylesheets %}
+{% block nowo_ui_styles %}
     {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('vault.css', 'nowo_vault') }}">
     {% if tagInputEnabled|default(false) %}
         <link rel="stylesheet" href="{{ asset('bundles/nowotaginput/tag-input.css') }}">
     {% endif %}
 {% endblock %}
 
-{% block body %}
-    {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
-        pageTitle: ('vault.type.' ~ itemType.value)|trans({}, 'NowoVaultBundle'),
-    } %}
+{% block nowo_ui_form_body %}
+    {% set _b = page.bundle %}
+    {% set _read_only = readOnly|default(false) %}
+    {% set _input = nowo_ui_class('input', _b) %}
+    {% if not page.formTag %}
+        {{ form_start(form, {attr: {class: 'vault-form', 'data-vault-item-form': itemType.value, 'data-vault-readonly': '1'}}) }}
+    {% endif %}
+    {% if _read_only and not viewMode|default(false) %}
+        <div class="{{ nowo_ui_class('flash_info', _b) }}" role="status" data-testid="vault-read-only">{{ 'vault.read_only.notice'|trans }}</div>
+    {% endif %}
 
-    {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
+    {{ form_row(form.title) }}
 
-    <div class="card">
-        <div class="card-body">
-            {% if readOnly|default(false) and not viewMode|default(false) %}
-                <div class="alert alert-info">{{ 'vault.read_only.notice'|trans({}, 'NowoVaultBundle') }}</div>
-            {% endif %}
-
-            {{ form_start(form, {attr: {class: 'vault-form', 'data-vault-item-form': itemType.value, 'data-vault-readonly': readOnly|default(false) ? '1' : '0'}}) }}
-
-            {{ form_row(form.title) }}
-
-            {% if itemType.value == 'login' %}
-                {{ form_row(form.username) }}
-                {{ form_row(form.password) }}
-                <div class="mb-3">
-                    {{ form_label(form.websites) }}
-                    {% for websiteField in form.websites %}
-                        <div class="mb-2">
-                            {{ form_widget(websiteField, {attr: {class: 'form-control', placeholder: 'https://example.com'}}) }}
-                            {{ form_errors(websiteField) }}
-                        </div>
-                    {% endfor %}
-                    {{ form_errors(form.websites) }}
+    {% if itemType.value == 'login' %}
+        {{ form_row(form.username) }}
+        {{ form_row(form.password) }}
+        <div class="vault-collection" data-testid="vault-websites">
+            {{ form_label(form.websites) }}
+            {% for websiteField in form.websites %}
+                <div class="vault-collection__entry">
+                    {{ form_widget(websiteField, {attr: {class: _input, placeholder: 'vault.form.website_placeholder'}}) }}
+                    {{ form_errors(websiteField) }}
                 </div>
-            {% elseif itemType.value == 'secure_note' %}
-                {{ form_row(form.secureNote) }}
-            {% elseif itemType.value == 'credit_card' %}
-                {{ form_row(form.cardholderName) }}
-                {{ form_row(form.cardNumber) }}
-                <div class="row">
-                    <div class="col-md-6">{{ form_row(form.expiry) }}</div>
-                    <div class="col-md-6">{{ form_row(form.cvv) }}</div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">{{ form_row(form.cardPin) }}</div>
-                    <div class="col-md-6">{{ form_row(form.postalCode) }}</div>
-                </div>
-            {% elseif itemType.value == 'contact' %}
-                {{ form_row(form.fullName) }}
-                {{ form_row(form.email) }}
-                {{ form_row(form.phone) }}
-                {{ form_row(form.addressLine1) }}
-                {{ form_row(form.addressLine2) }}
-                <div class="row">
-                    <div class="col-md-6">{{ form_row(form.city) }}</div>
-                    <div class="col-md-6">{{ form_row(form.state) }}</div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">{{ form_row(form.postalCode) }}</div>
-                    <div class="col-md-6">{{ form_row(form.country) }}</div>
-                </div>
-            {% else %}
-                {{ form_row(form.fullName) }}
-                {{ form_row(form.documentNumber) }}
-                {{ form_row(form.issuedBy) }}
-                <div class="row">
-                    <div class="col-md-6">{{ form_row(form.issuedDate) }}</div>
-                    <div class="col-md-6">{{ form_row(form.expiryDate) }}</div>
-                </div>
-                {% if not readOnly|default(false) %}
-                    {# REQ-TWIG-005: unmapped VaultItemFormType child, posted as "attachment". #}
-                    {{ form_row(form.attachment) }}
-                {% endif %}
-            {% endif %}
-
-            {% if folders is empty %}
-                <p class="text-secondary small mb-2">
-                    {{ 'vault.folder.empty_hint'|trans({}, 'NowoVaultBundle') }}
-                    <a href="{{ path(routes.items.name) }}">{{ 'vault.nav.folders'|trans({}, 'NowoVaultBundle') }}</a>
-                </p>
-            {% endif %}
-            {{ form_row(form.folder) }}
-
-            {% if tagInputEnabled|default(false) %}
-                {{ form_row(form.tags) }}
-                <p class="form-text text-secondary">{{ 'vault.form.tags_help'|trans({}, 'NowoVaultBundle') }}</p>
-            {% else %}
-                <div class="mb-3">
-                    {{ form_label(form.tags) }}
-                    {% for tagField in form.tags %}
-                        <div class="mb-2">
-                            {{ form_widget(tagField, {attr: {class: 'form-control', placeholder: 'vault.form.tag_placeholder'|trans({}, 'NowoVaultBundle')}}) }}
-                            {{ form_errors(tagField) }}
-                        </div>
-                    {% endfor %}
-                    {{ form_errors(form.tags) }}
-                    <p class="form-text text-secondary mb-0">{{ 'vault.form.tags_help'|trans({}, 'NowoVaultBundle') }}</p>
-                </div>
-            {% endif %}
-
-            {{ form_row(form.note) }}
-
-            {#
-              REQ-TWIG-003 rule 3: the fields above follow a per-item-type layout. VaultItemFormType adds the fields of
-              every item type, so the loop skips the type-specific ones not shown for this type (render_rest stays off);
-              any other child (CSRF token, fields added later) is rendered here.
-            #}
-            {% set _vault_type_fields = ['username', 'password', 'websites', 'secureNote', 'cardholderName', 'cardNumber', 'expiry', 'cvv', 'cardPin', 'fullName', 'email', 'phone', 'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'documentNumber', 'issuedBy', 'issuedDate', 'expiryDate', 'attachment'] %}
-            {% for child in form %}
-                {% if not child.rendered and child.vars.name not in _vault_type_fields %}
-                    {{ form_row(child) }}
-                {% endif %}
             {% endfor %}
-
-            <div class="d-flex gap-2 mt-4">
-                {% if not readOnly|default(false) %}
-                    <button type="submit" class="btn btn-primary">{{ 'vault.action.save'|trans({}, 'NowoVaultBundle') }}</button>
-                {% endif %}
-                <a href="{{ path(routes.items.name, activeFolder|default(null) ? {folder: activeFolder} : {}) }}" class="btn btn-outline-secondary">{{ 'vault.action.back'|trans({}, 'NowoVaultBundle') }}</a>
-            </div>
-
-            {{ form_end(form, {render_rest: false}) }}
+            {{ form_errors(form.websites) }}
         </div>
-    </div>
+    {% elseif itemType.value == 'secure_note' %}
+        {{ form_row(form.secureNote) }}
+    {% elseif itemType.value == 'credit_card' %}
+        {{ form_row(form.cardholderName) }}
+        {{ form_row(form.cardNumber) }}
+        <div class="{{ nowo_ui_class('form_columns', _b) }}">
+            {{ form_row(form.expiry) }}
+            {{ form_row(form.cvv) }}
+            {{ form_row(form.cardPin) }}
+            {{ form_row(form.postalCode) }}
+        </div>
+    {% elseif itemType.value == 'contact' %}
+        {{ form_row(form.fullName) }}
+        {{ form_row(form.email) }}
+        {{ form_row(form.phone) }}
+        {{ form_row(form.addressLine1) }}
+        {{ form_row(form.addressLine2) }}
+        <div class="{{ nowo_ui_class('form_columns', _b) }}">
+            {{ form_row(form.city) }}
+            {{ form_row(form.state) }}
+            {{ form_row(form.postalCode) }}
+            {{ form_row(form.country) }}
+        </div>
+    {% else %}
+        {{ form_row(form.fullName) }}
+        {{ form_row(form.documentNumber) }}
+        {{ form_row(form.issuedBy) }}
+        <div class="{{ nowo_ui_class('form_columns', _b) }}">
+            {{ form_row(form.issuedDate) }}
+            {{ form_row(form.expiryDate) }}
+        </div>
+        {% if not _read_only %}
+            {# REQ-TWIG-005: unmapped VaultItemFormType child, posted as "attachment". #}
+            {{ form_row(form.attachment) }}
+        {% endif %}
+    {% endif %}
+
+    {% if folders is empty %}
+        <p class="{{ nowo_ui_class('muted', _b) }}">
+            {{ 'vault.folder.empty_hint'|trans }}
+            <a href="{{ path(routes.items.name) }}">{{ 'vault.nav.folders'|trans }}</a>
+        </p>
+    {% endif %}
+    {{ form_row(form.folder) }}
+
+    {% if tagInputEnabled|default(false) %}
+        {{ form_row(form.tags) }}
+        <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.form.tags_help'|trans }}</p>
+    {% else %}
+        <div class="vault-collection" data-testid="vault-tags-field">
+            {{ form_label(form.tags) }}
+            {% for tagField in form.tags %}
+                <div class="vault-collection__entry">
+                    {{ form_widget(tagField, {attr: {class: _input, placeholder: 'vault.form.tag_placeholder'}}) }}
+                    {{ form_errors(tagField) }}
+                </div>
+            {% endfor %}
+            {{ form_errors(form.tags) }}
+            <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.form.tags_help'|trans }}</p>
+        </div>
+    {% endif %}
+
+    {{ form_row(form.note) }}
+
+    {#
+      REQ-TWIG-003 rule 3: the fields above follow a per-item-type layout. VaultItemFormType adds the fields of every item
+      type, so the loop skips the type-specific ones not shown for this type (render_rest stays off); any other child
+      (CSRF token, fields added later) is rendered here.
+    #}
+    {% set _vault_type_fields = ['username', 'password', 'websites', 'secureNote', 'cardholderName', 'cardNumber', 'expiry', 'cvv', 'cardPin', 'fullName', 'email', 'phone', 'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'documentNumber', 'issuedBy', 'issuedDate', 'expiryDate', 'attachment'] %}
+    {% for child in form %}
+        {% if not child.rendered and child.vars.name not in _vault_type_fields %}
+            {{ form_row(child) }}
+        {% endif %}
+    {% endfor %}
+    {#- the other item types' fields are not rendered: mark them so the scaffold's form_end prints nothing more -#}
+    {% for child in form %}{% if not child.rendered %}{% do child.setRendered() %}{% endif %}{% endfor %}
+    {% if not page.formTag %}
+        {{ form_end(form, {render_rest: false}) }}
+    {% endif %}
 {% endblock %}
 
-{% block javascripts %}
+{% block nowo_ui_scripts %}
     {{ parent() }}
     {% if tagInputEnabled|default(false) %}
         <script src="{{ asset('bundles/nowotaginput/tag-input.js') }}" defer></script>
     {% endif %}
     {% if passwordStrengthEnabled|default(false) %}
         <script src="{{ asset('bundles/passwordstrength/password-strength.js') }}" defer></script>
-    {% else %}
-        <script>
-            window.VAULT_PASSWORD_URL = {{ path(routes.password_generate.name)|json_encode|raw }};
-            window.VAULT_PASSWORD_CSRF_TOKEN = {{ csrf_token('vault_password_generate')|json_encode|raw }};
-        </script>
     {% endif %}
+    <script type="module" src="{{ asset('vault.js', 'nowo_vault') }}"></script>
 {% endblock %}

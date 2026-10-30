@@ -1,55 +1,21 @@
-{% extends '@NowoVaultBundle/vault/base.html.twig' %}
+{#
+  Shared items (REQ-UI-003): UiKit list scaffold. Variable: page (View\ListPage from VaultPageFactory::shared():
+  header vault.nav.shared / vault.shared.hint with a back link; columns type, title; rows = list<VaultItem> shared with
+  the user; row actions View / Access / Edit / Trash (read-only grants: View only); Pagination; EmptyState
+  vault.empty.shared). Also: routes, readOnlyMap.
+  Data block filled: nowo_ui_list_row (cells).
+#}
+{% extends '@NowoUiKit/page/list.html.twig' %}
+{% trans_default_domain 'NowoVaultBundle' %}
 
-{% block title %}{{ 'vault.nav.shared'|trans({}, 'NowoVaultBundle') }}{% endblock %}
-
-{% block body %}
-    {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
-        pageTitle: 'vault.nav.shared'|trans({}, 'NowoVaultBundle'),
-        pageSubtitle: 'vault.shared.hint'|trans({}, 'NowoVaultBundle'),
-    } %}
-
-    {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
-
-    <div class="card">
-        <div class="card-body p-0">
-            {% if items is empty %}
-                <p class="text-secondary p-4 mb-0">{{ 'vault.empty.shared'|trans({}, 'NowoVaultBundle') }}</p>
-            {% else %}
-                <div class="table-responsive">
-                    <table class="table table-vcenter card-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>{{ 'vault.list.type'|trans({}, 'NowoVaultBundle') }}</th>
-                                <th>{{ 'vault.form.title'|trans({}, 'NowoVaultBundle') }}</th>
-                                <th class="w-1">{{ 'vault.list.actions'|trans({}, 'NowoVaultBundle') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in items %}
-                                <tr>
-                                    <td class="text-secondary">{{ ('vault.type.' ~ item.itemType.value)|trans({}, 'NowoVaultBundle') }}</td>
-                                    <td>
-                                        <a href="{{ path(routes.item_edit.name, {id: item.id}) }}">
-                                            {{ item.title }}
-                                        </a>
-                                        {% if readOnlyMap[item.id]|default(false) %}
-                                            <span class="badge bg-azure-lt ms-1">{{ 'vault.badge.read_only'|trans({}, 'NowoVaultBundle') }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end">
-                                        {% include '@NowoVaultBundle/vault/_item_row_actions.html.twig' with {
-                                            item: item,
-                                            readOnlyMap: readOnlyMap,
-                                            routes: routes,
-                                        } %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% include '@NowoVaultBundle/vault/_pagination.html.twig' with {pagination: pagination|default(null), routeName: routes.shared.name} %}
-            {% endif %}
-        </div>
-    </div>
+{% block nowo_ui_list_row %}
+    {% set _b = page.bundle %}
+    {% set _cell = nowo_ui_class('table_cell', _b) %}
+    <td class="{{ _cell }}" data-label="{{ 'vault.list.type'|trans }}" data-nowo-ui-priority="2">{{ ('vault.type.' ~ row.itemType.value)|trans }}</td>
+    <td class="{{ _cell }}" data-label="{{ 'vault.list.title'|trans }}" data-required="1">
+        <a href="{{ path(routes.item_view.name, {id: row.id}) }}">{{ row.title }}</a>
+        {% if readOnlyMap[row.id]|default(false) %}
+            <span class="{{ nowo_ui_class('badge_info', _b) }}">{{ 'vault.badge.read_only'|trans }}</span>
+        {% endif %}
+    </td>
 {% endblock %}

@@ -64,6 +64,8 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 | 6 `Repository\DoctrineOrm*Repository` | yes | none; resolve the manager from `doctrine` (`ManagerRegistry`) per call, reset when closed | ✅ | ✅ (identity map: application responsibility, see W-03) |
 | `Doctrine\VaultMetadataListener` (`loadClassMetadata`) | yes | none (`readonly` table names) | ✅ | ✅ |
 | `Twig\VaultExtension` (globals) | yes | none; one constant global `nowo_vault_css_framework` | ✅ | ✅ |
+| `Ui\VaultPages`, `Ui\VaultPageFactory` (REQ-UI-003 view models) | yes | none (`readonly`: layout template, Twig, router); view models are plain data built per request | ✅ | ✅ |
+| `DependencyInjection\Compiler\CsrfProtectionPass` | compile time only | none | N/A | N/A |
 | `Form\VaultItemFormType`, `Form\VaultShareType` | yes | FormKit trait fields (merger, profile name, bound builder restored in `finally`) | ✅ | ✅ |
 | 3 controllers (`VaultManageController`, `VaultRuntimeConfigController`, `VaultBrowserExtensionController`) | yes (public) | none (`readonly` dependencies) | ✅ | ✅ |
 | 2 commands (`nowo:vault:reencrypt`, `nowo:vault:extension-tokens:purge`) | CLI only | none | N/A | N/A |

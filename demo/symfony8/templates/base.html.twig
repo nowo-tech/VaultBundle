@@ -3,15 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Vault Demo{% endblock %}</title>
+    <title>{% block title %}Vault Bundle Demo{% endblock %}</title>
+    {# Demo app only: the host loads its CSS framework (Tabler on Bootstrap 5); the bundle never loads a CDN. #}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
     <link rel="stylesheet" href="{{ asset('css/demo.css') }}">
+    {% block stylesheets %}{% endblock %}
 </head>
 <body>
 <div class="page">
-    <div class="container py-4">
+    <header class="navbar navbar-expand-md navbar-dark bg-dark d-print-none vault-demo-masthead">
+        <div class="container-xl">
+            <a class="navbar-brand" href="{{ path('nowo_vault_index') }}">Vault Bundle Demo</a>
+            {% set _route = app.request.attributes.get('_route')|default('') %}
+            <ul class="navbar-nav flex-row gap-3 me-auto ms-3">
+                <li class="nav-item"><a class="nav-link{{ _route == 'nowo_vault_index' ? ' active' }}" href="{{ path('nowo_vault_index') }}">Home</a></li>
+                <li class="nav-item"><a class="nav-link{{ _route == 'nowo_vault_items' ? ' active' }}" href="{{ path('nowo_vault_items') }}">My items</a></li>
+                <li class="nav-item"><a class="nav-link{{ _route == 'nowo_vault_shared' ? ' active' }}" href="{{ path('nowo_vault_shared') }}">Shared</a></li>
+                <li class="nav-item"><a class="nav-link{{ _route == 'nowo_vault_trash' ? ' active' }}" href="{{ path('nowo_vault_trash') }}">Trash</a></li>
+            </ul>
+            <span class="navbar-text text-white-50 small">Symfony 8 · FrankenPHP</span>
+        </div>
+    </header>
+    <div class="container-xl py-4">
         {% block body %}{% endblock %}
     </div>
 </div>
+{% block javascripts %}{% endblock %}
 </body>
 </html>

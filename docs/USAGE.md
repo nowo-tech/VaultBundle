@@ -83,7 +83,7 @@ The browser extension `/logins` lookup decrypts at most `browser_extension.max_l
 
 The bundle registers **`@NowoVaultBundle/`**. Application files under **`templates/bundles/NowoVaultBundle/`** win over vendor (`TwigPathsPass`).
 
-**Freeze rule:** an application file at the override path always wins and will **not** pick up vendor changes for that path until you remove or merge it. Prefer **`templates.layout`** + **`css_framework`** (and the per-page `templates.*` keys in [CONFIGURATION.md](CONFIGURATION.md#templates)) over copying every manage page.
+**Freeze rule:** an application file at the override path always wins and will **not** pick up vendor changes for that path until you remove or merge it. Prefer the UiKit theme (`nowo_ui_kit.layouts` / `css_framework` / `theme`, once for every bundle) and the per-page `web_ui.templates.*` keys ([CONFIGURATION.md](CONFIGURATION.md#manage-web-ui-web_ui)) over copying manage pages.
 
 Registration: `TwigPathsPass` prepends `templates/bundles/NowoVaultBundle/` (when it exists) and appends the bundle's `src/Resources/views` to the `NowoVaultBundle` namespace, so overrides are searched first. It is always active (the manage UI is not optional).
 
@@ -91,8 +91,9 @@ Registration: `TwigPathsPass` prepends `templates/bundles/NowoVaultBundle/` (whe
 
 | Depth | How | On a bundle update |
 |-------|-----|--------------------|
-| No Twig fork | `templates.layout` (host shell / bridge), `css_framework`, CSS on `nowo-ui-*` / `nowo-vault-*` classes | Every vendor template fix applies automatically |
-| Surgical override | Copy one partial (e.g. `vault/_item_row_actions.html.twig`) or point a single `templates.<page>` key at your own file that `{% extends %}` the vendor page and overrides one block with `{{ parent() }}` | Only that file is frozen |
+| No Twig fork | `nowo_ui_kit.layouts.admin` (host shell / bridge), `nowo_ui_kit.css_framework` / `theme` (slots, tokens, `theme.bundles.NowoVaultBundle`), CSS on `nowo-ui-*` / `vault-*` hooks | Every vendor template fix applies automatically |
+| Re-skin a view type | Override a UiKit scaffold once in `templates/bundles/NowoUiKitBundle/page/<type>.html.twig` | Applies to every bundle; only that scaffold is frozen |
+| Surgical override | Point one `web_ui.templates.<page>` key at your own file that `{% extends '@!NowoVaultBundle/vault/<page>.html.twig' %}` and overrides one data block with `{{ parent() }}` | Only that file is frozen |
 | Full-file override | Copy a page into `templates/bundles/NowoVaultBundle/<subpath>` | That `<subpath>` is frozen until you delete or merge it |
 
 **Procedure**
@@ -108,36 +109,38 @@ Registration: `TwigPathsPass` prepends `templates/bundles/NowoVaultBundle/` (whe
 
 | `<subpath>` | Purpose |
 |-------------|---------|
-| `layout.html.twig` | Default outer HTML shell (`templates.layout`); replace via config rather than overriding |
-| `vault/base.html.twig` | Manage base: flashes, page header, `body` block, `vault.css` / `vault.js` |
-| `vault/home.html.twig` | Landing page (item types, password generator, runtime config link) |
-| `vault/items.html.twig` | Items list with folders, tags, search and pager |
-| `vault/shared.html.twig` | Items shared with the user (pager) |
-| `vault/trash.html.twig` | Trashed items with restore / purge forms (pager) |
-| `vault/item_form.html.twig` | Create / edit / view form of one item |
-| `vault/share.html.twig` | Share form + existing grants of an item or folder |
-| `vault/runtime_config.html.twig` | Database-backed runtime configuration screen |
-| `vault/_flashes.html.twig` | Flash messages partial |
-| `vault/_page_header.html.twig` | Page title / actions header partial |
-| `vault/_item_row_actions.html.twig` | Row action buttons (view, edit, share, trash) |
-| `vault/_grants_table.html.twig` | Grants table with revoke forms |
-| `vault/_share_form_fields.html.twig` | Share form fields (grantee picker, permission) |
-| `vault/_password_generator.html.twig` | Password generator widget |
-| `vault/_pagination.html.twig` | Previous / next pager of the list pages |
-| `Form/vault_item_form_theme.html.twig` | Form theme of the item form (per-type layouts) |
+| `vault/home.html.twig` | Landing page — `page/dashboard` (sections, item types, password generator, runtime config action) |
+| `vault/items.html.twig` | Items list — `page/list` (folders / tags panels, search, cells) |
+| `vault/shared.html.twig` | Items shared with the user — `page/list` |
+| `vault/trash.html.twig` | Trashed items — `page/list` (restore / purge row actions) |
+| `vault/item_form.html.twig` | Create / edit / view form of one item — `page/form` (per-item-type layout) |
+| `vault/share.html.twig` | Share form + current grants of an item or folder — `page/form` (+ aside table) |
+| `vault/runtime_config.html.twig` | Database-backed runtime configuration — `page/settings` |
+| `vault/_password_generator.html.twig` | Password generator body (UiKit `dialog` partial) |
+| `vault/_legacy_layout.html.twig` | Deprecated bridge around a 1.x layout (removed in 2.0) |
+| `Form/vault_item_form_theme.html.twig` | Tag input container of the item form (with `nowo-tech/tag-input-bundle`) |
+
+Data blocks, view-model fields and the page → scaffold map: [TEMPLATES.md](TEMPLATES.md).
 
 Renaming or removing a `<subpath>` or a stable `{% block %}` is treated as a breaking change and is listed in [UPGRADING.md](UPGRADING.md).
 
-Manage pages extend `@NowoVaultBundle/vault/base.html.twig`, which stacks `vault.css` / `vault.js` with `{{ parent() }}` on `stylesheets` / `javascripts` (REQ-UI-001). Point `templates.layout` at the host layout (or a bridge) so chrome comes from the project without forking every page.
-
-**`css_framework` (REQ-UI-001):** set root key `css_framework` to match the host stack. Twig global: `nowo_vault_css_framework` (default `tabler`, matching the demo CDN layout). Use `custom` / `none` when the host shell already provides CSS and you restyle via `nowo-ui-*` / Tabler-compatible classes. Example:
+Manage pages extend the UiKit scaffolds (REQ-UI-003), which extend `nowo_ui_kit.layouts.admin` (or
+`nowo_vault.web_ui.layout_template`). Each page stacks `vault.css` / `vault.js` with `{{ parent() }}` in the canonical
+`nowo_ui_styles` / `nowo_ui_scripts` blocks, so the host layout keeps its own assets. The CSS stack, icon set and
+row-action display come from `nowo_ui_kit` (one theme per host):
 
 ```yaml
-nowo_vault:
-    css_framework: tabler
-    templates:
-        layout: 'layouts/app.html.twig'
+nowo_ui_kit:
+    css_framework: bootstrap5   # tabler | tailwind | foundation | custom
+    layouts:
+        admin: 'layouts/admin.html.twig'
 ```
+
+**Modals and confirms:** destructive actions (move to trash, purge, delete a tag, trash a folder, remove access) are
+POST + CSRF forms behind the UiKit confirm `<dialog>`; the password generator is the UiKit `dialog` partial opened by
+`data-nowo-ui-dialog-open="vault-password-generator"`. Both need the UiKit scripts the UiKit layout loads
+(`nowo_ui_partial('scripts')`); `vault.js` opens the generator itself when they are absent. No inline script or
+`on*=` handler is printed (CSP friendly).
 
 ### Forms in templates (REQ-TWIG-005)
 

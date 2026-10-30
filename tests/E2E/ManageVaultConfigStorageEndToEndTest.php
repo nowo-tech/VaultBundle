@@ -45,17 +45,18 @@ final class ManageVaultConfigStorageEndToEndTest extends WebTestCase
 
         $crawler = $client->request('GET', '/tools/vault/items');
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filterXPath('//*[contains(@class, "nowo-vault-pagination")]'));
-        self::assertCount(1, $crawler->filterXPath('//a[@rel="next"][@href="/tools/vault/items?page=2"]'));
-        self::assertCount(0, $crawler->filterXPath('//a[@rel="prev"]'));
-        self::assertStringContainsString('Page 1 of 2 (3 entries)', (string) $client->getResponse()->getContent());
+        // UiKit pagination region (REQ-UI-003): info line, Next link to page 2, no Previous link on page 1.
+        self::assertCount(1, $crawler->filterXPath('//*[@data-nowo-ui-region="pagination"]'));
+        self::assertCount(1, $crawler->filterXPath('//a[@aria-label="Next"][contains(@href, "/tools/vault/items?")][contains(@href, "page=2")]'));
+        self::assertCount(0, $crawler->filterXPath('//a[@aria-label="Previous"]'));
+        self::assertStringContainsString('Showing 1–2 of 3', (string) $client->getResponse()->getContent());
 
         $pageOne = (string) $client->getResponse()->getContent();
 
         $crawler = $client->request('GET', '/tools/vault/items?page=2');
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filterXPath('//a[@rel="prev"][@href="/tools/vault/items?page=1"]'));
-        self::assertCount(0, $crawler->filterXPath('//a[@rel="next"]'));
+        self::assertCount(1, $crawler->filterXPath('//a[@aria-label="Previous"][contains(@href, "page=1")]'));
+        self::assertCount(0, $crawler->filterXPath('//a[@aria-label="Next"]'));
         $pageTwo = (string) $client->getResponse()->getContent();
         // Every item is on exactly one page.
         foreach (['A', 'B', 'C'] as $title) {
@@ -68,11 +69,11 @@ final class ManageVaultConfigStorageEndToEndTest extends WebTestCase
         }
         $client->request('GET', '/tools/vault/trash?page=2');
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('Page 2 of 2 (3 entries)', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Showing 3–3 of 3', (string) $client->getResponse()->getContent());
 
         $client->request('GET', '/tools/vault/shared');
         self::assertResponseIsSuccessful();
-        self::assertStringNotContainsString('nowo-vault-pagination', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('data-nowo-ui-region="pagination"', (string) $client->getResponse()->getContent());
     }
 
     public function testHomeLinksRuntimeConfigAndDashboard(): void

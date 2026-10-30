@@ -1,54 +1,50 @@
-{% extends '@NowoVaultBundle/vault/base.html.twig' %}
+{#
+  Share access (REQ-UI-003): UiKit form scaffold. Variable: page (View\FormPage from VaultPageFactory::share(): header
+  vault.share.title (intro = item title / folder name) with a back link; form = VaultShareType (grantee picker or
+  grantee type + id, permission); submit vault.share.submit; cancel = back). Also: grantsTable (View\Table from
+  VaultPageFactory::grantsTable(): grantee type, grantee, permission; row action Remove access = POST + CSRF FormView
+  behind a Confirm), grants, granteeLabels (type:id => label).
+  Data blocks filled: nowo_ui_form_body (intro, the REQ-TWIG-003 child loop, the grantee id help),
+  nowo_ui_form_aside (current grants through the UiKit `table` partial, or the empty message).
+#}
+{% extends '@NowoUiKit/page/form.html.twig' %}
+{% trans_default_domain 'NowoVaultBundle' %}
 
-{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block nowo_ui_form_body %}
+    {% set _b = page.bundle %}
+    <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.access.intro'|trans }}</p>
+    {{ parent() }}
+    {% if not form.vars.grantee_picker|default(false) %}
+        <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.share.grantee_id_help'|trans }}</p>
+    {% endif %}
+{% endblock %}
 
-{% block title %}{{ 'vault.share.title'|trans({}, 'NowoVaultBundle') }}{% endblock %}
-
-{% block body %}
-    {% include '@NowoVaultBundle/vault/_page_header.html.twig' with {
-        pageTitle: 'vault.share.title'|trans({}, 'NowoVaultBundle') ~ ': ' ~ resourceLabel,
-    } %}
-
-    {% include '@NowoVaultBundle/vault/_flashes.html.twig' %}
-
-    <div class="card mb-4">
-        <div class="card-header">
-            <h3 class="card-title mb-0">{{ 'vault.access.add'|trans({}, 'NowoVaultBundle') }}</h3>
-        </div>
-        <div class="card-body">
-            <p class="text-secondary">{{ 'vault.access.intro'|trans({}, 'NowoVaultBundle') }}</p>
-            {{ form_start(form, {attr: {class: 'vault-form'}}) }}
-            <div class="row g-3">
-                {% include '@NowoVaultBundle/vault/_share_form_fields.html.twig' with {form: form} %}
-            </div>
-            {% if not form.vars.grantee_picker %}
-                <p class="text-secondary small mb-3">{{ 'vault.share.grantee_id_help'|trans({}, 'NowoVaultBundle') }}</p>
+{% block nowo_ui_form_aside %}
+    {% set _b = page.bundle %}
+    <aside class="{{ nowo_ui_class('card', _b) }} vault-grants" data-testid="vault-grants-panel"{{ nowo_ui_attrs('card', _b) }}>
+        <header class="{{ nowo_ui_class('card_header', _b) }}">
+            <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'vault.share.existing'|trans }}</h2>
+        </header>
+        <div class="{{ nowo_ui_class('card_body', _b) }}">
+            {% if grants is empty %}
+                <p class="{{ nowo_ui_class('empty', _b) }}">{{ 'vault.access.empty'|trans }}</p>
+            {% else %}
+                {% embed nowo_ui_partial('table', _b) with {table: grantsTable, bundle: _b} %}
+                    {% block nowo_ui_table_row %}
+                        {% set _cell = nowo_ui_class('table_cell', bundle) %}
+                        {% set _key = row.granteeType.value ~ ':' ~ row.granteeId %}
+                        <td class="{{ _cell }}" data-label="{{ 'vault.share.grantee_type'|trans({}, 'NowoVaultBundle') }}">{{ ('vault.grantee_type.' ~ row.granteeType.value)|trans({}, 'NowoVaultBundle') }}</td>
+                        <td class="{{ _cell }}" data-label="{{ 'vault.share.grantee_id'|trans({}, 'NowoVaultBundle') }}" data-required="1">
+                            {% if granteeLabels[_key]|default('') %}
+                                {{ granteeLabels[_key] }} <code class="{{ nowo_ui_class('code', bundle) }}">{{ row.granteeId }}</code>
+                            {% else %}
+                                <code class="{{ nowo_ui_class('code', bundle) }}">{{ row.granteeId }}</code>
+                            {% endif %}
+                        </td>
+                        <td class="{{ _cell }}" data-label="{{ 'vault.share.permission'|trans({}, 'NowoVaultBundle') }}">{{ ('vault.permission.' ~ row.permission.value)|trans({}, 'NowoVaultBundle') }}</td>
+                    {% endblock %}
+                {% endembed %}
             {% endif %}
-            <div class="d-flex gap-2 mt-3">
-                <button type="submit" class="btn btn-primary">{{ 'vault.share.submit'|trans({}, 'NowoVaultBundle') }}</button>
-                <a href="{{ path(backRoute, backParams) }}" class="btn btn-outline-secondary">{{ 'vault.action.back'|trans({}, 'NowoVaultBundle') }}</a>
-            </div>
-            {% for child in form %}
-                {% if not child.rendered %}
-                    {{ form_row(child) }}
-                {% endif %}
-            {% endfor %}
-            {{ form_end(form) }}
         </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title mb-0">{{ 'vault.share.existing'|trans({}, 'NowoVaultBundle') }}</h3>
-        </div>
-        <div class="card-body">
-            {% include '@NowoVaultBundle/vault/_grants_table.html.twig' with {
-                grants: grants,
-                resourceId: resourceId,
-                grantRevokeRoute: grantRevokeRoute,
-                canManageAccess: true,
-                granteeLabels: granteeLabels|default({}),
-            } %}
-        </div>
-    </div>
+    </aside>
 {% endblock %}

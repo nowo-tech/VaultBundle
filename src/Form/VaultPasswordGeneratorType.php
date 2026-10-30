@@ -42,15 +42,14 @@ final class VaultPasswordGeneratorType extends AbstractType
             'mapped'   => false,
             'required' => false,
             'label'    => false,
-            'attr'     => ['class' => 'form-control', 'readonly' => true, 'data-vault-password-output' => true],
+            'attr'     => ['class' => 'nowo-ui-input', 'readonly' => true, 'data-vault-password-output' => true],
         ]);
         $builder->add('length', RangeType::class, [
-            'mapped'     => false,
-            'required'   => false,
-            'label'      => 'vault.generator.length',
-            'data'       => 20,
-            'label_attr' => ['class' => 'form-label'],
-            'attr'       => ['class' => 'form-range', 'min' => 8, 'max' => 64, 'data-vault-password-length' => true],
+            'mapped'   => false,
+            'required' => false,
+            'label'    => 'vault.generator.length',
+            'data'     => 20,
+            'attr'     => ['class' => 'vault-generator__range', 'min' => 8, 'max' => 64, 'data-vault-password-length' => true],
         ]);
         $builder->add('mode', ChoiceType::class, [
             'mapped'   => false,
@@ -62,7 +61,7 @@ final class VaultPasswordGeneratorType extends AbstractType
                 'vault.generator.mode_characters' => 'characters',
                 'vault.generator.mode_words'      => 'words',
             ],
-            'choice_attr' => static fn (): array => ['class' => 'form-check-input'],
+            'choice_attr' => static fn (): array => ['class' => 'nowo-ui-check__input'],
         ]);
 
         foreach (['upper' => 'A-Z', 'digits' => '0-9', 'symbols' => '!@#'] as $name => $label) {
@@ -72,7 +71,7 @@ final class VaultPasswordGeneratorType extends AbstractType
                 'data'               => true,
                 'label'              => $label,
                 'translation_domain' => false,
-                'attr'               => ['class' => 'form-check-input', 'data-vault-password-' . $name => true],
+                'attr'               => ['class' => 'nowo-ui-check__input', 'data-vault-password-' . $name => true],
             ]);
         }
     }

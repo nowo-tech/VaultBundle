@@ -29,6 +29,7 @@ vault:
         name_placeholder: Folder name
         empty_hint: 'No folders yet. Create one from the items page to organize entries:'
     search:
+        clear: Clear
         placeholder: Search all items
         placeholder_tags: Search by title or tag
     tags:
@@ -68,6 +69,7 @@ vault:
         write: Write
         admin: Admin
     form:
+        website_placeholder: 'https://example.com'
         title: Title (required)
         attachment: Document attachment
         username: Email or Username
@@ -99,6 +101,7 @@ vault:
         tag_placeholder: e.g. work, personal
         tags_help: Type a tag and press Enter. Tags are reused across your items.
     action:
+        open: Open
         save: Save
         cancel: Cancel
         back: Back
@@ -130,12 +133,16 @@ vault:
         trash: Trash is empty.
         shared: No shared items yet.
     list:
+        title: Title
         type: Type
         folder: Folder
         actions: Actions
     shared:
         hint: Items shared with you or your teams appear here. Extend access via VaultGrantService and ITEM_LIST_QUERY events.
     confirm:
+        trash_title: 'Move "%name%" to trash?'
+        trash_folder_title: 'Move folder "%name%" to trash?'
+        purge_title: 'Delete "%name%" permanently?'
         trash: Move this item to trash?
         trash_folder: Move this folder to trash?
         trash_folder_with_items: 'This folder contains %count% item(s). Delete the folder? The items will remain without a folder.'
@@ -181,7 +188,3 @@ vault:
         generate_key: Generate VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Max attachment size (bytes)
         password_level: Password strength level
-    pagination:
-        previous: 'Previous'
-        next: 'Next'
-        summary: 'Page %page% of %pages% (%total% entries)'

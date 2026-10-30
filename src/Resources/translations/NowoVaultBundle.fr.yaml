@@ -29,6 +29,7 @@ vault:
         name_placeholder: Nom du dossier
         empty_hint: 'Aucun dossier pour le moment. Créez-en un depuis la page des éléments pour organiser les entrées :'
     search:
+        clear: Effacer
         placeholder: Rechercher dans tous les éléments
         placeholder_tags: Rechercher par titre ou tag
     tags:
@@ -68,6 +69,7 @@ vault:
         write: Écriture
         admin: Administration
     form:
+        website_placeholder: 'https://example.com'
         title: Titre (obligatoire)
         attachment: Pièce jointe du document
         username: E-mail ou nom d'utilisateur
@@ -99,6 +101,7 @@ vault:
         tag_placeholder: ex. travail, personnel
         tags_help: Saisissez un tag et appuyez sur Entrée. Les tags sont réutilisés entre vos éléments.
     action:
+        open: Ouvrir
         save: Enregistrer
         cancel: Annuler
         back: Retour
@@ -130,12 +133,16 @@ vault:
         trash: La corbeille est vide.
         shared: Aucun élément partagé.
     list:
+        title: Titre
         type: Type d'entrée
         folder: Dossier
         actions: Opérations
     shared:
         hint: Les éléments partagés avec vous ou vos équipes apparaissent ici. Étendez l'accès via VaultGrantService et les événements ITEM_LIST_QUERY.
     confirm:
+        trash_title: 'Mettre « %name% » à la corbeille ?'
+        trash_folder_title: 'Mettre le dossier « %name% » à la corbeille ?'
+        purge_title: 'Supprimer « %name% » définitivement ?'
         trash: Mettre cet élément à la corbeille ?
         trash_folder: Mettre ce dossier à la corbeille ?
         trash_folder_with_items: 'Ce dossier contient %count% élément(s). Supprimer le dossier ? Les éléments resteront sans dossier.'
@@ -181,7 +188,3 @@ vault:
         generate_key: Générer VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Taille max. des pièces jointes (octets)
         password_level: Niveau de robustesse du mot de passe
-    pagination:
-        previous: 'Précédent'
-        next: 'Suivant'
-        summary: 'Page %page% sur %pages% (%total% entrées)'

@@ -29,6 +29,7 @@ vault:
         name_placeholder: Nombre de la carpeta
         empty_hint: 'Aún no hay carpetas. Crea una desde la página de elementos para organizar entradas:'
     search:
+        clear: Limpiar
         placeholder: Buscar en todos los elementos
         placeholder_tags: Buscar por título o etiqueta
     tags:
@@ -68,6 +69,7 @@ vault:
         write: Escritura
         admin: Administración
     form:
+        website_placeholder: 'https://example.com'
         title: Título (obligatorio)
         attachment: Adjunto del documento
         username: Email o usuario
@@ -99,6 +101,7 @@ vault:
         tag_placeholder: p. ej. trabajo, personal
         tags_help: Escribe una etiqueta y pulsa Enter. Las etiquetas se reutilizan entre tus elementos.
     action:
+        open: Abrir
         save: Guardar
         cancel: Cancelar
         back: Volver
@@ -130,12 +133,16 @@ vault:
         trash: La papelera está vacía.
         shared: No hay elementos compartidos.
     list:
+        title: Título
         type: Tipo
         folder: Carpeta
         actions: Acciones
     shared:
         hint: Los elementos compartidos contigo o con tus equipos aparecen aquí. Extiende el acceso con VaultGrantService y eventos ITEM_LIST_QUERY.
     confirm:
+        trash_title: '¿Mover "%name%" a la papelera?'
+        trash_folder_title: '¿Mover la carpeta "%name%" a la papelera?'
+        purge_title: '¿Eliminar "%name%" definitivamente?'
         trash: ¿Mover este elemento a la papelera?
         trash_folder: ¿Mover esta carpeta a la papelera?
         trash_folder_with_items: 'Esta carpeta contiene %count% elemento(s). ¿Eliminar la carpeta? Los elementos quedarán sin carpeta asociada.'
@@ -181,7 +188,3 @@ vault:
         generate_key: Generar VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Tamaño máximo de adjuntos (bytes)
         password_level: Nivel de fortaleza de contraseña
-    pagination:
-        previous: 'Anterior'
-        next: 'Siguiente'
-        summary: 'Página %page% de %pages% (%total% entradas)'

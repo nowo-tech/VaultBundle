@@ -29,6 +29,7 @@ vault:
         name_placeholder: Nome cartella
         empty_hint: 'Non ci sono ancora cartelle. Creane una dalla pagina elementi per organizzare le voci:'
     search:
+        clear: Cancella
         placeholder: Cerca in tutti gli elementi
         placeholder_tags: Cerca per titolo o tag
     tags:
@@ -68,6 +69,7 @@ vault:
         write: Scrittura
         admin: Amministrazione
     form:
+        website_placeholder: 'https://example.com'
         title: Titolo (obbligatorio)
         attachment: Allegato documento
         username: Email o nome utente
@@ -99,6 +101,7 @@ vault:
         tag_placeholder: es. lavoro, personale
         tags_help: Digita un tag e premi Invio. I tag vengono riutilizzati tra i tuoi elementi.
     action:
+        open: Apri
         save: Salva
         cancel: Annulla
         back: Indietro
@@ -130,12 +133,16 @@ vault:
         trash: Il cestino è vuoto.
         shared: Non ci sono elementi condivisi.
     list:
+        title: Titolo
         type: Tipo
         folder: Cartella
         actions: Azioni
     shared:
         hint: Gli elementi condivisi con te o con i tuoi team compaiono qui. Estendi l'accesso con VaultGrantService e eventi ITEM_LIST_QUERY.
     confirm:
+        trash_title: 'Spostare "%name%" nel cestino?'
+        trash_folder_title: 'Spostare la cartella "%name%" nel cestino?'
+        purge_title: 'Eliminare definitivamente "%name%"?'
         trash: Spostare questo elemento nel cestino?
         trash_folder: Spostare questa cartella nel cestino?
         trash_folder_with_items: 'Questa cartella contiene %count% elemento/i. Eliminare la cartella? Gli elementi resteranno senza cartella.'
@@ -181,7 +188,3 @@ vault:
         generate_key: Genera VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Dimensione massima allegati (byte)
         password_level: Livello robustezza password
-    pagination:
-        previous: 'Precedente'
-        next: 'Successiva'
-        summary: 'Pagina %page% di %pages% (%total% voci)'

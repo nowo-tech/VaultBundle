@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Controller;
 
+use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
@@ -13,6 +14,7 @@ use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
+use Nowo\VaultBundle\Ui\VaultPageFactory;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,6 +31,7 @@ use function is_string;
 final class VaultRuntimeConfigController extends AbstractController
 {
     use VaultCsrfTrait;
+    use VaultPagesTrait;
 
     private const SESSION_ENCRYPTION_KEY_ONE_TIME = 'vault.encryption_key.one_time';
 
@@ -43,6 +46,7 @@ final class VaultRuntimeConfigController extends AbstractController
         private readonly VaultRuntimeConfigResolver $configResolver,
         private readonly bool $databaseEnabled,
         private readonly bool $allowUnauthenticated = false,
+        private readonly ?VaultPageFactory $pageFactory = null,
     ) {
     }
 
@@ -170,10 +174,15 @@ final class VaultRuntimeConfigController extends AbstractController
             'encryption_key_display' => $oneTimeKey ?? '',
         ]);
 
-        return $this->render($this->template(), [
-            'layout'                => $config['templates']['layout'],
+        $dashboardRoute = is_string($config['dashboard_route'] ?? null) ? $config['dashboard_route'] : null;
+        $pages          = $this->pages();
+        $updatedAt      = $stored?->getUpdatedAt();
+        $view           = $form->createView();
+
+        return $this->render($this->template(), $pages->context([
+            'page'                  => $pages->runtimeConfig($view, $updatedAt instanceof DateTimeImmutable ? $updatedAt->format('Y-m-d H:i:s') . ' UTC' : null, $dashboardRoute),
             'routes'                => $config['routes'],
-            'dashboardRoute'        => is_string($config['dashboard_route'] ?? null) ? $config['dashboard_route'] : null,
+            'dashboardRoute'        => $dashboardRoute,
             'runtimeConfigRoute'    => $routeName,
             'dbUpdatedAt'           => $stored?->getUpdatedAt(),
             'maxAttachmentBytes'    => $maxBytes,
@@ -183,8 +192,8 @@ final class VaultRuntimeConfigController extends AbstractController
             'canStoreEncryptionKey' => $canStoreKey,
             'encryptionKeyDisplay'  => $oneTimeKey,
             'showOneTimeKeyWarning' => $oneTimeKey !== null,
-            'form'                  => $form,
-        ]);
+            'form'                  => $view,
+        ]));
     }
 
     private function denyUnlessAdmin(): void

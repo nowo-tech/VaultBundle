@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\DependencyInjection;
 
+use Nowo\VaultBundle\Ui\VaultPages;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
@@ -136,7 +137,7 @@ final class RuntimeConfiguration implements ConfigurationInterface
                 ->arrayNode('templates')
                     ->addDefaultsIfNotSet()
                     ->children()
-                        ->scalarNode('layout')->defaultValue('@NowoVaultBundle/layout.html.twig')->end()
+                        ->scalarNode('layout')->defaultNull()->end()
                         ->scalarNode('home')->defaultValue('@NowoVaultBundle/vault/home.html.twig')->end()
                         ->scalarNode('items')->defaultValue('@NowoVaultBundle/vault/items.html.twig')->end()
                         ->scalarNode('index')->defaultValue('@NowoVaultBundle/vault/home.html.twig')->end()
@@ -166,7 +167,7 @@ final class RuntimeConfiguration implements ConfigurationInterface
             'encryption_key'       => $config['encryption_key'],
             'max_attachment_bytes' => $config['max_attachment_bytes'],
             'password_field'       => $config['password_field'],
-            'route_prefix'         => $config['route_prefix'],
+            'route_prefix'         => $config['web_ui']['path_prefix'],
             'dashboard_route'      => $config['dashboard_route'],
             'security'             => [
                 'admin_roles'  => $config['security']['admin_roles'],
@@ -176,8 +177,23 @@ final class RuntimeConfiguration implements ConfigurationInterface
                 'delete_roles' => $config['security']['delete_roles'],
             ],
             'routes'    => $config['routes'],
-            'templates' => $config['templates'],
+            'templates' => self::templates($config['web_ui']),
             'firewall'  => $config['firewall'],
         ];
+    }
+
+    /**
+     * Resolved page templates of the runtime baseline: `web_ui.templates` over the bundle templates, `layout` =
+     * `web_ui.layout_template` (null = UiKit layout) and the 1.x `index` alias of `home`.
+     *
+     * @param array{layout_template: string|null, templates: array<string, string>} $webUi
+     *
+     * @return array<string, string|null>
+     */
+    private static function templates(array $webUi): array
+    {
+        $templates = $webUi['templates'] + VaultPages::TEMPLATES;
+
+        return ['layout' => $webUi['layout_template'], 'index' => $templates['home']] + $templates;
     }
 }

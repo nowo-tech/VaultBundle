@@ -29,6 +29,7 @@ vault:
         name_placeholder: Ordnername
         empty_hint: 'Noch keine Ordner. Erstellen Sie einen auf der Elementseite, um Einträge zu organisieren:'
     search:
+        clear: Zurücksetzen
         placeholder: Alle Elemente durchsuchen
         placeholder_tags: Nach Titel oder Tag suchen
     tags:
@@ -68,6 +69,7 @@ vault:
         write: Schreiben
         admin: Verwaltung
     form:
+        website_placeholder: 'https://example.com'
         title: Titel (erforderlich)
         attachment: Dokumentanhang
         username: E-Mail oder Benutzername
@@ -99,6 +101,7 @@ vault:
         tag_placeholder: z. B. Arbeit, privat
         tags_help: Tag eingeben und Enter drücken. Tags werden über Ihre Elemente hinweg wiederverwendet.
     action:
+        open: Öffnen
         save: Speichern
         cancel: Abbrechen
         back: Zurück
@@ -130,12 +133,16 @@ vault:
         trash: Der Papierkorb ist leer.
         shared: Keine geteilten Elemente.
     list:
+        title: Titel
         type: Typ
         folder: Ordner
         actions: Aktionen
     shared:
         hint: Mit Ihnen oder Ihren Teams geteilte Elemente erscheinen hier. Erweitern Sie den Zugriff über VaultGrantService und ITEM_LIST_QUERY-Ereignisse.
     confirm:
+        trash_title: '„%name%“ in den Papierkorb verschieben?'
+        trash_folder_title: 'Ordner „%name%“ in den Papierkorb verschieben?'
+        purge_title: '„%name%“ endgültig löschen?'
         trash: Dieses Element in den Papierkorb verschieben?
         trash_folder: Diesen Ordner in den Papierkorb verschieben?
         trash_folder_with_items: 'Dieser Ordner enthält %count% Element(e). Ordner löschen? Die Elemente bleiben ohne Ordner.'
@@ -181,7 +188,3 @@ vault:
         generate_key: VAULT_ENCRYPTION_KEY generieren
         max_attachment_bytes: Max. Anhangsgröße (Bytes)
         password_level: Passwortstärke
-    pagination:
-        previous: 'Zurück'
-        next: 'Weiter'
-        summary: 'Seite %page% von %pages% (%total% Einträge)'

@@ -1,7 +1,10 @@
-{% use "bootstrap_5_layout.html.twig" %}
-
+{#
+  Item form theme when nowo-tech/tag-input-bundle is installed (FormPage::formThemes, VaultPages::ITEM_FORM_THEME):
+  wraps the tag input in its container. Only this block: the host form theme (FormKit profile) keeps rendering every
+  other field; block('form_widget_simple') resolves through the form themes of the form.
+#}
 {% block nowo_tag_input_widget %}
     <div class="{{ tag_container_class }}" data-nowo-tag-container="1">
-        {{ block('form_widget_simple') }}
+        {{- block('form_widget_simple') -}}
     </div>
 {% endblock %}

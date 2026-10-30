@@ -24,6 +24,7 @@ services:
         arguments:
             $runtimeConfig: '@Nowo\VaultBundle\Config\VaultRuntimeConfigProvider'
             $configStorageEnabled: '%nowo_vault.config_storage.enabled%'
+            $webUiEnabled: '%nowo_vault.web_ui.enabled%'
             $browserExtensionEnabled: '%nowo_vault.browser_extension.enabled%'
             $browserExtensionRoutes: '%nowo_vault.browser_extension.routes%'
         tags:
@@ -62,6 +63,13 @@ services:
             $databaseEnabled: '%nowo_vault.config_storage.enabled%'
             $allowUnauthenticated: '%nowo_vault.security.allow_unauthenticated%'
 
+    # UiKit page contract (REQ-UI-003): layout of the manage pages (null = nowo_ui_kit.layouts.admin).
+    Nowo\VaultBundle\Ui\VaultPages:
+        arguments:
+            $layoutTemplate: '%nowo_vault.web_ui.layout_template%'
+            $twig: '@twig'
+
+    # Deprecated since 1.15: the nowo_vault_css_framework Twig global (the pages read nowo_ui_kit).
     Nowo\VaultBundle\Twig\VaultExtension:
         arguments:
             $cssFramework: '%nowo_vault.css_framework%'

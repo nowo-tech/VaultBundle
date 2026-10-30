@@ -12,6 +12,8 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Routing\Route;
 
+use function array_keys;
+
 final class VaultRouteLoaderTest extends TestCase
 {
     public function testLoadsVaultRoutes(): void
@@ -139,6 +141,18 @@ final class VaultRouteLoaderTest extends TestCase
         $route = $loader->load('.', 'nowo_vault')->get('nowo_vault_extension_logins');
         self::assertNotNull($route);
         self::assertSame(['GET', 'OPTIONS'], $route->getMethods());
+    }
+
+    public function testDisabledWebUiKeepsOnlyTheBrowserExtensionApi(): void
+    {
+        $routes = VaultRuntimeConfigFactory::baseline()['routes'];
+        $loader = new VaultRouteLoader($this->createProvider($routes), true, true, [
+            'login' => ['path' => '/api/vault/extension/login', 'name' => 'nowo_vault_extension_login'],
+        ], false);
+
+        $collection = $loader->load('.', 'nowo_vault');
+
+        self::assertSame(['nowo_vault_extension_login'], array_keys($collection->all()));
     }
 
     public function testCanLoadTwiceInTheSameProcess(): void

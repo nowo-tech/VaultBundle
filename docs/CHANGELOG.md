@@ -43,6 +43,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **UiKit page contract (REQ-UI-003)** — every manage page extends a UiKit scaffold and gets its view model from the
+  new `Nowo\VaultBundle\Ui\VaultPageFactory` (`VaultPages` resolves the layout): home → `page/dashboard`, items /
+  shared / trash → `page/list`, item create / edit / view and share → `page/form`, runtime configuration →
+  `page/settings`. Chrome (page header, flashes, filters frame, table, row actions, confirm dialogs, pagination, empty
+  states) comes from UiKit and follows `nowo_ui_kit` (layouts, `css_framework`, `icon_set`, `row_actions_display`,
+  `theme`, per-bundle exceptions `theme.bundles.NowoVaultBundle`). `docs/TEMPLATES.md` documents pages, data blocks and
+  view models.
+- **Canonical `web_ui` keys:** `web_ui.enabled` (false keeps only the browser-extension API), `web_ui.path_prefix`,
+  `web_ui.layout_template` (default `null` = `nowo_ui_kit.layouts.admin`), `web_ui.templates.<page>` (unknown page ids
+  rejected).
+- **CSRF fail-closed (cross-bundle pattern P2):** `CsrfProtectionPass` refuses to compile the container when the manage
+  UI is enabled without `security.csrf.token_manager` / the form CSRF extension, or with
+  `framework.form.csrf_protection: false`. `symfony/security-csrf` is now a hard dependency.
+- **Empty role lists (cross-bundle pattern P1):** the container refuses to compile when every role list is empty,
+  `allow_unauthenticated` is false and no `access_checker` is set (an empty list already denied; this turns a silent
+  lock-out into an error).
+- `PageContractTest` (UiKit `PageContractTestCase`, strict missing-translation rule) renders every page in 21 states;
+  `LegacyLayoutBridgeTest` locks the 1.x layout bridge; new translation keys in the 7 locales (`vault.action.open`,
+  `vault.search.clear`, `vault.list.title`, `vault.confirm.trash_title`, `vault.confirm.trash_folder_title`, `vault.confirm.purge_title`,
+  `vault.form.website_placeholder`).
+
+### Changed
+
+- **Destructive actions use the UiKit confirm `<dialog>`** (move an item / folder to the trash, delete a tag, purge,
+  remove access): POST + the same CSRF token ids, no inline `confirm()` / `onclick` / `onsubmit` any more.
+- **Password generator** is the UiKit `dialog` partial (`<dialog id="vault-password-generator">`); its endpoint and CSRF
+  token are data attributes of the dialog instead of inline `<script>` globals (`window.VAULT_PASSWORD_URL` /
+  `VAULT_PASSWORD_CSRF_TOKEN` removed). `vault.js` opens it when the host layout does not load the UiKit scripts.
+- Pagination uses the UiKit `Pagination` view model (info line "Showing x–y of n", numbered pages); `?page=N` is
+  unchanged.
+- Share form: grantee type and permission choices are translated (`vault.grantee_type.*`, `vault.permission.*`) instead
+  of the enum case names; grantee picker labels are printed as given.
+- FormKit profile `vault` and the form types carry no framework classes (`nowo-ui-input` only); the host form theme
+  styles the fields. The item form no longer forces `bootstrap_5_layout.html.twig`.
+- Requires `nowo-tech/ui-kit-bundle` `^2.17.3` and `nowo-tech/form-kit-bundle` `^2.16`.
+
+### Deprecated
+
+- `route_prefix` → `web_ui.path_prefix`; `templates.layout` → `web_ui.layout_template`; `templates.<page>` →
+  `web_ui.templates.<page>` (`templates.index` → `home`); `css_framework` → `nowo_ui_kit.css_framework` (copied there
+  when set); Twig global `nowo_vault_css_framework`. A layout without the UiKit canonical blocks is wrapped in the
+  deprecated bridge `vault/_legacy_layout.html.twig`. All removed in 2.0.
+
+### Removed
+
+- Template contract: `layout.html.twig` (Tabler CDN demo layout), `vault/base.html.twig`, `vault/_flashes.html.twig`,
+  `vault/_page_header.html.twig`, `vault/_pagination.html.twig`, `vault/_item_row_actions.html.twig`,
+  `vault/_grants_table.html.twig`, `vault/_share_form_fields.html.twig` (replaced by UiKit scaffolds / partials) and the
+  `vault.pagination.*` translation keys. See UPGRADING.
+
+### Fixed
+
+- Submitting the item form with an empty title answered 500 (null on the string title); it now shows the NotBlank
+  error with 422.
+
 ## [1.14.0] - 2026-10-29
 
 Vault: paginated lists, PSR-3 logging of sensitive operations, attribute routes, 100% coverage gates See [UPGRADING](UPGRADING.md#to-1140).

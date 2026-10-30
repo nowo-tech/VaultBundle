@@ -13,8 +13,12 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 - [Routes](#routes)
 - [Pagination](#pagination)
 - [Clock and logger](#clock-and-logger)
-- [Templates](#templates)
-- [Look-and-feel (REQ-UI-001)](#look-and-feel-req-ui-001)
+- [Manage Web UI (`web_ui`)](#manage-web-ui-web_ui)
+  - [Layout and project chrome](#layout-and-project-chrome)
+  - [CSS stack, icons and row actions](#css-stack-icons-and-row-actions)
+  - [Per-page templates](#per-page-templates)
+  - [Deprecated keys (1.15)](#deprecated-keys-115)
+- [CSRF protection](#csrf-protection)
 - [Firewall](#firewall)
 - [Database-backed runtime configuration](#database-backed-runtime-configuration)
   - [YAML-only (bootstrap — never stored in DB)](#yaml-only-bootstrap--never-stored-in-db)
@@ -59,6 +63,10 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Manage UI requires `symfony/security-bundle` when `allow_unauthenticated` is `false`.
 
+An empty role list never grants access (the default checker denies it). When **every** list (`admin_roles`,
+`access_roles`, `create_roles`, `list_roles`, `delete_roles`) is empty, `allow_unauthenticated` is `false` and no
+`access_checker` is configured, the container refuses to compile (nobody could use the vault).
+
 ## Teams
 
 | Option | Default | Description |
@@ -91,7 +99,7 @@ nowo_vault:
 
 ## Routes
 
-All routes are configurable under `nowo_vault.routes` and `nowo_vault.browser_extension.routes` (`path` + `name` per key; see `Configuration.php` defaults) and `route_prefix` is prepended to every path. Import them once with the loader type `nowo_vault` (see [INSTALLATION.md](INSTALLATION.md)).
+All routes are configurable under `nowo_vault.routes` and `nowo_vault.browser_extension.routes` (`path` + `name` per key; see `Configuration.php` defaults) and `web_ui.path_prefix` (formerly `route_prefix`) is prepended to every path. Import them once with the loader type `nowo_vault` (see [INSTALLATION.md](INSTALLATION.md)).
 
 Each controller action declares its route with a Symfony `#[Route]` attribute (REQ-SF-004): HTTP methods, requirements, the default path / name and the configuration key (`options: {nowo_vault_route: <key>}`). The `nowo_vault` loader reads those attributes and applies the configured `path` / `name`, so the attribute defaults equal the configuration defaults and existing overrides keep working. Do **not** import `vendor/nowo-tech/vault-bundle/src/Controller/` as an `attribute` resource: that would register the routes a second time with the default paths, ignoring your configuration.
 
@@ -113,32 +121,113 @@ Services that compare times (extension token expiry and last-use touch) use the 
 
 Sensitive operations log through the injected `logger` service (`Psr\Log\LoggerInterface`, default Monolog channel `app` when MonologBundle is installed; nothing is logged without a logger). See [SECURITY.md](SECURITY.md#logging) for what is and is not logged.
 
-## Templates
+## Manage Web UI (`web_ui`)
 
-| Key | Default |
-|-----|---------|
-| `layout` | `@NowoVaultBundle/layout.html.twig` |
-| `home` | `@NowoVaultBundle/vault/home.html.twig` |
-| `items` | `@NowoVaultBundle/vault/items.html.twig` |
-| `index` | `@NowoVaultBundle/vault/home.html.twig` (deprecated alias of `home`) |
-| `item_form` | `@NowoVaultBundle/vault/item_form.html.twig` |
-| `trash` | `@NowoVaultBundle/vault/trash.html.twig` |
-| `shared` | `@NowoVaultBundle/vault/shared.html.twig` |
-| `share` | `@NowoVaultBundle/vault/share.html.twig` |
-| `runtime_config` | `@NowoVaultBundle/vault/runtime_config.html.twig` |
-
-## Look-and-feel (REQ-UI-001)
+The manage pages follow the UiKit page contract (REQ-UI-003): each page extends a UiKit scaffold
+(`@NowoUiKit/page/{dashboard,list,form,settings}.html.twig`) and the host themes every bundle page once in
+`nowo_ui_kit` (layouts, CSS stack, theme slots and tokens). Page → scaffold map, data blocks and view models:
+[TEMPLATES.md](TEMPLATES.md).
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `css_framework` | `tabler` | Host CSS stack hint: `bootstrap5`, `bootstrap`, `bootstrap4`, `tabler`, `tailwind`, `foundation`, `custom`, `none`. Twig global `nowo_vault_css_framework`. Matches the demo Tabler CDN layout. YAML-only (not stored in runtime DB settings). |
+| `web_ui.enabled` | `true` | Register the manage UI routes (home, items, shared, trash, item forms, sharing, runtime config). `false` keeps only the browser-extension API |
+| `web_ui.path_prefix` | `''` | Prefix prepended to every vault route path (manage UI and browser-extension API), e.g. `/admin` |
+| `web_ui.layout_template` | `null` | Layout the pages extend. `null` = `nowo_ui_kit.layouts.admin` (recommended). A 1.x layout without the UiKit canonical blocks is wrapped in a deprecated bridge |
+| `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`. Unknown page ids are rejected |
 
 ```yaml
 nowo_vault:
-    css_framework: bootstrap5   # or: tabler | tailwind | foundation | custom
-    templates:
-        layout: 'kit/vault_layout.html.twig'   # host chrome; pages keep stacking vault.css via base
+    web_ui:
+        path_prefix: ''             # e.g. /admin
+        layout_template: ~          # null = nowo_ui_kit.layouts.admin
 ```
+
+All `web_ui` keys are YAML-only (never stored in the runtime DB settings).
+
+### Layout and project chrome
+
+Set the project layout **once** for every Nowo bundle in UiKit; the layout (or a one-file bridge) renders the canonical
+blocks `nowo_ui_document_title`, `nowo_ui_head`, `nowo_ui_styles`, `nowo_ui_page_header`, `nowo_ui_flashes`,
+`nowo_ui_content`, `nowo_ui_modals`, `nowo_ui_scripts`:
+
+```yaml
+nowo_ui_kit:
+    layouts:
+        admin: 'layouts/admin.html.twig'
+```
+
+```twig
+{# templates/layouts/admin.html.twig — bridge to the project layout #}
+{% extends 'base.html.twig' %}
+{% use '@NowoUiKit/layout/_bridge.html.twig' %}
+
+{% block title %}{{ block('nowo_ui_bridge_title') }}{% endblock %}
+{% block stylesheets %}{{ parent() }}<link rel="stylesheet" href="{{ asset('css/nowo-ui.css', 'nowo_ui_kit') }}">{{ nowo_ui_tokens() }}{{ block('nowo_ui_bridge_assets') }}{% endblock %}
+{% block body %}{{ block('nowo_ui_bridge_body') }}{% endblock %}
+{% block javascripts %}{{ parent() }}{{ include(nowo_ui_partial('scripts', nowo_ui_bundle|default(null))) }}{{ block('nowo_ui_bridge_end') }}{% endblock %}
+```
+
+Only when the vault pages must use a **different** layout than the other bundles, set
+`nowo_vault.web_ui.layout_template`. The vault pages stack their own assets in the canonical blocks with
+`{{ parent() }}`: `vault.css` (asset package `nowo_vault`) in `nowo_ui_styles`, `vault.js` in `nowo_ui_scripts`; the
+host layout keeps its global CSS / JS. The bundle ships no default layout and never loads a CSS framework from a CDN.
+
+### CSS stack, icons and row actions
+
+Inherited from UiKit (one theme per host); the vault markup has no framework classes of its own (theme slots +
+`nowo-ui-*` / `vault-*` hooks):
+
+```yaml
+nowo_ui_kit:
+    css_framework: bootstrap5      # bootstrap5 | bootstrap4 | tabler | tailwind | foundation | custom | none
+    icon_set: bootstrap-icons      # bootstrap-icons | tabler-icons | ux_icon | svg_inline | none
+    row_actions_display: icon      # icon | text | icon_text
+    theme:
+        tokens: { primary: 'var(--brand)' }
+        bundles:
+            NowoVaultBundle: { classes: { table: 'data-table data-table--dense' } }   # vault-only exception
+```
+
+Examples per stack:
+
+| Stack | `nowo_ui_kit` |
+| --- | --- |
+| Bootstrap 5 / Tabler | `css_framework: bootstrap5` (or `tabler`), `icon_set: bootstrap-icons` (or `tabler-icons`) |
+| Tailwind | `css_framework: tailwind`, `icon_set: svg_inline` |
+| Foundation | `css_framework: foundation`, `icon_set: svg_inline` |
+| Own styles | `css_framework: custom` (semantic `nowo-ui-*` only), `theme.classes` / `theme.tokens` map them to the design system |
+
+Form fields use the FormKit profile `vault` (seeded by the bundle: `nowo-ui-input` on every field, translated
+placeholders / help only); the host form theme (`twig.form_themes` / `nowo_form_kit.css_framework`) styles them.
+
+### Per-page templates
+
+```yaml
+nowo_vault:
+    web_ui:
+        templates:
+            items: 'vault/items.html.twig'   # extends '@!NowoVaultBundle/vault/items.html.twig', overrides one data block
+```
+
+### Deprecated keys (1.15)
+
+Mapped onto `web_ui` before validation with a deprecation (removed in 2.0). Canonical keys set in the same file win.
+
+| Deprecated | Replacement |
+| --- | --- |
+| `route_prefix` | `web_ui.path_prefix` |
+| `templates.layout` | `web_ui.layout_template` (the 1.x default `@NowoVaultBundle/layout.html.twig` maps to `null`) |
+| `templates.<page>` | `web_ui.templates.<page>` (`templates.index` → `home`; values equal to the bundle defaults are dropped) |
+| `css_framework` | `nowo_ui_kit.css_framework` (+ `icon_set`). When set, it is copied there unless the host set those keys; the Twig global `nowo_vault_css_framework` stays (deprecated) |
+
+## CSRF protection
+
+The manage UI requires Symfony CSRF protection: every mutating action (trash, restore, purge, folder / tag actions,
+sharing and revocation, runtime config, password generator) validates a token, and the item / share / folder forms use
+the form CSRF extension. With `web_ui.enabled: true` the container **refuses to compile** when
+`security.csrf.token_manager` or the form CSRF extension is missing, or `framework.form.csrf_protection` is `false`
+(`CsrfProtectionPass`, fail closed). `symfony/security-csrf` is a hard dependency. An API-only install (browser
+extension) sets `web_ui.enabled: false`.
 
 ## Firewall
 
@@ -171,8 +260,8 @@ When `enabled: true`, Doctrine creates/uses `{table_prefix}_settings` (default `
 | `config_storage.*` | Enables/disables DB storage |
 | `security.access_checker` | DI service id |
 | `team_membership_resolver` | DI service id |
-| `routes`, `templates`, `route_prefix`, `dashboard_route`, `firewall` | Routing and UI bootstrap |
-| `css_framework` | Look-and-feel hint (Twig global) |
+| `routes`, `web_ui.*`, `dashboard_route`, `firewall` | Routing and UI bootstrap |
+| `css_framework` | Deprecated look-and-feel hint (Twig global) |
 | `security.*_roles` | Role lists (not `access_checker`) |
 
 When storing `encryption_key` in the database, install `nowo-tech/doctrine-encrypt-bundle` and configure a bootstrap Halite/Defuse key (`DOCTRINE_ENCRYPT_KEY` or secret file). The column `vault_settings.encryption_key` is encrypted at rest via `#[Encrypted]`. Without that bundle the key is **not** stored in the database: `VaultRuntimeConfigWriter` refuses it, the runtime config screen shows a warning, and `nowo:vault:reencrypt --persist-new-key` exits before re-encrypting.

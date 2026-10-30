@@ -56,6 +56,8 @@ final class VaultShareType extends AbstractType
                 'placeholder' => 'vault.share.grantee_placeholder',
                 'constraints' => [new NotBlank()],
                 'label'       => 'vault.share.grantee',
+                // Group labels are translated by buildGroupedChoices(), choice labels are host data (user / team names).
+                'choice_translation_domain' => false,
             ]);
             $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event): void {
                 $form = $event->getForm();
@@ -79,24 +81,27 @@ final class VaultShareType extends AbstractType
             });
 
             $this->addWithDefaults($builder, 'permission', EnumType::class, [
-                'class' => VaultPermission::class,
-                'label' => 'vault.share.permission',
+                'class'        => VaultPermission::class,
+                'label'        => 'vault.share.permission',
+                'choice_label' => static fn (VaultPermission $permission): string => 'vault.permission.' . $permission->value,
             ]);
 
             return;
         }
 
         $this->addWithDefaults($builder, 'granteeType', EnumType::class, [
-            'class' => GranteeType::class,
-            'label' => 'vault.share.grantee_type',
+            'class'        => GranteeType::class,
+            'label'        => 'vault.share.grantee_type',
+            'choice_label' => static fn (GranteeType $type): string => 'vault.grantee_type.' . $type->value,
         ]);
         $this->addText($builder, 'granteeId', [
             'constraints' => [new NotBlank()],
             'label'       => 'vault.share.grantee_id',
         ]);
         $this->addWithDefaults($builder, 'permission', EnumType::class, [
-            'class' => VaultPermission::class,
-            'label' => 'vault.share.permission',
+            'class'        => VaultPermission::class,
+            'label'        => 'vault.share.permission',
+            'choice_label' => static fn (VaultPermission $permission): string => 'vault.permission.' . $permission->value,
         ]);
     }
 

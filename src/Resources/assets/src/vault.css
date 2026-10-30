@@ -1,26 +1,7 @@
-.vault-password-modal[hidden] {
-    display: none;
-}
-
-.vault-password-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 1050;
-    display: grid;
-    place-items: center;
-    padding: 1rem;
-}
-
-.vault-password-modal-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.45);
-}
-
-.vault-password-modal-panel {
-    position: relative;
-    width: min(480px, 100%);
-}
+/*
+ * Vault manage UI — layout helpers only (REQ-UI-003). Colours, radii and spacing come from the UiKit tokens
+ * (--nowo-ui-*); framework classes come from the theme slots. Hosts restyle the vault-* hooks in their own CSS.
+ */
 
 .vault-form[data-vault-readonly="1"] input,
 .vault-form[data-vault-readonly="1"] textarea,
@@ -30,21 +11,13 @@
     opacity: 0.85;
 }
 
-.vault-form .form-label {
-    font-weight: 500;
-}
-
 .vault-form .nowo-tag-input,
 .vault-form .nowo-tag-input .tagify {
     width: 100%;
 }
 
-.vault-form textarea.form-control {
+.vault-form textarea {
     min-height: 6rem;
-}
-
-.vault-form .form-text {
-    margin-top: 0.375rem;
 }
 
 .vault-form .password-strength-field {
@@ -57,33 +30,92 @@
     padding-left: 1.25rem;
 }
 
-.vault-folder-list {
-    row-gap: 0.5rem;
+.vault-collection {
+    margin-bottom: 1rem;
 }
 
-.vault-folder-actions .vault-folder-action-form {
-    display: contents;
+.vault-collection__entry {
+    margin-bottom: 0.5rem;
 }
 
-.vault-tag-actions .vault-tag-action-form {
-    display: contents;
+.vault-panel {
+    margin-bottom: 1rem;
 }
 
-.vault-tag-actions .vault-tag-action-form {
-    display: contents;
+.vault-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
-.vault-folder-actions .btn-icon,
-.vault-tag-actions .btn-icon {
+.vault-chip {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 1.875rem;
-    padding-left: 0;
-    padding-right: 0;
+    gap: 0.25rem;
 }
 
-.vault-folder-actions .btn-icon .ti {
+.vault-chip .nowo-ui-action__form {
+    display: inline-flex;
     margin: 0;
-    line-height: 1;
+}
+
+.vault-folder-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.vault-folder-form[hidden] {
+    display: none;
+}
+
+.vault-generator__output {
+    flex-wrap: nowrap;
+}
+
+.vault-generator__output .nowo-ui-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: var(--nowo-ui-font-mono, ui-monospace, monospace);
+}
+
+.vault-generator__field {
+    display: grid;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.vault-generator__range {
+    width: 100%;
+}
+
+.vault-generator__options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    border: 0;
+}
+
+.vault-encryption-key {
+    margin-bottom: 1rem;
+}
+
+.vault-encryption-key__input {
+    font-family: var(--nowo-ui-font-mono, ui-monospace, monospace);
+}
+
+.vault-encryption-key__label {
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.vault-grants .nowo-ui-table-wrap {
+    margin: 0;
 }

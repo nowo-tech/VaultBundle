@@ -45,7 +45,7 @@ final class VaultRuntimeConfigType extends AbstractType
         $mode = $options['encryption_key_mode'];
 
         if ($mode !== 'unavailable') {
-            $attr = ['class' => 'form-control font-monospace', 'autocomplete' => 'off', 'spellcheck' => 'false'];
+            $attr = ['class' => 'nowo-ui-input vault-encryption-key__input', 'autocomplete' => 'off', 'spellcheck' => 'false'];
             if ($mode !== 'editable') {
                 $attr['readonly'] = true;
             }
@@ -57,30 +57,25 @@ final class VaultRuntimeConfigType extends AbstractType
             }
 
             $builder->add('encryption_key', TextType::class, [
-                'mapped'     => false,
-                'required'   => false,
-                'disabled'   => $mode === 'configured',
-                'label'      => 'vault.runtime_config.encryption_key',
-                'label_attr' => ['class' => 'form-label'],
-                'data'       => $mode === 'one_time' ? $options['encryption_key_display'] : '',
-                'attr'       => $attr,
+                'mapped'   => false,
+                'required' => false,
+                'disabled' => $mode === 'configured',
+                'label'    => 'vault.runtime_config.encryption_key',
+                'data'     => $mode === 'one_time' ? $options['encryption_key_display'] : '',
+                'attr'     => $attr,
             ]);
         }
 
         $builder->add('max_attachment_bytes', IntegerType::class, [
-            'required'   => true,
-            'label'      => 'vault.runtime_config.max_attachment_bytes',
-            'label_attr' => ['class' => 'form-label'],
-            'row_attr'   => ['class' => 'mb-3'],
-            'attr'       => ['class' => 'form-control', 'min' => 0, 'step' => 1000],
+            'required' => true,
+            'label'    => 'vault.runtime_config.max_attachment_bytes',
+            'attr'     => ['class' => 'nowo-ui-input', 'min' => 0, 'step' => 1000],
         ]);
         $builder->add('password_level', ChoiceType::class, [
             'label'                     => 'vault.runtime_config.password_level',
-            'label_attr'                => ['class' => 'form-label'],
-            'row_attr'                  => ['class' => 'mb-3'],
             'choices'                   => array_combine(self::PASSWORD_LEVELS, self::PASSWORD_LEVELS),
             'choice_translation_domain' => false,
-            'attr'                      => ['class' => 'form-select'],
+            'attr'                      => ['class' => 'nowo-ui-input'],
         ]);
     }
 

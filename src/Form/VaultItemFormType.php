@@ -55,6 +55,8 @@ final class VaultItemFormType extends AbstractType
             $this->addTextField('title', [
                 'constraints' => [new NotBlank()],
                 'label'       => 'vault.form.title',
+                // An empty title reaches NotBlank (422) instead of a null on the string property (500).
+                'empty_data' => '',
             ]);
             $this->addTextField('username', $optional(['label' => 'vault.form.username']));
             $this->addTypedField('websites', CollectionType::class, [
@@ -115,12 +117,10 @@ final class VaultItemFormType extends AbstractType
 
         // REQ-TWIG-005: identity card scan, read by the controller from the request files as "attachment".
         $builder->add('attachment', FileType::class, [
-            'mapped'     => false,
-            'required'   => false,
-            'label'      => 'vault.form.attachment',
-            'label_attr' => ['class' => 'form-label'],
-            'row_attr'   => ['class' => 'mb-3'],
-            'attr'       => ['class' => 'form-control', 'accept' => '.pdf,.jpg,.jpeg,.png,.webp'],
+            'mapped'   => false,
+            'required' => false,
+            'label'    => 'vault.form.attachment',
+            'attr'     => ['class' => 'nowo-ui-input', 'accept' => '.pdf,.jpg,.jpeg,.png,.webp'],
         ]);
     }
 
@@ -147,7 +147,7 @@ final class VaultItemFormType extends AbstractType
                 'required'           => false,
                 'label'              => 'vault.form.tags',
                 'translation_domain' => 'NowoVaultBundle',
-                'input_class'        => 'form-control',
+                'input_class'        => 'nowo-ui-input',
                 'placeholder'        => $this->translator->trans('vault.form.tag_placeholder', [], 'NowoVaultBundle'),
                 'duplicates'         => false,
                 'dropdown_enabled'   => true,
