@@ -92,7 +92,12 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $runtimeBaseline      = RuntimeConfiguration::extractBaseline($config);
 
         $container->setParameter('nowo_vault.user_class', $config['user_class']);
-        $container->setParameter('nowo_vault.css_framework', $config['css_framework']);
+        // Deprecated since 1.15 (REQ-UI-003: the pages read the CSS stack from nowo_ui_kit); kept for the deprecated
+        // nowo_vault_css_framework Twig global.
+        $container->setParameter('nowo_vault.css_framework', $this->cssFramework($config['css_framework']) ?? 'tabler');
+        $container->setParameter('nowo_vault.web_ui.enabled', (bool) $config['web_ui']['enabled']);
+        $container->setParameter('nowo_vault.web_ui.layout_template', $config['web_ui']['layout_template']);
+        $container->setParameter('nowo_vault.web_ui.templates', $config['web_ui']['templates']);
         $container->setParameter('nowo_vault.security.allow_unauthenticated', $config['security']['allow_unauthenticated']);
         $container->setParameter('nowo_vault.items_table', $itemsTable);
         $container->setParameter('nowo_vault.folders_table', $foldersTable);
@@ -190,6 +195,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setAlias(VaultPayloadCryptographerInterface::class, RuntimeKeyVaultPayloadCryptographer::class);
 
         $accessCheckerId = $config['security']['access_checker'] ?? null;
+        $this->assertSomeRoleConfigured($config['security']);
         if ($config['security']['allow_unauthenticated']) {
             // Every vault page and secret open to anyone: never in production, whatever the recipe says.
             if ($container->hasParameter('kernel.environment') && $container->getParameter('kernel.environment') === 'prod') {
@@ -236,6 +242,41 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$allowedOrigins', $browserExtension['cors_allowed_origins'])
             ->setArgument('$kernelEnvironment', '%kernel.environment%'));
 
+    }
+
+    /**
+     * Fails at compile time when the default access checker would deny everyone (cross-bundle pattern P1): every role
+     * list is empty, allow_unauthenticated is false and no custom access_checker is configured. An empty list never
+     * allows everyone (ConfigurableVaultAccessChecker denies it); this only turns a silent lock-out into an error.
+     *
+     * @param array{access_checker?: string|null, allow_unauthenticated: bool, admin_roles: list<string>, access_roles: list<string>, create_roles: list<string>, list_roles: list<string>, delete_roles: list<string>} $security
+     */
+    private function assertSomeRoleConfigured(array $security): void
+    {
+        $checker = $security['access_checker'] ?? null;
+        if ($security['allow_unauthenticated'] || (is_string($checker) && $checker !== '')) {
+            return;
+        }
+
+        foreach (['admin_roles', 'access_roles', 'create_roles', 'list_roles', 'delete_roles'] as $key) {
+            if ($security[$key] !== []) {
+                return;
+            }
+        }
+
+        throw new LogicException('nowo_vault.security: every role list (admin_roles, access_roles, create_roles, list_roles, delete_roles) is empty, so nobody could use the vault. Configure at least one role or a security.access_checker service.');
+    }
+
+    /**
+     * Normalised deprecated css_framework (bootstrap => bootstrap5), null when not set.
+     */
+    private function cssFramework(mixed $value): ?string
+    {
+        if (!is_string($value) || $value === '') {
+            return null;
+        }
+
+        return $value === 'bootstrap' ? 'bootstrap5' : $value;
     }
 
     /**
@@ -301,12 +342,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
     }
 
     /**
-     * When UiKit is installed, seed nowo_ui_kit.css_framework / icon_set from
-     * root css_framework so kit macros resolve the same stack.
-     * Does not override keys the host already set under nowo_ui_kit.
-     */
-
-    /**
      * When FormKit is installed, register the vault profile. Forms select it via #[FormKitConfig].
      */
     private function prependFormKitDefaults(ContainerBuilder $container): void
@@ -334,6 +369,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $seed['css_framework'] = 'bootstrap';
         }
 
+        // REQ-UI-003: no framework utility classes in bundle markup; the host form theme (or this profile, which the
+        // host may redefine) styles the fields. `nowo-ui-input` is the UiKit semantic hook.
+
         if (!$hostHasProfile) {
             $seed['profiles'] = [
                 'vault' => [
@@ -342,26 +380,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                     // Help / placeholder convention keys only when translated (no raw `vault_item_form.*` keys).
                     'convention_requires_translation' => true,
                     'defaults'                        => [
-                        'attr'     => ['class' => 'nowo-ui-input form-control'],
-                        'row_attr' => ['class' => 'mb-2'],
-                    ],
-                    'field_types' => [
-                        'checkbox' => [
-                            'attr'     => ['class' => 'form-check-input'],
-                            'row_attr' => ['class' => 'form-check mb-2'],
-                        ],
-                        'choice' => [
-                            'attr' => ['class' => 'form-select'],
-                        ],
-                        'entity' => [
-                            'attr' => ['class' => 'form-select'],
-                        ],
-                        'file' => [
-                            'attr' => ['class' => 'nowo-ui-input form-control'],
-                        ],
-                        'textarea' => [
-                            'attr' => ['class' => 'nowo-ui-input form-control'],
-                        ],
+                        'attr'     => ['class' => 'nowo-ui-input'],
+                        'row_attr' => [],
                     ],
                 ],
             ];
@@ -372,46 +392,44 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         }
     }
 
+    /**
+     * When UiKit is installed and the host set the deprecated css_framework (REQ-UI-003: the CSS stack is inherited
+     * from nowo_ui_kit), copy it to nowo_ui_kit.css_framework (and the matching icon set) unless the host set them.
+     * processConfiguration() is avoided: encryption_key is required and may be unset during an early prepend.
+     */
     private function prependUiKitDefaults(ContainerBuilder $container): void
     {
         if (!$container->hasExtension('nowo_ui_kit')) {
             return;
         }
 
-        $hostHasCssFramework = false;
-        $hostHasIconSet      = false;
-        foreach ($container->getExtensionConfig('nowo_ui_kit') as $cfg) {
-            if (array_key_exists('css_framework', $cfg)) {
-                $hostHasCssFramework = true;
-            }
-            if (array_key_exists('icon_set', $cfg)) {
-                $hostHasIconSet = true;
+        $framework = null;
+        foreach ($container->getExtensionConfig(Configuration::ALIAS) as $cfg) {
+            if (is_string($cfg['css_framework'] ?? null)) {
+                $framework = $this->cssFramework($cfg['css_framework']);
             }
         }
-
-        if ($hostHasCssFramework && $hostHasIconSet) {
+        if ($framework === null) {
             return;
         }
 
-        // Avoid processConfiguration(): encryption_key is required and may be unset during early prepend.
-        $fw = 'tabler';
-        foreach ($container->getExtensionConfig(Configuration::ALIAS) as $cfg) {
-            if (isset($cfg['css_framework']) && is_string($cfg['css_framework'])) {
-                $fw = $cfg['css_framework'];
-            }
-        }
-        if ($fw === 'bootstrap') {
-            $fw = 'bootstrap5';
+        $hostHasCssFramework = false;
+        $hostHasIconSet      = false;
+        foreach ($container->getExtensionConfig('nowo_ui_kit') as $cfg) {
+            $hostHasCssFramework = $hostHasCssFramework || array_key_exists('css_framework', $cfg);
+            $hostHasIconSet      = $hostHasIconSet || array_key_exists('icon_set', $cfg);
         }
 
         $defaults = [];
         if (!$hostHasCssFramework) {
-            $defaults['css_framework'] = $fw;
+            $defaults['css_framework'] = $framework;
         }
         if (!$hostHasIconSet) {
-            $defaults['icon_set'] = $fw === 'tabler' ? 'tabler-icons' : 'bootstrap-icons';
+            $defaults['icon_set'] = $framework === 'tabler' ? 'tabler-icons' : 'bootstrap-icons';
         }
 
-        $container->prependExtensionConfig('nowo_ui_kit', $defaults);
+        if ($defaults !== []) {
+            $container->prependExtensionConfig('nowo_ui_kit', $defaults);
+        }
     }
 }

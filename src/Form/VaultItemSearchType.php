@@ -41,10 +41,9 @@ final class VaultItemSearchType extends AbstractType
         }
 
         $builder->add('q', SearchType::class, [
-            'required'   => false,
-            'label'      => 'vault.search.placeholder',
-            'label_attr' => ['class' => 'form-label'],
-            'attr'       => ['class' => 'form-control', 'placeholder' => 'vault.search.placeholder_tags'],
+            'required' => false,
+            'label'    => 'vault.search.placeholder',
+            'attr'     => ['placeholder' => 'vault.search.placeholder_tags'],
         ]);
     }
 

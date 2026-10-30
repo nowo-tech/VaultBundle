@@ -3,6 +3,9 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Template contract (REQ-UI-003)](#template-contract-req-ui-003)
+  - [Configuration](#configuration)
+  - [Security (fail closed)](#security-fail-closed)
 - [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
 - [To 1.12.0](#to-1120)
@@ -57,6 +60,64 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+### Template contract (REQ-UI-003)
+
+The manage pages now extend UiKit scaffolds (see [TEMPLATES.md](TEMPLATES.md)). Hosts that only configured the bundle
+need nothing; hosts with Twig overrides or a custom layout check the points below.
+
+| Page | Before | Now |
+| --- | --- | --- |
+| `vault/home.html.twig` | extends `vault/base.html.twig`, block `body` | `page/dashboard`, data block `nowo_ui_dashboard_cards` |
+| `vault/items.html.twig`, `shared.html.twig`, `trash.html.twig` | block `body`, local table / pager | `page/list`, data blocks `nowo_ui_list_filters`, `nowo_ui_list_row` |
+| `vault/item_form.html.twig`, `share.html.twig` | block `body` | `page/form`, data blocks `nowo_ui_form_body`, `nowo_ui_form_aside` |
+| `vault/runtime_config.html.twig` | block `body` | `page/settings`, data block `nowo_ui_settings_section` |
+
+1. **Layout.** Point `nowo_ui_kit.layouts.admin` at your layout (or a bridge that renders the canonical blocks) and
+   drop `nowo_vault.templates.layout`. The 1.x default `@NowoVaultBundle/layout.html.twig` (Tabler from a CDN) is
+   removed: without configuration the UiKit layout applies. A 1.x host layout that renders `{% block body %}` keeps
+   working through a deprecated bridge (deprecation logged).
+2. **Removed partials:** `vault/base.html.twig`, `_flashes`, `_page_header`, `_pagination`, `_item_row_actions`,
+   `_grants_table`, `_share_form_fields`. Overrides of these files in `templates/bundles/NowoVaultBundle/` are no longer
+   used: theme the UiKit partials once (`nowo_ui_kit.theme.partials` / `templates/bundles/NowoUiKitBundle/`) or remap
+   slots in `nowo_ui_kit.theme.bundles.NowoVaultBundle`.
+3. **Page overrides** (`templates/bundles/NowoVaultBundle/vault/*.html.twig`) that filled `body` must move to the data
+   blocks above; prefer `web_ui.templates.<page>` with a template that extends `@!NowoVaultBundle/vault/<page>.html.twig`.
+   The pages receive `page` (view model) plus the variables listed in TEMPLATES.md; `layout`, `dashboardRoute` (lists),
+   `trashForms`, `restoreForms`, `purgeForms`, `revokeGrantForms`, `tagDeleteForms`, `folderTrashForms` and
+   `pagination` were replaced by the view models (`folderActions`, `tagActions`, `grantsTable`).
+4. **Assets.** `vault.css` / `vault.js` stack in `nowo_ui_styles` / `nowo_ui_scripts`; a custom layout must render those
+   blocks (and load the UiKit scripts for the confirm / generator dialogs: `nowo_ui_partial('scripts')`).
+5. **JavaScript globals** `window.VAULT_PASSWORD_URL` / `VAULT_PASSWORD_CSRF_TOKEN` are gone: the generator reads
+   `data-vault-password-url` / `data-vault-password-csrf` on its `<dialog>`.
+6. **Translations:** `vault.pagination.*` removed (UiKit `pagination.*`); new keys listed in the CHANGELOG.
+
+### Configuration
+
+| Deprecated (removed in 2.0) | Replacement |
+| --- | --- |
+| `nowo_vault.route_prefix` | `nowo_vault.web_ui.path_prefix` |
+| `nowo_vault.templates.layout` | `nowo_vault.web_ui.layout_template` (null = `nowo_ui_kit.layouts.admin`) |
+| `nowo_vault.templates.<page>` | `nowo_vault.web_ui.templates.<page>` (`index` → `home`) |
+| `nowo_vault.css_framework` | `nowo_ui_kit.css_framework` / `icon_set` |
+| Twig global `nowo_vault_css_framework` | `nowo_ui_kit.css_framework` |
+
+The bundle no longer seeds `nowo_ui_kit.css_framework: tabler` / `icon_set: tabler-icons` by default: it only copies the
+deprecated `nowo_vault.css_framework` when you set it. Set `nowo_ui_kit.css_framework` (and `icon_set`) explicitly if
+you relied on the old default.
+
+### Security (fail closed)
+
+- With `web_ui.enabled: true` (default) the container refuses to compile without CSRF protection
+  (`framework.csrf_protection` + `framework.form.csrf_protection`). API-only installs set `web_ui.enabled: false`.
+- The container refuses to compile when every `security.*_roles` list is empty without `access_checker` /
+  `allow_unauthenticated`.
+
+```bash
+composer update nowo-tech/vault-bundle nowo-tech/ui-kit-bundle nowo-tech/form-kit-bundle
+php bin/console cache:clear
+php bin/console assets:install
+```
 
 ## To 1.14.0
 

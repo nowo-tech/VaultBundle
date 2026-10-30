@@ -19,6 +19,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Security/VaultRuntimeConfigResolver.php` | Runtime config resolver | FR-CFG-003 |
 | `VaultBundle.php` | Bundle entry | FR-BUNDLE-001 |
 | `DependencyInjection/Compiler/BrowserExtensionUserCheckerPass.php` | Points the extension authenticator at the firewall user checker | FR-EXT-002 |
+| `DependencyInjection/Compiler/CsrfProtectionPass.php` | Fails closed without CSRF protection when the manage UI is enabled | FR-SEC-003 |
 
 ## CLI
 
@@ -32,6 +33,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Controller/VaultCsrfTrait.php` | CSRF trait | FR-SEC-003 |
+| `Controller/VaultPagesTrait.php` | Page view-model factory of the controllers | FR-UI-001 |
 | `Controller/VaultManageController.php` | Manage UI controller | FR-UI-001 |
 | `Controller/VaultRuntimeConfigController.php` | Runtime config controller | FR-CFG-003 |
 
@@ -194,14 +196,8 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Resources/views/layout.html.twig` | Layout template | FR-VIEW-001 |
-| `Resources/views/vault/_flashes.html.twig` | Manage UI template | FR-VIEW-005 |
-| `Resources/views/vault/_grants_table.html.twig` | Manage UI template | FR-VIEW-005 |
-| `Resources/views/vault/_item_row_actions.html.twig` | Manage UI template | FR-VIEW-005 |
-| `Resources/views/vault/_pagination.html.twig` | Manage UI template (list pager) | FR-VIEW-005 |
-| `Resources/views/vault/_page_header.html.twig` | Manage UI template | FR-VIEW-005 |
-| `Resources/views/vault/_password_generator.html.twig` | Manage UI template | FR-VIEW-005 |
-| `Resources/views/vault/_share_form_fields.html.twig` | Manage UI template | FR-VIEW-005 |
+| `Resources/views/vault/_legacy_layout.html.twig` | Deprecated bridge around a 1.x layout (REQ-UI-003) | FR-VIEW-001 |
+| `Resources/views/vault/_password_generator.html.twig` | Password generator body (UiKit dialog) | FR-VIEW-005 |
 | `Resources/views/vault/home.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/item_form.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/items.html.twig` | Manage UI template | FR-VIEW-005 |
@@ -209,21 +205,22 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/vault/share.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/shared.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/trash.html.twig` | Manage UI template | FR-VIEW-005 |
-| `Resources/views/vault/base.html.twig` | Page shell extending the controller layout (UiKit, REQ-UI-001) | FR-VIEW-001 |
 
 ## Twig integration
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Twig/VaultExtension.php` | Manage Web UI globals for Twig (REQ-UI-001) | FR-VIEW-002 |
+| `Twig/VaultExtension.php` | Deprecated `nowo_vault_css_framework` Twig global | FR-VIEW-002 |
+| `Ui/VaultPages.php` | Layout / legacy bridge of the UiKit page contract (REQ-UI-003) | FR-VIEW-001 |
+| `Ui/VaultPageFactory.php` | UiKit view models of the manage pages (REQ-UI-003) | FR-VIEW-005 |
 
 ## Coverage summary
 
 | Category | Files | Mapped |
 | --- | ---: | ---: |
-| Bundle & DI | 9 | 9 |
+| Bundle & DI | 10 | 10 |
 | CLI | 2 | 2 |
-| Controllers | 3 | 3 |
+| Controllers | 4 | 4 |
 | Persistence | 19 | 19 |
 | Forms | 3 | 3 |
 | Domain models | 9 | 9 |
@@ -236,8 +233,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | Frontend TypeScript | 3 | 3 |
 | Symfony config | 1 | 1 |
 | Translations | 7 | 7 |
-| Twig views | 15 | 15 |
-| Twig integration | 1 | 1 |
+| Twig views | 9 | 9 |
+| Twig integration | 3 | 3 |
 | **Total production sources** | **123** | **123** |
 
 Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 123.

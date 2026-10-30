@@ -1,0 +1,25 @@
+{#
+  Demo host admin layout (REQ-UI-003, nowo_ui_kit.layouts.admin): the demo shell (base.html.twig: masthead, Tabler on
+  Bootstrap 5) with the UiKit canonical blocks through the UiKit bridge. Every Vault manage page renders here.
+#}
+{% extends 'base.html.twig' %}
+{% use '@NowoUiKit/layout/_bridge.html.twig' %}
+{% set nowo_ui_document_title_suffix = 'Vault Bundle Demo' %}
+
+{% block title %}{{ block('nowo_ui_bridge_title') }}{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('css/nowo-ui.css', 'nowo_ui_kit') }}">
+    {{ nowo_ui_tokens() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+    {{ block('nowo_ui_bridge_assets') }}
+{% endblock %}
+
+{% block body %}
+    <div class="vault-demo-admin">{{ block('nowo_ui_bridge_body') }}</div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ include(nowo_ui_partial('scripts', nowo_ui_bundle|default(null))) }}
+    {{ block('nowo_ui_bridge_end') }}
+{% endblock %}

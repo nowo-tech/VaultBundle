@@ -1,41 +1,66 @@
 /**
- * Vault manage UI: password generator modal/inline controls and folder form toggles.
+ * Vault manage UI: password generator dialog and folder form toggle.
+ *
+ * No inline script (CSP, REQ-UI-003): the generator endpoint URL and CSRF token are data attributes of the
+ * generator <dialog> (data-vault-password-url / data-vault-password-csrf). The dialog itself is the UiKit `dialog`
+ * partial: UiKit's nowo-ui-dialog.js opens / closes it; this script fills it (and opens it when the host layout does
+ * not load the UiKit scripts).
  */
 
 import './vault.css';
 import { fetchGeneratedPassword, readGeneratorOptionsFromDom } from './vault-password-client';
 
-declare global {
-    interface Window {
-        /** Password generator endpoint URL injected by Twig. */
-        VAULT_PASSWORD_URL?: string;
-        /** CSRF token for generator POST. */
-        VAULT_PASSWORD_CSRF_TOKEN?: string;
-    }
+/** Endpoint and CSRF token of the generator, read from its dialog. */
+export interface GeneratorConfig {
+    url: string;
+    csrfToken?: string;
 }
 
 /**
- * Call the server password generator using window-injected URL/CSRF.
+ * Read the generator endpoint from the dialog data attributes.
  */
-async function generatePassword(): Promise<{ password: string; strength: string }> {
-    const url = window.VAULT_PASSWORD_URL;
-    if (!url) {
+export function readGeneratorConfig(dialog: HTMLElement | null): GeneratorConfig | null {
+    const url = dialog?.dataset.vaultPasswordUrl;
+    if (!dialog || !url) {
+        return null;
+    }
+
+    return { url, csrfToken: dialog.dataset.vaultPasswordCsrf || undefined };
+}
+
+/**
+ * Call the server password generator configured on the dialog.
+ */
+export async function generatePassword(dialog: HTMLElement | null): Promise<{ password: string; strength: string }> {
+    const config = readGeneratorConfig(dialog);
+    if (!config) {
         throw new Error('Password generator URL is not configured.');
     }
 
-    return fetchGeneratedPassword(url, readGeneratorOptionsFromDom(document), window.VAULT_PASSWORD_CSRF_TOKEN);
+    return fetchGeneratedPassword(config.url, readGeneratorOptionsFromDom(document), config.csrfToken);
 }
 
-/** Bind modal open/close/regenerate/copy/fill controls. */
-function bindPasswordModal(): void {
-    const modal = document.querySelector('[data-vault-password-modal]') as HTMLElement | null;
-    const openButtons = document.querySelectorAll('[data-vault-password-generator]');
-    const closeButtons = document.querySelectorAll('[data-vault-password-close]');
-    const output = document.querySelector('[data-vault-password-output]') as HTMLInputElement | null;
-    const strength = document.querySelector('[data-vault-password-strength]') as HTMLElement | null;
+/** Open the dialog after the click when no UiKit dialog script did it. */
+function ensureOpen(dialog: HTMLElement): void {
+    window.setTimeout(() => {
+        if (dialog instanceof HTMLDialogElement && !dialog.open && typeof dialog.showModal === 'function') {
+            dialog.showModal();
+        }
+    }, 0);
+}
+
+/** Bind the generator dialog: refresh on open, regenerate, copy, fill the item password field. */
+function bindPasswordDialog(): void {
+    const dialog = document.querySelector('[data-vault-password-modal]') as HTMLElement | null;
+    if (!dialog) {
+        return;
+    }
+
+    const output = dialog.querySelector('[data-vault-password-output]') as HTMLInputElement | null;
+    const strength = dialog.querySelector('[data-vault-password-strength]') as HTMLElement | null;
 
     const refresh = async (): Promise<void> => {
-        const result = await generatePassword();
+        const result = await generatePassword(dialog);
         if (output) {
             output.value = result.password;
         }
@@ -44,69 +69,57 @@ function bindPasswordModal(): void {
         }
     };
 
-    openButtons.forEach((button) => {
+    document.querySelectorAll('[data-vault-password-generator]').forEach((button) => {
         button.addEventListener('click', () => {
-            if (modal) {
-                modal.hidden = false;
-            }
+            ensureOpen(dialog);
             void refresh();
         });
     });
 
-    closeButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-            if (modal) {
-                modal.hidden = true;
-            }
-        });
+    // Browser-only form: never submitted (Enter in a field included).
+    dialog.querySelector('[data-vault-password-form]')?.addEventListener('submit', (event) => {
+        event.preventDefault();
     });
 
-    document.querySelector('[data-vault-password-regenerate]')?.addEventListener('click', () => {
+    dialog.querySelector('[data-vault-password-regenerate]')?.addEventListener('click', () => {
         void refresh();
     });
 
-    document.querySelector('[data-vault-password-copy]')?.addEventListener('click', async () => {
+    dialog.querySelector('[data-vault-password-copy]')?.addEventListener('click', async () => {
         if (output?.value) {
             await navigator.clipboard.writeText(output.value);
         }
     });
 
-    document.querySelector('[data-vault-password-fill]')?.addEventListener('click', () => {
+    dialog.querySelector('[data-vault-password-fill]')?.addEventListener('click', () => {
         const passwordField = document.querySelector('[name="vault_item_form[password]"]') as HTMLInputElement | null;
         if (passwordField && output?.value) {
             passwordField.value = output.value;
         }
-        if (modal) {
-            modal.hidden = true;
+        if (dialog instanceof HTMLDialogElement && dialog.open) {
+            dialog.close();
         }
     });
 }
 
-/** Bind one-click inline generate into the item password field. */
-function bindInlineGenerator(): void {
-    document.querySelector('[data-vault-generate-inline]')?.addEventListener('click', async () => {
-        const result = await generatePassword();
-        const passwordField = document.querySelector('[name="vault_item_form[password]"]') as HTMLInputElement | null;
-        if (passwordField) {
-            passwordField.value = result.password;
-        }
-    });
-}
-
-/** Bind folder create form visibility toggle. */
+/** Bind the Add folder toggle (shows the folder create form). */
 function bindFolderForm(): void {
-    document.querySelector('[data-vault-folder-toggle]')?.addEventListener('click', () => {
-        const form = document.querySelector('[data-vault-folder-form]') as HTMLElement | null;
-        if (form) {
-            form.hidden = !form.hidden;
+    const toggle = document.querySelector('[data-vault-folder-toggle]') as HTMLElement | null;
+    const form = document.querySelector('[data-vault-folder-form]') as HTMLElement | null;
+    if (!toggle || !form) {
+        return;
+    }
+
+    toggle.addEventListener('click', () => {
+        form.hidden = !form.hidden;
+        toggle.setAttribute('aria-expanded', form.hidden ? 'false' : 'true');
+        if (!form.hidden) {
+            (form.querySelector('input:not([type="hidden"])') as HTMLInputElement | null)?.focus();
         }
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    bindPasswordModal();
-    bindInlineGenerator();
+    bindPasswordDialog();
     bindFolderForm();
 });
-
-export { generatePassword };

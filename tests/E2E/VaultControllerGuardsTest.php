@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\E2E;
 
+use LogicException;
 use Nowo\VaultBundle\Controller\VaultManageController;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\Kernel as AppKernel;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Psr\Container\ContainerInterface;
 use ReflectionClass;
 use ReflectionProperty;
+use stdClass;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -104,6 +107,41 @@ final class VaultControllerGuardsTest extends WebTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('Work', (string) $response->getContent());
+    }
+
+    public function testAControllerBuiltByHandBuildsItsPagesOnTheRouter(): void
+    {
+        $this->bootClient();
+        $alice      = $this->createUser('alice@example.com');
+        $controller = $this->controller(['pageFactory' => null]);
+        $this->pushRequest($alice);
+
+        $response = $controller->home();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('data-testid="vault-home"', (string) $response->getContent());
+    }
+
+    public function testAControllerWithoutARouterCannotBuildItsPages(): void
+    {
+        $this->bootClient();
+        $controller = $this->controller(['pageFactory' => null, 'allowUnauthenticated' => true, 'configStorage' => ['enabled' => false, 'cache_pool' => 'cache.app']]);
+        $controller->setContainer(new class implements ContainerInterface {
+            public function get(string $id): mixed
+            {
+                return new stdClass();
+            }
+
+            public function has(string $id): bool
+            {
+                return true;
+            }
+        });
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('need the router');
+
+        $controller->home();
     }
 
     /**

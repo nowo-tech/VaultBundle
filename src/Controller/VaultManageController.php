@@ -40,6 +40,8 @@ use Nowo\VaultBundle\Service\VaultPasswordGenerator;
 use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Support\UserIdResolver;
+use Nowo\VaultBundle\Ui\VaultPageFactory;
+use Nowo\VaultBundle\Ui\VaultPages;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
@@ -53,9 +55,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-use function array_filter;
 use function base64_encode;
-use function ceil;
 use function in_array;
 use function is_string;
 use function max;
@@ -67,6 +67,7 @@ use function max;
 final class VaultManageController extends AbstractController
 {
     use VaultCsrfTrait;
+    use VaultPagesTrait;
 
     /**
      * Stores the access, listing, persistence, crypto and configuration collaborators of the manage UI.
@@ -93,6 +94,7 @@ final class VaultManageController extends AbstractController
         private readonly array $configStorage,
         private readonly bool $allowUnauthenticated = false,
         private readonly int $perPage = 50,
+        private readonly ?VaultPageFactory $pageFactory = null,
     ) {
     }
 
@@ -104,15 +106,15 @@ final class VaultManageController extends AbstractController
     {
         $this->denyUnlessFeature('list');
 
-        return $this->render($this->templates()['home'], [
-            'layout'                  => $this->templates()['layout'],
-            'routes'                  => $this->routes(),
-            'dashboardRoute'          => $this->dashboardRoute(),
-            'itemTypes'               => VaultItemType::cases(),
-            'configStorageEnabled'    => $this->configStorage['enabled'],
-            'configStorageAdminRoute' => $this->configStorageAdminRoute(),
-            'generatorForm'           => $this->createForm(VaultPasswordGeneratorType::class)->createView(),
-        ]);
+        $routes = $this->routes();
+
+        return $this->render($this->templates()['home'], $this->pages()->context([
+            'page'           => $this->pages()->home($routes, $this->configStorageAdminRoute(), $this->dashboardRoute()),
+            'routes'         => $routes,
+            'dashboardRoute' => $this->dashboardRoute(),
+            'itemTypes'      => VaultItemType::cases(),
+            'generatorForm'  => $this->createForm(VaultPasswordGeneratorType::class)->createView(),
+        ]));
     }
 
     /**
@@ -121,24 +123,6 @@ final class VaultManageController extends AbstractController
     private function requestedPage(Request $request): int
     {
         return max(1, $request->query->getInt('page', 1));
-    }
-
-    /**
-     * Builds the pager view model consumed by `vault/_pagination.html.twig` (REQ-PERF-001).
-     *
-     * @param array<string, string|null> $query extra query parameters kept on the page links (null values dropped)
-     *
-     * @return array{page: int, pages: int, perPage: int, total: int, query: array<string, string>}
-     */
-    private function pagination(int $page, int $total, array $query = []): array
-    {
-        return [
-            'page'    => $page,
-            'pages'   => max(1, (int) ceil($total / $this->perPage)),
-            'perPage' => $this->perPage,
-            'total'   => $total,
-            'query'   => array_filter($query, static fn (?string $value): bool => $value !== null && $value !== ''),
-        ];
     }
 
     private function configStorageAdminRoute(): ?string
@@ -196,38 +180,45 @@ final class VaultManageController extends AbstractController
         }
         $itemIds     = array_map(static fn (VaultItem $item): string => $item->getId(), $result['items']);
         $grantCounts = $this->grantService->countForResources(VaultResourceType::Item, $itemIds);
+        $routes      = $this->routes();
+        $readOnlyMap = $this->accessGuard->resolveReadOnlyMap($user, $result['items']);
+        $pages       = $this->pages();
+        $searchForm  = $this->createForm(VaultItemSearchType::class, ['q' => $searchQuery], [
+            'action'  => $this->generateUrl($routes['items']['name']),
+            'filters' => ['folder' => $folderId, 'tag' => $tagId],
+        ])->createView();
 
-        return $this->render($this->templates()['items'], [
-            'layout'           => $this->templates()['layout'],
-            'items'            => $result['items'],
-            'total'            => $result['total'],
-            'readOnlyMap'      => $this->accessGuard->resolveReadOnlyMap($user, $result['items']),
-            'grantCounts'      => $grantCounts,
-            'folders'          => $folders,
-            'tags'             => $tags,
-            'folderItemCounts' => $folderItemCounts,
-            'activeFolder'     => $folderId,
-            'activeTag'        => $tagId,
-            'searchQuery'      => $searchQuery,
-            'pagination'       => $searchQuery !== '' ? null : $this->pagination($page, $result['total'], ['folder' => $folderId, 'tag' => $tagId]),
-            'routes'           => $this->routes(),
-            'dashboardRoute'   => $this->dashboardRoute(),
-            'itemTypes'        => VaultItemType::cases(),
-            'searchForm'       => $this->createForm(VaultItemSearchType::class, ['q' => $searchQuery], [
-                'action'  => $this->generateUrl($this->routes()['items']['name']),
-                'filters' => ['folder' => $folderId, 'tag' => $tagId],
-            ])->createView(),
-            'folderForm' => $this->createForm(VaultFolderCreateType::class, null, [
-                'action' => $this->generateUrl($this->routes()['folder_create']['name']),
-            ])->createView(),
-            'tagDeleteForms' => $this->actionForms($tags, 'tag_delete', 'vault_tag_delete_', [
+        return $this->render($this->templates()['items'], $pages->context([
+            'page' => $pages->items(
+                $routes,
+                $result['items'],
+                $readOnlyMap,
+                $this->actionForms($result['items'], 'item_trash', 'vault_trash_'),
+                $searchForm,
+                $searchQuery !== '' ? null : $pages->pagination($routes['items']['name'], $page, $this->perPage, $result['total'], ['folder' => $folderId, 'tag' => $tagId]),
+                $folderId,
+                $this->dashboardRoute(),
+            ),
+            'items'         => $result['items'],
+            'total'         => $result['total'],
+            'readOnlyMap'   => $readOnlyMap,
+            'grantCounts'   => $grantCounts,
+            'folders'       => $folders,
+            'tags'          => $tags,
+            'folderActions' => $pages->folderActions($routes, $folders, $this->actionForms($folders, 'folder_trash', 'vault_folder_trash_'), $folderItemCounts),
+            'tagActions'    => $pages->tagActions($routes, $tags, $this->actionForms($tags, 'tag_delete', 'vault_tag_delete_', [
                 'folder' => $folderId,
                 'q'      => $searchQuery,
                 'tag'    => $tagId,
-            ]),
-            'folderTrashForms' => $this->actionForms($folders, 'folder_trash', 'vault_folder_trash_'),
-            'trashForms'       => $this->actionForms($result['items'], 'item_trash', 'vault_trash_'),
-        ]);
+            ])),
+            'activeFolder' => $folderId,
+            'activeTag'    => $tagId,
+            'searchQuery'  => $searchQuery,
+            'routes'       => $routes,
+            'folderForm'   => $this->createForm(VaultFolderCreateType::class, null, [
+                'action' => $this->generateUrl($routes['folder_create']['name']),
+            ])->createView(),
+        ]));
     }
 
     /**
@@ -239,19 +230,26 @@ final class VaultManageController extends AbstractController
         $this->denyUnlessFeature('list');
 
         /** @var UserInterface $user */
-        $user   = $this->getUser();
-        $page   = $this->requestedPage($request);
-        $result = $this->itemLister->list($user, sharedOnly: true, page: $page, perPage: $this->perPage);
+        $user        = $this->getUser();
+        $page        = $this->requestedPage($request);
+        $result      = $this->itemLister->list($user, sharedOnly: true, page: $page, perPage: $this->perPage);
+        $routes      = $this->routes();
+        $readOnlyMap = $this->accessGuard->resolveReadOnlyMap($user, $result['items']);
+        $pages       = $this->pages();
 
-        return $this->render($this->templates()['shared'], [
-            'layout'         => $this->templates()['layout'],
-            'items'          => $result['items'],
-            'pagination'     => $this->pagination($page, $result['total']),
-            'readOnlyMap'    => $this->accessGuard->resolveReadOnlyMap($user, $result['items']),
-            'routes'         => $this->routes(),
-            'dashboardRoute' => $this->dashboardRoute(),
-            'trashForms'     => $this->actionForms($result['items'], 'item_trash', 'vault_trash_'),
-        ]);
+        return $this->render($this->templates()['shared'], $pages->context([
+            'page' => $pages->shared(
+                $routes,
+                $result['items'],
+                $readOnlyMap,
+                $this->actionForms($result['items'], 'item_trash', 'vault_trash_'),
+                $pages->pagination($routes['shared']['name'], $page, $this->perPage, $result['total']),
+                $this->dashboardRoute(),
+            ),
+            'items'       => $result['items'],
+            'readOnlyMap' => $readOnlyMap,
+            'routes'      => $routes,
+        ]));
     }
 
     /**
@@ -266,16 +264,21 @@ final class VaultManageController extends AbstractController
         $user   = $this->getUser();
         $page   = $this->requestedPage($request);
         $result = $this->itemLister->list($user, trashOnly: true, page: $page, perPage: $this->perPage);
+        $routes = $this->routes();
+        $pages  = $this->pages();
 
-        return $this->render($this->templates()['trash'], [
-            'layout'         => $this->templates()['layout'],
-            'items'          => $result['items'],
-            'pagination'     => $this->pagination($page, $result['total']),
-            'routes'         => $this->routes(),
-            'dashboardRoute' => $this->dashboardRoute(),
-            'restoreForms'   => $this->actionForms($result['items'], 'item_restore', 'vault_restore_'),
-            'purgeForms'     => $this->actionForms($result['items'], 'item_purge', 'vault_purge_'),
-        ]);
+        return $this->render($this->templates()['trash'], $pages->context([
+            'page' => $pages->trash(
+                $routes,
+                $result['items'],
+                $this->actionForms($result['items'], 'item_restore', 'vault_restore_'),
+                $this->actionForms($result['items'], 'item_purge', 'vault_purge_'),
+                $pages->pagination($routes['trash']['name'], $page, $this->perPage, $result['total']),
+                $this->dashboardRoute(),
+            ),
+            'items'  => $result['items'],
+            'routes' => $routes,
+        ]));
     }
 
     /**
@@ -318,18 +321,7 @@ final class VaultManageController extends AbstractController
             return $this->redirectToItems($data->folder);
         }
 
-        return $this->render($this->templates()['item_form'], [
-            'layout'                  => $this->templates()['layout'],
-            'form'                    => $form,
-            'itemType'                => $itemType,
-            'item'                    => null,
-            'folders'                 => $folders,
-            'routes'                  => $this->routes(),
-            'dashboardRoute'          => $this->dashboardRoute(),
-            'passwordStrengthEnabled' => $this->passwordStrengthEnabled,
-            'tagInputEnabled'         => $this->tagInputEnabled,
-            'activeFolder'            => $data->folder?->getId(),
-        ]);
+        return $this->renderItemPage($form, $itemType, null, false, false, $folders, $data->folder?->getId());
     }
 
     /**
@@ -403,20 +395,34 @@ final class VaultManageController extends AbstractController
             return $this->redirectToItems($isCreator ? $data->folder : null);
         }
 
-        return $this->render($this->templates()['item_form'], [
-            'layout'                  => $this->templates()['layout'],
-            'form'                    => $form,
-            'itemType'                => $item->getItemType(),
+        return $this->renderItemPage($form, $item->getItemType(), $item, $readOnly, $viewMode, $folders, $item->getFolder()?->getId());
+    }
+
+    /**
+     * Renders the item form page (create, edit, read-only view).
+     *
+     * @param FormInterface<VaultItemFormData> $form
+     * @param list<VaultFolder> $folders
+     */
+    private function renderItemPage(FormInterface $form, VaultItemType $itemType, ?VaultItem $item, bool $readOnly, bool $viewMode, array $folders, ?string $activeFolder): Response
+    {
+        $routes = $this->routes();
+        $pages  = $this->pages();
+        $view   = $form->createView();
+
+        return $this->renderForm($form, $this->templates()['item_form'], $pages->context([
+            'page'                    => $pages->itemForm($routes, $view, $itemType, $item, $readOnly, $activeFolder, $this->tagInputEnabled ? [VaultPages::ITEM_FORM_THEME] : []),
+            'form'                    => $view,
+            'itemType'                => $itemType,
             'item'                    => $item,
             'readOnly'                => $readOnly,
             'viewMode'                => $viewMode,
             'folders'                 => $folders,
-            'routes'                  => $this->routes(),
-            'dashboardRoute'          => $this->dashboardRoute(),
+            'routes'                  => $routes,
             'passwordStrengthEnabled' => $this->passwordStrengthEnabled,
             'tagInputEnabled'         => $this->tagInputEnabled,
-            'activeFolder'            => $item->getFolder()?->getId(),
-        ]);
+            'activeFolder'            => $activeFolder,
+        ]));
     }
 
     /**
@@ -883,20 +889,17 @@ final class VaultManageController extends AbstractController
         string $backRoute,
         array $backParams,
     ): Response {
-        return $this->render($this->templates()['share'], [
-            'layout'           => $this->templates()['layout'],
-            'form'             => $form,
-            'resourceLabel'    => $resourceLabel,
-            'grants'           => $grants,
-            'resourceId'       => $resourceId,
-            'grantRevokeRoute' => $grantRevokeRoute,
-            'granteeLabels'    => $grantList->getLabelMap(),
-            'routes'           => $this->routes(),
-            'dashboardRoute'   => $this->dashboardRoute(),
-            'backRoute'        => $backRoute,
-            'backParams'       => $backParams,
-            'revokeGrantForms' => $this->revokeGrantForms($grants, $resourceId, $grantRevokeRoute),
-        ]);
+        $pages = $this->pages();
+        $view  = $form->createView();
+
+        return $this->renderForm($form, $this->templates()['share'], $pages->context([
+            'page'          => $pages->share($view, $resourceLabel, $backRoute, $backParams),
+            'grantsTable'   => $pages->grantsTable($grants, $this->revokeGrantForms($grants, $resourceId, $grantRevokeRoute), $resourceId, $grantRevokeRoute),
+            'grants'        => $grants,
+            'resourceLabel' => $resourceLabel,
+            'granteeLabels' => $grantList->getLabelMap(),
+            'routes'        => $this->routes(),
+        ]));
     }
 
     /**
@@ -958,6 +961,20 @@ final class VaultManageController extends AbstractController
     {
         /* @var array{layout: string, home: string, items: string, item_form: string, trash: string, shared: string, share: string, index?: string} */
         return $this->runtimeConfig->get()['templates'];
+    }
+
+    /**
+     * Renders a page whose form was handled: 422 when it was submitted invalid (as AbstractController::render() does
+     * for a FormInterface parameter; the pages receive the FormView inside their view model).
+     *
+     * @param FormInterface<mixed> $form
+     * @param array<string, mixed> $parameters
+     */
+    private function renderForm(FormInterface $form, string $template, array $parameters): Response
+    {
+        $status = $form->isSubmitted() && !$form->isValid() ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK;
+
+        return $this->render($template, $parameters, new Response(null, $status));
     }
 
     private function dashboardRoute(): ?string

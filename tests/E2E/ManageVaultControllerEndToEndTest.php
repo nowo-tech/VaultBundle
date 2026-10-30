@@ -119,6 +119,19 @@ final class ManageVaultControllerEndToEndTest extends WebTestCase
         self::assertSame($folder->getId(), $items[0]->getFolder()?->getId());
     }
 
+    public function testInvalidItemIsRenderedAgainWith422(): void
+    {
+        [$client, $alice] = $this->loggedIn();
+
+        $crawler = $client->request('GET', '/tools/vault/items/new/login');
+        self::assertResponseIsSuccessful();
+        $crawler = $client->submit($crawler->filterXPath('//form[.//input[@name="vault_item_form[title]"]]')->form(['vault_item_form[title]' => '']));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertCount(1, $crawler->filterXPath('//*[@data-testid="vault-item-form"]//input[@name="vault_item_form[title]"]'));
+        self::assertCount(0, $this->itemsOf($alice));
+    }
+
     public function testNewItemIgnoresForeignTrashedAndUnknownFolders(): void
     {
         [$client, $alice] = $this->loggedIn();

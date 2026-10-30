@@ -1,2 +1,4 @@
 twig:
     file_name_pattern: '*.twig'
+    # Host form theme (Tabler is Bootstrap 5 compatible); the bundle forms carry no framework classes.
+    form_themes: ['bootstrap_5_layout.html.twig']

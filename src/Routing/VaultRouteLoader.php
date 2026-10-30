@@ -21,7 +21,7 @@ use Symfony\Component\Routing\RouteCollection;
  * Each attribute declares the HTTP methods, requirements and the default path / name of one action, and carries the
  * configuration key in the {@see self::ROUTE_KEY_OPTION} option. The loader keeps the public configuration contract:
  * the path and name of every route come from `nowo_vault.routes.<key>` / `nowo_vault.browser_extension.routes.<key>`
- * (runtime config when enabled) and `route_prefix` is prepended, exactly as before the attributes existed.
+ * (runtime config when enabled) and `web_ui.path_prefix` (formerly `route_prefix`) is prepended, exactly as before the attributes existed.
  */
 final class VaultRouteLoader extends Loader
 {
@@ -41,6 +41,7 @@ final class VaultRouteLoader extends Loader
         private readonly bool $configStorageEnabled,
         private readonly bool $browserExtensionEnabled,
         private readonly array $browserExtensionRoutes,
+        private readonly bool $webUiEnabled = true,
     ) {
     }
 
@@ -55,10 +56,13 @@ final class VaultRouteLoader extends Loader
         $routePrefix = (string) $config['route_prefix'];
         $collection  = new RouteCollection();
 
-        $this->addControllerRoutes($collection, VaultManageController::class, $routes, $routePrefix);
+        // web_ui.enabled: false keeps only the browser-extension API.
+        if ($this->webUiEnabled) {
+            $this->addControllerRoutes($collection, VaultManageController::class, $routes, $routePrefix);
 
-        if ($this->configStorageEnabled) {
-            $this->addControllerRoutes($collection, VaultRuntimeConfigController::class, $routes, $routePrefix);
+            if ($this->configStorageEnabled) {
+                $this->addControllerRoutes($collection, VaultRuntimeConfigController::class, $routes, $routePrefix);
+            }
         }
 
         if ($this->browserExtensionEnabled) {

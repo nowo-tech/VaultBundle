@@ -5,3 +5,13 @@ body {
 code {
     font-size: 0.875em;
 }
+
+/* Demo masthead (REQ-DEMO-013 screenshots): readable nav links on the dark bar. */
+.vault-demo-masthead .nav-link {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.vault-demo-masthead .nav-link.active,
+.vault-demo-masthead .nav-link:hover {
+    color: #fff;
+}

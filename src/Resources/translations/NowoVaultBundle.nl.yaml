@@ -29,6 +29,7 @@ vault:
         name_placeholder: Mapnaam
         empty_hint: 'Nog geen mappen. Maak er een aan vanaf de itemspagina om items te organiseren:'
     search:
+        clear: Wissen
         placeholder: Alle items doorzoeken
         placeholder_tags: Zoeken op titel of tag
     tags:
@@ -68,6 +69,7 @@ vault:
         write: Schrijven
         admin: Beheer
     form:
+        website_placeholder: 'https://example.com'
         title: Titel (verplicht)
         attachment: Documentbijlage
         username: E-mail of gebruikersnaam
@@ -99,6 +101,7 @@ vault:
         tag_placeholder: bijv. werk, privé
         tags_help: Typ een tag en druk op Enter. Tags worden hergebruikt tussen uw items.
     action:
+        open: Openen
         save: Opslaan
         cancel: Annuleren
         back: Terug
@@ -130,12 +133,16 @@ vault:
         trash: De prullenbak is leeg.
         shared: Geen gedeelde items.
     list:
+        title: Titel
         type: Soort
         folder: Map
         actions: Acties
     shared:
         hint: Items gedeeld met u of uw teams verschijnen hier. Breid toegang uit via VaultGrantService en ITEM_LIST_QUERY-events.
     confirm:
+        trash_title: '"%name%" naar de prullenbak verplaatsen?'
+        trash_folder_title: 'Map "%name%" naar de prullenbak verplaatsen?'
+        purge_title: '"%name%" definitief verwijderen?'
         trash: Dit item naar de prullenbak verplaatsen?
         trash_folder: Deze map naar de prullenbak verplaatsen?
         trash_folder_with_items: 'Deze map bevat %count% item(s). Map verwijderen? De items blijven zonder map.'
@@ -181,7 +188,3 @@ vault:
         generate_key: VAULT_ENCRYPTION_KEY genereren
         max_attachment_bytes: Max. bijlengrootte (bytes)
         password_level: Wachtwoordsterkte
-    pagination:
-        previous: 'Vorige'
-        next: 'Volgende'
-        summary: 'Pagina %page% van %pages% (%total% items)'

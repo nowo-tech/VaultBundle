@@ -143,6 +143,52 @@ final class VaultExtensionTest extends TestCase
         self::assertSame(AllowAllVaultAccessChecker::class, $container->getDefinition('nowo_vault.access_checker.allow_all')->getClass());
     }
 
+    public function testEveryRoleListEmptyFailsAtCompileTime(): void
+    {
+        $empty = ['admin_roles' => [], 'access_roles' => [], 'create_roles' => [], 'list_roles' => [], 'delete_roles' => []];
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('every role list');
+
+        (new VaultExtension())->load([self::BASE_CONFIG + ['security' => $empty]], $this->securedContainer());
+    }
+
+    public function testEmptyRoleListsAreAcceptedWithACustomCheckerOrOneRole(): void
+    {
+        $empty = ['admin_roles' => [], 'access_roles' => [], 'create_roles' => [], 'list_roles' => [], 'delete_roles' => []];
+
+        $custom = $this->securedContainer();
+        (new VaultExtension())->load([self::BASE_CONFIG + ['security' => $empty + ['access_checker' => 'app.checker']]], $custom);
+        self::assertSame('app.checker', (string) $custom->getAlias(VaultAccessCheckerInterface::class));
+
+        $oneRole = $this->securedContainer();
+        (new VaultExtension())->load([self::BASE_CONFIG + ['security' => ['delete_roles' => ['ROLE_X']] + $empty]], $oneRole);
+        self::assertSame('nowo_vault.access_checker.default', (string) $oneRole->getAlias(VaultAccessCheckerInterface::class));
+    }
+
+    public function testWebUiParametersAndDeprecatedCssFramework(): void
+    {
+        $container = $this->securedContainer();
+        (new VaultExtension())->load([self::BASE_CONFIG + ['css_framework' => 'bootstrap', 'web_ui' => ['enabled' => false, 'layout_template' => 'base.html.twig', 'templates' => ['items' => 'vault/items.html.twig'], 'path_prefix' => '/admin']]], $container);
+
+        self::assertSame('bootstrap5', $container->getParameter('nowo_vault.css_framework'));
+        self::assertFalse($container->getParameter('nowo_vault.web_ui.enabled'));
+        self::assertSame('base.html.twig', $container->getParameter('nowo_vault.web_ui.layout_template'));
+        self::assertSame(['items' => 'vault/items.html.twig'], $container->getParameter('nowo_vault.web_ui.templates'));
+        /** @var array{route_prefix: string, templates: array<string, string|null>} $baseline */
+        $baseline = $container->getParameter('nowo_vault.runtime_config.yaml_baseline');
+        self::assertSame('/admin', $baseline['route_prefix']);
+        self::assertSame('base.html.twig', $baseline['templates']['layout']);
+        self::assertSame('vault/items.html.twig', $baseline['templates']['items']);
+        self::assertSame('@NowoVaultBundle/vault/home.html.twig', $baseline['templates']['index']);
+
+        $default = $this->securedContainer();
+        (new VaultExtension())->load([self::BASE_CONFIG], $default);
+        self::assertSame('tabler', $default->getParameter('nowo_vault.css_framework'));
+        self::assertTrue($default->getParameter('nowo_vault.web_ui.enabled'));
+        self::assertNull($default->getParameter('nowo_vault.web_ui.layout_template'));
+    }
+
     public function testDefaultAuthenticatorAutowiresProviderAndDefersUserCheckerToFirewall(): void
     {
         $container = $this->securedContainer();
@@ -208,8 +254,9 @@ final class VaultExtensionTest extends TestCase
         self::assertSame('NowoVaultBundle', $formKit['profiles']['vault']['translation_domain']);
         self::assertTrue($formKit['profiles']['vault']['convention_requires_translation']);
 
-        // Root css_framework defaults to tabler.
-        self::assertSame(['css_framework' => 'tabler', 'icon_set' => 'tabler-icons'], $container->getExtensionConfig('nowo_ui_kit')[0]);
+        // REQ-UI-003: the CSS stack is inherited from nowo_ui_kit; nothing is seeded without the deprecated key.
+        self::assertSame([], $container->getExtensionConfig('nowo_ui_kit'));
+        self::assertSame(['class' => 'nowo-ui-input'], $formKit['profiles']['vault']['defaults']['attr']);
     }
 
     public function testPrependRespectsHostFormKitSettings(): void
@@ -253,7 +300,9 @@ final class VaultExtensionTest extends TestCase
     {
         $container = new ContainerBuilder();
         $container->registerExtension($this->fakeExtension('nowo_ui_kit'));
+        $container->registerExtension($this->fakeExtension('nowo_vault'));
         $container->prependExtensionConfig('nowo_ui_kit', ['css_framework' => 'tailwind']);
+        $container->prependExtensionConfig('nowo_vault', ['css_framework' => 'tabler']);
 
         (new VaultExtension())->prepend($container);
 
@@ -264,8 +313,10 @@ final class VaultExtensionTest extends TestCase
     {
         $container = new ContainerBuilder();
         $container->registerExtension($this->fakeExtension('nowo_ui_kit'));
+        $container->registerExtension($this->fakeExtension('nowo_vault'));
         $container->prependExtensionConfig('nowo_ui_kit', ['icon_set' => 'bootstrap-icons']);
         $container->prependExtensionConfig('nowo_ui_kit', ['css_framework' => 'tailwind']);
+        $container->prependExtensionConfig('nowo_vault', ['css_framework' => 'tabler']);
 
         (new VaultExtension())->prepend($container);
 

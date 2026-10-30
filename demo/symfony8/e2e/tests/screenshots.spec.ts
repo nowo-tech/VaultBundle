@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { waitForToolbar } from './helpers';
 
-/** REQ-DEMO-013 — README screenshot (captured as PNG, converted to WebP by scripts/to-webp.mjs). Demo fixture data only. */
+/** REQ-DEMO-013 — README screenshots (captured as PNG, converted to WebP by scripts/to-webp.mjs). Demo fixture data only. */
 const outDir = process.env.SCREENSHOT_DIR
   ? resolve(process.env.SCREENSHOT_DIR)
   : resolve(__dirname, '../../../../docs/images/demo');
@@ -14,6 +14,13 @@ test.beforeAll(() => {
 
 test.describe('Vault screenshots', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('vault-home — dashboard with sections, item types and the password generator', async ({ page }) => {
+    await page.goto('/tools/vault');
+    await expect(page.locator('[data-testid="vault-home"]')).toBeVisible();
+    await waitForToolbar(page);
+    await page.screenshot({ path: resolve(outDir, 'vault-home.png') });
+  });
 
   test('vault-items — items list with folders, tags and actions', async ({ page }) => {
     await page.goto('/tools/vault/items');
@@ -29,5 +36,15 @@ test.describe('Vault screenshots', () => {
     }
     await waitForToolbar(page);
     await page.screenshot({ path: resolve(outDir, 'vault-items.png') });
+  });
+
+  test('vault-generator — password generator dialog over the home page', async ({ page }) => {
+    await page.goto('/tools/vault');
+    await page.locator('button[data-vault-password-generator]').first().click();
+    const dialog = page.locator('dialog[data-vault-password-modal]');
+    await expect(dialog.locator('[data-vault-password-output]')).not.toHaveValue('');
+    await expect(dialog.locator('[data-vault-password-strength]')).not.toBeEmpty();
+    await waitForToolbar(page);
+    await page.screenshot({ path: resolve(outDir, 'vault-generator.png') });
   });
 });

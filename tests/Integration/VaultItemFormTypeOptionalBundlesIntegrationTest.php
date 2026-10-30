@@ -49,7 +49,7 @@ final class VaultItemFormTypeOptionalBundlesIntegrationTest extends KernelTestCa
 
         $tags = $form->get('tags')->getConfig();
         self::assertSame(TagType::class, $tags->getType()->getInnerType()::class);
-        self::assertSame('form-control', $tags->getOption('input_class'));
+        self::assertSame('nowo-ui-input', $tags->getOption('input_class'));
         self::assertFalse($tags->getOption('duplicates'));
         self::assertTrue($tags->getOption('dropdown_enabled'));
         // Translated by the bundle catalogue, never the raw key.

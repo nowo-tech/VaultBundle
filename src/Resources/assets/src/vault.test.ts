@@ -17,58 +17,71 @@ async function flush(): Promise<void> {
     }
 }
 
-const MODAL_HTML = `
-    <input name="vault_item_form[password]" value="">
-    <button data-vault-password-generator>open</button>
-    <div data-vault-password-modal hidden>
-        <input data-vault-password-output value="">
-        <span data-vault-password-strength></span>
-        <button data-vault-password-close>close</button>
-        <button data-vault-password-regenerate>again</button>
-        <button data-vault-password-copy>copy</button>
-        <button data-vault-password-fill>fill</button>
-    </div>
-    <button data-vault-generate-inline>inline</button>
-    <button data-vault-folder-toggle>folder</button>
-    <form data-vault-folder-form hidden></form>
-`;
-
 const GENERATED = 'test-generated-value';
 // Generated per run: the test only checks that the page token is echoed in the request header.
 const CSRF = crypto.randomUUID();
+const URL = '/tools/vault/password/generate';
+
+const DIALOG_HTML = `
+    <input name="vault_item_form[password]" value="">
+    <button data-vault-password-generator>open</button>
+    <dialog data-vault-password-modal data-vault-password-url="${URL}" data-vault-password-csrf="${CSRF}">
+        <form data-vault-password-form>
+            <input data-vault-password-output value="">
+            <button type="button" data-vault-password-regenerate>again</button>
+            <button type="button" data-vault-password-copy>copy</button>
+        </form>
+        <span data-vault-password-strength></span>
+        <button data-vault-password-fill>fill</button>
+    </dialog>
+    <button data-vault-folder-toggle aria-expanded="false">folder</button>
+    <form data-vault-folder-form hidden><input type="hidden" name="_token"><input name="name"></form>
+`;
 
 describe('vault manage UI', () => {
     beforeEach(() => {
         fetchMock.mockReset();
         fetchMock.mockResolvedValue({ ok: true, json: async () => ({ password: GENERATED, strength: 'strong' }) });
         vi.stubGlobal('fetch', fetchMock);
-        window.VAULT_PASSWORD_URL = '/tools/vault/password/generate';
-        window.VAULT_PASSWORD_CSRF_TOKEN = CSRF; // ggignore: random per-run test value, not a credential
+        // jsdom has no <dialog> modal support: emulate showModal() / close().
+        HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement): void {
+            this.setAttribute('open', '');
+        };
+        HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement): void {
+            this.removeAttribute('open');
+        };
     });
 
     afterEach(() => {
         vi.unstubAllGlobals();
-        delete window.VAULT_PASSWORD_URL;
-        delete window.VAULT_PASSWORD_CSRF_TOKEN;
+        vi.useRealTimers();
     });
 
     // Each import adds a DOMContentLoaded listener on the shared jsdom document: counts below are relative.
-    it('opens the modal, generates, regenerates, copies, fills and closes', async () => {
+    it('opens the dialog, generates, regenerates, copies, fills and closes', async () => {
+        vi.useFakeTimers();
         const writeText = vi.fn(async () => undefined);
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-        await boot(MODAL_HTML);
+        await boot(DIALOG_HTML);
 
-        const modal = document.querySelector('[data-vault-password-modal]') as HTMLElement;
+        const dialog = document.querySelector('[data-vault-password-modal]') as HTMLDialogElement;
         const output = document.querySelector('[data-vault-password-output]') as HTMLInputElement;
         const field = document.querySelector('[name="vault_item_form[password]"]') as HTMLInputElement;
 
         (document.querySelector('[data-vault-password-generator]') as HTMLElement).click();
+        vi.runAllTimers();
         await flush();
-        expect(modal.hidden).toBe(false);
+        expect(dialog.open).toBe(true);
         expect(output.value).toBe(GENERATED);
         expect(document.querySelector('[data-vault-password-strength]')?.textContent).toBe('strong');
-        expect(fetchMock).toHaveBeenCalledWith('/tools/vault/password/generate', expect.objectContaining({ method: 'POST' }));
+        expect(fetchMock).toHaveBeenCalledWith(URL, expect.objectContaining({ method: 'POST' }));
         expect(fetchMock.mock.calls[0][1].headers['X-CSRF-Token']).toBe(CSRF);
+
+        // Already open (UiKit opened it): not opened twice.
+        const showModal = vi.spyOn(dialog, 'showModal');
+        (document.querySelector('[data-vault-password-generator]') as HTMLElement).click();
+        vi.runAllTimers();
+        expect(showModal).not.toHaveBeenCalled();
 
         const callsBefore = fetchMock.mock.calls.length;
         (document.querySelector('[data-vault-password-regenerate]') as HTMLElement).click();
@@ -79,19 +92,23 @@ describe('vault manage UI', () => {
         await flush();
         expect(writeText).toHaveBeenCalledWith(GENERATED);
 
+        const submit = new Event('submit', { cancelable: true });
+        document.querySelector('[data-vault-password-form]')?.dispatchEvent(submit);
+        expect(submit.defaultPrevented).toBe(true);
+
         (document.querySelector('[data-vault-password-fill]') as HTMLElement).click();
         expect(field.value).toBe(GENERATED);
-        expect(modal.hidden).toBe(true);
+        expect(dialog.open).toBe(false);
 
-        modal.hidden = false;
-        (document.querySelector('[data-vault-password-close]') as HTMLElement).click();
-        expect(modal.hidden).toBe(true);
+        // Fill on a closed dialog: nothing to close.
+        (document.querySelector('[data-vault-password-fill]') as HTMLElement).click();
+        expect(dialog.open).toBe(false);
     });
 
     it('does not copy or fill when nothing was generated', async () => {
         const writeText = vi.fn(async () => undefined);
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-        await boot(MODAL_HTML);
+        await boot(DIALOG_HTML);
         const field = document.querySelector('[name="vault_item_form[password]"]') as HTMLInputElement;
         field.value = 'kept';
 
@@ -103,45 +120,57 @@ describe('vault manage UI', () => {
         expect(field.value).toBe('kept');
     });
 
-    it('fills the password field inline and toggles the folder form', async () => {
-        await boot(MODAL_HTML);
-        const field = document.querySelector('[name="vault_item_form[password]"]') as HTMLInputElement;
+    it('toggles the folder form and its aria-expanded state', async () => {
+        await boot(DIALOG_HTML);
+        const toggle = document.querySelector('[data-vault-folder-toggle]') as HTMLElement;
         const folderForm = document.querySelector('[data-vault-folder-form]') as HTMLElement;
 
-        (document.querySelector('[data-vault-generate-inline]') as HTMLElement).click();
-        await flush();
-        expect(field.value).toBe(GENERATED);
-
-        (document.querySelector('[data-vault-folder-toggle]') as HTMLElement).click();
+        toggle.click();
         expect(folderForm.hidden).toBe(false);
-        (document.querySelector('[data-vault-folder-toggle]') as HTMLElement).click();
+        expect(toggle.getAttribute('aria-expanded')).toBe('true');
+        expect(document.activeElement).toBe(folderForm.querySelector('input[name="name"]'));
+        toggle.click();
         expect(folderForm.hidden).toBe(true);
+        expect(toggle.getAttribute('aria-expanded')).toBe('false');
     });
 
     it('tolerates missing optional elements', async () => {
         await boot(`
             <button data-vault-password-generator>open</button>
-            <button data-vault-password-close>close</button>
-            <button data-vault-password-fill>fill</button>
-            <button data-vault-generate-inline>inline</button>
+            <div data-vault-password-modal data-vault-password-url="${URL}"></div>
             <button data-vault-folder-toggle>folder</button>
+            <form data-vault-folder-form hidden></form>
         `);
 
         (document.querySelector('[data-vault-password-generator]') as HTMLElement).click();
-        (document.querySelector('[data-vault-password-close]') as HTMLElement).click();
-        (document.querySelector('[data-vault-password-fill]') as HTMLElement).click();
-        (document.querySelector('[data-vault-generate-inline]') as HTMLElement).click();
         (document.querySelector('[data-vault-folder-toggle]') as HTMLElement).click();
         await flush();
 
-        // DOMContentLoaded listeners of earlier imports also bind to this DOM, so only check that it generated.
         expect(fetchMock).toHaveBeenCalled();
+        expect(fetchMock.mock.calls.at(-1)?.[1].headers['X-CSRF-Token']).toBeUndefined();
     });
 
-    it('generatePassword rejects without a configured URL', async () => {
-        const mod = await boot('');
-        delete window.VAULT_PASSWORD_URL;
+    it('binds nothing without a dialog or a folder form', async () => {
+        await boot('<button data-vault-password-generator>open</button><button data-vault-folder-toggle>folder</button>');
 
-        await expect(mod.generatePassword()).rejects.toThrow('Password generator URL is not configured.');
+        (document.querySelector('[data-vault-password-generator]') as HTMLElement).click();
+        (document.querySelector('[data-vault-folder-toggle]') as HTMLElement).click();
+        await flush();
+
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('reads the generator configuration from the dialog', async () => {
+        const mod = await boot('');
+        const dialog = document.createElement('dialog');
+
+        expect(mod.readGeneratorConfig(null)).toBeNull();
+        expect(mod.readGeneratorConfig(dialog)).toBeNull();
+        dialog.dataset.vaultPasswordUrl = URL;
+        expect(mod.readGeneratorConfig(dialog)).toEqual({ url: URL, csrfToken: undefined });
+        dialog.dataset.vaultPasswordCsrf = CSRF;
+        expect(mod.readGeneratorConfig(dialog)).toEqual({ url: URL, csrfToken: CSRF });
+
+        await expect(mod.generatePassword(null)).rejects.toThrow('Password generator URL is not configured.');
     });
 });

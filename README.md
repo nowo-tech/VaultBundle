@@ -10,7 +10,9 @@ Symfony bundle for a **password and secrets vault**: logins, secure notes, credi
 
 This bundle is **FrankenPHP worker mode friendly**.
 
-![Vault manage UI: items list with search, folders, item-type shortcuts and per-item view, share, edit and trash actions](docs/images/demo/vault-items.webp)
+| Vault home | Items list | Password generator |
+| --- | --- | --- |
+| ![Vault home: My items, Shared items and Trash sections, item-type shortcuts and the password generator card (UiKit dashboard scaffold)](docs/images/demo/vault-home.webp) | ![Vault items list: item-type create actions, folders panel, search, table with view, share, edit and trash row actions (UiKit list scaffold)](docs/images/demo/vault-items.webp) | ![Password generator dialog: generated password, strength, length, mode and character classes (UiKit dialog)](docs/images/demo/vault-generator.webp) |
 
 ## Features
 
@@ -24,7 +26,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 - **Key rotation** — `nowo:vault:reencrypt`; **`nowo:vault:extension-tokens:purge`** for expired browser-extension tokens
 - Events: list query/result, access check, read-only resolve, extension auth
 - Server-side libsodium payload encryption; CSRF on manage POST actions
-- Dark manage UI + password generator (modal + inline)
+- Manage UI on the **UiKit page contract** (dashboard, list, form and settings scaffolds; one host theme for every Nowo bundle; confirm and generator `<dialog>`s, no inline JS) — see [docs/TEMPLATES.md](docs/TEMPLATES.md)
 - Document attachments (encrypted in payload)
 
 ## Installation
@@ -60,6 +62,7 @@ The screenshot at the top of this README comes from this demo (fixture data only
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Usage](docs/USAGE.md)
+- [Templates (UiKit page contract)](docs/TEMPLATES.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](docs/CHANGELOG.md)

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle;
 
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -25,6 +26,7 @@ final class VaultBundle extends Bundle
     {
         $container->addCompilerPass(new TwigPathsPass());
         $container->addCompilerPass(new BrowserExtensionUserCheckerPass());
+        $container->addCompilerPass(new CsrfProtectionPass());
     }
 
     /**

@@ -5,8 +5,18 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\DependencyInjection;
 
 use Nowo\VaultBundle\Database\DatabaseDriver;
+use Nowo\VaultBundle\Ui\VaultPages;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
+
+use function array_diff;
+use function array_key_exists;
+use function array_keys;
+use function implode;
+use function is_array;
+use function sprintf;
+use function trigger_deprecation;
 
 /**
  * Configuration tree for VaultBundle.
@@ -14,6 +24,9 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_vault';
+
+    /** 1.x default layout (removed in 1.15; mapped to null = nowo_ui_kit.layouts.admin). */
+    public const LEGACY_DEFAULT_LAYOUT = '@NowoVaultBundle/layout.html.twig';
 
     /** @var list<string> */
     public const CSS_FRAMEWORKS = ['bootstrap', 'bootstrap4', 'bootstrap5', 'tailwind', 'foundation', 'custom', 'tabler', 'none'];
@@ -27,6 +40,10 @@ final class Configuration implements ConfigurationInterface
         $root        = $treeBuilder->getRootNode();
 
         $root
+            ->beforeNormalization()
+                ->ifArray()
+                ->then(static fn (array $v): array => self::mapDeprecatedKeys($v))
+            ->end()
             ->children()
                 ->scalarNode('user_class')
                     ->info('FQCN of the application user entity (must implement UserInterface and expose getId()).')
@@ -45,9 +62,40 @@ final class Configuration implements ConfigurationInterface
                     ->cannotBeEmpty()
                 ->end()
                 ->enumNode('css_framework')
-                    ->info('Host CSS stack hint for manage Web UI (REQ-UI-001). Twig global nowo_vault_css_framework. Demo default: tabler.')
+                    ->info('Deprecated since 1.15: the CSS stack is inherited from nowo_ui_kit.css_framework (copied there when the host did not set it).')
                     ->values(self::CSS_FRAMEWORKS)
-                    ->defaultValue('tabler')
+                    ->defaultNull()
+                    ->setDeprecated('nowo-tech/vault-bundle', '1.15', 'The "%path%" option is deprecated, set "nowo_ui_kit.css_framework" instead (REQ-UI-003).')
+                ->end()
+                ->arrayNode('web_ui')
+                    ->info('Manage Web UI (REQ-UI-003 canonical keys).')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('enabled')
+                            ->info('Register the manage UI routes (items, sharing, trash, runtime config). False keeps only the browser-extension API.')
+                            ->defaultTrue()
+                        ->end()
+                        ->scalarNode('path_prefix')
+                            ->info('Prefix prepended to every vault route path (manage UI and browser-extension API), e.g. /admin.')
+                            ->defaultValue('')
+                        ->end()
+                        ->scalarNode('layout_template')
+                            ->info('Layout the manage pages extend. Null (default) = nowo_ui_kit.layouts.admin. A 1.x layout without the UiKit canonical blocks is wrapped in a deprecated bridge.')
+                            ->defaultNull()
+                        ->end()
+                        ->arrayNode('templates')
+                            ->info('Per-page template overrides (page id => template): home, items, item_form, trash, shared, share, runtime_config. Extend @!NowoVaultBundle/... and override a data block.')
+                            ->useAttributeAsKey('page')
+                            ->normalizeKeys(false)
+                            ->scalarPrototype()->cannotBeEmpty()->end()
+                            ->validate()
+                                ->ifTrue(static fn (array $v): bool => array_diff(array_keys($v), array_keys(VaultPages::TEMPLATES)) !== [])
+                                ->then(static function (array $v): never {
+                                    throw new InvalidConfigurationException(sprintf('Unknown web_ui.templates page(s) "%s"; known: %s.', implode('", "', array_diff(array_keys($v), array_keys(VaultPages::TEMPLATES))), implode(', ', array_keys(VaultPages::TEMPLATES))));
+                                })
+                            ->end()
+                        ->end()
+                    ->end()
                 ->end()
                 ->arrayNode('config_storage')
                     ->info('Optional database-backed runtime configuration with Symfony cache.')
@@ -117,9 +165,6 @@ final class Configuration implements ConfigurationInterface
                             ->defaultValue('default')
                         ->end()
                     ->end()
-                ->end()
-                ->scalarNode('route_prefix')
-                    ->defaultValue('')
                 ->end()
                 ->scalarNode('dashboard_route')
                     ->defaultNull()
@@ -293,39 +338,6 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
-                ->arrayNode('templates')
-                    ->addDefaultsIfNotSet()
-                    ->children()
-                        ->scalarNode('layout')
-                            ->defaultValue('@NowoVaultBundle/layout.html.twig')
-                        ->end()
-                        ->scalarNode('home')
-                            ->defaultValue('@NowoVaultBundle/vault/home.html.twig')
-                        ->end()
-                        ->scalarNode('items')
-                            ->defaultValue('@NowoVaultBundle/vault/items.html.twig')
-                        ->end()
-                        ->scalarNode('index')
-                            ->info('Deprecated alias of home. Use home instead.')
-                            ->defaultValue('@NowoVaultBundle/vault/home.html.twig')
-                        ->end()
-                        ->scalarNode('item_form')
-                            ->defaultValue('@NowoVaultBundle/vault/item_form.html.twig')
-                        ->end()
-                        ->scalarNode('trash')
-                            ->defaultValue('@NowoVaultBundle/vault/trash.html.twig')
-                        ->end()
-                        ->scalarNode('shared')
-                            ->defaultValue('@NowoVaultBundle/vault/shared.html.twig')
-                        ->end()
-                        ->scalarNode('share')
-                            ->defaultValue('@NowoVaultBundle/vault/share.html.twig')
-                        ->end()
-                        ->scalarNode('runtime_config')
-                            ->defaultValue('@NowoVaultBundle/vault/runtime_config.html.twig')
-                        ->end()
-                    ->end()
-                ->end()
                 ->arrayNode('browser_extension')
                     ->info('Chrome/Brave browser extension API (Bearer token auth).')
                     ->addDefaultsIfNotSet()
@@ -432,5 +444,61 @@ final class Configuration implements ConfigurationInterface
             ->end();
 
         return $treeBuilder;
+    }
+
+    /**
+     * Maps the 1.x keys deprecated by the UiKit page contract (REQ-UI-003) onto `web_ui` before normalization:
+     * `route_prefix` => `web_ui.path_prefix`, `templates.layout` => `web_ui.layout_template` (the removed 1.x default
+     * layout => null), `templates.<page>` => `web_ui.templates.<page>` (`templates.index` => `home`). Canonical keys
+     * set in the same file win.
+     *
+     * @param array<string, mixed> $v
+     *
+     * @return array<string, mixed>
+     */
+    private static function mapDeprecatedKeys(array $v): array
+    {
+        $webUi = is_array($v['web_ui'] ?? null) ? $v['web_ui'] : [];
+
+        if (array_key_exists('route_prefix', $v)) {
+            trigger_deprecation('nowo-tech/vault-bundle', '1.15', 'The "nowo_vault.route_prefix" option is deprecated, use "nowo_vault.web_ui.path_prefix" instead.');
+            if (!array_key_exists('path_prefix', $webUi)) {
+                $webUi['path_prefix'] = $v['route_prefix'];
+            }
+            unset($v['route_prefix']);
+        }
+
+        if (array_key_exists('templates', $v)) {
+            trigger_deprecation('nowo-tech/vault-bundle', '1.15', 'The "nowo_vault.templates" options are deprecated, use "nowo_vault.web_ui.layout_template" and "nowo_vault.web_ui.templates.<page>" instead.');
+            $templates = is_array($v['templates']) ? $v['templates'] : [];
+            if (array_key_exists('layout', $templates)) {
+                if (!array_key_exists('layout_template', $webUi)) {
+                    $webUi['layout_template'] = $templates['layout'] === self::LEGACY_DEFAULT_LAYOUT ? null : $templates['layout'];
+                }
+                unset($templates['layout']);
+            }
+            if (array_key_exists('index', $templates)) {
+                $templates['home'] ??= $templates['index'];
+                unset($templates['index']);
+            }
+            $pages = is_array($webUi['templates'] ?? null) ? $webUi['templates'] : [];
+            foreach ($templates as $page => $template) {
+                // The 1.x defaults equal the bundle templates: nothing to override.
+                if (array_key_exists($page, $pages) || $template === (VaultPages::TEMPLATES[$page] ?? null)) {
+                    continue;
+                }
+                $pages[$page] = $template;
+            }
+            if ($pages !== []) {
+                $webUi['templates'] = $pages;
+            }
+            unset($v['templates']);
+        }
+
+        if ($webUi !== []) {
+            $v['web_ui'] = $webUi;
+        }
+
+        return $v;
     }
 }

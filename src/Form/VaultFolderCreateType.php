@@ -32,7 +32,7 @@ final class VaultFolderCreateType extends AbstractType
         $builder->add('name', TextType::class, [
             'required' => true,
             'label'    => false,
-            'attr'     => ['class' => 'form-control', 'placeholder' => 'vault.folder.name_placeholder'],
+            'attr'     => ['placeholder' => 'vault.folder.name_placeholder'],
         ]);
     }
 

@@ -29,6 +29,7 @@ vault:
         name_placeholder: Nome da pasta
         empty_hint: 'Ainda não há pastas. Crie uma na página de elementos para organizar entradas:'
     search:
+        clear: Limpar
         placeholder: Pesquisar em todos os elementos
         placeholder_tags: Pesquisar por título ou etiqueta
     tags:
@@ -68,6 +69,7 @@ vault:
         write: Escrita
         admin: Administração
     form:
+        website_placeholder: 'https://example.com'
         title: Título (obrigatório)
         attachment: Anexo do documento
         username: E-mail ou nome de utilizador
@@ -99,6 +101,7 @@ vault:
         tag_placeholder: ex. trabalho, pessoal
         tags_help: Escreva uma etiqueta e prima Enter. As etiquetas são reutilizadas entre os seus elementos.
     action:
+        open: Abrir
         save: Guardar
         cancel: Cancelar
         back: Voltar
@@ -130,12 +133,16 @@ vault:
         trash: O lixo está vazio.
         shared: Não há elementos partilhados.
     list:
+        title: Título
         type: Tipo
         folder: Pasta
         actions: Ações
     shared:
         hint: Elementos partilhados consigo ou com as suas equipas aparecem aqui. Estenda o acesso via VaultGrantService e eventos ITEM_LIST_QUERY.
     confirm:
+        trash_title: 'Mover "%name%" para a lixeira?'
+        trash_folder_title: 'Mover a pasta "%name%" para a lixeira?'
+        purge_title: 'Excluir "%name%" permanentemente?'
         trash: Mover este elemento para o lixo?
         trash_folder: Mover esta pasta para o lixo?
         trash_folder_with_items: 'Esta pasta contém %count% elemento(s). Eliminar a pasta? Os elementos ficarão sem pasta associada.'
@@ -181,7 +188,3 @@ vault:
         generate_key: Gerar VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Tamanho máximo de anexos (bytes)
         password_level: Nível de robustez da palavra-passe
-    pagination:
-        previous: 'Anterior'
-        next: 'Seguinte'
-        summary: 'Página %page% de %pages% (%total% entradas)'

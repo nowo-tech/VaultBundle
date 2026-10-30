@@ -1263,10 +1263,19 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     user_class?: scalar|Param|null, // FQCN of the application user entity (must implement UserInterface and expose getId()).
  *     table_prefix?: scalar|Param|null, // Prefix for vault tables (items, folders, grants). // Default: "vault_"
  *     encryption_key?: scalar|Param|null, // Base64-encoded 32-byte libsodium key for server-side payload encryption.
- *     css_framework?: "bootstrap"|"bootstrap4"|"bootstrap5"|"tailwind"|"foundation"|"custom"|"tabler"|"none"|Param, // Host CSS stack hint for manage Web UI (REQ-UI-001). Twig global nowo_vault_css_framework. Demo default: tabler. // Default: "tabler"
+ *     css_framework?: "bootstrap"|"bootstrap4"|"bootstrap5"|"tailwind"|"foundation"|"custom"|"tabler"|"none"|Param, // Deprecated: The "nowo_vault.css_framework" option is deprecated, set "nowo_ui_kit.css_framework" instead (REQ-UI-003). // Deprecated since 1.15: the CSS stack is inherited from nowo_ui_kit.css_framework (copied there when the host did not set it). // Default: null
+ *     web_ui?: array{ // Manage Web UI (REQ-UI-003 canonical keys).
+ *         enabled?: bool|Param, // Register the manage UI routes (items, sharing, trash, runtime config). False keeps only the browser-extension API. // Default: true
+ *         path_prefix?: scalar|Param|null, // Prefix prepended to every vault route path (manage UI and browser-extension API), e.g. /admin. // Default: ""
+ *         layout_template?: scalar|Param|null, // Layout the manage pages extend. Null (default) = nowo_ui_kit.layouts.admin. A 1.x layout without the UiKit canonical blocks is wrapped in a deprecated bridge. // Default: null
+ *         templates?: array<string, scalar|Param|null>,
+ *     },
  *     config_storage?: array{ // Optional database-backed runtime configuration with Symfony cache.
  *         enabled?: bool|Param, // When true, creates/uses {table_prefix}_settings and merges DB values over YAML defaults. // Default: false
  *         cache_pool?: scalar|Param|null, // Symfony cache pool service id used for merged runtime config. // Default: "cache.app"
+ *     },
+ *     pagination?: array{ // Page size of the manage lists (items, shared, trash) — REQ-PERF-001.
+ *         per_page?: int|Param, // Items shown per page on the items / shared / trash lists (?page=N). Search results stay capped at 50. // Default: 50
  *     },
  *     max_attachment_bytes?: int|Param, // Maximum document attachment size in bytes (stored encrypted in item payload). // Default: 512000
  *     password_field?: array{ // Login password field options when nowo-tech/password-strength-bundle is installed.
@@ -1280,7 +1289,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         platform?: "postgresql"|"mysql"|"mariadb"|"sqlite"|"sqlserver"|"oracle"|"mongodb"|"other"|Param, // postgresql is the supported runtime platform. mongodb is reserved for a future ODM driver (not implemented yet). // Default: "postgresql"
  *         entity_manager?: scalar|Param|null, // Default: "default"
  *     },
- *     route_prefix?: scalar|Param|null, // Default: ""
  *     dashboard_route?: scalar|Param|null, // Default: null
  *     security?: array{
  *         access_checker?: scalar|Param|null, // Default: null
@@ -1369,20 +1377,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             name?: scalar|Param|null, // Default: "nowo_vault_runtime_config"
  *         },
  *     },
- *     templates?: array{
- *         layout?: scalar|Param|null, // Default: "@NowoVaultBundle/layout.html.twig"
- *         home?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/home.html.twig"
- *         items?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/items.html.twig"
- *         index?: scalar|Param|null, // Deprecated alias of home. Use home instead. // Default: "@NowoVaultBundle/vault/home.html.twig"
- *         item_form?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/item_form.html.twig"
- *         trash?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/trash.html.twig"
- *         shared?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/shared.html.twig"
- *         share?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/share.html.twig"
- *         runtime_config?: scalar|Param|null, // Default: "@NowoVaultBundle/vault/runtime_config.html.twig"
- *     },
  *     browser_extension?: array{ // Chrome/Brave browser extension API (Bearer token auth).
  *         enabled?: bool|Param, // Default: false
  *         token_ttl?: int|Param, // Bearer token lifetime in seconds. // Default: 86400
+ *         max_login_items?: int|Param, // Upper bound of login items (own + shared, most recently updated first) decrypted per /logins lookup — REQ-PERF-001. // Default: 1000
  *         authenticator?: scalar|Param|null, // Service id implementing VaultBrowserExtensionAuthenticatorInterface. Null uses the default password authenticator. // Default: null
  *         user_provider?: scalar|Param|null, // Symfony user provider service id for the default authenticator (e.g. security.user.provider.concrete.app_user_provider). // Default: null
  *         firewall?: scalar|Param|null, // Firewall whose user checker (security.user_checker.<firewall>, incl. chained checkers such as UserKit) the default authenticator runs. Null = auto: the firewall named "main" when present, else the first firewall with security enabled. Ignored when user_checker is set. // Default: null
@@ -1498,6 +1496,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         tokens_dark?: array<string, mixed>,
  *         confirm_message_in_header?: bool|Param, // Confirm dialogs and the full-page confirm render the message inside the header, under the title (hosts whose dialog header is title + message). View\Confirm::messageInHeader wins when set. // Default: false
  *         popover_menus?: bool|Param, // 2.4: menu / kebab / row-action menus render their panel as a native [popover] (browser top layer: never clipped by table scrollers or cards; nowo-ui-popover.js places it). The partial option `popover` wins. // Default: false
+ *         form_errors_after_widget?: bool|Param, // 2.10: the UiKit form theme (form/nowo_ui_layout.html.twig) prints a field's errors after its widget (and before the help), instead of Symfony's order (label, errors, widget, help). // Default: false
  *         bundles?: array<string, array{ // Default: []
  *             framework_defaults?: bool|Param, // Override of theme.framework_defaults for this bundle (unset = inherit).
  *             classes?: array<string, mixed>,
@@ -1517,6 +1516,35 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             attributes?: array<string, array<string, mixed>>,
  *             header_actions_in_filters?: bool|Param, // list only: render the page-header actions at the end of the filter row instead of the page header (ListPage::headerActionsInFilters wins when set; unset = false).
  *         }>,
+ *     },
+ *     error_pages?: array{ // Kit error pages (2.6): templates/bundles/TwigBundle/Exception/error.html.twig = {% extends '@NowoUiKit/error/status.html.twig' %}.
+ *         layout_template?: scalar|Param|null, // Document the status template extends: the kit layout, or a host template extending it (own <head> assets, brand, chat dock…). // Default: "@NowoUiKit/error/layout.html.twig"
+ *         translation_domain?: scalar|Param|null, // Domain of the page texts (e.g. messages). Keys missing there fall back to UiKit's own NowoUiKitBundle error.* texts. // Default: "NowoUiKitBundle"
+ *         translation_prefix?: scalar|Param|null, // Key prefix: <prefix>.<code>.title|lead|hint|image_alt, <prefix>.generic.*, <prefix>.home|retry|back|retry_after|auto_retry|skip_to_content. // Default: "error"
+ *         home_path?: scalar|Param|null, // Href of the "Back to home" button. // Default: "/"
+ *         illustrations?: array<string, Param|string|array{ // Default: []
+ *             path?: scalar|Param|null,
+ *             width?: int|Param, // Default: null
+ *             height?: int|Param, // Default: null
+ *             webp?: bool|Param|null, // Default: null
+ *             extension?: scalar|Param|null, // Default: null
+ *         }>,
+ *         illustration_width?: int|Param, // Default intrinsic width of the illustrations. // Default: 1024
+ *         illustration_height?: int|Param, // Default intrinsic height of the illustrations. // Default: 683
+ *         webp?: bool|Param, // Illustrations ship a .webp next to the fallback image (<source type="image/webp">). // Default: true
+ *         retry_statuses?: list<int|Param>,
+ *         back_link_statuses?: list<int|Param>,
+ *         auto_retry_seconds?: int|Param, // A 5xx on GET reloads itself after this many seconds (REQ-ERROR-001 item 10; 0 = never). Never on POST. // Default: 600
+ *         theme_storage?: scalar|Param|null, // localStorage key of the theme (data-nowo-ui-theme-storage on <html> and the toggle), e.g. the host's beacon-theme. // Default: "nowo-ui-theme"
+ *         theme_toggle?: bool|Param, // Render the light / dark toggle in the top controls. // Default: true
+ *         html_attributes?: array<string, mixed>,
+ *     },
+ *     shell?: array{ // Signed-in app shell (2.6, @NowoUiKit/shell/_open|_close|_shell|_burger.html.twig; Twig global nowo_ui_kit_shell).
+ *         kit_styles?: bool|Param, // Add the kit shell classes (nowo-ui-shell, nowo-ui-header, nowo-ui-aside…) painted by nowo-ui.css and driven by nowo-ui-shell.js. false: only the app_* slot classes (host shell CSS / JS). // Default: true
+ *         sidebar_cookie?: scalar|Param|null, // Cookie holding the desktop aside mode (e.g. beacon_sidebar), read server-side so the first paint is already collapsed / rail; null = expanded unless the template passes collapsed. // Default: null
+ *         sidebar_hidden_value?: scalar|Param|null, // Cookie value of the hidden aside. // Default: "collapsed"
+ *         sidebar_rail_value?: scalar|Param|null, // Cookie value of the icons-only rail. // Default: "rail"
+ *         sidebar_storage?: scalar|Param|null, // localStorage key of the aside mode (data-nowo-ui-sidebar-storage on the shell root; kit_styles + rail only). // Default: null
  *     },
  * }
  * @psalm-type NowoDoctrineEncryptConfig = array{
@@ -1543,12 +1571,32 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     feedback_position?: "above"|"below"|Param, // Default: "below"
  *     show_requirements?: bool|Param, // Default: true
  *     live_feedback?: bool|Param, // Default: true
- *     default_level?: scalar|Param|null, // Default: "medium"
+ *     default_profile?: scalar|Param|null, // Profile used when a field or constraint gives no explicit level (REQ-CFG-001). Must exist under profiles. // Default: "medium"
  *     generator_mode?: "off"|"input"|"modal"|Param, // Default password generator: off, fill input (visible), or modal with copy. // Default: "off"
  *     generator_count?: int|Param, // Number of suggestions in modal mode. // Default: 3
  *     use_password_toggle?: bool|Param, // When true, use PasswordToggleBundle as parent if installed; ignored when parent_form_type is set explicitly. // Default: true
+ *     ui_translation_domain?: scalar|Param|null, // Translation domain of the widget copy (requirements, generator). null = the field translation_domain (default NowoPasswordStrengthBundle); set NowoPasswordStrengthBundle when your forms use another domain for labels (2.8). // Default: null
+ *     csp_nonce_attribute?: scalar|Param|null, // Request attribute holding the per-request CSP nonce (nowo-tech convention: csp_nonce, set by HttpHardeningBundle). The form type stamps it on the widget (data-nonce, data-password-strength-nonce) so password-strength.js nonces the <style> it injects. Empty string disables. // Default: "csp_nonce"
  *     parent_form_type?: scalar|Param|null, // Parent form type FQCN. null = auto: Symfony PasswordType, or PasswordToggleBundle PasswordType when installed and use_password_toggle is true. // Default: null
- *     levels?: array<string, mixed>,
+ *     profiles?: array<string, array{ // Default: {"weak":{"min_length":6},"medium":{"min_length":8,"require_lowercase":true,"require_uppercase":true,"require_digit":true},"strong":{"min_length":12,"require_lowercase":true,"require_uppercase":true,"require_digit":true,"require_special":true}}
+ *         min_length?: int|Param,
+ *         max_length?: int|Param,
+ *         require_lowercase?: bool|Param,
+ *         require_uppercase?: bool|Param,
+ *         require_digit?: bool|Param,
+ *         require_special?: bool|Param,
+ *         special_chars?: scalar|Param|null,
+ *         disallow_whitespace?: bool|Param,
+ *         not_contain?: list<scalar|Param|null>,
+ *         min_unique_chars?: int|Param,
+ *         regex?: scalar|Param|null,
+ *         regex_message?: scalar|Param|null,
+ *         lowercase?: bool|Param,
+ *         uppercase?: bool|Param,
+ *         digit?: bool|Param,
+ *         special?: bool|Param,
+ *         no_whitespace?: bool|Param,
+ *     }>,
  * }
  * @psalm-type NowoPasswordToggleConfig = array{
  *     toggle?: bool|Param, // Enable/disable toggle functionality by default // Default: true

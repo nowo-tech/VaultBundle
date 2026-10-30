@@ -8,7 +8,8 @@ use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
 
 /**
- * Exposes manage Web UI globals to Twig (REQ-UI-001).
+ * Exposes the deprecated `nowo_vault_css_framework` Twig global (since 1.15: the manage pages extend UiKit scaffolds
+ * and read the CSS stack from nowo_ui_kit; removed in 2.0).
  */
 final class VaultExtension extends AbstractExtension implements GlobalsInterface
 {
