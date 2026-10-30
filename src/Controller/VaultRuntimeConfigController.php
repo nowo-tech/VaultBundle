@@ -18,7 +18,6 @@ use Nowo\VaultBundle\Ui\VaultPageFactory;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -27,7 +26,6 @@ use function is_string;
 /**
  * Admin screen that edits the database-backed runtime configuration.
  */
-#[AsController]
 final class VaultRuntimeConfigController extends AbstractController
 {
     use VaultCsrfTrait;

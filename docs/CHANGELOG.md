@@ -44,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Vault routes registered without the route loader (REQ-SF-004 rule 7):** on Symfony >= 7.3 `#[AsController]` and the `#[Route]` attributes autoconfigured the vault controllers with the `routing.controller` tag, so a host whose `config/routes.yaml` has the default `controllers: { resource: routing.controllers }` got the default `/tools/vault/...` pages and the browser extension API (`/api/vault/extension/login`, unauthenticated by design) even without importing the `nowo_vault` loader, bypassing the configured routes, `web_ui.enabled` and `browser_extension.enabled: false` (the default). The controllers are registered explicitly (`autoconfigure: false`, `controller.service_arguments`, plus `container.service_subscriber` for the `AbstractController` ones; no `#[AsController]`); the routes exist only where the host imports `type: nowo_vault`. Regression test with a kernel that only loads `routing.controllers`.
+
 ## [1.15.0] - 2026-10-30
 
 Vault: UiKit page contract for every page (scaffolds, confirm dialogs, no inline JS/CDN), fail-closed CSRF and role checks, item form 422 instead of 500 See [UPGRADING](UPGRADING.md#to-1150).

@@ -1,0 +1,3 @@
+# Symfony >= 7.3 skeleton config/routes.yaml: no import of the nowo_vault route loader (REQ-SF-004 rule 7).
+controllers:
+    resource: routing.controllers
