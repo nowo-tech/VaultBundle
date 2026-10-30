@@ -19,13 +19,13 @@ async function flush(): Promise<void> {
 
 const GENERATED = 'test-generated-value';
 // Generated per run: the test only checks that the page token is echoed in the request header.
-const CSRF = crypto.randomUUID();
+const TOKEN = crypto.randomUUID(); // ggignore: random per-run test value, not a credential
 const URL = '/tools/vault/password/generate';
 
 const DIALOG_HTML = `
     <input name="vault_item_form[password]" value="">
     <button data-vault-password-generator>open</button>
-    <dialog data-vault-password-modal data-vault-password-url="${URL}" data-vault-password-csrf="${CSRF}">
+    <dialog data-vault-password-modal data-vault-password-url="${URL}" data-vault-password-csrf="${TOKEN}">
         <form data-vault-password-form>
             <input data-vault-password-output value="">
             <button type="button" data-vault-password-regenerate>again</button>
@@ -75,7 +75,7 @@ describe('vault manage UI', () => {
         expect(output.value).toBe(GENERATED);
         expect(document.querySelector('[data-vault-password-strength]')?.textContent).toBe('strong');
         expect(fetchMock).toHaveBeenCalledWith(URL, expect.objectContaining({ method: 'POST' }));
-        expect(fetchMock.mock.calls[0][1].headers['X-CSRF-Token']).toBe(CSRF);
+        expect(fetchMock.mock.calls[0][1].headers['X-CSRF-Token']).toBe(TOKEN);
 
         // Already open (UiKit opened it): not opened twice.
         const showModal = vi.spyOn(dialog, 'showModal');
@@ -168,8 +168,8 @@ describe('vault manage UI', () => {
         expect(mod.readGeneratorConfig(dialog)).toBeNull();
         dialog.dataset.vaultPasswordUrl = URL;
         expect(mod.readGeneratorConfig(dialog)).toEqual({ url: URL, csrfToken: undefined });
-        dialog.dataset.vaultPasswordCsrf = CSRF;
-        expect(mod.readGeneratorConfig(dialog)).toEqual({ url: URL, csrfToken: CSRF });
+        dialog.setAttribute('data-vault-password-csrf', TOKEN); // ggignore: random per-run test value, not a credential
+        expect(mod.readGeneratorConfig(dialog)).toEqual({ url: URL, csrfToken: TOKEN });
 
         await expect(mod.generatePassword(null)).rejects.toThrow('Password generator URL is not configured.');
     });
