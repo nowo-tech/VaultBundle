@@ -45,6 +45,7 @@ use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Service\VaultItemLister;
 use Nowo\VaultBundle\Service\VaultItemUpdater;
 use Nowo\VaultBundle\Service\VaultPasswordGenerator;
+use Nowo\VaultBundle\Service\VaultScopeItemLister;
 use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Support\UserIdResolver;
@@ -125,6 +126,8 @@ final class VaultManageController extends AbstractController
         /** reveal.auto_hide_seconds (1.16.0). */
         private readonly int $revealAutoHideSeconds = 30,
         private readonly ?VaultPasswordPolicyResolverInterface $passwordPolicyResolver = null,
+        /** Scope folder choices of the item page (SEC-004 FQ-L4). */
+        private readonly ?VaultScopeItemLister $scopeItemLister = null,
     ) {
     }
 
@@ -407,7 +410,17 @@ final class VaultManageController extends AbstractController
         $data->tags   = $item->getTagNames();
         // Rename-free organisation (folder, tags, catalogue visibility) belongs to the owner: the personal owner, or a
         // scope member with admin on the item (a write grantee changes the content only; SEC-004 M1, L1, L2).
-        $canOrganise           = $scope !== null ? $this->accessGuard->canAccessItem($user, $item, VaultAccessAction::Share) : $item->getOwner()->isUser($user);
+        $canOrganise = $scope !== null ? $this->accessGuard->canAccessItem($user, $item, VaultAccessAction::Share) : $item->getOwner()->isUser($user);
+        if ($scope !== null) {
+            // SEC-004 FQ-L4 / FQ-I12: folder names are scope metadata. Without the right to organise, only the current
+            // folder; with it, the folders the member may use (all with a baseline, else those of visible items and
+            // those they may Share), always with the current one.
+            $folders = $canOrganise && $this->scopeItemLister instanceof VaultScopeItemLister ? $this->scopeItemLister->visibleFolders($user, $scope, $folders) : [];
+            $current = $item->getFolder();
+            if ($current instanceof VaultFolder && !in_array($current, $folders, true)) {
+                $folders[] = $current;
+            }
+        }
         $data->catalogueHidden = $item->isCatalogueHidden();
         // 1.15.2: no decrypted secret reaches the page HTML; each one is revealed on demand (revealItemField()).
         $data->clearSecrets();

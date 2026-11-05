@@ -29,13 +29,14 @@ final readonly class VaultBrowserExtensionLoginMatch
     }
 
     /**
-     * Returns the match as a JSON-serialisable array.
+     * Returns the match as a JSON-serialisable array. `passwordWithheld: true` is added only when the password was
+     * vetoed (SEC-004 FQ-I14), so clients can show "withheld" instead of filling an empty value.
      *
      * @return array<string, mixed>
      */
     public function toArray(): array
     {
-        return [
+        $data = [
             'id'         => $this->id,
             'title'      => $this->title,
             'username'   => $this->username,
@@ -43,6 +44,11 @@ final readonly class VaultBrowserExtensionLoginMatch
             'websites'   => $this->websites,
             'matchScore' => $this->matchScore,
         ];
+        if ($this->passwordWithheld) {
+            $data['passwordWithheld'] = true;
+        }
+
+        return $data;
     }
 
     /**
