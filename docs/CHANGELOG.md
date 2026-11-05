@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.16.0] - 2026-11-05](#1160---2026-11-05)
 - [[1.15.2] - 2026-11-05](#1152---2026-11-05)
 - [[1.15.1] - 2026-10-30](#1151---2026-10-30)
 - [[1.15.0] - 2026-10-30](#1150---2026-10-30)
@@ -45,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-07-04](#100---2026-07-04)
 
 ## [Unreleased]
+
+## [1.16.0] - 2026-11-05
 
 Scope-owned vaults, temporary grants, metadata catalogue, reveal / copy / attachment download, password health and
 policies, personal-data exporter / eraser and the decrypted personal export (1.16.0 contract, gaps 1 to 7). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
@@ -246,6 +249,8 @@ Accepted by the owner on 2026-11-05. The contract is the 1.16.0 design for symfo
   - CSV joins `websites` with newlines and tags with `, `; `export.cooldown_seconds: 0` disables the cooldown;
   - Q-O7 (exact CSV values) was reversed after the SEC-004 audit (FQ-L3): CSV cells are neutralised by default, exact
     values are an opt-in (`export.csv_raw_values`).
+
+[1.16.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.16.0
 
 ## [1.15.2] - 2026-11-05
 
@@ -845,7 +850,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.15.2...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.16.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5

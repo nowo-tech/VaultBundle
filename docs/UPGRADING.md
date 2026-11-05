@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.16.0](#to-1160)
   - [Schema](#schema)
   - [BC notes](#bc-notes)
   - [Configuration examples](#configuration-examples)
@@ -68,7 +69,9 @@
 
 ## Unreleased
 
-Planned as **1.16.0** (minor). From **1.15.2**:
+## To 1.16.0
+
+From **1.15.2** (minor):
 
 ```bash
 composer update nowo-tech/vault-bundle
