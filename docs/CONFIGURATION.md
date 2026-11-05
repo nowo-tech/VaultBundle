@@ -31,6 +31,7 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 - [Catalogue (`catalogue`)](#catalogue-catalogue)
 - [Reveal (`reveal`)](#reveal-reveal)
 - [Password health (`health`)](#password-health-health)
+- [Decrypted personal export (`export`)](#decrypted-personal-export-export)
 
 ## Required
 
@@ -461,3 +462,32 @@ Since 1.16.0. YAML only.
 Scope reports need `VaultScopeAccess::$health` (host resolver) and a `HEALTH_ACCESS_CHECK` that is not denied. They
 cover the scope's active login items **the viewer may View**; the others are counted as *without access* and never
 compared, so a report cannot say that a password equals one the viewer cannot open.
+
+## Decrypted personal export (`export`)
+
+Since 1.16.0. YAML only. Off by default; when enabled the container fails to compile without `reauth_checker`.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `export.enabled` | `false` | Registers `personal_export` (`GET /tools/vault/export`) and `personal_export_download` (`POST`) |
+| `export.reauth_checker` | `null` | Service id implementing `Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface`. **Required** when enabled; there is no default implementation |
+| `export.reauth_max_age` | `300` | Seconds a re-authentication stays fresh (1–900, checked against the bundle clock; 30 s of clock skew tolerated) |
+| `export.accepted_primary_factors` | `[password]` | Primary factors accepted in the proof (add `sso_reauth` for SSO-only users re-authenticated with `prompt=login`) |
+| `export.accepted_mfa_factors` | `[totp, webauthn]` | Required when the proof says MFA is enrolled. Recovery codes are not accepted by default |
+| `export.formats` | `[json, csv]` | Offered formats; the first is preselected |
+| `export.max_items` | `5000` | 413 above, before any byte |
+| `export.max_bytes` | `52428800` | Estimated size (`SUM(LENGTH(ciphertext)) × 0.75`); 413 above |
+| `export.include_attachments` | `true` | Attachments (base64) in the JSON file; never in CSV |
+| `export.cooldown_seconds` | `600` | One export per user per window (429 + `Retry-After`); `0` disables it |
+| `export.cache_pool` | `cache.app` | PSR-6 pool of the cooldown and of the used proof ids; share it between workers |
+
+```yaml
+nowo_vault:
+    export:
+        enabled: true
+        reauth_checker: App\Vault\Security\ReauthChecker
+```
+
+See [USAGE](USAGE.md#decrypted-export) for the hook and [SECURITY](SECURITY.md#personal-data-and-decrypted-export-1160)
+for the host obligations.
+

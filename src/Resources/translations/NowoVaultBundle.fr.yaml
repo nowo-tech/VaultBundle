@@ -224,6 +224,17 @@ vault:
         access: Accès
         has_access: Vous avez accès
         empty: Aucune entrée dans le catalogue.
+    export:
+        title: 'Exporter mon coffre'
+        description: 'Téléchargez une copie déchiffrée de votre coffre personnel.'
+        warning: 'Le fichier contient vos mots de passe et autres secrets en clair. Gardez-le sur un appareil de confiance et supprimez-le dès que vous n''en avez plus besoin. Seules vos entrées personnelles sont exportées : ni les entrées partagées avec vous ni les coffres partagés.'
+        count: '%count% entrées seront exportées.'
+        csv_warning: 'Le CSV garde les valeurs telles quelles : un tableur peut exécuter comme formule une cellule qui commence par = + - ou @. Préférez JSON pour passer à un autre gestionnaire.'
+        attachments: 'Le fichier JSON contient les documents joints.'
+        format: 'Format'
+        format_json: 'JSON'
+        format_csv: 'CSV (sans pièces jointes)'
+        download: 'Télécharger'
     health:
         title: Santé des mots de passe
         description: 'Mots de passe faibles, réutilisés et anciens de %scope%, calculés maintenant pour les entrées que vous pouvez ouvrir. Rien n''est stocké.'

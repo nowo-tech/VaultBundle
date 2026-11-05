@@ -91,6 +91,26 @@ services:
             $denyStatus: '%nowo_vault.security.deny_status%'
             $profiler: '@?profiler'
 
+    # 1.16.0 decrypted personal export (routes registered only with nowo_vault.export.enabled; limits set by the extension).
+    Nowo\VaultBundle\Controller\VaultExportController:
+        public: true
+        autoconfigure: false
+        tags: ['controller.service_arguments', 'container.service_subscriber']
+        arguments:
+            $profiler: '@?profiler'
+
+    Nowo\VaultBundle\Service\VaultPersonalExportStreamer:
+        arguments:
+            $managerName: '%nowo_vault.entity_manager%'
+
+    Nowo\VaultBundle\Service\VaultPersonalDataExporter:
+        arguments:
+            $managerName: '%nowo_vault.entity_manager%'
+
+    Nowo\VaultBundle\Service\VaultPersonalDataEraser:
+        arguments:
+            $managerName: '%nowo_vault.entity_manager%'
+
     Nowo\VaultBundle\Service\VaultFieldRevealer:
         arguments:
             $revealableFields: '%nowo_vault.reveal.revealable_fields%'

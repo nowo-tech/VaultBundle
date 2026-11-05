@@ -224,6 +224,17 @@ vault:
         access: Zugriff
         has_access: Du hast Zugriff
         empty: Keine Einträge im Katalog.
+    export:
+        title: 'Meinen Tresor exportieren'
+        description: 'Laden Sie eine entschlüsselte Kopie Ihres persönlichen Tresors herunter.'
+        warning: 'Die Datei enthält Ihre Passwörter und andere Geheimnisse im Klartext. Bewahren Sie sie auf einem vertrauenswürdigen Gerät auf und löschen Sie sie, sobald Sie sie nicht mehr brauchen. Exportiert werden nur Ihre persönlichen Einträge, nicht mit Ihnen geteilte Einträge oder gemeinsame Tresore.'
+        count: '%count% Einträge werden exportiert.'
+        csv_warning: 'CSV übernimmt die Werte unverändert: Eine Tabellenkalkulation kann eine Zelle, die mit = + - oder @ beginnt, als Formel ausführen. Für einen Wechsel des Passwortmanagers besser JSON.'
+        attachments: 'Die JSON-Datei enthält die angehängten Dokumente.'
+        format: 'Format'
+        format_json: 'JSON'
+        format_csv: 'CSV (ohne Anhänge)'
+        download: 'Herunterladen'
     health:
         title: Passwort-Gesundheit
         description: 'Schwache, wiederverwendete und alte Passwörter von %scope%, jetzt für die Einträge berechnet, die du öffnen kannst. Nichts wird gespeichert.'

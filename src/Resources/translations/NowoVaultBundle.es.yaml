@@ -224,6 +224,17 @@ vault:
         access: Acceso
         has_access: Tienes acceso
         empty: No hay entradas en el catálogo.
+    export:
+        title: 'Exportar mi bóveda'
+        description: 'Descarga una copia descifrada de tu bóveda personal.'
+        warning: 'El archivo contiene tus contraseñas y otros secretos en claro. Guárdalo en un dispositivo de confianza y bórralo cuando ya no lo necesites. Solo se exportan tus entradas personales: las compartidas contigo y las bóvedas compartidas no.'
+        count: 'Se exportarán %count% entradas.'
+        csv_warning: 'CSV conserva los valores tal cual: una hoja de cálculo puede ejecutar como fórmula una celda que empiece por = + - o @. Para pasar a otro gestor de contraseñas, mejor JSON.'
+        attachments: 'El archivo JSON incluye los documentos adjuntos.'
+        format: 'Formato'
+        format_json: 'JSON'
+        format_csv: 'CSV (sin adjuntos)'
+        download: 'Descargar'
     health:
         title: Salud de las contraseñas
         description: 'Contraseñas débiles, reutilizadas y antiguas de %scope%, calculadas ahora para las entradas que puedes abrir. No se guarda nada.'

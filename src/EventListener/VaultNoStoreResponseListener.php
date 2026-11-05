@@ -22,6 +22,11 @@ use function str_starts_with;
 #[AsEventListener(event: KernelEvents::RESPONSE, priority: -1100)]
 final readonly class VaultNoStoreResponseListener
 {
+    /**
+     * Request attribute set by the decrypted export (1.16.0): `Cache-Control: no-store, private, max-age=0`.
+     */
+    public const MAX_AGE_ZERO_ATTRIBUTE = '_nowo_vault_max_age_zero';
+
     private const CONTROLLER_NAMESPACE = 'Nowo\\VaultBundle\\Controller\\';
 
     /**
@@ -35,7 +40,7 @@ final readonly class VaultNoStoreResponseListener
         }
 
         $headers = $event->getResponse()->headers;
-        $headers->set('Cache-Control', 'no-store, private');
+        $headers->set('Cache-Control', $event->getRequest()->attributes->getBoolean(self::MAX_AGE_ZERO_ATTRIBUTE) ? 'no-store, private, max-age=0' : 'no-store, private');
         $headers->set('Pragma', 'no-cache');
         // 1.16.0: HTTP/1.0 caches and proxies that ignore Cache-Control.
         $headers->set('Expires', '0');

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Unit\DependencyInjection;
 
 use LogicException;
+use Nowo\VaultBundle\Controller\VaultExportController;
 use Nowo\VaultBundle\DependencyInjection\Configuration;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
@@ -12,6 +13,8 @@ use Nowo\VaultBundle\Security\ConfigVaultPasswordPolicyResolver;
 use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
+use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
+use Nowo\VaultBundle\Security\VaultReauthProofValidator;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
 use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
@@ -119,9 +122,58 @@ final class Vault116ConfigurationTest extends TestCase
 
         self::assertSame('app.scope_resolver', (string) $container->getAlias(VaultScopeAccessResolverInterface::class));
         self::assertSame(['item_attachment', ...VaultExtension::SCOPE_ROUTE_KEYS], $container->getParameter('nowo_vault.enabled_optional_route_keys'));
-        self::assertSame([...VaultExtension::SCOPE_ROUTE_KEYS, 'catalogue', 'health', 'item_attachment'], VaultRouteLoader::OPTIONAL_ROUTE_KEYS);
+        self::assertSame([...VaultExtension::SCOPE_ROUTE_KEYS, 'catalogue', 'health', 'item_attachment', 'personal_export', 'personal_export_download'], VaultRouteLoader::OPTIONAL_ROUTE_KEYS);
         self::assertTrue($container->getParameter('nowo_vault.grants.temporary.ui'));
         self::assertTrue($container->getParameter('nowo_vault.scopes.enabled'));
+    }
+
+    public function testExportDefaultsWiringAndCompileChecks(): void
+    {
+        $config = $this->process([]);
+        self::assertSame([
+            'enabled'                  => false,
+            'reauth_checker'           => null,
+            'reauth_max_age'           => 300,
+            'accepted_primary_factors' => ['password'],
+            'accepted_mfa_factors'     => ['totp', 'webauthn'],
+            'formats'                  => ['json', 'csv'],
+            'max_items'                => 5000,
+            'max_bytes'                => 52428800,
+            'include_attachments'      => true,
+            'cooldown_seconds'         => 600,
+            'cache_pool'               => 'cache.app',
+        ], $config['export']);
+        self::assertSame('/tools/vault/export', $config['routes']['personal_export']['path']);
+        self::assertSame('nowo_vault_personal_export_download', $config['routes']['personal_export_download']['name']);
+
+        $off = $this->load([]);
+        self::assertNotContains('personal_export', $off->getParameter('nowo_vault.enabled_optional_route_keys'));
+        self::assertFalse($off->hasAlias(VaultReauthenticationCheckerInterface::class));
+
+        $on = $this->load(['export' => ['enabled' => true, 'reauth_checker' => 'app.reauth', 'reauth_max_age' => 900, 'formats' => ['csv'], 'max_items' => 10, 'cooldown_seconds' => 0, 'cache_pool' => 'app.pool', 'accepted_primary_factors' => ['password', 'sso_reauth']]]);
+        self::assertSame('app.reauth', (string) $on->getAlias(VaultReauthenticationCheckerInterface::class));
+        self::assertSame(['item_attachment', 'personal_export', 'personal_export_download'], $on->getParameter('nowo_vault.enabled_optional_route_keys'));
+        $validator = $on->getDefinition(VaultReauthProofValidator::class);
+        self::assertSame(900, $validator->getArgument('$maxAge'));
+        self::assertSame(['password', 'sso_reauth'], $validator->getArgument('$acceptedPrimaryFactors'));
+        self::assertSame('app.pool', (string) $validator->getArgument('$consumedProofs'));
+        $controller = $on->getDefinition(VaultExportController::class);
+        self::assertSame(['csv'], $controller->getArgument('$formats'));
+        self::assertSame(10, $controller->getArgument('$maxItems'));
+        self::assertSame(0, $controller->getArgument('$cooldownSeconds'));
+
+        foreach ([['export' => ['reauth_max_age' => 901]], ['export' => ['formats' => ['xml']]], ['export' => ['formats' => []]], ['export' => ['accepted_mfa_factors' => []]]] as $invalid) {
+            try {
+                $this->process($invalid);
+                self::fail('Invalid export config accepted');
+            } catch (InvalidConfigurationException) {
+                self::addToAssertionCount(1);
+            }
+        }
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('export.reauth_checker');
+        $this->load(['export' => ['enabled' => true]]);
     }
 
     public function testHealthDefaultsAndWiring(): void

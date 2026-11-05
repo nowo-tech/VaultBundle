@@ -152,6 +152,21 @@ public function onPolicy(VaultGrantPolicyCheckEvent $event): void
 }
 ```
 
+## Re-authentication for the decrypted export
+
+`export.enabled` needs a `VaultReauthenticationCheckerInterface` service (`export.reauth_checker`). Build the proof from
+your re-authentication step only (password, then TOTP / WebAuthn when the user has MFA), bind it to the session id
+(after regenerating it), and never return it again once `consume()` ran. A full example is in
+[USAGE](../USAGE.md#decrypted-export); the obligations are in [SECURITY](../SECURITY.md#personal-data-and-decrypted-export-1160).
+
+```yaml
+nowo_vault:
+    export:
+        enabled: true
+        reauth_checker: App\Vault\Security\ReauthChecker
+        accepted_mfa_factors: [totp, webauthn]   # recovery codes do not unlock a plaintext dump
+```
+
 ## Grants API
 
 ```php

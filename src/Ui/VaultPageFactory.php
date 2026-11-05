@@ -458,6 +458,32 @@ final readonly class VaultPageFactory
     }
 
     /**
+     * Decrypted personal export (1.16.0): the warning, the format choice and *Download* (POST + CSRF).
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     */
+    public function export(array $routes, FormView $form): FormPage
+    {
+        $backUrl = $this->url($routes['index']['name']);
+
+        return new FormPage(
+            header: new PageHeader(
+                VaultPages::label('vault.export.title'),
+                VaultPages::label('vault.export.description'),
+                back: new BackLink($backUrl, VaultPages::label('vault.action.back'), 'vault-back'),
+            ),
+            form: $form,
+            submitLabel: VaultPages::label('vault.export.download'),
+            cancelHref: $backUrl,
+            cancelLabel: VaultPages::label('vault.action.back'),
+            bundle: VaultPages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'vault-export'],
+            formAttributes: ['class' => 'vault-form'],
+        );
+    }
+
+    /**
      * Share page of an item or folder: the grant form; the existing grants come from {@see self::grantsTable()}.
      *
      * @param array<string, mixed> $backParams

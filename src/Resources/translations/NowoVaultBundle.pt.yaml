@@ -224,6 +224,17 @@ vault:
         access: Acesso
         has_access: Tem acesso
         empty: Sem entradas no catálogo.
+    export:
+        title: 'Exportar o meu cofre'
+        description: 'Transfira uma cópia desencriptada do seu cofre pessoal.'
+        warning: 'O ficheiro contém as suas palavras-passe e outros segredos em texto claro. Guarde-o num dispositivo de confiança e apague-o quando já não precisar dele. Só são exportadas as suas entradas pessoais: não as partilhadas consigo nem os cofres partilhados.'
+        count: 'Serão exportadas %count% entradas.'
+        csv_warning: 'O CSV mantém os valores tal como estão: uma folha de cálculo pode executar como fórmula uma célula que comece por = + - ou @. Para mudar de gestor de palavras-passe, prefira JSON.'
+        attachments: 'O ficheiro JSON inclui os documentos anexos.'
+        format: 'Formato'
+        format_json: 'JSON'
+        format_csv: 'CSV (sem anexos)'
+        download: 'Transferir'
     health:
         title: Saúde das palavras-passe
         description: 'Palavras-passe fracas, reutilizadas e antigas de %scope%, calculadas agora para as entradas que pode abrir. Nada é guardado.'

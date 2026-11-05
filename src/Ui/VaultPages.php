@@ -43,6 +43,7 @@ final readonly class VaultPages
         'scope_items' => '@NowoVaultBundle/vault/scope_items.html.twig',
         'catalogue'   => '@NowoVaultBundle/vault/catalogue.html.twig',
         'health'      => '@NowoVaultBundle/vault/health.html.twig',
+        'export'      => '@NowoVaultBundle/vault/export.html.twig',
     ];
 
     /** A layout that defines this block renders the UiKit canonical blocks. */

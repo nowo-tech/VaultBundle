@@ -224,6 +224,17 @@ vault:
         access: Access
         has_access: You have access
         empty: No entries in the catalogue.
+    export:
+        title: 'Export my vault'
+        description: 'Download a decrypted copy of your personal vault.'
+        warning: 'The file contains your passwords and other secrets in clear text. Keep it on a device you trust and delete it once you no longer need it. Only your personal entries are exported: entries shared with you and shared vaults are not.'
+        count: '%count% entries will be exported.'
+        csv_warning: 'CSV keeps values exactly as stored: a spreadsheet may run a cell that starts with = + - or @ as a formula. Prefer JSON to move to another password manager.'
+        attachments: 'The JSON file includes the attached documents.'
+        format: 'Format'
+        format_json: 'JSON'
+        format_csv: 'CSV (without attachments)'
+        download: 'Download'
     health:
         title: Password health
         description: 'Weak, reused and old passwords of %scope%, computed now for the entries you can open. Nothing is stored.'

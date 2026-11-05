@@ -224,6 +224,17 @@ vault:
         access: Toegang
         has_access: Je hebt toegang
         empty: Geen items in de catalogus.
+    export:
+        title: 'Mijn kluis exporteren'
+        description: 'Download een ontsleutelde kopie van je persoonlijke kluis.'
+        warning: 'Het bestand bevat je wachtwoorden en andere geheimen in leesbare tekst. Bewaar het op een vertrouwd apparaat en verwijder het zodra je het niet meer nodig hebt. Alleen je persoonlijke items worden geëxporteerd: niet de items die met je gedeeld zijn en niet de gedeelde kluizen.'
+        count: '%count% items worden geëxporteerd.'
+        csv_warning: 'CSV bewaart de waarden exact: een spreadsheet kan een cel die met = + - of @ begint als formule uitvoeren. Kies JSON om naar een andere wachtwoordmanager over te stappen.'
+        attachments: 'Het JSON-bestand bevat de bijgevoegde documenten.'
+        format: 'Formaat'
+        format_json: 'JSON'
+        format_csv: 'CSV (zonder bijlagen)'
+        download: 'Downloaden'
     health:
         title: Wachtwoordgezondheid
         description: 'Zwakke, hergebruikte en oude wachtwoorden van %scope%, nu berekend voor de items die je kunt openen. Er wordt niets opgeslagen.'

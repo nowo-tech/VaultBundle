@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Scope-owned vaults, temporary grants, metadata catalogue, reveal / copy / attachment download, password health and
-policies (1.16.0 contract, gaps 1 to 5). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
+policies, personal-data exporter / eraser and the decrypted personal export (1.16.0 contract, gaps 1 to 7). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
 
 ### Added
 
@@ -128,6 +128,29 @@ policies (1.16.0 contract, gaps 1 to 5). Requires a schema migration, see [UPGRA
   `health.policy`; `health.policy_resolver` for a per-owner host resolver). With `enforceOnSave` the item form validates
   a typed login password (`VaultPasswordPolicyConstraint`; an empty value keeps the stored one and is not re-validated;
   the message names the missing rules, never the value).
+- **Personal data (gap 6):** `VaultPersonalDataExporter::export(string $userId)` (metadata only: personal items with
+  folder and tag names and timestamps, folders, tags, grants received (resource title only when the user can View it
+  now), grants given, scope items created (id, scope, date), extension token dates; never a value, a ciphertext or a
+  hash) and `VaultPersonalDataEraser::erase(string $userId, int $batchSize = 500)` → `VaultErasureResult`: in order,
+  grants to the user and grants on the user's personal items and folders are deleted (`GRANT_REVOKED`, reason
+  `erasure`), the remaining grants the user created are kept with `created_by_id = NULL`, then tag links, personal items
+  (trash included), personal folders (children first) and tags are deleted, scope rows the user created get
+  `created_by_id = NULL`, and extension tokens are deleted; one transaction per batch, no reliance on `ON DELETE
+  CASCADE`, idempotent. `PERSONAL_DATA_ERASED` (`VaultPersonalDataErasedEvent`: user id, counts).
+- **Decrypted personal export (gap 7):** `personal_export` (`GET /tools/vault/export`, warning page) and
+  `personal_export_download` (`POST`, CSRF `vault_personal_export`), registered with `export.enabled`. The host
+  implements `VaultReauthenticationCheckerInterface` (`getProof()`, `consume()`, `getReauthenticationUrl()`; required,
+  compile error otherwise); `VaultReauthProofValidator` checks the `VaultReauthProof` against the bundle clock (user,
+  purpose, `export.reauth_max_age` ≤ 900 s, 30 s skew, `export.accepted_primary_factors`, an
+  `export.accepted_mfa_factors` factor when MFA is enrolled, the session binding) and keeps its own list of used proof
+  ids (single use even with a buggy host). Then `export.max_items` / `export.max_bytes` (413), `export.cooldown_seconds`
+  (429 + `Retry-After`), a decrypt pre-flight up to 500 items (503), the proof consumed, `ITEMS_EXPORTED`
+  (`VaultItemsExportedEvent`; a throwing listener refuses with 503) and a `StreamedResponse` written in batches of 50
+  with no temporary file: JSON (`nowo-vault-export` v1, attachments with `export.include_attachments`) or CSV (fixed
+  header, every field quoted, exact values). Personal items only (never shared-with-me or scope items). Headers:
+  `Cache-Control: max-age=0, no-store, private`, `nosniff`, `Referrer-Policy: no-referrer`, the sandbox CSP,
+  `X-Accel-Buffering: no`, a fixed `attachment; filename="vault-export-<date>.<format>"`; the profiler is disabled.
+  Template `vault/export.html.twig`, form `VaultPersonalExportType`.
 - `VaultItemRevealedEvent` gains `getPurpose()` (`reveal`, `copy`, `autofill`, `attachment`), `getOwnerKey()` and
   `getOccurredAt()`; the extension `/logins` events use purpose `autofill`.
 - `VaultAccessGuard::resolvePermissionMap($user, $items)` (constant number of queries per list) and

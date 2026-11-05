@@ -12,6 +12,8 @@
 - [Catalogue](#catalogue)
 - [Reveal, copy and attachments](#reveal-copy-and-attachments)
 - [Password health](#password-health)
+- [Personal data](#personal-data)
+- [Decrypted export](#decrypted-export)
 - [Read-only access](#read-only-access)
 - [Events](#events)
 - [Lists and pagination](#lists-and-pagination)
@@ -173,6 +175,64 @@ final class OrganizationPolicyResolver implements VaultPasswordPolicyResolverInt
 `null` falls back to `health.policy`. With `enforceOnSave` the item form refuses a typed login password that breaks the
 policy; the message lists the missing rules only.
 
+## Personal data
+
+For access and erasure requests (GDPR):
+
+```php
+$data   = $exporter->export((string) $user->getId());  // VaultPersonalDataExporter: metadata only, JSON-serialisable
+$result = $eraser->erase((string) $user->getId());     // VaultPersonalDataEraser, before deleting the user row
+// $result->toArray(): grants_received, grants_on_personal, grants_created_anonymised, item_tags, items, folders, tags,
+// scope_items_anonymised, scope_folders_anonymised, extension_tokens
+```
+
+Grants the user gave on scope resources are kept (their grantees keep access) with `created_by_id = NULL`; scope items
+and folders the user created stay with the scope. Listen to `PERSONAL_DATA_ERASED` (counts) and `GRANT_REVOKED`
+(reason `erasure`) for your audit trail.
+
+## Decrypted export
+
+With `export.enabled`, a user downloads a decrypted copy of their **personal** vault (never items shared with them,
+never scope items) from `/tools/vault/export`, after a fresh re-authentication that your application performs. Implement
+the hook:
+
+```php
+final class ReauthChecker implements VaultReauthenticationCheckerInterface
+{
+    public function getProof(UserInterface $user, Request $request, string $purpose): ?VaultReauthProof
+    {
+        $step = $this->reauthStore->latest($user, $request->getSession(), $purpose); // your re-auth step, not the login
+        if ($step === null || $step->used) {
+            return null;
+        }
+
+        return new VaultReauthProof(
+            $step->id,
+            (string) $user->getId(),
+            $purpose,                       // 'nowo_vault.personal_export'
+            $step->verifiedAt,              // when the factors below were verified in that step
+            $step->factors,                 // e.g. ['password', 'totp']
+            $this->mfa->isEnrolled($user),  // read from the store, not from the session
+            hash('sha256', $request->getSession()->getId()),
+        );
+    }
+
+    public function consume(VaultReauthProof $proof): void
+    {
+        $this->reauthStore->markUsed($proof->proofId);
+    }
+
+    public function getReauthenticationUrl(Request $request, string $purpose, string $returnTo): string
+    {
+        return $this->urls->generate('app_reauth', ['purpose' => $purpose, 'return' => $returnTo]);
+    }
+}
+```
+
+The bundle checks the proof itself (user, purpose, age, factors, MFA, session binding, single use), then the limits and
+the cooldown, consumes the proof, dispatches `ITEMS_EXPORTED` (write your audit row there; throw to refuse) and streams
+the file. A refusal answers 403 / 413 / 429 / 503 without saying which check failed; the log has the reason code.
+
 ## Read-only access
 
 Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()` — see [examples/AccessControl.md](examples/AccessControl.md).
@@ -194,6 +254,8 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 | `CATALOGUE_ACCESS_CHECK` | Grant or deny a scope catalogue (1.16.0) |
 | `HEALTH_ACCESS_CHECK` | Grant or deny a scope health report (1.16.0) |
 | `HEALTH_REPORT_GENERATED` | A health report was produced (1.16.0; actor, owner key, counts only) |
+| `ITEMS_EXPORTED` | A decrypted personal export is about to stream (1.16.0; actor, count, format, factors; throw = refuse) |
+| `PERSONAL_DATA_ERASED` | A user's vault data was erased (1.16.0; user id, counts) |
 | `GRANT_POLICY_CHECK` | Veto a grant in `grantAs()` with a reason code (1.16.0) |
 | `GRANT_CREATED`, `GRANT_UPDATED`, `GRANT_REVOKED`, `GRANT_EXPIRED` | Grant audit trail (`VaultGrantChangeEvent`: ids, permission, expiry, actor, reason; after the flush) |
 | `ITEM_CHANGED` | Item activity (`VaultItemChangeEvent`: created, updated, trashed, restored, purged, moved; `secretChanged`) |

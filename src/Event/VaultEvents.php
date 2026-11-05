@@ -108,4 +108,15 @@ final class VaultEvents
      * A health report was generated (1.16.0, {@see VaultHealthReportGeneratedEvent}, counts only).
      */
     public const HEALTH_REPORT_GENERATED = 'nowo_vault.health_report_generated';
+
+    /**
+     * A decrypted personal export passed every check and is about to stream (1.16.0, {@see VaultItemsExportedEvent};
+     * a listener that throws refuses the export with 503).
+     */
+    public const ITEMS_EXPORTED = 'nowo_vault.items_exported';
+
+    /**
+     * The personal data of a user was erased (1.16.0, {@see VaultPersonalDataErasedEvent}, counts only).
+     */
+    public const PERSONAL_DATA_ERASED = 'nowo_vault.personal_data_erased';
 }

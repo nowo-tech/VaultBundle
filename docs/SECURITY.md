@@ -10,6 +10,7 @@
 - [Scope vaults and temporary grants (1.16.0)](#scope-vaults-and-temporary-grants-1160)
 - [Reveal, copy and attachments (1.16.0)](#reveal-copy-and-attachments-1160)
 - [Password health (1.16.0)](#password-health-1160)
+- [Personal data and decrypted export (1.16.0)](#personal-data-and-decrypted-export-1160)
 - [Catalogue leakage](#catalogue-leakage)
 - [Logging](#logging)
 - [Accepted residuals (REQ-SEC-004)](#accepted-residuals-req-sec-004)
@@ -106,6 +107,30 @@ Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time;
 | A breach lookup sends the password or its full hash | `VaultBreachCheckerInterface` is host code: use a k-anonymity range API (5-character SHA-1 prefix) and declare it in the privacy text. Failures count as unknown (`null`) |
 | The policy violation echoes the password | The message names the missing rules only; the invalid value is blanked |
 
+## Personal data and decrypted export (1.16.0)
+
+| Threat | Control |
+| --- | --- |
+| An old login or remember-me counts as fresh | The bundle checks `authenticatedAt` against its own clock (`export.reauth_max_age`, default 300 s, at most 900 s; 30 s skew) |
+| MFA bypass through the hook: login-time MFA, a recovery code, `mfaEnrolled: false` | Factor sets enforced by the bundle (`accepted_primary_factors`, `accepted_mfa_factors`; recovery codes excluded by default). Host obligations below. Residual **R4**: a dishonest hook cannot be detected |
+| A proof is replayed, or comes from another session | Single use: the host's `consume()` before the first byte **and** the bundle's own list of used proof ids (cache pool); `sessionBinding` must equal `sha256(session id)`; purpose binding |
+| A cross-site POST starts a download | CSRF token `vault_personal_export` plus a fresh proof the attacker cannot produce |
+| Caching, sniffing, rendering in the page origin, user data in the file name | `Cache-Control: max-age=0, no-store, private`, `Pragma: no-cache`, `nosniff`, `Content-Disposition: attachment` with a fixed ASCII name, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox`, `Referrer-Policy: no-referrer`; the profiler is disabled |
+| The file lands on disk | `StreamedResponse` written in batches with `echo` / `flush()`; no temporary file (static test plus a temp-dir listing); `X-Accel-Buffering: no` |
+| Size / DoS | Pre-count and size estimate (413), batches of 50 entities detached after use, cooldown (429) |
+| Scope or shared items in the file | The query is `creator = user AND owner_scope IS NULL AND deleted_at IS NULL`; fixture test with markers |
+| The export is not audited | `ITEMS_EXPORTED` before the first byte; a throwing listener refuses with 503 (no audit, no export) |
+| Mid-stream decrypt failure (key rotation) | Pre-flight for exports up to 500 items (503 before any byte); otherwise the stream stops and the file is invalid by construction (no closing bracket, `#error` CSV trailer); logged as an error with the exception class |
+| CSV formula injection | Accepted: only the user's own data is exported, values are exact (a migration file); the page warns about spreadsheets (Q-O7) |
+| The personal-data export leaks values or third-party titles | Scalar queries, metadata only; titles of received grants only when the user can View the resource now; scope item titles omitted |
+| The eraser leaves orphans or relies on cascades | Explicit ordered deletes, one transaction per batch, tests over the six tables; grants given on scope resources are kept with `created_by_id = NULL` |
+
+**Host obligations** for `VaultReauthenticationCheckerInterface` (the bundle cannot verify them): list in `factors` only
+the factors verified in the re-auth step (never at login, never through remember-me or an SSO session reuse); read
+`mfaEnrolled` from the store, not from the session; protect the re-auth page against CSRF and rate-limit it; regenerate
+the session id **before** recording `sessionBinding`; follow `returnTo` only when it is a same-origin path; return a
+consumed proof never again.
+
 ## Catalogue leakage
 
 The catalogue is metadata only by construction (scalar queries: no item, no ciphertext is loaded), but what it shows
@@ -140,12 +165,16 @@ The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service
 | Reveal throttled (1.16.0) | warning | `user_id`, `item_id`, `window` |
 | Reveal refused: audit listener failed (1.16.0) | error | `user_id`, `item_id`, exception **class** |
 | Health report generated (1.16.0) | info | `user_id`, `owner`, `examined`, `weak`, `reused`, `old`, `breached` |
+| Export refused (1.16.0) | notice | `user_id`, `reason` code (`invalid_request`, `reauth_missing`, `reauth_stale`, `primary_factor_missing`, `mfa_missing`, `session_mismatch`, `reauth_replayed`, `too_large`, `cooldown`, `decrypt_failed`, `audit_failed`) |
+| Items exported (1.16.0) | info | `user_id`, `count`, `format` |
+| Export stream failed (1.16.0) | error | `user_id`, exception **class** |
+| Personal data erased (1.16.0) | info | `user_id`, counts per step |
 | Item / folder purged | info | `item_id` / `folder_id` |
 | Runtime configuration updated / reset | notice | changed top-level **keys** and `encryption_key_change` (bool) — never the values |
 | `nowo:vault:reencrypt` started / finished / rejected / failed; key persisted to DB | info / error / notice | `dry_run`, `include_deleted`, counters, error message (no key material) |
 | `nowo:vault:extension-tokens:purge` | info | `count` |
 
-Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, notes, attachments, card data), item titles, Bearer tokens or their hashes, usernames typed in the extension, session ids; since 1.16.0 also revealed values, health fingerprints and their HMAC key, and the file names of attachments (they may contain personal data). Route your Monolog handlers so these records do not reach third parties you would not trust with resource ids.
+Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, notes, attachments, card data), item titles, Bearer tokens or their hashes, usernames typed in the extension, session ids; since 1.16.0 also revealed values, health fingerprints and their HMAC key, export contents, re-auth proof ids and session bindings, and the file names of attachments (they may contain personal data). Route your Monolog handlers so these records do not reach third parties you would not trust with resource ids.
 
 ## Accepted residuals (REQ-SEC-004)
 

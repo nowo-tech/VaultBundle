@@ -124,7 +124,7 @@ final readonly class VaultReencryptionRunner
 
 If you use database-backed runtime config (`config_storage.enabled`), update the stored key **only after** all payloads are re-encrypted, or point `encryption_key` at the new value in YAML and run the script with explicit old/new cryptographers as above.
 
-Since 1.16.0 the re-encryption replaces the ciphertext through `VaultItem::replaceCiphertextForRotation()`: it no longer touches `updated_at` (lists keep their order) nor `secret_changed_at` (password ages and the health report stay correct). While a rotation is in progress rows are on mixed keys: anything that decrypts (the reveal route, `/logins`, and later the health report and the decrypted export) fails closed with a generic error for the rows on the other key; run the rotation in a maintenance window.
+Since 1.16.0 the re-encryption replaces the ciphertext through `VaultItem::replaceCiphertextForRotation()`: it no longer touches `updated_at` (lists keep their order) nor `secret_changed_at` (password ages and the health report stay correct). While a rotation is in progress rows are on mixed keys: anything that decrypts (the reveal route, `/logins`, the health report, which skips such rows, and the decrypted export, which answers 503 before streaming or stops the stream) fails closed with a generic error for the rows on the other key; run the rotation in a maintenance window.
 
 ### 3. Verify
 

@@ -7,8 +7,11 @@ namespace Nowo\VaultBundle\Tests\App;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
+use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
+use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Tests\App\Clock\StaticTestClock;
 use Nowo\VaultBundle\Tests\App\Doctrine\QueryCounterMiddleware;
+use Nowo\VaultBundle\Tests\App\Security\TestReauthChecker;
 use Nowo\VaultBundle\Tests\App\Security\TestScopeAccessResolver;
 use Nowo\VaultBundle\VaultBundle;
 use Psr\Clock\ClockInterface;
@@ -24,7 +27,7 @@ use const PHP_VERSION_ID;
 
 /**
  * Test kernel variant (1.16.0): scope vaults on (static {@see TestScopeAccessResolver}), deny_status 404, temporary
- * grants in the share form, the catalogue, the health report (max 3 items, policy enforced on save), a persistent reveal rate-limit pool, the profiler, a query counter, a {@see StaticTestClock} as the clock (public `test.mock_clock`), the fail-closed grantee default and
+ * grants in the share form, the catalogue, the health report (max 3 items, policy enforced on save), the decrypted export (static {@see TestReauthChecker}, max 5 items), a persistent reveal rate-limit pool, the profiler, a query counter, a {@see StaticTestClock} as the clock (public `test.mock_clock`), the fail-closed grantee default and
  * its own cache directory (own container and SQLite file).
  */
 final class ScopesKernel extends BaseKernel
@@ -52,11 +55,16 @@ final class ScopesKernel extends BaseKernel
                 'catalogue' => ['enabled' => true],
                 'reveal'    => ['rate_limit' => ['cache_pool' => 'test.vault_secret_access_cache']],
                 'health'    => ['enabled' => true, 'max_items' => 3, 'policy' => ['enforce_on_save' => true]],
+                'export'    => ['enabled' => true, 'reauth_checker' => TestReauthChecker::class, 'max_items' => 5, 'cache_pool' => 'test.vault_secret_access_cache'],
             ]);
             // Profiles of every request, to prove that the routes returning decrypted values store none.
             $container->loadFromExtension('framework', ['profiler' => ['enabled' => true, 'collect' => true]]);
             $container->register(QueryCounterMiddleware::class, QueryCounterMiddleware::class)->addTag('doctrine.middleware');
             $container->register(TestScopeAccessResolver::class, TestScopeAccessResolver::class);
+            $container->register(TestReauthChecker::class, TestReauthChecker::class);
+            // Host-facing services no bundle code uses: kept (and reachable) through public test aliases.
+            $container->setAlias('test.personal_data_exporter', VaultPersonalDataExporter::class)->setPublic(true);
+            $container->setAlias('test.personal_data_eraser', VaultPersonalDataEraser::class)->setPublic(true);
             $container->register('test.mock_clock', StaticTestClock::class)->setPublic(true);
             $container->setAlias(ClockInterface::class, 'test.mock_clock')->setPublic(true);
 

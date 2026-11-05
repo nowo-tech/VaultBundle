@@ -11,6 +11,7 @@ use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
+use Nowo\VaultBundle\Controller\VaultExportController;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
@@ -39,6 +40,8 @@ use Nowo\VaultBundle\Security\RuntimeKeyVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
+use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
+use Nowo\VaultBundle\Security\VaultReauthProofValidator;
 use Nowo\VaultBundle\Security\VaultRevealRateLimiter;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
@@ -135,6 +138,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.grants.temporary.ui', (bool) $config['grants']['temporary']['ui']);
         $this->registerScopes($config['scopes'], $config['catalogue'], $config['health']['enabled'], $container);
         $this->registerHealth($config['health'], $container);
+        $this->registerExport($config['export'], $container);
         $this->registerReveal($config['reveal'], $container);
         $container->setParameter('nowo_vault.browser_extension.routes', $browserExtension['routes']);
         $container->setParameter('nowo_vault.browser_extension.cors_allowed_origins', $browserExtension['cors_allowed_origins']);
@@ -339,6 +343,43 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$cacheTtl', $health['cache_ttl'])
             ->setArgument('$maxItems', $health['max_items']);
         $container->setAlias(VaultHealthReporterInterface::class, VaultHealthReporter::class);
+    }
+
+    /**
+     * Decrypted personal export (1.16.0): the host re-authentication hook (required when enabled), the proof validator,
+     * the limits of the export controller and its two optional routes.
+     *
+     * @param array{enabled: bool, reauth_checker: string|null, reauth_max_age: int, accepted_primary_factors: list<string>, accepted_mfa_factors: list<string>, formats: list<string>, max_items: int, max_bytes: int, include_attachments: bool, cooldown_seconds: int, cache_pool: string} $export
+     */
+    private function registerExport(array $export, ContainerBuilder $container): void
+    {
+        $checkerId = $export['reauth_checker'];
+        if ($export['enabled']) {
+            if (!is_string($checkerId) || $checkerId === '') {
+                throw new LogicException('nowo_vault.export.enabled requires nowo_vault.export.reauth_checker (a service implementing VaultReauthenticationCheckerInterface); there is no default.');
+            }
+            $container->setAlias(VaultReauthenticationCheckerInterface::class, $checkerId);
+            /** @var list<string> $enabled */
+            $enabled = $container->getParameter('nowo_vault.enabled_optional_route_keys');
+            $container->setParameter('nowo_vault.enabled_optional_route_keys', [...$enabled, 'personal_export', 'personal_export_download']);
+        }
+
+        $pool = new Reference($export['cache_pool']);
+        $container->setDefinition(VaultReauthProofValidator::class, (new Definition(VaultReauthProofValidator::class))
+            ->setAutowired(false)
+            ->setArgument('$maxAge', $export['reauth_max_age'])
+            ->setArgument('$acceptedPrimaryFactors', $export['accepted_primary_factors'])
+            ->setArgument('$acceptedMfaFactors', $export['accepted_mfa_factors'])
+            ->setArgument('$consumedProofs', $pool)
+            ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE)));
+        $container->getDefinition(VaultExportController::class)
+            ->setArgument('$cooldownPool', $pool)
+            ->setArgument('$reauthChecker', new Reference(VaultReauthenticationCheckerInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$formats', $export['formats'])
+            ->setArgument('$maxItems', $export['max_items'])
+            ->setArgument('$maxBytes', $export['max_bytes'])
+            ->setArgument('$cooldownSeconds', $export['cooldown_seconds'])
+            ->setArgument('$includeAttachments', $export['include_attachments']);
     }
 
     /**

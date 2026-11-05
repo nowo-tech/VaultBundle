@@ -224,6 +224,17 @@ vault:
         access: Accesso
         has_access: Hai accesso
         empty: Nessuna voce nel catalogo.
+    export:
+        title: 'Esporta la mia cassaforte'
+        description: 'Scarica una copia decifrata della tua cassaforte personale.'
+        warning: 'Il file contiene in chiaro le tue password e gli altri segreti. Conservalo su un dispositivo affidabile ed eliminalo quando non ti serve più. Vengono esportate solo le tue voci personali: non quelle condivise con te né le casseforti condivise.'
+        count: 'Verranno esportate %count% voci.'
+        csv_warning: 'Il CSV mantiene i valori così come sono: un foglio di calcolo può eseguire come formula una cella che inizia con = + - o @. Per passare a un altro gestore meglio JSON.'
+        attachments: 'Il file JSON include i documenti allegati.'
+        format: 'Formato'
+        format_json: 'JSON'
+        format_csv: 'CSV (senza allegati)'
+        download: 'Scarica'
     health:
         title: Salute delle password
         description: 'Password deboli, riutilizzate e vecchie di %scope%, calcolate ora per le voci che puoi aprire. Nulla viene salvato.'

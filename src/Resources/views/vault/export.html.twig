@@ -1,0 +1,23 @@
+{#
+  Decrypted personal export (1.16.0, REQ-UI-003, UI-PATTERNS §16 warning page): UiKit form scaffold. Variable: page
+  (View\FormPage from VaultPageFactory::export(): header vault.export.title with a back link; form =
+  VaultPersonalExportType (format choice, CSRF vault_personal_export); submit vault.export.download; cancel = back).
+  Also: count (personal items in the file), formats, includeAttachments, routes.
+  Data blocks filled: nowo_ui_form_body (warning, item count, then the REQ-TWIG-003 child loop).
+  Rendered only after a fresh re-authentication; the download itself needs another check of the proof.
+#}
+{% extends '@NowoUiKit/page/form.html.twig' %}
+{% trans_default_domain 'NowoVaultBundle' %}
+
+{% block nowo_ui_form_body %}
+    {% set _b = page.bundle %}
+    <div class="{{ nowo_ui_class('flash_warning', _b) }}" role="alert" data-testid="vault-export-warning">{{ 'vault.export.warning'|trans }}</div>
+    <p class="{{ nowo_ui_class('muted', _b) }}" data-testid="vault-export-count">{{ 'vault.export.count'|trans({'%count%': count}) }}</p>
+    {% if 'csv' in formats %}
+        <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.export.csv_warning'|trans }}</p>
+    {% endif %}
+    {% if includeAttachments and 'json' in formats %}
+        <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.export.attachments'|trans }}</p>
+    {% endif %}
+    {{ parent() }}
+{% endblock %}

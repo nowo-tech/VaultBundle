@@ -9,7 +9,7 @@ use Nowo\UiKitBundle\Test\PageFixture;
 use Nowo\VaultBundle\Tests\Support\PageFixtures;
 
 /**
- * REQ-UI-003 page contract of the pages added in 1.16.0 (scope vault list, catalogue, health, share page with temporary grants).
+ * REQ-UI-003 page contract of the pages added in 1.16.0 (scope vault list, catalogue, health, export, share page with temporary grants).
  */
 final class Vault116PageContractTest extends PageContractTestCase
 {
@@ -23,6 +23,8 @@ final class Vault116PageContractTest extends PageContractTestCase
         yield 'catalogue (empty)' => new PageFixture('@NowoVaultBundle/vault/catalogue.html.twig', PageFixtures::catalogue(true));
         yield 'health' => new PageFixture('@NowoVaultBundle/vault/health.html.twig', PageFixtures::health());
         yield 'health (empty)' => new PageFixture('@NowoVaultBundle/vault/health.html.twig', PageFixtures::health(true));
+        yield 'export' => new PageFixture('@NowoVaultBundle/vault/export.html.twig', PageFixtures::export());
+        yield 'export (JSON only)' => new PageFixture('@NowoVaultBundle/vault/export.html.twig', PageFixtures::export(true));
         yield 'share (temporary grants)' => new PageFixture('@NowoVaultBundle/vault/share.html.twig', PageFixtures::shareTemporary());
     }
 }

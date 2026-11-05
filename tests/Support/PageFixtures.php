@@ -26,6 +26,7 @@ use Nowo\VaultBundle\Form\VaultFolderCreateType;
 use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Form\VaultItemSearchType;
 use Nowo\VaultBundle\Form\VaultPasswordGeneratorType;
+use Nowo\VaultBundle\Form\VaultPersonalExportType;
 use Nowo\VaultBundle\Form\VaultRuntimeConfigType;
 use Nowo\VaultBundle\Form\VaultShareType;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
@@ -276,6 +277,27 @@ final class PageFixtures
     }
 
     /**
+     * Decrypted personal export (1.16.0): the warning page with both formats, or JSON only without attachments.
+     *
+     * @return array<string, mixed>
+     */
+    public static function export(bool $jsonOnly = false, ?VaultPageFactory $factory = null): array
+    {
+        $factory ??= self::factory();
+        $routes  = self::routes();
+        $formats = $jsonOnly ? ['json'] : ['json', 'csv'];
+        $form    = self::forms()->createNamed('', VaultPersonalExportType::class, ['format' => 'json'], ['formats' => $formats, 'action' => '/nowo_vault_personal_export_download'])->createView();
+
+        return $factory->context([
+            'page'               => $factory->export($routes, $form),
+            'count'              => 3,
+            'formats'            => $formats,
+            'includeAttachments' => !$jsonOnly,
+            'routes'             => $routes,
+        ]);
+    }
+
+    /**
      * Scope password health (1.16.0): one weak + reused + old + breached row and one healthy row, or an empty report.
      *
      * @return array<string, mixed>
@@ -407,7 +429,7 @@ final class PageFixtures
     public static function routes(): array
     {
         $routes = [];
-        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'item_reveal', 'runtime_config', 'scope_items', 'scope_item_new', 'scope_folder_create', 'catalogue', 'health', 'item_attachment'] as $key) {
+        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'item_reveal', 'runtime_config', 'scope_items', 'scope_item_new', 'scope_folder_create', 'catalogue', 'health', 'item_attachment', 'personal_export', 'personal_export_download'] as $key) {
             $routes[$key] = ['path' => '/' . $key, 'name' => 'nowo_vault_' . $key];
         }
 
