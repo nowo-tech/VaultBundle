@@ -13,7 +13,6 @@ use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Entity\VaultTag;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
-use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
@@ -109,7 +108,7 @@ final class VaultScopeController extends AbstractController
         if ($result['visible'] !== null) {
             // Grants only (SEC-004 FQ-L1): folder and tag names are scope metadata; show only those of items the
             // member may View (and the folders' ancestors), plus folders the member administers through a grant.
-            [$folders, $tags] = $this->visibleFoldersAndTags($user, $folders, $tags, $result['visible']);
+            [$folders, $tags] = $this->visibleFoldersAndTags($user, $scope, $folders, $tags, $result['visible']);
         }
         $search = $this->createForm(VaultItemSearchType::class, ['q' => $searchQuery], [
             'action'  => $this->generateUrl($routes['scope_items']['name'], ['scope' => $scope]),
@@ -289,11 +288,8 @@ final class VaultScopeController extends AbstractController
     }
 
     /**
-     * Permission denial in a scope: 403, or 404 with security.deny_status: 404 (a scope never confirms it exists).
-     */
-    /**
      * Folders and tags a grants-only member may see: those of the items they may View (folders with their ancestors),
-     * and the folders they may Share (admin grant on the folder).
+     * and the folders they may Share ({@see VaultScopeItemLister::visibleFolders()}).
      *
      * @param list<VaultFolder> $folders
      * @param list<VaultTag> $tags
@@ -301,25 +297,24 @@ final class VaultScopeController extends AbstractController
      *
      * @return array{0: list<VaultFolder>, 1: list<VaultTag>}
      */
-    private function visibleFoldersAndTags(UserInterface $user, array $folders, array $tags, array $visible): array
+    private function visibleFoldersAndTags(UserInterface $user, string $scope, array $folders, array $tags, array $visible): array
     {
-        $folderIds = [];
-        $tagIds    = [];
+        $tagIds = [];
         foreach ($visible as $item) {
-            for ($folder = $item->getFolder(); $folder instanceof VaultFolder && !isset($folderIds[$folder->getId()]); $folder = $folder->getParent()) {
-                $folderIds[$folder->getId()] = true;
-            }
             foreach ($item->getTags() as $tag) {
                 $tagIds[$tag->getId()] = true;
             }
         }
 
         return [
-            array_values(array_filter($folders, fn (VaultFolder $folder): bool => isset($folderIds[$folder->getId()]) || $this->accessGuard->canAccessFolder($user, $folder, VaultAccessAction::Share))),
+            $this->scopeItemLister->visibleFolders($user, $scope, $folders, $visible),
             array_values(array_filter($tags, static fn (VaultTag $tag): bool => isset($tagIds[$tag->getId()]))),
         ];
     }
 
+    /**
+     * Permission denial in a scope: 403, or 404 with security.deny_status: 404 (a scope never confirms it exists).
+     */
     private function denied(): HttpException|AccessDeniedException
     {
         return $this->denyStatus === Response::HTTP_NOT_FOUND

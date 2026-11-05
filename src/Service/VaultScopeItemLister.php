@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Service;
 
 use LogicException;
+use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultPermission;
+use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultScopeItemRepositoryInterface;
@@ -79,5 +81,38 @@ final readonly class VaultScopeItemLister
         $result  = $repository->paginateByScope($scope, $onlyIds, $folderId, $tagId, $searchQuery, (max(1, $page) - 1) * $perPage, $perPage);
 
         return $result + ['permissions' => $this->accessGuard->resolvePermissionMap($viewer, $result['items']), 'access' => $access, 'visible' => $visible];
+    }
+
+    /**
+     * Folder choices of a scope for a member (SEC-004 FQ-L1 / FQ-L4 / FQ-I12): a member with a baseline sees every
+     * folder; a grants-only member sees the folders of the items they may View (with their ancestors) and the folders
+     * they may Share. `$visible` = the member's visible scope items, or null to compute them.
+     *
+     * @param list<VaultFolder> $folders the scope's folders
+     * @param list<VaultItem>|null $visible
+     *
+     * @return list<VaultFolder>
+     */
+    public function visibleFolders(UserInterface $viewer, string $scope, array $folders, ?array $visible = null): array
+    {
+        if ($this->accessGuard->resolveScopeAccess($viewer, $scope)?->baseline instanceof VaultPermission) {
+            return $folders;
+        }
+
+        if ($visible === null) {
+            $repository = $this->itemRepository;
+            $all        = $repository instanceof VaultScopeItemRepositoryInterface ? $repository->findActiveByScope($scope) : [];
+            $map        = $this->accessGuard->resolvePermissionMap($viewer, $all);
+            $visible    = array_filter($all, static fn (VaultItem $item): bool => ($map[$item->getId()] ?? null) !== null);
+        }
+
+        $ids = [];
+        foreach ($visible as $item) {
+            for ($folder = $item->getFolder(); $folder instanceof VaultFolder && !isset($ids[$folder->getId()]); $folder = $folder->getParent()) {
+                $ids[$folder->getId()] = true;
+            }
+        }
+
+        return array_values(array_filter($folders, fn (VaultFolder $folder): bool => isset($ids[$folder->getId()]) || $this->accessGuard->canAccessFolder($viewer, $folder, VaultAccessAction::Share)));
     }
 }
