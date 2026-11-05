@@ -78,9 +78,11 @@ Sharing fails closed: without a `GRANT_LIST_QUERY` listener listing grantees nob
 | Grants: cross-tenant | A user who left an organization keeps item grants | The membership gate runs before grants on every request |
 | Grants: cross-tenant | Team ids collide across organizations | Host obligation: namespace team ids (e.g. `org-<uuid>:group-<uuid>`); the bundle compares them opaquely |
 | Scopes | A forged `{scope}` in the URL | Route requirement `[a-z0-9][a-z0-9_-]{0,127}` + `resolve()` on every request; the scope key is never read from form data; a non-member gets the deny status |
+| Scopes (SEC-004 FQ-L1) | A grants-only member (no baseline) learns the scope's folder and tag names from the scope page | The page lists only the folders and tags of the items the member may View (folders with their ancestors) and the folders the member may Share; members with a baseline see all of them |
+| Scope tags (SEC-004 FQ-I4) | A user with Admin on one scope item (a scope admin, or an Admin grant) creates scope tags by tagging it; the names then show to members and in the catalogue | Accepted: tagging is an item edit. Hosts that want tag creation restricted to `create` members veto Admin grants in `GRANT_POLICY_CHECK` or keep item grants at `read` / `write` |
 | Ownership | Scope rows deleted with their creator | `creator_id` is NULL on scope rows; `created_by_id` is `ON DELETE SET NULL` (audit only, never used for access) |
 
-Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time; **R3** team self-grants after a demotion.
+Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time; **R2** plaintext in PHP memory while a value is decrypted (reveal, copy, attachment, `/logins`, and the health report and decrypted export of later blocks), inherent to server-side encryption; **R3** team self-grants after a demotion.
 
 ## Reveal, copy and attachments (1.16.0)
 
@@ -91,6 +93,8 @@ Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time;
 | A compromised session dumps every secret | `security.secret_access_rate_limit` plus `reveal.rate_limit` (per minute, per hour, per item and field), `REVEAL_THROTTLED`, an audit event per reveal |
 | Values in logs, events, exceptions, the profiler, flashes or caches | Events carry no value (reflection test); `VaultRevealedValue` dumps `***` and refuses serialization; `VaultDecryptionFailedException` has a generic message and no previous exception; `#[\SensitiveParameter]`; the profiler is disabled on these routes; `no-store` |
 | The value stays in the DOM or the back/forward cache | Auto-hide, wipe on `pagehide` / hidden tab / dialog close, Copy without the DOM, `no-store` |
+| Copy leaves the value in the system clipboard (SEC-004 FQ-I11) | Accepted: the bundle never reads or clears the clipboard (the Clipboard API cannot tell whether the user copied something else since, and clearing it would discard that). Users clear it themselves; hosts with OS clipboard history should tell users so |
+| A host veto (`ITEM_FIELD_REVEAL_CHECK`) is bypassed through the extension `/logins` (SEC-004 FQ-L2) | `/logins` dispatches the same check for `password` (channel `extension`, purpose `autofill`); a vetoed password is sent empty and left out of the audit event's field list |
 | The reveal succeeds although the audit write failed | A throwing audit listener refuses the reveal (503): no audit, no reveal |
 | A downloaded file is rendered in the page origin or carries user data in its name | Always `application/octet-stream`, `nosniff`, `Content-Disposition: attachment` with a sanitised basename, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` |
 | Decrypt during a key rotation | Fails closed with a generic 503 |
@@ -151,7 +155,7 @@ Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, n
 
 Documented and accepted for **Pass (good)** / overall **Low** (re-audit **2026-08-20**):
 
-1. Plaintext payloads exist in PHP memory briefly after decrypt (inherent).
+1. **R2:** plaintext payloads exist in PHP memory briefly after decrypt (inherent).
 2. Extension Bearer API has no CSRF (token auth by design; rate limit + TTL + purge cron).
 3. Operator CLI key-on-argv risk when using `--old-key` / `--new-key` instead of `--*-key-file` (documented above; file-based options are the supported operator path).
 4. Generated encryption keys are shown **one-time** via session (not flash); host must use HTTPS.
