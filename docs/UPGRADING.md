@@ -188,9 +188,11 @@ then drop the new indexes and columns and restore `NOT NULL` on the three `creat
 - **New constructor arguments are appended and optional** (`VaultItem`, `VaultFolder`, `VaultTag`, `VaultGrant`,
   `VaultAccessGuard`, `VaultGrantService`, `VaultItemCreator`, `VaultItemUpdater`, `VaultTrashService`,
   `VaultSharedItemResolver`, `VaultFolderService`, `VaultRouteLoader`, `VaultManageController`).
-- **New route keys** (`scope_items`, `scope_item_new`, `scope_folder_create`, `catalogue`, `item_attachment`) have
+- **New route keys** (`scope_items`, `scope_item_new`, `scope_folder_create`, `catalogue`, `health`, `item_attachment`) have
   defaults, so custom `nowo_vault.routes` maps keep working. The scope keys are registered only with `scopes.enabled`
-  (and `catalogue` also with `catalogue.enabled`); `item_attachment` with the manage UI.
+  (and `catalogue` / `health` also with `catalogue.enabled` / `health.enabled`); `item_attachment` with the manage UI.
+- **Item form option `password_policy`** (`?VaultPasswordPolicy`, default null): the bundle controllers pass the
+  owner's policy for login items; it validates only with `enforceOnSave`. Forms built by hosts are unchanged.
 - **The reveal JSON gains keys:** `item_reveal` now answers `{"item", "field", "purpose", "encoding": "plain",
   "value"}` (1.15.2: `{"field", "value"}`). Clients must read `value` only when `encoding` is `plain` (a later
   zero-knowledge mode answers `ciphertext`). The bundled `vault.js` does. A `websites` reveal returns a list.
@@ -203,7 +205,7 @@ then drop the new indexes and columns and restore `NOT NULL` on the three `creat
   (`reveal.rate_limit.cache_pool`).
 - **Templates:** `item_form.html.twig` gains Copy buttons and an attachment download button (data attributes on the
   hidden `[data-vault-reveal]` element: `data-vault-reveal-copy`, `-copied`, `-auto-hide`, `data-vault-attachment-url`).
-  Overrides keep working; copy them to offer the new buttons. New templates `scope_items` and `catalogue`.
+  Overrides keep working; copy them to offer the new buttons. New templates `scope_items`, `catalogue` and `health`.
 - **Headers:** every bundle response also carries `Expires: 0`.
 
 ### New options (all off by default)
@@ -231,6 +233,14 @@ nowo_vault:
             per_user_per_hour: 300
             per_user_item_field_per_minute: 10
             cache_pool: cache.app
+    health:
+        enabled: false                   # health route; needs scopes.enabled (the services work without it)
+        max_items: 2000
+        cache_ttl: 0                     # seconds; 0 = never cached
+        cache_pool: cache.app
+        breach_checker: null             # service implementing VaultBreachCheckerInterface
+        policy_resolver: null            # service implementing VaultPasswordPolicyResolverInterface
+        policy: { min_length: 12, min_classes: 3, max_age_days: 365, enforce_on_save: false }
 ```
 
 Schedule `php bin/console nowo:vault:grants:purge-expired` (for example every 5 minutes) if you create temporary

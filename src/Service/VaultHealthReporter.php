@@ -16,6 +16,7 @@ use Nowo\VaultBundle\Event\VaultHealthAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultHealthReportGeneratedEvent;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
+use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultScopeItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultBreachCheckerInterface;
@@ -33,7 +34,6 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Throwable;
 
-use function array_keys;
 use function array_map;
 use function array_values;
 use function class_exists;
@@ -44,6 +44,7 @@ use function implode;
 use function in_array;
 use function intdiv;
 use function is_array;
+use function is_object;
 use function is_string;
 use function max;
 use function mb_strlen;
@@ -67,9 +68,6 @@ use function sodium_memzero;
  */
 final readonly class VaultHealthReporter implements VaultHealthReporterInterface
 {
-    /** Class of the optional strength bundle's conditions model. */
-    private const CONDITIONS_CLASS = 'Nowo\\PasswordStrengthBundle\\Model\\PasswordConditions';
-
     /**
      * Stores the collaborators and the limits.
      *
@@ -150,21 +148,18 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
     private function report(UserInterface $viewer, VaultOwner $owner, array $items, int $skipped, ?VaultPasswordPolicy $policy): VaultHealthReport
     {
         $policy ??= $this->policyResolver->forOwner($owner) ?? new VaultPasswordPolicy();
-        $cacheItem = null;
-        $report    = null;
-        if ($this->cache instanceof CacheItemPoolInterface && $this->cacheTtl > 0) {
-            $cacheItem = $this->cache->getItem($this->cacheKey($viewer, $owner, $items, $skipped, $policy));
+        $cache = $this->cacheTtl > 0 ? $this->cache : null;
+        if ($cache instanceof CacheItemPoolInterface) {
+            $cacheItem = $cache->getItem($this->cacheKey($viewer, $owner, $items, $skipped, $policy));
             $cached    = $cacheItem->isHit() ? $cacheItem->get() : null;
-            $report    = $cached instanceof VaultHealthReport ? $cached : null;
-        }
-
-        if (!$report instanceof VaultHealthReport) {
-            $report = $this->compute($owner, $items, $skipped, $policy);
-            if ($cacheItem !== null) {
+            $report    = $cached instanceof VaultHealthReport ? $cached : $this->compute($owner, $items, $skipped, $policy);
+            if (!$cached instanceof VaultHealthReport) {
                 $cacheItem->set($report);
                 $cacheItem->expiresAfter($this->cacheTtl);
-                $this->cache?->save($cacheItem);
+                $cache->save($cacheItem);
             }
+        } else {
+            $report = $this->compute($owner, $items, $skipped, $policy);
         }
 
         $actorId = UserIdResolver::getId($viewer);
@@ -213,8 +208,8 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
                 continue;
             }
 
-            $password                    = is_string($payload['password'] ?? null) ? $payload['password'] : '';
-            $passwords[$item->getId()]   = $item;
+            $password                     = is_string($payload['password'] ?? null) ? $payload['password'] : '';
+            $passwords[$item->getId()]    = $item;
             $fingerprints[$item->getId()] = $password === '' ? null : hash_hmac('sha256', $password, $key);
             $weak[$item->getId()]         = $this->weakReasons($password, $policy);
             $breached[$item->getId()]     = $password === '' ? null : $this->breached($password);
@@ -277,8 +272,8 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
         }
 
         $reasons = [];
-        if ($this->strengthEvaluator !== null && class_exists(self::CONDITIONS_CLASS) && method_exists($this->strengthEvaluator, 'evaluate')) {
-            $conditionsClass = self::CONDITIONS_CLASS;
+        if ($this->strengthEvaluator !== null && class_exists(PasswordStrengthIntegration::PASSWORD_CONDITIONS) && method_exists($this->strengthEvaluator, 'evaluate')) {
+            $conditionsClass = PasswordStrengthIntegration::PASSWORD_CONDITIONS;
             $result          = $this->strengthEvaluator->evaluate($password, new $conditionsClass(minLength: $policy->minLength));
             $missing         = is_object($result) && is_array($result->missing ?? null) ? $result->missing : [];
             $reasons         = array_values(array_map(strval(...), $missing));

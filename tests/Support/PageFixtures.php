@@ -9,6 +9,8 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Dto\VaultCatalogueEntry;
 use Nowo\VaultBundle\Dto\VaultCataloguePage;
 use Nowo\VaultBundle\Dto\VaultGranteeChoice;
+use Nowo\VaultBundle\Dto\VaultHealthItemResult;
+use Nowo\VaultBundle\Dto\VaultHealthReport;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Dto\VaultShareFormData;
 use Nowo\VaultBundle\Entity\VaultFolder;
@@ -31,6 +33,7 @@ use Nowo\VaultBundle\Tests\App\Kernel;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Ui\VaultPageFactory;
 use Nowo\VaultBundle\Ui\VaultPages;
+use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
@@ -42,6 +45,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RequestContext;
 
 use function assert;
+use function count;
 use function http_build_query;
 
 /**
@@ -272,6 +276,29 @@ final class PageFixtures
     }
 
     /**
+     * Scope password health (1.16.0): one weak + reused + old + breached row and one healthy row, or an empty report.
+     *
+     * @return array<string, mixed>
+     */
+    public static function health(bool $empty = false, ?VaultPageFactory $factory = null): array
+    {
+        $factory ??= self::factory();
+        $routes = self::routes();
+        $items  = $empty ? [] : [
+            new VaultHealthItemResult('00000000-0000-4000-8000-000000000001', 'Stripe', true, ['min_length', 'require_digit'], 1, true, 400, true),
+            new VaultHealthItemResult('00000000-0000-4000-8000-000000000002', 'Mail', false, [], null, false, 3, null),
+        ];
+        $report = new VaultHealthReport(VaultOwner::scope('org-1'), new DateTimeImmutable('2026-11-05 12:00:00'), count($items), $empty ? 0 : 1, $items);
+
+        return $factory->context([
+            'page'   => $factory->health($routes, 'org-1', $report),
+            'scope'  => 'org-1',
+            'report' => $report,
+            'routes' => $routes,
+        ]);
+    }
+
+    /**
      * Scope catalogue (1.16.0): two entries (one already accessible), or an empty catalogue.
      *
      * @return array<string, mixed>
@@ -380,7 +407,7 @@ final class PageFixtures
     public static function routes(): array
     {
         $routes = [];
-        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'item_reveal', 'runtime_config', 'scope_items', 'scope_item_new', 'scope_folder_create', 'catalogue', 'item_attachment'] as $key) {
+        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'item_reveal', 'runtime_config', 'scope_items', 'scope_item_new', 'scope_folder_create', 'catalogue', 'health', 'item_attachment'] as $key) {
             $routes[$key] = ['path' => '/' . $key, 'name' => 'nowo_vault_' . $key];
         }
 

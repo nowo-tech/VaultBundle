@@ -239,4 +239,14 @@ vault:
             min_length: too short
             min_classes: too few character types
             empty: no password
+            max_length: 'too long'
+            require_lowercase: 'no lowercase letter'
+            require_uppercase: 'no uppercase letter'
+            require_digit: 'no digit'
+            require_special: 'no symbol'
+            disallow_whitespace: 'contains whitespace'
+            not_contain: 'contains a forbidden word'
+            min_unique_chars: 'too few distinct characters'
+            regex: 'does not match the required pattern'
+            pattern: 'does not match the required pattern'
         too_large: Too many entries for an on-demand report.

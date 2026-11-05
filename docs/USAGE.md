@@ -11,6 +11,7 @@
 - [Temporary grants](#temporary-grants)
 - [Catalogue](#catalogue)
 - [Reveal, copy and attachments](#reveal-copy-and-attachments)
+- [Password health](#password-health)
 - [Read-only access](#read-only-access)
 - [Events](#events)
 - [Lists and pagination](#lists-and-pagination)
@@ -142,6 +143,36 @@ curl -X POST -H "X-CSRF-Token: $TOKEN" -d purpose=copy https://app.example/tools
 
 Read `value` only when `encoding` is `plain`.
 
+## Password health
+
+With `scopes.enabled` and `health.enabled`, members whose `VaultScopeAccess::$health` is true (and whom no
+`HEALTH_ACCESS_CHECK` listener denies) open `/tools/vault/scopes/{scope}/health`: per login item they may View, *Weak*
+(with the missing rules), *Reused (group n)*, *Old (n days)* and *Breached* (only with `health.breach_checker`). The
+report is computed now, in memory, and stores nothing; items they cannot View are only counted. Hosts call the service
+directly, for example for the personal vault:
+
+```php
+$report = $healthReporter->forPersonalVault($user);   // VaultHealthReporterInterface
+foreach ($report->items as $result) {                  // VaultHealthItemResult: flags, never a value
+    // $result->itemId, $result->weak, $result->weakReasons, $result->reuseGroup, $result->old, $result->breached
+}
+```
+
+A host policy per owner (organization settings, for example) implements `VaultPasswordPolicyResolverInterface`:
+
+```php
+final class OrganizationPolicyResolver implements VaultPasswordPolicyResolverInterface
+{
+    public function forOwner(VaultOwner $owner): ?VaultPasswordPolicy
+    {
+        return $owner->isScope() ? new VaultPasswordPolicy(minLength: 16, minClasses: 3, maxAgeDays: 180, enforceOnSave: true) : null;
+    }
+}
+```
+
+`null` falls back to `health.policy`. With `enforceOnSave` the item form refuses a typed login password that breaks the
+policy; the message lists the missing rules only.
+
 ## Read-only access
 
 Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()` — see [examples/AccessControl.md](examples/AccessControl.md).
@@ -161,6 +192,8 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 | `ITEM_FIELD_REVEAL_CHECK` | Veto one field or the attachment before it leaves (1.16.0) |
 | `REVEAL_THROTTLED` | A reveal hit `reveal.rate_limit` (1.16.0; alert on scraping) |
 | `CATALOGUE_ACCESS_CHECK` | Grant or deny a scope catalogue (1.16.0) |
+| `HEALTH_ACCESS_CHECK` | Grant or deny a scope health report (1.16.0) |
+| `HEALTH_REPORT_GENERATED` | A health report was produced (1.16.0; actor, owner key, counts only) |
 | `GRANT_POLICY_CHECK` | Veto a grant in `grantAs()` with a reason code (1.16.0) |
 | `GRANT_CREATED`, `GRANT_UPDATED`, `GRANT_REVOKED`, `GRANT_EXPIRED` | Grant audit trail (`VaultGrantChangeEvent`: ids, permission, expiry, actor, reason; after the flush) |
 | `ITEM_CHANGED` | Item activity (`VaultItemChangeEvent`: created, updated, trashed, restored, purged, moved; `secretChanged`) |

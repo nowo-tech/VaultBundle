@@ -400,7 +400,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $form = $crawler->filterXPath('//form[.//input[@name="vault_item_form[title]"]]')->form([
             'vault_item_form[title]'           => 'Stripe',
             'vault_item_form[username]'        => 'ops',
-            'vault_item_form[password]'        => 'REDACTED-TEST',
+            'vault_item_form[password]'        => 'Redacted-Test-1',
             'vault_item_form[catalogueHidden]' => '1',
         ]);
         $values                              = $form->getPhpValues();

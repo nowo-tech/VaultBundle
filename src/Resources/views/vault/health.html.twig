@@ -24,10 +24,10 @@
     <td class="{{ _cell }}" data-label="{{ 'vault.list.title'|trans }}" data-required="1">{{ row.title }}</td>
     <td class="{{ _cell }}" data-label="{{ 'vault.health.status'|trans }}" data-testid="vault-health-status">
         {% if row.weak %}
+            {% set _known = ['empty', 'min_length', 'min_classes', 'max_length', 'require_lowercase', 'require_uppercase', 'require_digit', 'require_special', 'disallow_whitespace', 'not_contain', 'min_unique_chars', 'regex', 'pattern'] %}
             {% set _reasons = [] %}
             {% for reason in row.weakReasons %}
-                {% set _key = 'vault.health.reason.' ~ reason %}
-                {% set _reasons = _reasons|merge([_key|trans != _key ? _key|trans : reason]) %}
+                {% set _reasons = _reasons|merge([reason in _known ? ('vault.health.reason.' ~ reason)|trans : reason]) %}
             {% endfor %}
             <span class="{{ nowo_ui_class('badge_warning', _b) }}" data-testid="vault-health-weak">{{ 'vault.health.weak'|trans }}</span>
             <span class="{{ nowo_ui_class('muted', _b) }}">{{ _reasons|join(', ') }}</span>

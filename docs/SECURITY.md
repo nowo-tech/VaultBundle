@@ -9,6 +9,7 @@
 - [Secret fields](#secret-fields)
 - [Scope vaults and temporary grants (1.16.0)](#scope-vaults-and-temporary-grants-1160)
 - [Reveal, copy and attachments (1.16.0)](#reveal-copy-and-attachments-1160)
+- [Password health (1.16.0)](#password-health-1160)
 - [Catalogue leakage](#catalogue-leakage)
 - [Logging](#logging)
 - [Accepted residuals (REQ-SEC-004)](#accepted-residuals-req-sec-004)
@@ -94,6 +95,17 @@ Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time;
 | A downloaded file is rendered in the page origin or carries user data in its name | Always `application/octet-stream`, `nosniff`, `Content-Disposition: attachment` with a sanitised basename, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` |
 | Decrypt during a key rotation | Fails closed with a generic 503 |
 
+## Password health (1.16.0)
+
+| Threat | Control |
+| --- | --- |
+| Reuse side channel: the report says that a password equals one in an item the viewer cannot open (another user, another scope) | Reuse is computed only over the items the viewer may View, within one owner; the others are counted in `skipped` and never compared (oracle test) |
+| Stored fingerprints become an offline guessing target | Fingerprints use a per-run random 32-byte HMAC key, wiped after the run; nothing is persisted or returned |
+| Oracle by planting guesses | A scope report needs `health` (scope admin in Beacon), who already has View on every compared item |
+| A cache leaks values or fingerprints | Off by default; when on, only the report (flags, titles, group numbers) is cached, per viewer |
+| A breach lookup sends the password or its full hash | `VaultBreachCheckerInterface` is host code: use a k-anonymity range API (5-character SHA-1 prefix) and declare it in the privacy text. Failures count as unknown (`null`) |
+| The policy violation echoes the password | The message names the missing rules only; the invalid value is blanked |
+
 ## Catalogue leakage
 
 The catalogue is metadata only by construction (scalar queries: no item, no ciphertext is loaded), but what it shows
@@ -127,12 +139,13 @@ The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service
 | Field revealed / copied / attachment downloaded (1.16.0) | info | `user_id`, `item_id`, `field`, `purpose`, `channel` |
 | Reveal throttled (1.16.0) | warning | `user_id`, `item_id`, `window` |
 | Reveal refused: audit listener failed (1.16.0) | error | `user_id`, `item_id`, exception **class** |
+| Health report generated (1.16.0) | info | `user_id`, `owner`, `examined`, `weak`, `reused`, `old`, `breached` |
 | Item / folder purged | info | `item_id` / `folder_id` |
 | Runtime configuration updated / reset | notice | changed top-level **keys** and `encryption_key_change` (bool) — never the values |
 | `nowo:vault:reencrypt` started / finished / rejected / failed; key persisted to DB | info / error / notice | `dry_run`, `include_deleted`, counters, error message (no key material) |
 | `nowo:vault:extension-tokens:purge` | info | `count` |
 
-Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, notes, attachments, card data), item titles, Bearer tokens or their hashes, usernames typed in the extension, session ids; since 1.16.0 also revealed values and the file names of attachments (they may contain personal data). Route your Monolog handlers so these records do not reach third parties you would not trust with resource ids.
+Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, notes, attachments, card data), item titles, Bearer tokens or their hashes, usernames typed in the extension, session ids; since 1.16.0 also revealed values, health fingerprints and their HMAC key, and the file names of attachments (they may contain personal data). Route your Monolog handlers so these records do not reach third parties you would not trust with resource ids.
 
 ## Accepted residuals (REQ-SEC-004)
 

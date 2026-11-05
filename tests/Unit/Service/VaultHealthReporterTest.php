@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Unit\Service;
 
 use Closure;
-use DateTimeImmutable;
 use LogicException;
 use Nowo\VaultBundle\Dto\VaultHealthItemResult;
+use Nowo\VaultBundle\Dto\VaultHealthReport;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -39,6 +39,7 @@ use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 use RuntimeException;
 use SensitiveParameter;
+use stdClass;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -150,12 +151,12 @@ final class VaultHealthReporterTest extends TestCase
         $this->item('Breached', 'Password-123!');
         $this->item('Fine', $this->marker);
         $this->item('Failing', 'Failing-Checker-1');
-        $broken                  = $this->item('Broken', 'x');
+        $broken                           = $this->item('Broken', 'x');
         $this->payloads[$broken->getId()] = ['__fail' => true];
-        $checker = new class implements VaultBreachCheckerInterface {
+        $checker                          = new class implements VaultBreachCheckerInterface {
             public int $calls = 0;
 
-            public function isBreached(#[SensitiveParameter] string $password): ?bool
+            public function isBreached(#[SensitiveParameter] string $password): bool
             {
                 ++$this->calls;
                 if ($password === 'Failing-Checker-1') {
@@ -196,8 +197,8 @@ final class VaultHealthReporterTest extends TestCase
         }
 
         $this->members['3'][self::SCOPE] = new VaultScopeAccess(VaultPermission::Read, health: false);
-        $this->assertDenied(fn () => $this->reporter()->forScope(new TestUser('3'), self::SCOPE));
-        $this->assertDenied(fn () => $this->reporter()->forScope(new TestUser('9'), self::SCOPE));
+        $this->assertDenied(fn (): VaultHealthReport => $this->reporter()->forScope(new TestUser('3'), self::SCOPE));
+        $this->assertDenied(fn (): VaultHealthReport => $this->reporter()->forScope(new TestUser('9'), self::SCOPE));
 
         $this->dispatcher->addListener(VaultEvents::HEALTH_ACCESS_CHECK, static function (VaultHealthAccessCheckEvent $event): void {
             self::assertSame('scope:org-1', $event->getOwnerKey());
@@ -208,17 +209,17 @@ final class VaultHealthReporterTest extends TestCase
             }
         });
         self::assertSame(2, $this->reporter()->forScope(new TestUser('3', 'u3@example.com'), self::SCOPE)->examined);
-        $this->assertDenied(fn () => $this->reporter()->forScope(new TestUser('1'), self::SCOPE));
+        $this->assertDenied(fn (): VaultHealthReport => $this->reporter()->forScope(new TestUser('1'), self::SCOPE));
     }
 
     public function testPersonalVaultAndPolicies(): void
     {
-        $owner = new TestUser('5');
-        $items = [new VaultItem(VaultItemType::Login, 'Mine', $owner, 'c-personal')];
+        $owner                              = new TestUser('5');
+        $items                              = [new VaultItem(VaultItemType::Login, 'Mine', $owner, 'c-personal')];
         $this->payloads[$items[0]->getId()] = ['password' => 'short'];
-        $repository = $this->createStub(VaultItemRepositoryInterface::class);
+        $repository                         = $this->createStub(VaultItemRepositoryInterface::class);
         $repository->method('findByCreatorAndItemType')->willReturn($items);
-        $crypto = $this->crypto();
+        $crypto   = $this->crypto();
         $reporter = new VaultHealthReporter($repository, $this->guard(), $crypto, $this->dispatcher, new ConfigVaultPasswordPolicyResolver(new VaultPasswordPolicy(4, 1, null)), clock: $this->clock);
 
         $report = $reporter->forPersonalVault($owner);
@@ -239,7 +240,7 @@ final class VaultHealthReporterTest extends TestCase
         $evaluator = new class {
             public ?int $minLength = null;
 
-            public function evaluate(?string $password, object $conditions): object
+            public function evaluate(?string $password, object $conditions): stdClass
             {
                 $this->minLength = (new ReflectionProperty($conditions, 'minLength'))->getValue($conditions);
 
@@ -341,7 +342,7 @@ final class VaultHealthReporterTest extends TestCase
             $breachChecker,
             $evaluator,
             $cache,
-            $cache !== null ? 300 : 0,
+            $cache instanceof ArrayAdapter ? 300 : 0,
             $maxItems,
             $this->clock,
             $this->logger,

@@ -239,4 +239,14 @@ vault:
             min_length: te kort
             min_classes: te weinig tekensoorten
             empty: geen wachtwoord
+            max_length: 'te lang'
+            require_lowercase: 'geen kleine letter'
+            require_uppercase: 'geen hoofdletter'
+            require_digit: 'geen cijfer'
+            require_special: 'geen symbool'
+            disallow_whitespace: 'bevat spaties'
+            not_contain: 'bevat een verboden woord'
+            min_unique_chars: 'te weinig verschillende tekens'
+            regex: 'voldoet niet aan het vereiste patroon'
+            pattern: 'voldoet niet aan het vereiste patroon'
         too_large: Te veel items voor een rapport op aanvraag.

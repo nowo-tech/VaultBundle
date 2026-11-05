@@ -8,9 +8,13 @@ use LogicException;
 use Nowo\VaultBundle\DependencyInjection\Configuration;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
+use Nowo\VaultBundle\Security\ConfigVaultPasswordPolicyResolver;
 use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
+use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
+use Nowo\VaultBundle\Service\VaultHealthReporter;
+use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
 use Nowo\VaultBundle\Tests\Support\SodiumVaultPayloadCryptographerTestKey;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -18,6 +22,7 @@ use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 
 /**
  * 1.16.0 configuration keys: scopes, grants.temporary, opt-in routes and their compile-time checks.
@@ -114,9 +119,57 @@ final class Vault116ConfigurationTest extends TestCase
 
         self::assertSame('app.scope_resolver', (string) $container->getAlias(VaultScopeAccessResolverInterface::class));
         self::assertSame(['item_attachment', ...VaultExtension::SCOPE_ROUTE_KEYS], $container->getParameter('nowo_vault.enabled_optional_route_keys'));
-        self::assertSame([...VaultExtension::SCOPE_ROUTE_KEYS, 'catalogue', 'item_attachment'], VaultRouteLoader::OPTIONAL_ROUTE_KEYS);
+        self::assertSame([...VaultExtension::SCOPE_ROUTE_KEYS, 'catalogue', 'health', 'item_attachment'], VaultRouteLoader::OPTIONAL_ROUTE_KEYS);
         self::assertTrue($container->getParameter('nowo_vault.grants.temporary.ui'));
         self::assertTrue($container->getParameter('nowo_vault.scopes.enabled'));
+    }
+
+    public function testHealthDefaultsAndWiring(): void
+    {
+        $config = $this->process([]);
+        self::assertSame([
+            'enabled'         => false,
+            'max_items'       => 2000,
+            'cache_ttl'       => 0,
+            'cache_pool'      => 'cache.app',
+            'breach_checker'  => null,
+            'policy_resolver' => null,
+            'policy'          => ['min_length' => 12, 'min_classes' => 3, 'max_age_days' => 365, 'enforce_on_save' => false],
+        ], $config['health']);
+        self::assertSame('/tools/vault/scopes/{scope}/health', $config['routes']['health']['path']);
+
+        $default = $this->load([]);
+        self::assertSame(ConfigVaultPasswordPolicyResolver::class, (string) $default->getAlias(VaultPasswordPolicyResolverInterface::class));
+        self::assertSame(VaultHealthReporter::class, (string) $default->getAlias(VaultHealthReporterInterface::class));
+        self::assertNotContains('health', $default->getParameter('nowo_vault.enabled_optional_route_keys'));
+        self::assertNull($default->getDefinition(VaultHealthReporter::class)->getArgument('$breachChecker'));
+
+        $container = $this->load([
+            'scopes' => ['enabled' => true, 'access_resolver' => 'r'],
+            'health' => ['enabled' => true, 'max_items' => 10, 'cache_ttl' => 60, 'cache_pool' => 'app.pool', 'breach_checker' => 'app.breach', 'policy_resolver' => 'app.policy', 'policy' => ['min_length' => 16, 'enforce_on_save' => true]],
+        ]);
+        self::assertContains('health', $container->getParameter('nowo_vault.enabled_optional_route_keys'));
+        self::assertSame('app.policy', (string) $container->getAlias(VaultPasswordPolicyResolverInterface::class));
+        $reporter = $container->getDefinition(VaultHealthReporter::class);
+        self::assertSame('app.breach', (string) $reporter->getArgument('$breachChecker'));
+        self::assertSame('app.pool', (string) $reporter->getArgument('$cache'));
+        self::assertSame(60, $reporter->getArgument('$cacheTtl'));
+        self::assertSame(10, $reporter->getArgument('$maxItems'));
+        $policy = $container->getDefinition(ConfigVaultPasswordPolicyResolver::class)->getArgument('$policy');
+        self::assertInstanceOf(Definition::class, $policy);
+        self::assertSame([16, 3, 365, true], $policy->getArguments());
+
+        // Without scopes the health route stays off (the services still work for the personal vault).
+        self::assertNotContains('health', $this->load(['health' => ['enabled' => true]])->getParameter('nowo_vault.enabled_optional_route_keys'));
+
+        foreach ([['health' => ['policy' => ['min_classes' => 5]]], ['health' => ['max_items' => 0]], ['health' => ['cache_ttl' => -1]]] as $invalid) {
+            try {
+                $this->process($invalid);
+                self::fail('Invalid health config accepted');
+            } catch (InvalidConfigurationException) {
+                self::addToAssertionCount(1);
+            }
+        }
     }
 
     /**

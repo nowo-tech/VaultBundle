@@ -46,8 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Scope-owned vaults, temporary grants, metadata catalogue, reveal / copy / attachment download (1.16.0 contract, gaps 1
-to 4). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
+Scope-owned vaults, temporary grants, metadata catalogue, reveal / copy / attachment download, password health and
+policies (1.16.0 contract, gaps 1 to 5). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
 
 ### Added
 
@@ -110,6 +110,24 @@ to 4). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
   `attachment.bin` fallback, RFC 5987 `filename*`). Before 1.16.0 an attachment could be uploaded but never retrieved.
 - **`vault.js`:** Copy button (clipboard, the value never enters the page), auto-hide of a revealed value, wipe when
   the tab is hidden or a dialog closes, attachment download, refuses an `encoding` other than `plain`.
+- **Password health (gap 5):** `VaultHealthReporterInterface` (`forScope($viewer, $scope, ?$policy)`,
+  `forPersonalVault($owner, ?$policy)`; server strategy `VaultHealthReporter`) → `VaultHealthReport` of
+  `VaultHealthItemResult` (item id, title, `weak` + `weakReasons` codes, `reuseGroup` local to the report, `old` +
+  `ageDays`, `breached`). Computed on demand in the request's process, over the owner's active login items the viewer
+  may View (the others are counted in `skipped` and never compared); reuse uses a per-run random HMAC key that is wiped
+  and never leaves the method; nothing is persisted. Weak uses `nowo-tech/password-strength-bundle`'s evaluator when
+  installed (plus the class count), else a built-in length / character-class check; old uses `secret_changed_at`
+  (falling back to `created_at`). Optional host `VaultBreachCheckerInterface` (`health.breach_checker`, null on failure).
+  `health.max_items` (2 000; `VaultHealthTooLargeException`, 413), optional per-viewer cache of the flags only
+  (`health.cache_ttl`, off). Scope access needs `VaultScopeAccess::$health` and the vetoable `HEALTH_ACCESS_CHECK`
+  (`VaultHealthAccessCheckEvent`); `HEALTH_REPORT_GENERATED` (`VaultHealthReportGeneratedEvent`, counts only). Route
+  `health` (`GET /tools/vault/scopes/{scope}/health`, with `scopes.enabled` and `health.enabled`), template
+  `vault/health.html.twig`.
+- **Password policies:** `VaultPasswordPolicy` (`minLength`, `minClasses`, `maxAgeDays`, `enforceOnSave`),
+  `VaultPasswordPolicyResolverInterface::forOwner(VaultOwner)` (default `ConfigVaultPasswordPolicyResolver` reads
+  `health.policy`; `health.policy_resolver` for a per-owner host resolver). With `enforceOnSave` the item form validates
+  a typed login password (`VaultPasswordPolicyConstraint`; an empty value keeps the stored one and is not re-validated;
+  the message names the missing rules, never the value).
 - `VaultItemRevealedEvent` gains `getPurpose()` (`reveal`, `copy`, `autofill`, `attachment`), `getOwnerKey()` and
   `getOccurredAt()`; the extension `/logins` events use purpose `autofill`.
 - `VaultAccessGuard::resolvePermissionMap($user, $items)` (constant number of queries per list) and

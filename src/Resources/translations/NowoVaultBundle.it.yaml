@@ -239,4 +239,14 @@ vault:
             min_length: troppo corta
             min_classes: pochi tipi di caratteri
             empty: nessuna password
+            max_length: 'troppo lunga'
+            require_lowercase: 'nessuna minuscola'
+            require_uppercase: 'nessuna maiuscola'
+            require_digit: 'nessuna cifra'
+            require_special: 'nessun simbolo'
+            disallow_whitespace: 'contiene spazi'
+            not_contain: 'contiene una parola vietata'
+            min_unique_chars: 'pochi caratteri diversi'
+            regex: 'non rispetta il formato richiesto'
+            pattern: 'non rispetta il formato richiesto'
         too_large: Troppe voci per un report immediato.

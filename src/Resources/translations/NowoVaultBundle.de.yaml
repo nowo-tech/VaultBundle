@@ -239,4 +239,14 @@ vault:
             min_length: zu kurz
             min_classes: zu wenige Zeichenarten
             empty: kein Passwort
+            max_length: 'zu lang'
+            require_lowercase: 'kein Kleinbuchstabe'
+            require_uppercase: 'kein Großbuchstabe'
+            require_digit: 'keine Ziffer'
+            require_special: 'kein Sonderzeichen'
+            disallow_whitespace: 'enthält Leerzeichen'
+            not_contain: 'enthält ein verbotenes Wort'
+            min_unique_chars: 'zu wenige verschiedene Zeichen'
+            regex: 'entspricht nicht dem geforderten Muster'
+            pattern: 'entspricht nicht dem geforderten Muster'
         too_large: Zu viele Einträge für einen Sofortbericht.

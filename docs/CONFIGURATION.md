@@ -30,6 +30,7 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 - [Temporary grants (`grants.temporary`)](#temporary-grants-grantstemporary)
 - [Catalogue (`catalogue`)](#catalogue-catalogue)
 - [Reveal (`reveal`)](#reveal-reveal)
+- [Password health (`health`)](#password-health-health)
 
 ## Required
 
@@ -440,3 +441,23 @@ discloses.
 
 Over a limit the route answers 429 with `Retry-After`, logs a warning and dispatches `REVEAL_THROTTLED`.
 
+## Password health (`health`)
+
+Since 1.16.0. YAML only.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `health.enabled` | `false` | Registers the `health` route (`/tools/vault/scopes/{scope}/health`). Needs `scopes.enabled`. `VaultHealthReporterInterface` works without it (e.g. `forPersonalVault()` from a host page) |
+| `health.max_items` | `2000` | Login items above which a report is refused (`VaultHealthTooLargeException`, 413 on the route) |
+| `health.cache_ttl` | `0` | Seconds a report is cached per viewer; `0` = never. Only the flags, titles and group numbers are cached, never a value or a fingerprint |
+| `health.cache_pool` | `cache.app` | PSR-6 pool of that cache |
+| `health.breach_checker` | `null` | Service id implementing `VaultBreachCheckerInterface` (`isBreached(#[SensitiveParameter] string): ?bool`). Use a k-anonymity range API: never send the password or its full hash |
+| `health.policy_resolver` | `null` | Service id implementing `VaultPasswordPolicyResolverInterface` (`forOwner(VaultOwner): ?VaultPasswordPolicy`). Null = `health.policy` for every owner |
+| `health.policy.min_length` | `12` | Shorter passwords are weak |
+| `health.policy.min_classes` | `3` | Character classes required (1–4: lowercase, uppercase, digits, symbols) |
+| `health.policy.max_age_days` | `365` | A password whose secret last changed earlier is *old* |
+| `health.policy.enforce_on_save` | `false` | Validate typed login passwords in the item form (create, and edit when a new value is typed) |
+
+Scope reports need `VaultScopeAccess::$health` (host resolver) and a `HEALTH_ACCESS_CHECK` that is not denied. They
+cover the scope's active login items **the viewer may View**; the others are counted as *without access* and never
+compared, so a report cannot say that a password equals one the viewer cannot open.
