@@ -444,7 +444,7 @@ final class VaultManageController extends AbstractController
         /** @var UserInterface $user */
         $user   = $this->getUser();
         $userId = UserIdResolver::getId($user);
-        if ($this->secretAccessRateLimiter instanceof VaultSecretAccessRateLimiter && !$this->secretAccessRateLimiter->consume(VaultSecretAccessRateLimiter::CHANNEL_WEB, $userId ?? '')) {
+        if ($this->secretAccessRateLimiter instanceof VaultSecretAccessRateLimiter && !$this->secretAccessRateLimiter->consume($user)) {
             return new JsonResponse(['error' => 'Too many requests.'], Response::HTTP_TOO_MANY_REQUESTS, [
                 'Retry-After' => (string) $this->secretAccessRateLimiter->getWindowSeconds(),
             ]);

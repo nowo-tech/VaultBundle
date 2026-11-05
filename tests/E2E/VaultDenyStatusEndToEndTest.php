@@ -85,7 +85,7 @@ final class VaultDenyStatusEndToEndTest extends WebTestCase
         self::assertSame([], self::getContainer()->get(VaultGrantRepositoryInterface::class)->findByResource(VaultResourceType::Item, $item->getId()));
     }
 
-    public function testSecretAccessIsRateLimitedPerUser(): void
+    public function testRevealAndExtensionLoginsShareOneSecretAccessBudgetPerUser(): void
     {
         $client = $this->bootClient();
         $alice  = $this->createUser('alice@example.com');
@@ -94,19 +94,24 @@ final class VaultDenyStatusEndToEndTest extends WebTestCase
         $client->loginUser($alice);
         $token = $this->csrf($client, 'vault_reveal_' . $item->getId());
 
-        foreach ([Response::HTTP_OK, Response::HTTP_OK, Response::HTTP_TOO_MANY_REQUESTS] as $status) {
-            $client->request('POST', '/tools/vault/items/' . $item->getId() . '/reveal/password', server: ['HTTP_X_CSRF_TOKEN' => $token]);
-            self::assertResponseStatusCodeSame($status);
-        }
-        self::assertSame('60', $client->getResponse()->headers->get('Retry-After'));
-
         $client->request('POST', '/api/vault/extension/login', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode(['username' => 'alice@example.com', 'password' => 'secret'], JSON_THROW_ON_ERROR));
         /** @var array{token: string} $login */
         $login = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        foreach ([Response::HTTP_OK, Response::HTTP_OK, Response::HTTP_TOO_MANY_REQUESTS] as $status) {
-            $client->request('GET', '/api/vault/extension/logins?domain=example.com', server: ['HTTP_AUTHORIZATION' => 'Bearer ' . $login['token']]);
-            self::assertResponseStatusCodeSame($status);
-        }
+
+        // Budget 2: one reveal and one /logins call spend it, whatever the channel.
+        $client->request('POST', '/tools/vault/items/' . $item->getId() . '/reveal/password', server: ['HTTP_X_CSRF_TOKEN' => $token]);
+        self::assertResponseIsSuccessful();
+        self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
+        $client->request('GET', '/api/vault/extension/logins?domain=example.com', server: ['HTTP_AUTHORIZATION' => 'Bearer ' . $login['token']]);
+        self::assertResponseIsSuccessful();
+        self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
+
+        $client->request('POST', '/tools/vault/items/' . $item->getId() . '/reveal/password', server: ['HTTP_X_CSRF_TOKEN' => $token]);
+        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
         self::assertSame('60', $client->getResponse()->headers->get('Retry-After'));
+        $client->request('GET', '/api/vault/extension/logins?domain=example.com', server: ['HTTP_AUTHORIZATION' => 'Bearer ' . $login['token']]);
+        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
+        self::assertSame('60', $client->getResponse()->headers->get('Retry-After'));
+        self::assertSame('no-store, private', $client->getResponse()->headers->get('Cache-Control'));
     }
 }

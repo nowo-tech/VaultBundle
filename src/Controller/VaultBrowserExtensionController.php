@@ -98,9 +98,10 @@ final readonly class VaultBrowserExtensionController
             return $this->responseFactory->json(['error' => 'domain query parameter is required.'], Response::HTTP_BAD_REQUEST, $request);
         }
 
-        // 1.15.2: /logins returns decrypted passwords, so it shares the per-user secret-access budget with the reveal route.
+        // 1.15.2: /logins returns decrypted passwords, so it shares the per-user secret-access budget with the reveal route
+        // (one unit per request, whatever the number of credentials it returns; one audit event per credential).
         $userId = UserIdResolver::getId($user);
-        if ($this->secretAccessRateLimiter instanceof VaultSecretAccessRateLimiter && !$this->secretAccessRateLimiter->consume(VaultSecretAccessRateLimiter::CHANNEL_EXTENSION, $userId ?? '')) {
+        if ($this->secretAccessRateLimiter instanceof VaultSecretAccessRateLimiter && !$this->secretAccessRateLimiter->consume($user)) {
             $response = $this->responseFactory->json(['error' => 'Too many requests. Try again later.'], Response::HTTP_TOO_MANY_REQUESTS, $request);
             // @igor-ignore - Fresh per-request Response built just above; not shared worker state.
             $response->headers->set('Retry-After', (string) $this->secretAccessRateLimiter->getWindowSeconds());

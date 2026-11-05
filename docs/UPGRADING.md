@@ -88,14 +88,14 @@ nowo_vault:
 nowo_vault:
     security:
         deny_status: 403                 # or 404: inaccessible items, folders, grants and fields answer "not found"
-        secret_access_rate_limit:        # reveal route + browser extension /logins, per user
+        secret_access_rate_limit:        # ONE budget per user shared by the reveal route and extension /logins (1 unit per call)
             enabled: true
             max_requests: 60
             window_seconds: 60
-            cache_pool: cache.app
+            cache_pool: cache.app            # must be shared by all workers and persistent (not an array pool)
 ```
 
-**Cache headers.** Every bundle response now has `Cache-Control: no-store, private` and `Pragma: no-cache`. Browsers no longer keep vault pages in the back/forward cache.
+**Cache headers.** Every bundle response now has `Cache-Control: no-store, private`, `Pragma: no-cache` and `X-Content-Type-Options: nosniff`. Browsers no longer keep vault pages in the back/forward cache.
 
 **Audit.** Listen to `VaultEvents::ITEM_REVEALED` (`VaultItemRevealedEvent`) to record who revealed which field (channel `web`) and which credentials the browser extension received (channel `extension`). The event never carries a value.
 

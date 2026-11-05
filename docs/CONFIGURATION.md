@@ -62,7 +62,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 | `security.allow_unauthenticated` | `false` | DEV/DEMO only — wires AllowAll checker; production MUST keep `false` |
 | `security.deny_status` | `403` | Status of a permission denial on an item / folder (view, edit, share, grant revoke, field reveal): `403`, or `404` so an id never confirms that the resource exists |
 | `security.allow_unlisted_grantees` | `false` | **UNSAFE when true** (pre-1.15.2 behaviour): without a `GRANT_LIST_QUERY` listener, any typed user / team id can be granted. `false` = nobody can be granted until a listener lists grantees |
-| `security.secret_access_rate_limit` | enabled, `60` per `60` s, `cache.app` | Per-user fixed window on requests that return decrypted secrets: the `item_reveal` route and the browser extension `/logins` (429 + `Retry-After`) |
+| `security.secret_access_rate_limit` | enabled, `60` per `60` s, `cache.app` | Per-user fixed window on requests that return decrypted secrets: the `item_reveal` route and the browser extension `/logins` share **one** budget (429 + `Retry-After`). Each reveal and each `/logins` call costs one unit, whatever the number of credentials `/logins` returns (up to `browser_extension.max_login_items`; each one dispatches `ITEM_REVEALED`). Keyed by user id, or by user identifier when the user object has no id. `cache_pool` must be shared by every PHP process / worker and persistent (e.g. `cache.app` on Redis or a shared filesystem): an array or per-process pool gives each process its own counter. Best effort: concurrent requests can slightly exceed the budget (non-atomic read-modify-write) |
 
 Manage UI requires `symfony/security-bundle` when `allow_unauthenticated` is `false`.
 
