@@ -19,6 +19,7 @@ use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultHealthAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultHealthReportGeneratedEvent;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultHealthThrottledException;
 use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultScopeItemRepositoryInterface;
@@ -185,6 +186,52 @@ final class VaultHealthReporterTest extends TestCase
         }
     }
 
+    public function testThrottleAndBreachCacheKeyedByItemNotValue(): void
+    {
+        // SEC-004 FQ-I2: one computed report per viewer and owner per window; breach answers cached per item + change.
+        $breached = $this->item('Breached', 'Password-123!');
+        $this->item('Fine', $this->marker);
+        $this->item('Failing', 'Failing-Checker-1');
+        $checker = new class implements VaultBreachCheckerInterface {
+            public int $calls = 0;
+
+            public function isBreached(#[SensitiveParameter] string $password): bool
+            {
+                ++$this->calls;
+                if ($password === 'Failing-Checker-1') {
+                    throw new RuntimeException('range API down');
+                }
+
+                return $password === 'Password-123!';
+            }
+        };
+        $cache    = new ArrayAdapter();
+        $reporter = new VaultHealthReporter($this->scopeRepository(), $this->guard(), $this->crypto(), $this->dispatcher, new ConfigVaultPasswordPolicyResolver(), $checker, null, $cache, 0, 2000, $this->clock, $this->logger, 10, 3600);
+
+        $reporter->forScope(new TestUser('1'), self::SCOPE);
+        self::assertSame(3, $checker->calls);
+        try {
+            $reporter->forScope(new TestUser('1'), self::SCOPE);
+            self::fail('Throttled within the window.');
+        } catch (VaultHealthThrottledException $exception) {
+            self::assertSame(10, $exception->getRetryAfter());
+        }
+        // Another viewer is not throttled, and the cached breach answers (not the failure) are reused.
+        $this->members['2'][self::SCOPE] = new VaultScopeAccess(VaultPermission::Admin, health: true);
+        $reporter->forScope(new TestUser('2'), self::SCOPE);
+        self::assertSame(4, $checker->calls, 'Only the failed lookup is retried.');
+
+        // After the window: allowed again; a secret change invalidates that item's breach answer.
+        $this->clock->modify('+11 seconds');
+        $breached->markSecretChanged($this->clock->now());
+        self::assertTrue($this->byTitle($reporter->forScope(new TestUser('1'), self::SCOPE)->items)['Breached']->breached);
+        self::assertSame(6, $checker->calls);
+        foreach ($cache->getValues() as $key => $value) {
+            self::assertStringNotContainsString($this->marker, $key . serialize($value));
+            self::assertStringNotContainsString('Password-123!', $key . serialize($value));
+        }
+    }
+
     public function testSizeLimitAndAccessChecks(): void
     {
         $this->item('A', 'x');
@@ -330,11 +377,8 @@ final class VaultHealthReporterTest extends TestCase
 
     private function reporter(?VaultBreachCheckerInterface $breachChecker = null, ?ArrayAdapter $cache = null, int $maxItems = 2000, ?object $evaluator = null): VaultHealthReporter
     {
-        $repository = $this->createStubForIntersectionOfInterfaces([VaultItemRepositoryInterface::class, VaultScopeItemRepositoryInterface::class]);
-        $repository->method('findActiveByScope')->willReturnCallback(fn (): array => $this->items);
-
         return new VaultHealthReporter(
-            $repository,
+            $this->scopeRepository(),
             $this->guard(),
             $this->crypto(),
             $this->dispatcher,
@@ -347,5 +391,13 @@ final class VaultHealthReporterTest extends TestCase
             $this->clock,
             $this->logger,
         );
+    }
+
+    private function scopeRepository(): VaultItemRepositoryInterface
+    {
+        $repository = $this->createStubForIntersectionOfInterfaces([VaultItemRepositoryInterface::class, VaultScopeItemRepositoryInterface::class]);
+        $repository->method('findActiveByScope')->willReturnCallback(fn (): array => $this->items);
+
+        return $repository;
     }
 }

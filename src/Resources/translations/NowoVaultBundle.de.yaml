@@ -261,3 +261,4 @@ vault:
             regex: 'entspricht nicht dem geforderten Muster'
             pattern: 'entspricht nicht dem geforderten Muster'
         too_large: Zu viele Einträge für einen Sofortbericht.
+        throttled: 'Ein neuer Bericht kann in einigen Sekunden berechnet werden.'

@@ -10,9 +10,12 @@ use Nowo\VaultBundle\Dto\VaultCatalogueQuery;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
+use Nowo\VaultBundle\Entity\VaultTag;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
+use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultHealthThrottledException;
 use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
@@ -44,6 +47,8 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_filter;
+use function array_values;
 use function base64_encode;
 use function in_array;
 use function max;
@@ -107,7 +112,12 @@ final class VaultScopeController extends AbstractController
         $access  = $result['access'];
         $folders = $this->folderService->listForScope($scope);
         $tags    = $this->tagService->listForScope($scope);
-        $search  = $this->createForm(VaultItemSearchType::class, ['q' => $searchQuery], [
+        if ($result['visible'] !== null) {
+            // Grants only (SEC-004 FQ-L1): folder and tag names are scope metadata; show only those of items the
+            // member may View (and the folders' ancestors), plus folders the member administers through a grant.
+            [$folders, $tags] = $this->visibleFoldersAndTags($user, $folders, $tags, $result['visible']);
+        }
+        $search = $this->createForm(VaultItemSearchType::class, ['q' => $searchQuery], [
             'action'  => $this->generateUrl($routes['scope_items']['name'], ['scope' => $scope]),
             'filters' => ['folder' => $folderId, 'tag' => $tagId],
         ])->createView();
@@ -195,6 +205,8 @@ final class VaultScopeController extends AbstractController
             $report = ($this->healthReporter ?? throw new LogicException('The scope health page needs the VaultHealthReporterInterface service.'))->forScope($user, $scope);
         } catch (VaultAccessDeniedException) {
             throw $this->denied();
+        } catch (VaultHealthThrottledException $exception) {
+            throw new HttpException(Response::HTTP_TOO_MANY_REQUESTS, $this->translator->trans('vault.health.throttled', [], 'NowoVaultBundle'), null, ['Retry-After' => (string) $exception->getRetryAfter()]);
         } catch (VaultHealthTooLargeException) {
             throw new HttpException(Response::HTTP_REQUEST_ENTITY_TOO_LARGE, $this->translator->trans('vault.health.too_large', [], 'NowoVaultBundle'));
         }
@@ -320,6 +332,35 @@ final class VaultScopeController extends AbstractController
     /**
      * Permission denial in a scope: 403, or 404 with security.deny_status: 404 (a scope never confirms it exists).
      */
+    /**
+     * Folders and tags a grants-only member may see: those of the items they may View (folders with their ancestors),
+     * and the folders they may Share (admin grant on the folder).
+     *
+     * @param list<VaultFolder> $folders
+     * @param list<VaultTag> $tags
+     * @param list<VaultItem> $visible
+     *
+     * @return array{0: list<VaultFolder>, 1: list<VaultTag>}
+     */
+    private function visibleFoldersAndTags(UserInterface $user, array $folders, array $tags, array $visible): array
+    {
+        $folderIds = [];
+        $tagIds    = [];
+        foreach ($visible as $item) {
+            for ($folder = $item->getFolder(); $folder instanceof VaultFolder && !isset($folderIds[$folder->getId()]); $folder = $folder->getParent()) {
+                $folderIds[$folder->getId()] = true;
+            }
+            foreach ($item->getTags() as $tag) {
+                $tagIds[$tag->getId()] = true;
+            }
+        }
+
+        return [
+            array_values(array_filter($folders, fn (VaultFolder $folder): bool => isset($folderIds[$folder->getId()]) || $this->accessGuard->canAccessFolder($user, $folder, VaultAccessAction::Share))),
+            array_values(array_filter($tags, static fn (VaultTag $tag): bool => isset($tagIds[$tag->getId()]))),
+        ];
+    }
+
     private function denied(): HttpException|AccessDeniedException
     {
         return $this->denyStatus === Response::HTTP_NOT_FOUND

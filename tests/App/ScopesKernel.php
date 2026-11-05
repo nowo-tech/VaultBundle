@@ -54,7 +54,7 @@ final class ScopesKernel extends BaseKernel
                 'grants'    => ['temporary' => ['ui' => true, 'max_permission' => 'write']],
                 'catalogue' => ['enabled' => true],
                 'reveal'    => ['rate_limit' => ['cache_pool' => 'test.vault_secret_access_cache']],
-                'health'    => ['enabled' => true, 'max_items' => 3, 'policy' => ['enforce_on_save' => true]],
+                'health'    => ['enabled' => true, 'max_items' => 3, 'cache_pool' => 'test.vault_secret_access_cache', 'policy' => ['enforce_on_save' => true]],
                 'export'    => ['enabled' => true, 'reauth_checker' => TestReauthChecker::class, 'max_items' => 5, 'cache_pool' => 'test.vault_secret_access_cache'],
             ]);
             // Profiles of every request, to prove that the routes returning decrypted values store none.

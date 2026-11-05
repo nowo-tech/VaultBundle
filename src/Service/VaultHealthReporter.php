@@ -15,6 +15,7 @@ use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultHealthAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultHealthReportGeneratedEvent;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultHealthThrottledException;
 use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
@@ -44,6 +45,8 @@ use function implode;
 use function in_array;
 use function intdiv;
 use function is_array;
+use function is_bool;
+use function is_int;
 use function is_object;
 use function is_string;
 use function max;
@@ -86,6 +89,10 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
         private int $maxItems = 2000,
         private ?ClockInterface $clock = null,
         private ?LoggerInterface $logger = null,
+        /** health.min_interval_seconds: one computed report per viewer and owner per window (0 = none; SEC-004 FQ-I2). */
+        private int $minIntervalSeconds = 0,
+        /** health.breach_cache_ttl: seconds a breach answer is kept per item and secret change (0 = never). */
+        private int $breachCacheTtl = 0,
     ) {
     }
 
@@ -152,14 +159,14 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
         if ($cache instanceof CacheItemPoolInterface) {
             $cacheItem = $cache->getItem($this->cacheKey($viewer, $owner, $items, $skipped, $policy));
             $cached    = $cacheItem->isHit() ? $cacheItem->get() : null;
-            $report    = $cached instanceof VaultHealthReport ? $cached : $this->compute($owner, $items, $skipped, $policy);
+            $report    = $cached instanceof VaultHealthReport ? $cached : $this->compute($viewer, $owner, $items, $skipped, $policy);
             if (!$cached instanceof VaultHealthReport) {
                 $cacheItem->set($report);
                 $cacheItem->expiresAfter($this->cacheTtl);
                 $cache->save($cacheItem);
             }
         } else {
-            $report = $this->compute($owner, $items, $skipped, $policy);
+            $report = $this->compute($viewer, $owner, $items, $skipped, $policy);
         }
 
         $actorId = UserIdResolver::getId($viewer);
@@ -190,8 +197,9 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
     /**
      * @param list<VaultItem> $items
      */
-    private function compute(VaultOwner $owner, array $items, int $skipped, VaultPasswordPolicy $policy): VaultHealthReport
+    private function compute(UserInterface $viewer, VaultOwner $owner, array $items, int $skipped, VaultPasswordPolicy $policy): VaultHealthReport
     {
+        $this->throttle($viewer, $owner);
         $now          = $this->clock?->now() ?? new DateTimeImmutable();
         $key          = random_bytes(32);
         $fingerprints = [];
@@ -212,7 +220,7 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
             $passwords[$item->getId()]    = $item;
             $fingerprints[$item->getId()] = $password === '' ? null : hash_hmac('sha256', $password, $key);
             $weak[$item->getId()]         = $this->weakReasons($password, $policy);
-            $breached[$item->getId()]     = $password === '' ? null : $this->breached($password);
+            $breached[$item->getId()]     = $password === '' ? null : $this->breached($item, $password);
             // Best effort: wipe the plaintext copies held by this method.
             sodium_memzero($password);
             if (is_string($payload['password'] ?? null)) {
@@ -292,17 +300,62 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
         return $reasons;
     }
 
-    private function breached(#[SensitiveParameter] string $password): ?bool
+    /**
+     * Breach answer of the host checker, cached per item id and secret change (never keyed by anything derived from the
+     * value) when `health.breach_cache_ttl` > 0; failures (null) are not cached.
+     */
+    private function breached(VaultItem $item, #[SensitiveParameter] string $password): ?bool
     {
         if (!$this->breachChecker instanceof VaultBreachCheckerInterface) {
             return null;
         }
 
+        $cache     = $this->breachCacheTtl > 0 ? $this->cache : null;
+        $cacheItem = null;
+        if ($cache instanceof CacheItemPoolInterface) {
+            $changed   = ($item->getSecretChangedAt() ?? $item->getCreatedAt())->getTimestamp();
+            $cacheItem = $cache->getItem('nowo_vault_breach_' . hash('sha256', $item->getId() . '|' . $changed));
+            if ($cacheItem->isHit() && is_bool($cacheItem->get())) {
+                return $cacheItem->get();
+            }
+        }
+
         try {
-            return $this->breachChecker->isBreached($password);
+            $breached = $this->breachChecker->isBreached($password);
         } catch (Throwable) {
             return null;
         }
+
+        if ($cache instanceof CacheItemPoolInterface && $breached !== null) {
+            $cacheItem->set($breached);
+            $cacheItem->expiresAfter($this->breachCacheTtl);
+            $cache->save($cacheItem);
+        }
+
+        return $breached;
+    }
+
+    /**
+     * One computed report per viewer and owner per `health.min_interval_seconds` (cached reports are not counted).
+     *
+     * @throws VaultHealthThrottledException
+     */
+    private function throttle(UserInterface $viewer, VaultOwner $owner): void
+    {
+        if (!$this->cache instanceof CacheItemPoolInterface || $this->minIntervalSeconds <= 0) {
+            return;
+        }
+
+        $now   = ($this->clock?->now() ?? new DateTimeImmutable())->getTimestamp();
+        $slot  = $this->cache->getItem('nowo_vault_health_throttle_' . hash('sha256', (UserIdResolver::getId($viewer) ?? $viewer->getUserIdentifier()) . '|' . $owner->key()));
+        $until = $slot->isHit() ? $slot->get() : null;
+        if (is_int($until) && $until > $now) {
+            throw new VaultHealthThrottledException($until - $now);
+        }
+
+        $slot->set($now + $this->minIntervalSeconds);
+        $slot->expiresAfter($this->minIntervalSeconds);
+        $this->cache->save($slot);
     }
 
     /**

@@ -132,7 +132,7 @@ Scope admins can keep an item out of the catalogue with *Hide from the catalogue
 ## Reveal, copy and attachments
 
 Secret fields are never in the page (1.15.2). The item page offers, per stored secret field, **Show** (the value
-stays `reveal.auto_hide_seconds` in the input, then disappears) and **Copy** (written to the clipboard, never into the
+stays `reveal.auto_hide_seconds` in the input, then disappears) and **Copy** (written to the clipboard, where it stays until something else is copied; never into the
 page), and for documents with a stored file a **Download attachment** button. All three are POST requests with the
 `vault_reveal_<item id>` CSRF token in `X-CSRF-Token`, checked for View access, vetoable per field
 (`ITEM_FIELD_REVEAL_CHECK`), rate limited, and audited **before** the value leaves (`ITEM_REVEALED`, `ITEM_COPIED`,
@@ -150,7 +150,8 @@ Read `value` only when `encoding` is `plain`.
 With `scopes.enabled` and `health.enabled`, members whose `VaultScopeAccess::$health` is true (and whom no
 `HEALTH_ACCESS_CHECK` listener denies) open `/tools/vault/scopes/{scope}/health`: per login item they may View, *Weak*
 (with the missing rules), *Reused (group n)*, *Old (n days)* and *Breached* (only with `health.breach_checker`). The
-report is computed now, in memory, and stores nothing; items they cannot View are only counted. Hosts call the service
+report is computed now, in memory, and stores nothing; items they cannot View are only counted. Every computed report
+decrypts each examined password, so it is limited to one per viewer and owner per `health.min_interval_seconds`. Hosts call the service
 directly, for example for the personal vault:
 
 ```php

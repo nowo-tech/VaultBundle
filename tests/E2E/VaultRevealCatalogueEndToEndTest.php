@@ -18,6 +18,7 @@ use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
 use Nowo\VaultBundle\Event\VaultRevealThrottledEvent;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
+use Nowo\VaultBundle\Service\VaultBrowserExtensionLoginResolver;
 use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Service\VaultItemCreator;
@@ -40,6 +41,7 @@ use Symfony\Contracts\EventDispatcher\Event;
 use function base64_encode;
 use function bin2hex;
 use function json_decode;
+use function json_encode;
 use function random_bytes;
 use function rawurlencode;
 use function serialize;
@@ -144,6 +146,41 @@ final class VaultRevealCatalogueEndToEndTest extends WebTestCase
         $client->request('POST', '/tools/vault/items/' . $item->getId() . '/reveal/cardNumber', server: ['HTTP_X_CSRF_TOKEN' => $token]);
         self::assertResponseStatusCodeSame(Response::HTTP_SERVICE_UNAVAILABLE);
         self::assertStringNotContainsString('4111', (string) $client->getResponse()->getContent());
+    }
+
+    public function testTheFieldVetoAlsoAppliesToTheExtensionLogins(): void
+    {
+        // SEC-004 FQ-L2: a host veto on `password` hides it from /logins too (web: 404; extension: sent empty).
+        $this->bootRevealClient();
+        $alice  = $this->createUser('alice@example.com');
+        $bob    = $this->createUser('bob@example.com');
+        $marker = $this->marker();
+        $item   = $this->createItem($alice, 'Mail', VaultItemType::Login, ['username' => 'ops', 'password' => $marker, 'websites' => ['https://mail.example']]);
+        self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        $checks = [];
+        $this->onEvent(VaultEvents::ITEM_FIELD_REVEAL_CHECK, static function (VaultFieldRevealCheckEvent $event) use (&$checks, $alice): void {
+            $checks[] = [$event->getField(), $event->getPurpose(), $event->getChannel()];
+            if ($event->getUser()->getUserIdentifier() !== $alice->getUserIdentifier()) {
+                $event->deny();
+            }
+        });
+        $resolver = self::getContainer()->get(VaultBrowserExtensionLoginResolver::class);
+
+        $forBob = $resolver->resolveForDomain($this->managed($bob), 'mail.example');
+        self::assertCount(1, $forBob);
+        self::assertSame('', $forBob[0]->password);
+        self::assertTrue($forBob[0]->passwordWithheld);
+        self::assertSame('ops', $forBob[0]->username);
+        self::assertSame(['username', 'websites'], $forBob[0]->revealedFields());
+        self::assertStringNotContainsString($marker, json_encode($forBob[0]->toArray(), JSON_THROW_ON_ERROR));
+        self::assertSame([['password', 'autofill', 'extension']], $checks);
+
+        $forAlice = $resolver->resolveForDomain($this->managed($alice), 'mail.example');
+        self::assertSame($marker, $forAlice[0]->password);
+        self::assertFalse($forAlice[0]->passwordWithheld);
+        self::assertSame(['username', 'password', 'websites'], $forAlice[0]->revealedFields());
+        // SEC-004 FQ-I5: the autofill audit event gets the owner key.
+        self::assertSame('user:' . $alice->getId(), $forAlice[0]->ownerKey);
     }
 
     public function testUndecryptablePayloadAnswers503WithAGenericMessage(): void

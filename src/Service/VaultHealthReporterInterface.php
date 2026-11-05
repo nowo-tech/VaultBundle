@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Service;
 use Nowo\VaultBundle\Dto\VaultHealthReport;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultHealthThrottledException;
 use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -21,6 +22,7 @@ interface VaultHealthReporterInterface
      *
      * @throws VaultAccessDeniedException when the viewer has no `health` in the scope or HEALTH_ACCESS_CHECK denies
      * @throws VaultHealthTooLargeException above `health.max_items`
+     * @throws VaultHealthThrottledException within `health.min_interval_seconds` of the viewer's last computed report
      */
     public function forScope(UserInterface $viewer, string $scope, ?VaultPasswordPolicy $policy = null): VaultHealthReport;
 
@@ -28,6 +30,7 @@ interface VaultHealthReporterInterface
      * Report over the owner's personal login items.
      *
      * @throws VaultHealthTooLargeException above `health.max_items`
+     * @throws VaultHealthThrottledException within `health.min_interval_seconds` of the owner's last computed report
      */
     public function forPersonalVault(UserInterface $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport;
 }

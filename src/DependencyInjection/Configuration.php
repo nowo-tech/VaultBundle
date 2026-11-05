@@ -322,6 +322,8 @@ final class Configuration implements ConfigurationInterface
                         ->booleanNode('enabled')->info('Registers the scope health route (needs scopes.enabled). The services work without it.')->defaultFalse()->end()
                         ->integerNode('max_items')->info('Login items above which a report is refused (413).')->defaultValue(2000)->min(1)->end()
                         ->integerNode('cache_ttl')->info('Seconds a report (flags only, per viewer) is cached; 0 = never cached.')->defaultValue(0)->min(0)->end()
+                        ->integerNode('min_interval_seconds')->info('One computed report per viewer and owner per window (each report decrypts every examined password); 0 = no limit.')->defaultValue(10)->min(0)->end()
+                        ->integerNode('breach_cache_ttl')->info('Seconds a breach-checker answer is kept per item and secret change (keyed by item id, never by the value); 0 = never.')->defaultValue(86400)->min(0)->end()
                         ->scalarNode('cache_pool')->defaultValue('cache.app')->cannotBeEmpty()->end()
                         ->scalarNode('breach_checker')->info('Service id implementing VaultBreachCheckerInterface (e.g. a k-anonymity range API). Null = no breach check.')->defaultNull()->end()
                         ->scalarNode('policy_resolver')->info('Service id implementing VaultPasswordPolicyResolverInterface. Null = health.policy for every owner.')->defaultNull()->end()

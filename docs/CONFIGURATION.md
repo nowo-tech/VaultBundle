@@ -451,7 +451,9 @@ Since 1.16.0. YAML only.
 | `health.enabled` | `false` | Registers the `health` route (`/tools/vault/scopes/{scope}/health`). Needs `scopes.enabled`. `VaultHealthReporterInterface` works without it (e.g. `forPersonalVault()` from a host page) |
 | `health.max_items` | `2000` | Login items above which a report is refused (`VaultHealthTooLargeException`, 413 on the route) |
 | `health.cache_ttl` | `0` | Seconds a report is cached per viewer; `0` = never. Only the flags, titles and group numbers are cached, never a value or a fingerprint |
-| `health.cache_pool` | `cache.app` | PSR-6 pool of that cache |
+| `health.min_interval_seconds` | `10` | One **computed** report per viewer and owner per window (429 + `Retry-After` on the route, `VaultHealthThrottledException` for direct calls); `0` = no limit. Every computed report decrypts each examined password and may call the breach checker once per password |
+| `health.breach_cache_ttl` | `86400` | Seconds a breach-checker answer is kept per item and secret change (keyed by the item id and `secret_changed_at`, never by the value; failures are not cached); `0` = never |
+| `health.cache_pool` | `cache.app` | PSR-6 pool of the report cache, the throttle and the breach answers; share it between workers |
 | `health.breach_checker` | `null` | Service id implementing `VaultBreachCheckerInterface` (`isBreached(#[SensitiveParameter] string): ?bool`). Use a k-anonymity range API: never send the password or its full hash |
 | `health.policy_resolver` | `null` | Service id implementing `VaultPasswordPolicyResolverInterface` (`forOwner(VaultOwner): ?VaultPasswordPolicy`). Null = `health.policy` for every owner |
 | `health.policy.min_length` | `12` | Shorter passwords are weak |

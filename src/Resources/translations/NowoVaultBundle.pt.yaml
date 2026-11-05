@@ -261,3 +261,4 @@ vault:
             regex: 'não cumpre o formato exigido'
             pattern: 'não cumpre o formato exigido'
         too_large: Demasiadas entradas para um relatório imediato.
+        throttled: 'Poderá calcular um novo relatório dentro de alguns segundos.'

@@ -61,8 +61,9 @@ final class VaultHealthEndToEndTest extends WebTestCase
     public function testHealthPageShowsFlagsOnlyForVisibleItems(): void
     {
         $client = $this->bootClient();
-        $alice  = $this->createUser('alice@example.com');
-        $bob    = $this->createUser('bob@example.com');
+        self::getContainer()->get('test.vault_secret_access_cache')->clear();
+        $alice = $this->createUser('alice@example.com');
+        $bob   = $this->createUser('bob@example.com');
         $this->member($alice, new VaultScopeAccess(VaultPermission::Admin, health: true, create: true));
         // Bob audits, but sees only what he was granted.
         $this->member($bob, new VaultScopeAccess(null, health: true));
@@ -106,8 +107,9 @@ final class VaultHealthEndToEndTest extends WebTestCase
     public function testHealthAccessChecksAndSizeLimit(): void
     {
         $client = $this->bootClient();
-        $alice  = $this->createUser('alice@example.com');
-        $carol  = $this->createUser('carol@example.com');
+        self::getContainer()->get('test.vault_secret_access_cache')->clear();
+        $alice = $this->createUser('alice@example.com');
+        $carol = $this->createUser('carol@example.com');
         $this->member($alice, new VaultScopeAccess(VaultPermission::Admin, health: true, create: true));
         $this->member($carol, new VaultScopeAccess(VaultPermission::Admin));
 
@@ -138,6 +140,26 @@ final class VaultHealthEndToEndTest extends WebTestCase
         }
         $client->request('GET', '/tools/vault/scopes/' . self::SCOPE . '/health');
         self::assertResponseStatusCodeSame(Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+    }
+
+    public function testHealthIsThrottledPerViewer(): void
+    {
+        // SEC-004 FQ-I2: each report decrypts every examined password; one computed report per viewer per 10 s.
+        $client = $this->bootClient();
+        self::getContainer()->get('test.vault_secret_access_cache')->clear();
+        $alice = $this->createUser('alice@example.com');
+        $this->member($alice, new VaultScopeAccess(VaultPermission::Admin, health: true, create: true));
+        $client->loginUser($alice);
+
+        $client->request('GET', '/tools/vault/scopes/' . self::SCOPE . '/health');
+        self::assertResponseIsSuccessful();
+        $client->request('GET', '/tools/vault/scopes/' . self::SCOPE . '/health');
+        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
+        self::assertSame('10', $client->getResponse()->headers->get('Retry-After'));
+
+        (new StaticTestClock())->modify('+11 seconds');
+        $client->request('GET', '/tools/vault/scopes/' . self::SCOPE . '/health');
+        self::assertResponseIsSuccessful();
     }
 
     public function testPolicyIsEnforcedOnSaveWithoutEchoingTheValue(): void

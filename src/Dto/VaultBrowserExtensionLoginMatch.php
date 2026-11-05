@@ -21,6 +21,10 @@ final readonly class VaultBrowserExtensionLoginMatch
         public string $password,
         public array $websites,
         public int $matchScore,
+        /** Owner key of the item (`user:<id>` / `scope:<key>`), for the audit event; never serialized (1.16.0). */
+        public ?string $ownerKey = null,
+        /** True when ITEM_FIELD_REVEAL_CHECK vetoed the password: it is sent empty (1.16.0, SEC-004 FQ-L2). */
+        public bool $passwordWithheld = false,
     ) {
     }
 
@@ -39,5 +43,15 @@ final readonly class VaultBrowserExtensionLoginMatch
             'websites'   => $this->websites,
             'matchScore' => $this->matchScore,
         ];
+    }
+
+    /**
+     * Payload fields this match discloses (the audit event's field list): the password only when it was not withheld.
+     *
+     * @return list<string>
+     */
+    public function revealedFields(): array
+    {
+        return $this->passwordWithheld ? ['username', 'websites'] : ['username', 'password', 'websites'];
     }
 }
