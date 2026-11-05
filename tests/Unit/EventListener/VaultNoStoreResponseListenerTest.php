@@ -19,6 +19,7 @@ final class VaultNoStoreResponseListenerTest extends TestCase
 
         self::assertSame('no-store, private', $response->headers->get('Cache-Control'));
         self::assertSame('no-cache', $response->headers->get('Pragma'));
+        self::assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
     }
 
     public function testOtherControllersAreLeftAlone(): void
@@ -28,6 +29,7 @@ final class VaultNoStoreResponseListenerTest extends TestCase
 
             self::assertSame('max-age=600, public', $response->headers->get('Cache-Control'));
             self::assertFalse($response->headers->has('Pragma'));
+            self::assertFalse($response->headers->has('X-Content-Type-Options'));
         }
     }
 

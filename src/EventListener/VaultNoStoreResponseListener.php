@@ -13,8 +13,9 @@ use function str_starts_with;
 
 /**
  * Marks every response of a bundle route (manage UI, field reveal, runtime config, browser extension API) as not
- * storable: `Cache-Control: no-store, private` and `Pragma: no-cache` (1.15.2). Vault pages and JSON carry item data
- * that must not be kept by browsers (including the back/forward cache), proxies or CDNs.
+ * storable: `Cache-Control: no-store, private` and `Pragma: no-cache` (1.15.2), and never content-sniffed:
+ * `X-Content-Type-Options: nosniff`. Vault pages and JSON carry item data that must not be kept by browsers (including
+ * the back/forward cache), proxies or CDNs.
  *
  * Runs after Symfony's session listener (priority -1000), which would otherwise rewrite Cache-Control.
  */
@@ -36,5 +37,7 @@ final readonly class VaultNoStoreResponseListener
         $headers = $event->getResponse()->headers;
         $headers->set('Cache-Control', 'no-store, private');
         $headers->set('Pragma', 'no-cache');
+        // JSON (reveal, /logins, runtime config API) and pages must never be content-sniffed into another type.
+        $headers->set('X-Content-Type-Options', 'nosniff');
     }
 }

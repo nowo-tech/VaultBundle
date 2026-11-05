@@ -117,6 +117,8 @@ final class VaultSecretHardeningEndToEndTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame(['field' => 'password', 'value' => $marker], json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR));
         self::assertSame('no-store, private', $client->getResponse()->headers->get('Cache-Control'));
+        self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
+        self::assertStringStartsWith('application/json', (string) $client->getResponse()->headers->get('Content-Type'));
         self::assertCount(1, RevealRecorderSubscriber::$events);
         self::assertSame($item->getId(), RevealRecorderSubscriber::$events[0]->getItemId());
         self::assertSame(['password'], RevealRecorderSubscriber::$events[0]->getFields());
@@ -157,6 +159,7 @@ final class VaultSecretHardeningEndToEndTest extends WebTestCase
         $client->request('GET', '/api/vault/extension/logins?domain=example.com', server: ['HTTP_AUTHORIZATION' => 'Bearer ' . $login['token']]);
         self::assertResponseIsSuccessful();
         self::assertSame('no-store, private', $client->getResponse()->headers->get('Cache-Control'));
+        self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
         self::assertCount(2, RevealRecorderSubscriber::$events);
         foreach (RevealRecorderSubscriber::$events as $event) {
             self::assertSame(VaultItemRevealedEvent::CHANNEL_EXTENSION, $event->getChannel());
