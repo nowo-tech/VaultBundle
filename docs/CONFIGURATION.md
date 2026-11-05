@@ -60,6 +60,9 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 | `security.list_roles` | `[ROLE_USER]` | List vault |
 | `security.delete_roles` | `[ROLE_USER]` | Trash / purge / share admin |
 | `security.allow_unauthenticated` | `false` | DEV/DEMO only — wires AllowAll checker; production MUST keep `false` |
+| `security.deny_status` | `403` | Status of a permission denial on an item / folder (view, edit, share, grant revoke, field reveal): `403`, or `404` so an id never confirms that the resource exists |
+| `security.allow_unlisted_grantees` | `false` | **UNSAFE when true** (pre-1.15.2 behaviour): without a `GRANT_LIST_QUERY` listener, any typed user / team id can be granted. `false` = nobody can be granted until a listener lists grantees |
+| `security.secret_access_rate_limit` | enabled, `60` per `60` s, `cache.app` | Per-user fixed window on requests that return decrypted secrets: the `item_reveal` route and the browser extension `/logins` (429 + `Retry-After`) |
 
 Manage UI requires `symfony/security-bundle` when `allow_unauthenticated` is `false`.
 
@@ -102,6 +105,8 @@ nowo_vault:
 All routes are configurable under `nowo_vault.routes` and `nowo_vault.browser_extension.routes` (`path` + `name` per key; see `Configuration.php` defaults) and `web_ui.path_prefix` (formerly `route_prefix`) is prepended to every path. Import them once with the loader type `nowo_vault` (see [INSTALLATION.md](INSTALLATION.md)).
 
 Each controller action declares its route with a Symfony `#[Route]` attribute (REQ-SF-004): HTTP methods, requirements, the default path / name and the configuration key (`options: {nowo_vault_route: <key>}`). The `nowo_vault` loader reads those attributes and applies the configured `path` / `name`, so the attribute defaults equal the configuration defaults and existing overrides keep working. Do **not** import `vendor/nowo-tech/vault-bundle/src/Controller/` as an `attribute` resource: that would register the routes a second time with the default paths, ignoring your configuration.
+
+Since 1.15.2 the `item_reveal` route (`POST /tools/vault/items/{id}/reveal/{field}`) returns one secret field as JSON; the item pages never contain stored secrets (see [SECURITY](SECURITY.md#secret-fields)). Every bundle response is sent with `Cache-Control: no-store, private` and `Pragma: no-cache`.
 
 ## Pagination
 

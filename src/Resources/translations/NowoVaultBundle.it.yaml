@@ -51,6 +51,7 @@ vault:
         grantee_placeholder: Seleziona un utente o team / gruppo
         grantee_id: Id utente o team
         grantee_id_help: Inserisci l'id utente (es. UUID) o l'id team/gruppo configurato nella tua applicazione.
+        not_configured: "La condivisione non è disponibile: l'applicazione non ha configurato con quali utenti o team puoi condividere."
         permission: Permesso
         submit: Concedi accesso
         existing: Permessi attuali
@@ -81,6 +82,8 @@ vault:
         expiry: Data di scadenza
         cvv: CVV
         card_pin: PIN carta
+        secret_stored_placeholder: "Valore salvato nascosto. Lascia vuoto per mantenerlo."
+        clear_secrets: "Cancella i valori salvati"
         full_name: Nome completo
         email: Email
         phone: Telefono
@@ -100,6 +103,10 @@ vault:
         tags: Tag
         tag_placeholder: es. lavoro, personale
         tags_help: Digita un tag e premi Invio. I tag vengono riutilizzati tra i tuoi elementi.
+    reveal:
+        show: "Mostra"
+        hide: "Nascondi"
+        error: "Impossibile caricare il valore."
     action:
         open: Apri
         save: Salva

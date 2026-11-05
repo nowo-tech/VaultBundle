@@ -9,6 +9,7 @@
 
 import './vault.css';
 import { fetchGeneratedPassword, readGeneratorOptionsFromDom } from './vault-password-client';
+import { bindRevealButtons } from './vault-reveal';
 
 /** Endpoint and CSRF token of the generator, read from its dialog. */
 export interface GeneratorConfig {
@@ -122,4 +123,5 @@ function bindFolderForm(): void {
 document.addEventListener('DOMContentLoaded', () => {
     bindPasswordDialog();
     bindFolderForm();
+    bindRevealButtons(document);
 });

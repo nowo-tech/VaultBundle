@@ -8,3 +8,7 @@ nowo_vault:
         login_rate_limit:
             max_attempts: 3
             interval_seconds: 3600
+    security:
+        # The share tests use the free grantee type / id form (no GRANT_LIST_QUERY listener): the unsafe pre-1.15.2
+        # behaviour. The fail-closed default is covered on the ConfigStorageKernel (VaultDenyStatusEndToEndTest).
+        allow_unlisted_grantees: true

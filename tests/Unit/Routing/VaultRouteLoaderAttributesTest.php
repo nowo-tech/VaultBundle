@@ -50,6 +50,7 @@ final class VaultRouteLoaderAttributesTest extends TestCase
         'folder_share'        => ['shareFolder', ['GET', 'POST'], ['id' => self::UUID]],
         'folder_grant_revoke' => ['revokeFolderGrant', ['POST'], ['id' => self::UUID, 'grantId' => self::UUID]],
         'password_generate'   => ['generatePassword', ['POST'], []],
+        'item_reveal'         => ['revealItemField', ['POST'], ['id' => self::UUID, 'field' => '[a-zA-Z]{1,32}']],
     ];
 
     /** @var array<string, array{0: string, 1: list<string>}> */
@@ -110,7 +111,7 @@ final class VaultRouteLoaderAttributesTest extends TestCase
             }
         }
 
-        self::assertSame(23, $seen);
+        self::assertSame(24, $seen);
     }
 
     /**

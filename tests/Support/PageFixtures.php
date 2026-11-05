@@ -262,7 +262,7 @@ final class PageFixtures
     public static function routes(): array
     {
         $routes = [];
-        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'runtime_config'] as $key) {
+        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'item_reveal', 'runtime_config'] as $key) {
             $routes[$key] = ['path' => '/' . $key, 'name' => 'nowo_vault_' . $key];
         }
 

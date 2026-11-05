@@ -17,7 +17,9 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
+use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultGrantListQueryEvent;
+use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
 use Nowo\VaultBundle\Form\VaultItemFormType;
@@ -29,6 +31,7 @@ use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
+use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultGrantListResolver;
@@ -50,12 +53,18 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_filter;
+use function array_values;
 use function base64_encode;
 use function in_array;
+use function is_array;
 use function is_string;
 use function max;
 
@@ -93,6 +102,10 @@ final class VaultManageController extends AbstractController
         private readonly bool $allowUnauthenticated = false,
         private readonly int $perPage = 50,
         private readonly ?VaultPageFactory $pageFactory = null,
+        /** HTTP status of an item / folder permission denial: 403, or 404 to hide that the resource exists. */
+        private readonly int $denyStatus = Response::HTTP_FORBIDDEN,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?VaultSecretAccessRateLimiter $secretAccessRateLimiter = null,
     ) {
     }
 
@@ -368,8 +381,15 @@ final class VaultManageController extends AbstractController
         $data->title  = $item->getTitle();
         $data->folder = $item->getFolder();
         $data->tags   = $item->getTagNames();
+        // 1.15.2: no decrypted secret reaches the page HTML; each one is revealed on demand (revealItemField()).
+        $data->clearSecrets();
+        $storedSecrets = VaultItemFormData::storedSecretFields($item->getItemType(), $payload);
 
-        $form = $this->createForm(VaultItemFormType::class, $data, ['folders' => $folders]);
+        $form = $this->createForm(VaultItemFormType::class, $data, [
+            'folders'              => $folders,
+            'stored_secret_fields' => $storedSecrets,
+            'allow_secret_clear'   => !$viewMode && !$readOnly,
+        ]);
 
         if (!$viewMode && $request instanceof Request) {
             $form->handleRequest($request);
@@ -380,7 +400,14 @@ final class VaultManageController extends AbstractController
         }
 
         if (!$viewMode && $request instanceof Request && $form->isSubmitted() && $form->isValid()) {
-            $payload = $this->mergeAttachmentIntoPayload($data->toPayload(), $item->getItemType(), $request, $payload);
+            $cleared    = $form->has('clearSecrets') ? $form->get('clearSecrets')->getData() : [];
+            $newPayload = VaultItemFormData::keepStoredSecrets(
+                $item->getItemType(),
+                $data->toPayload(),
+                $payload,
+                is_array($cleared) ? array_values(array_filter($cleared, is_string(...))) : [],
+            );
+            $payload = $this->mergeAttachmentIntoPayload($newPayload, $item->getItemType(), $request, $payload);
             // Folder and tags are the creator's organisation: a grantee with Write may change the content only (a folder
             // move was a privilege escalation path, SEC-004 M1; the editor's folders / tags replaced the owner's, L1/L2).
             $isCreator = UserIdResolver::isSameUser($item->getCreator(), $user);
@@ -393,7 +420,43 @@ final class VaultManageController extends AbstractController
             return $this->redirectToItems($isCreator ? $data->folder : null);
         }
 
-        return $this->renderItemPage($form, $item->getItemType(), $item, $readOnly, $viewMode, $folders, $item->getFolder()?->getId());
+        return $this->renderItemPage($form, $item->getItemType(), $item, $readOnly, $viewMode, $folders, $item->getFolder()?->getId(), $storedSecrets);
+    }
+
+    /**
+     * Returns one decrypted secret field of an item as JSON (POST + CSRF, View access, rate limited): the only way a
+     * secret reaches the manage UI since 1.15.2. Dispatches {@see VaultEvents::ITEM_REVEALED} (no value).
+     */
+    #[Route(path: '/tools/vault/items/{id}/reveal/{field}', name: 'nowo_vault_item_reveal', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT, 'field' => '[a-zA-Z]{1,32}'], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_reveal'], methods: ['POST'])]
+    public function revealItemField(Request $request, string $id, string $field): JsonResponse
+    {
+        $this->denyUnlessFeature('access');
+        $this->denyUnlessValidCsrf('vault_reveal_' . $id, $request);
+
+        $item = $this->findItemOr404($id);
+        $this->denyUnlessItemAccess($item, VaultAccessAction::View);
+
+        // Unknown or non-secret field: the same answer as an item without access (nothing to probe).
+        if (!in_array($field, VaultItemFormData::secretPayloadFields($item->getItemType()), true)) {
+            throw $this->createNotFoundException('Vault item not found.');
+        }
+
+        /** @var UserInterface $user */
+        $user   = $this->getUser();
+        $userId = UserIdResolver::getId($user);
+        if ($this->secretAccessRateLimiter instanceof VaultSecretAccessRateLimiter && !$this->secretAccessRateLimiter->consume(VaultSecretAccessRateLimiter::CHANNEL_WEB, $userId ?? '')) {
+            return new JsonResponse(['error' => 'Too many requests.'], Response::HTTP_TOO_MANY_REQUESTS, [
+                'Retry-After' => (string) $this->secretAccessRateLimiter->getWindowSeconds(),
+            ]);
+        }
+
+        $value = $this->cryptographer->decrypt($item->getCiphertext())[$field] ?? '';
+        $this->eventDispatcher?->dispatch(
+            new VaultItemRevealedEvent($userId, $item->getId(), $item->getItemType(), [$field], VaultItemRevealedEvent::CHANNEL_WEB),
+            VaultEvents::ITEM_REVEALED,
+        );
+
+        return new JsonResponse(['field' => $field, 'value' => is_string($value) ? $value : '']);
     }
 
     /**
@@ -401,8 +464,9 @@ final class VaultManageController extends AbstractController
      *
      * @param FormInterface<VaultItemFormData> $form
      * @param list<VaultFolder> $folders
+     * @param list<string> $revealFields secret payload keys with a stored value (the reveal buttons)
      */
-    private function renderItemPage(FormInterface $form, VaultItemType $itemType, ?VaultItem $item, bool $readOnly, bool $viewMode, array $folders, ?string $activeFolder): Response
+    private function renderItemPage(FormInterface $form, VaultItemType $itemType, ?VaultItem $item, bool $readOnly, bool $viewMode, array $folders, ?string $activeFolder, array $revealFields = []): Response
     {
         $routes = $this->routes();
         $pages  = $this->pages();
@@ -420,6 +484,7 @@ final class VaultManageController extends AbstractController
             'passwordStrengthEnabled' => $this->passwordStrengthEnabled,
             'tagInputEnabled'         => $this->tagInputEnabled,
             'activeFolder'            => $activeFolder,
+            'revealFields'            => $revealFields,
         ]));
     }
 
@@ -745,7 +810,7 @@ final class VaultManageController extends AbstractController
     {
         $user = $this->getUser();
         if (!$user instanceof UserInterface || !$this->accessGuard->canAccessFolder($user, $folder, $action)) {
-            throw $this->createAccessDeniedException();
+            throw $this->resourceDenied('Vault folder not found.');
         }
     }
 
@@ -753,8 +818,19 @@ final class VaultManageController extends AbstractController
     {
         $user = $this->getUser();
         if (!$user instanceof UserInterface || !$this->accessGuard->canAccessItem($user, $item, $action)) {
-            throw $this->createAccessDeniedException();
+            throw $this->resourceDenied('Vault item not found.');
         }
+    }
+
+    /**
+     * Permission denial on an item or folder (and its grants, attachment and fields): 403, or 404 with
+     * security.deny_status: 404 so an id never confirms that the resource exists.
+     */
+    private function resourceDenied(string $notFoundMessage): HttpException|AccessDeniedException
+    {
+        return $this->denyStatus === Response::HTTP_NOT_FOUND
+            ? $this->createNotFoundException($notFoundMessage)
+            : $this->createAccessDeniedException();
     }
 
     /**
@@ -896,7 +972,9 @@ final class VaultManageController extends AbstractController
             'grants'        => $grants,
             'resourceLabel' => $resourceLabel,
             'granteeLabels' => $grantList->getLabelMap(),
-            'routes'        => $this->routes(),
+            // 1.15.2: false when no listener lists grantees and unlisted grantees are not allowed (sharing unavailable).
+            'sharingAvailable' => $grantList->isSharingAvailable(),
+            'routes'           => $this->routes(),
         ]));
     }
 

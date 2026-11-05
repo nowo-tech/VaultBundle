@@ -51,6 +51,7 @@ vault:
         grantee_placeholder: Selecteer een gebruiker of team / groep
         grantee_id: Gebruikers- of team-id
         grantee_id_help: Voer de gebruikers-id (bijv. UUID) of team-/groeps-id in die in uw applicatie is geconfigureerd.
+        not_configured: "Delen is niet beschikbaar: de applicatie heeft niet ingesteld met welke gebruikers of teams je mag delen."
         permission: Machtiging
         submit: Toegang verlenen
         existing: Huidige machtigingen
@@ -81,6 +82,8 @@ vault:
         expiry: Vervaldatum
         cvv: CVV
         card_pin: Kaart-PIN
+        secret_stored_placeholder: "Opgeslagen waarde verborgen. Laat leeg om deze te behouden."
+        clear_secrets: "Opgeslagen waarden wissen"
         full_name: Volledige naam
         email: E-mail
         phone: Telefoon
@@ -100,6 +103,10 @@ vault:
         tags: Labels
         tag_placeholder: bijv. werk, privé
         tags_help: Typ een tag en druk op Enter. Tags worden hergebruikt tussen uw items.
+    reveal:
+        show: "Tonen"
+        hide: "Verbergen"
+        error: "De waarde kon niet worden geladen."
     action:
         open: Openen
         save: Opslaan

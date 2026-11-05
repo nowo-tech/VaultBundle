@@ -43,8 +43,9 @@ class VaultGrant
         #[ORM\Column(type: 'string', length: 16, enumType: VaultPermission::class)]
         private VaultPermission $permission,
         #[ORM\ManyToOne(targetEntity: UserInterface::class)]
-        #[ORM\JoinColumn(name: 'created_by_id', nullable: false, onDelete: 'CASCADE')]
-        private object $createdBy,
+        // 1.15.2: SET NULL (was CASCADE), so deleting the grantor no longer deletes the grants they made.
+        #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
+        private ?object $createdBy,
     ) {
         $this->id        = Uuid::generate()->toString();
         $this->createdAt = new DateTimeImmutable();
@@ -110,9 +111,9 @@ class VaultGrant
     }
 
     /**
-     * Returns the user that created the grant.
+     * Returns the user that created the grant, or null once that user was deleted (since 1.15.2).
      */
-    public function getCreatedBy(): object
+    public function getCreatedBy(): ?object
     {
         return $this->createdBy;
     }

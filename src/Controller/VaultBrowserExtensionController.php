@@ -7,7 +7,11 @@ namespace Nowo\VaultBundle\Controller;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
 use Nowo\VaultBundle\Dto\VaultBrowserExtensionLoginMatch;
+use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Event\VaultEvents;
+use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
+use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionLoginResolver;
 use Nowo\VaultBundle\Support\UserIdResolver;
@@ -15,6 +19,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function is_array;
 
@@ -24,13 +29,15 @@ use function is_array;
 final readonly class VaultBrowserExtensionController
 {
     /**
-     * Stores the auth service, login resolver, response factory and login rate limiter.
+     * Stores the auth service, login resolver, response factory, login and secret-access rate limiters and the dispatcher.
      */
     public function __construct(
         private VaultBrowserExtensionAuthService $authService,
         private VaultBrowserExtensionLoginResolver $loginResolver,
         private VaultBrowserExtensionResponseFactory $responseFactory,
         private VaultBrowserExtensionLoginRateLimiter $loginRateLimiter,
+        private ?VaultSecretAccessRateLimiter $secretAccessRateLimiter = null,
+        private ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -91,9 +98,27 @@ final readonly class VaultBrowserExtensionController
             return $this->responseFactory->json(['error' => 'domain query parameter is required.'], Response::HTTP_BAD_REQUEST, $request);
         }
 
+        // 1.15.2: /logins returns decrypted passwords, so it shares the per-user secret-access budget with the reveal route.
+        $userId = UserIdResolver::getId($user);
+        if ($this->secretAccessRateLimiter instanceof VaultSecretAccessRateLimiter && !$this->secretAccessRateLimiter->consume(VaultSecretAccessRateLimiter::CHANNEL_EXTENSION, $userId ?? '')) {
+            $response = $this->responseFactory->json(['error' => 'Too many requests. Try again later.'], Response::HTTP_TOO_MANY_REQUESTS, $request);
+            // @igor-ignore - Fresh per-request Response built just above; not shared worker state.
+            $response->headers->set('Retry-After', (string) $this->secretAccessRateLimiter->getWindowSeconds());
+
+            return $response;
+        }
+
         // Page scheme sent by extension >= 1.11 (older clients: https semantics, as before).
         $scheme  = $request->query->get('scheme') === 'http' ? 'http' : 'https';
         $matches = $this->loginResolver->resolveForDomain($user, $domain, $scheme);
+
+        // One audit event per returned credential (ids and field names only, never a value).
+        foreach ($matches as $match) {
+            $this->eventDispatcher?->dispatch(
+                new VaultItemRevealedEvent($userId, $match->id, VaultItemType::Login, ['username', 'password', 'websites'], VaultItemRevealedEvent::CHANNEL_EXTENSION),
+                VaultEvents::ITEM_REVEALED,
+            );
+        }
 
         return $this->responseFactory->json([
             'domain' => $domain,

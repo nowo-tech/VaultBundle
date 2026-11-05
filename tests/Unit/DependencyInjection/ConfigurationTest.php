@@ -31,7 +31,11 @@ final class ConfigurationTest extends TestCase
         self::assertSame(20, $config['browser_extension']['login_rate_limit']['max_attempts_per_ip']);
         self::assertFalse($config['security']['allow_unauthenticated']);
         self::assertSame(['ROLE_USER'], $config['security']['access_roles']);
+        self::assertSame(403, $config['security']['deny_status']);
+        self::assertFalse($config['security']['allow_unlisted_grantees']);
+        self::assertSame(['enabled' => true, 'max_requests' => 60, 'window_seconds' => 60, 'cache_pool' => 'cache.app'], $config['security']['secret_access_rate_limit']);
         self::assertArrayHasKey('index', $config['routes']);
+        self::assertSame('/tools/vault/items/{id}/reveal/{field}', $config['routes']['item_reveal']['path']);
     }
 
     public function testCssFrameworkAccepted(): void

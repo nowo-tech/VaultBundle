@@ -18,10 +18,11 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 final readonly class VaultGrantListResolver
 {
     /**
-     * Creates the resolver with the event dispatcher.
+     * Creates the resolver with the event dispatcher and the (unsafe) security.allow_unlisted_grantees switch.
      */
     public function __construct(
         private EventDispatcherInterface $eventDispatcher,
+        private bool $allowUnlistedGrantees = false,
     ) {
     }
 
@@ -51,6 +52,7 @@ final readonly class VaultGrantListResolver
             $resourceType,
             $resource->getId(),
             $resource,
+            $this->allowUnlistedGrantees,
         );
         $this->eventDispatcher->dispatch($event, VaultEvents::GRANT_LIST_QUERY);
 

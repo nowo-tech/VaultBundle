@@ -3,7 +3,7 @@
   vault.share.title (intro = item title / folder name) with a back link; form = VaultShareType (grantee picker or
   grantee type + id, permission); submit vault.share.submit; cancel = back). Also: grantsTable (View\Table from
   VaultPageFactory::grantsTable(): grantee type, grantee, permission; row action Remove access = POST + CSRF FormView
-  behind a Confirm), grants, granteeLabels (type:id => label).
+  behind a Confirm), grants, granteeLabels (type:id => label), sharingAvailable (false: no grantee can be granted).
   Data blocks filled: nowo_ui_form_body (intro, the REQ-TWIG-003 child loop, the grantee id help),
   nowo_ui_form_aside (current grants through the UiKit `table` partial, or the empty message).
 #}
@@ -13,6 +13,10 @@
 {% block nowo_ui_form_body %}
     {% set _b = page.bundle %}
     <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.access.intro'|trans }}</p>
+    {% if sharingAvailable is defined and not sharingAvailable %}
+        {# 1.15.2: no GRANT_LIST_QUERY listener listed grantees, and unlisted grantees are refused (fail closed). #}
+        <div class="{{ nowo_ui_class('flash_info', _b) }}" role="status" data-testid="vault-share-unavailable">{{ 'vault.share.not_configured'|trans }}</div>
+    {% endif %}
     {{ parent() }}
     {% if not form.vars.grantee_picker|default(false) %}
         <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.share.grantee_id_help'|trans }}</p>

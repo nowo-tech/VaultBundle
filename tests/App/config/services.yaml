@@ -6,3 +6,13 @@ services:
     Nowo\VaultBundle\Tests\App\Security\DisabledAccountUserChecker: ~
 
     Nowo\VaultBundle\Tests\App\EventSubscriber\ReadOnlyTitleSubscriber: ~
+
+    Nowo\VaultBundle\Tests\App\EventSubscriber\RevealRecorderSubscriber: ~
+
+    # Rate-limit cache that survives the services reset between test requests (cache.app is an ArrayAdapter that is
+    # reset); the tests clear it before use.
+    test.vault_secret_access_cache:
+        class: Symfony\Component\Cache\Adapter\FilesystemAdapter
+        arguments: ['vault_secret_access', 0, '%kernel.cache_dir%/vault_rate_limit']
+        autoconfigure: false
+        public: true
