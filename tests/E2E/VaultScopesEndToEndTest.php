@@ -420,6 +420,49 @@ final class VaultScopesEndToEndTest extends WebTestCase
         }
     }
 
+    public function testItemPageListsOnlyTheFoldersTheMemberMayUse(): void
+    {
+        // SEC-004 FQ-L4 / FQ-I12 (ported from the delta-audit probe): the item page's folder select leaks no scope folder.
+        $client = $this->bootClient();
+        $admin  = $this->createUser('admin@example.com');
+        $bob    = $this->createUser('bob@example.com');
+        $this->member($admin, new VaultScopeAccess(VaultPermission::Admin, true, true, true));
+        $this->member($bob, new VaultScopeAccess(null));
+        $folders = self::getContainer()->get(VaultFolderService::class);
+        $folders->createInScope($this->managed($admin), 'FolderMARKincident', self::SCOPE);
+        $parent  = $folders->createInScope($this->managed($admin), 'ParentMARKok', self::SCOPE);
+        $child   = $folders->createInScope($this->managed($admin), 'ChildMARKok', self::SCOPE, $parent);
+        $shared  = $folders->createInScope($this->managed($admin), 'SharedMARKfolder', self::SCOPE);
+        $granted = $this->creator()->createInScope($this->managed($admin), VaultItemType::Login, 'Granted to bob', self::SCOPE, [], $child);
+        $this->grants()->grant(VaultResourceType::Item, $granted->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($admin));
+
+        // Read grantee (cannot organise): the view page lists the current folder only.
+        $client->loginUser($bob);
+        $client->request('GET', '/tools/vault/items/' . $granted->getId());
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('ChildMARKok', $html);
+        foreach (['FolderMARKincident', 'ParentMARKok', 'SharedMARKfolder'] as $absent) {
+            self::assertStringNotContainsString($absent, $html, $absent);
+        }
+
+        // Admin grant on the item (may organise): folders of visible items (with ancestors) and Share folders only.
+        $this->grants()->grant(VaultResourceType::Item, $granted->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Admin, $this->managed($admin));
+        $this->grants()->grant(VaultResourceType::Folder, $shared->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Admin, $this->managed($admin));
+        $client->request('GET', '/tools/vault/items/' . $granted->getId() . '/edit');
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        foreach (['ChildMARKok', 'ParentMARKok', 'SharedMARKfolder'] as $shown) {
+            self::assertStringContainsString($shown, $html, $shown);
+        }
+        self::assertStringNotContainsString('FolderMARKincident', $html);
+
+        // A scope admin (baseline) still gets every folder.
+        $client->loginUser($admin);
+        $client->request('GET', '/tools/vault/items/' . $granted->getId() . '/edit');
+        self::assertStringContainsString('FolderMARKincident', (string) $client->getResponse()->getContent());
+    }
+
     public function testMemberCreatesItemsAndFoldersInTheScope(): void
     {
         $client = $this->bootClient();
@@ -481,7 +524,14 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $crawler = $client->request('GET', '/tools/vault/items/' . $item->getId() . '/edit');
         self::assertResponseIsSuccessful();
         self::assertStringNotContainsString('catalogueHidden', (string) $client->getResponse()->getContent());
-        $client->submit($crawler->filterXPath('//form[.//input[@name="vault_item_form[title]"]]')->form(['vault_item_form[title]' => 'Stripe live', 'vault_item_form[folder]' => $dev->getId()]));
+        // SEC-004 FQ-L4: a member who cannot organise is offered the current folder only; a forged choice is invalid.
+        self::assertSame(['', $ops->getId()], $crawler->filterXPath('//select[@name="vault_item_form[folder]"]/option')->each(static fn ($o): string => (string) $o->attr('value')));
+        $form                                = $crawler->filterXPath('//form[.//input[@name="vault_item_form[title]"]]')->form(['vault_item_form[title]' => 'Stripe live']);
+        $forged                              = $form->getPhpValues();
+        $forged['vault_item_form']['folder'] = $dev->getId();
+        $client->request('POST', $form->getUri(), $forged);
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $client->submit($form);
         self::assertResponseRedirects('/tools/vault/scopes/' . self::SCOPE);
         $saved = $this->findItem($item->getId());
         self::assertSame('Stripe live', $saved?->getTitle());

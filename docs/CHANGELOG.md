@@ -110,6 +110,10 @@ Scope-owned vaults, temporary grants (1.16.0 contract, gaps 1 and 2). Requires a
 - **SEC-004 FQ-L1:** on the scope items page, a member without a baseline (explicit grants only) saw the names of every
   scope folder and tag. The page now lists only the folders (with their ancestors) and tags of the items the member may
   View, plus the folders they may Share. `VaultScopeItemLister::list()` also returns `visible` (null with a baseline).
+- **SEC-004 FQ-L4 / FQ-I12:** the item page's folder select listed every scope folder, in view mode too. A member who
+  cannot organise the item now gets only its current folder; one who can (Admin on the item) gets the folders they may
+  use (all with a baseline, else those of their visible items with ancestors and those they may Share), plus the
+  current one. New `VaultScopeItemLister::visibleFolders()`.
 
 - Key rotation (`nowo:vault:reencrypt`) touched `updated_at` of every item, which reordered every list; it now uses
   `VaultItem::replaceCiphertextForRotation()`.
