@@ -18,6 +18,7 @@ use Nowo\VaultBundle\Security\VaultReauthProofValidator;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
 use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
+use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
 use Nowo\VaultBundle\Tests\Support\SodiumVaultPayloadCryptographerTestKey;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -145,6 +146,8 @@ final class Vault116ConfigurationTest extends TestCase
             'include_attachments'      => true,
             'cooldown_seconds'         => 600,
             'cache_pool'               => 'cache.app',
+            'lock_factory'             => 'lock.factory',
+            'csv_raw_values'           => false,
         ], $config['export']);
         self::assertSame('/tools/vault/export', $config['routes']['personal_export']['path']);
         self::assertSame('nowo_vault_personal_export_download', $config['routes']['personal_export_download']['name']);
@@ -164,6 +167,11 @@ final class Vault116ConfigurationTest extends TestCase
         self::assertSame(['csv'], $controller->getArgument('$formats'));
         self::assertSame(10, $controller->getArgument('$maxItems'));
         self::assertSame(0, $controller->getArgument('$cooldownSeconds'));
+        self::assertSame('lock.factory', (string) $controller->getArgument('$lockFactory'));
+        self::assertFalse($controller->getArgument('$csvRawValues'));
+        $raw = $this->load(['export' => ['enabled' => true, 'reauth_checker' => 'app.reauth', 'lock_factory' => null, 'csv_raw_values' => true]]);
+        self::assertNull($raw->getDefinition(VaultExportController::class)->getArgument('$lockFactory'));
+        self::assertTrue($raw->getDefinition(VaultPersonalExportStreamer::class)->getArgument('$csvRawValues'));
 
         foreach ([['export' => ['reauth_max_age' => 901]], ['export' => ['formats' => ['xml']]], ['export' => ['formats' => []]], ['export' => ['accepted_mfa_factors' => []]]] as $invalid) {
             try {

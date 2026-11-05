@@ -30,6 +30,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Profiler\Profiler;
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Lock\SharedLockInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -79,6 +81,10 @@ final class VaultExportController extends AbstractController
         private readonly ?LoggerInterface $logger = null,
         private readonly ?Profiler $profiler = null,
         private readonly ?VaultPageFactory $pageFactory = null,
+        /** export.lock_factory (default `lock.factory` when the host has symfony/lock), SEC-004 FQ-I1. */
+        private readonly ?LockFactory $lockFactory = null,
+        /** export.csv_raw_values (shown on the page: CSV cells exact or neutralised). */
+        private readonly bool $csvRawValues = false,
     ) {
     }
 
@@ -107,6 +113,7 @@ final class VaultExportController extends AbstractController
             'count'              => $count,
             'formats'            => $this->formats,
             'includeAttachments' => $this->includeAttachments,
+            'csvRawValues'       => $this->csvRawValues,
             'routes'             => $routes,
         ]));
     }
@@ -128,46 +135,57 @@ final class VaultExportController extends AbstractController
         }
         $format = (string) $form->get('format')->getData();
 
-        $checker = $this->checker();
-        $proof   = $checker->getProof($user, $request, VaultReauthProof::PURPOSE_PERSONAL_EXPORT);
-        $reason  = $this->proofValidator->validate($proof, $userId, VaultReauthProof::PURPOSE_PERSONAL_EXPORT, $request);
-        if ($reason !== null || !$proof instanceof VaultReauthProof) {
-            return $this->refusal($user, $reason ?? VaultReauthProofValidator::REASON_MISSING, Response::HTTP_FORBIDDEN);
+        // SEC-004 FQ-I1: proof check, consume and cooldown are one critical section per user when a Symfony Lock
+        // factory is available (export.lock_factory), so two parallel POSTs cannot both pass the read-then-write checks.
+        $lock = $this->lockFactory?->createLock('nowo_vault_export_' . hash('sha256', (string) $userId), 60.0);
+        if ($lock instanceof SharedLockInterface && !$lock->acquire()) {
+            return $this->refusal($user, 'busy', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => '1']);
         }
 
-        $measure = $this->streamer->measure($user);
-        if ($measure['count'] > $this->maxItems || $measure['bytes'] > $this->maxBytes) {
-            return $this->refusal($user, 'too_large', Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
-        }
-
-        $now        = $this->now();
-        $retryAfter = $this->cooldownRemaining($userId, $now);
-        if ($retryAfter > 0) {
-            return $this->refusal($user, 'cooldown', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => (string) $retryAfter]);
-        }
-
-        if ($measure['count'] <= VaultPersonalExportStreamer::PREFLIGHT_MAX_ITEMS) {
-            try {
-                $this->streamer->preflight($user);
-            } catch (VaultDecryptionFailedException) {
-                return $this->refusal($user, 'decrypt_failed', Response::HTTP_SERVICE_UNAVAILABLE);
-            }
-        }
-
-        // Single use, before the first byte: the host's consume() and the bundle's own replay list.
-        $checker->consume($proof);
-        $this->proofValidator->markConsumed($proof);
-
-        $attachments = $format === 'json' && $this->includeAttachments;
         try {
-            $this->eventDispatcher->dispatch(new VaultItemsExportedEvent($userId, $measure['count'], $format, $attachments, $proof->factors, $now), VaultEvents::ITEMS_EXPORTED);
-        } catch (Throwable) {
-            // No audit, no export.
-            return $this->refusal($user, 'audit_failed', Response::HTTP_SERVICE_UNAVAILABLE);
-        }
+            $checker = $this->checker();
+            $proof   = $checker->getProof($user, $request, VaultReauthProof::PURPOSE_PERSONAL_EXPORT);
+            $reason  = $this->proofValidator->validate($proof, $userId, VaultReauthProof::PURPOSE_PERSONAL_EXPORT, $request);
+            if ($reason !== null || !$proof instanceof VaultReauthProof) {
+                return $this->refusal($user, $reason ?? VaultReauthProofValidator::REASON_MISSING, Response::HTTP_FORBIDDEN);
+            }
 
-        $this->startCooldown($userId, $now);
-        $this->logger()->info('Vault items exported.', ['bundle' => 'nowo_vault', 'action' => 'items_exported', 'user_id' => $userId, 'count' => $measure['count'], 'format' => $format]);
+            $measure = $this->streamer->measure($user);
+            if ($measure['count'] > $this->maxItems || $measure['bytes'] > $this->maxBytes) {
+                return $this->refusal($user, 'too_large', Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+            }
+
+            $now        = $this->now();
+            $retryAfter = $this->cooldownRemaining($userId, $now);
+            if ($retryAfter > 0) {
+                return $this->refusal($user, 'cooldown', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => (string) $retryAfter]);
+            }
+
+            if ($measure['count'] <= VaultPersonalExportStreamer::PREFLIGHT_MAX_ITEMS) {
+                try {
+                    $this->streamer->preflight($user);
+                } catch (VaultDecryptionFailedException) {
+                    return $this->refusal($user, 'decrypt_failed', Response::HTTP_SERVICE_UNAVAILABLE);
+                }
+            }
+
+            // Single use, before the first byte: the host's consume() and the bundle's own replay list.
+            $checker->consume($proof);
+            $this->proofValidator->markConsumed($proof);
+
+            $attachments = $format === 'json' && $this->includeAttachments;
+            try {
+                $this->eventDispatcher->dispatch(new VaultItemsExportedEvent($userId, $measure['count'], $format, $attachments, $proof->factors, $now), VaultEvents::ITEMS_EXPORTED);
+            } catch (Throwable) {
+                // No audit, no export.
+                return $this->refusal($user, 'audit_failed', Response::HTTP_SERVICE_UNAVAILABLE);
+            }
+
+            $this->startCooldown($userId, $now);
+            $this->logger()->info('Vault items exported.', ['bundle' => 'nowo_vault', 'action' => 'items_exported', 'user_id' => $userId, 'count' => $measure['count'], 'format' => $format]);
+        } finally {
+            $lock?->release();
+        }
 
         $request->attributes->set(VaultNoStoreResponseListener::MAX_AGE_ZERO_ATTRIBUTE, true);
         $streamer = $this->streamer;

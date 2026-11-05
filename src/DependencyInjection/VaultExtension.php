@@ -49,6 +49,7 @@ use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
 use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
+use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -351,7 +352,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
      * Decrypted personal export (1.16.0): the host re-authentication hook (required when enabled), the proof validator,
      * the limits of the export controller and its two optional routes.
      *
-     * @param array{enabled: bool, reauth_checker: string|null, reauth_max_age: int, accepted_primary_factors: list<string>, accepted_mfa_factors: list<string>, formats: list<string>, max_items: int, max_bytes: int, include_attachments: bool, cooldown_seconds: int, cache_pool: string} $export
+     * @param array{enabled: bool, reauth_checker: string|null, reauth_max_age: int, accepted_primary_factors: list<string>, accepted_mfa_factors: list<string>, formats: list<string>, max_items: int, max_bytes: int, include_attachments: bool, cooldown_seconds: int, cache_pool: string, lock_factory: string|null, csv_raw_values: bool} $export
      */
     private function registerExport(array $export, ContainerBuilder $container): void
     {
@@ -381,7 +382,10 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$maxItems', $export['max_items'])
             ->setArgument('$maxBytes', $export['max_bytes'])
             ->setArgument('$cooldownSeconds', $export['cooldown_seconds'])
-            ->setArgument('$includeAttachments', $export['include_attachments']);
+            ->setArgument('$includeAttachments', $export['include_attachments'])
+            ->setArgument('$lockFactory', is_string($export['lock_factory']) && $export['lock_factory'] !== '' ? new Reference($export['lock_factory'], ContainerInterface::NULL_ON_INVALID_REFERENCE) : null)
+            ->setArgument('$csvRawValues', $export['csv_raw_values']);
+        $container->getDefinition(VaultPersonalExportStreamer::class)->setArgument('$csvRawValues', $export['csv_raw_values']);
     }
 
     /**

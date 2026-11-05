@@ -368,6 +368,8 @@ final class Configuration implements ConfigurationInterface
                         ->booleanNode('include_attachments')->info('Attachments in the JSON export (never in CSV).')->defaultTrue()->end()
                         ->integerNode('cooldown_seconds')->info('One export per user per window (429 + Retry-After); 0 = no cooldown.')->defaultValue(600)->min(0)->end()
                         ->scalarNode('cache_pool')->info('PSR-6 pool of the cooldown and of the used re-authentication proof ids (shared by all workers).')->defaultValue('cache.app')->cannotBeEmpty()->end()
+                        ->scalarNode('lock_factory')->info('Symfony Lock factory service making the proof check, consume and cooldown atomic per user (ignored when the service does not exist); null = no lock.')->defaultValue('lock.factory')->end()
+                        ->booleanNode('csv_raw_values')->info('Keep CSV cells exact. Default false: a cell starting with = + - @, tab or CR gets a leading \' (CSV formula injection: Write grantees can edit the owner\'s items).')->defaultFalse()->end()
                     ->end()
                 ->end()
                 ->arrayNode('routes')

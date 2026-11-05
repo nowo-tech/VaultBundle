@@ -272,6 +272,8 @@ nowo_vault:
         include_attachments: true        # JSON only
         cooldown_seconds: 600
         cache_pool: cache.app            # cooldown + used proof ids: use a pool shared by all workers
+        lock_factory: lock.factory       # symfony/lock factory (if present): atomic proof use + cooldown per user
+        csv_raw_values: false            # true = exact CSV cells (no ' before = + - @)
 ```
 
 GDPR: call `VaultPersonalDataExporter::export($userId)` for access requests and `VaultPersonalDataEraser::erase($userId)`

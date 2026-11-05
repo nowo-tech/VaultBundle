@@ -147,7 +147,8 @@ policies, personal-data exporter / eraser and the decrypted personal export (1.1
   (429 + `Retry-After`), a decrypt pre-flight up to 500 items (503), the proof consumed, `ITEMS_EXPORTED`
   (`VaultItemsExportedEvent`; a throwing listener refuses with 503) and a `StreamedResponse` written in batches of 50
   with no temporary file: JSON (`nowo-vault-export` v1, attachments with `export.include_attachments`) or CSV (fixed
-  header, every field quoted, exact values). Personal items only (never shared-with-me or scope items). Headers:
+  header, every field quoted, cells starting with `= + - @`, tab or CR prefixed with `'` unless
+  `export.csv_raw_values`). Personal items only (never shared-with-me or scope items). Headers:
   `Cache-Control: max-age=0, no-store, private`, `nosniff`, `Referrer-Policy: no-referrer`, the sandbox CSP,
   `X-Accel-Buffering: no`, a fixed `attachment; filename="vault-export-<date>.<format>"`; the profiler is disabled.
   Template `vault/export.html.twig`, form `VaultPersonalExportType`.
@@ -175,6 +176,15 @@ policies, personal-data exporter / eraser and the decrypted personal export (1.1
 
 ### Fixed
 
+- **SEC-004 FQ-L3 (CSV formula injection):** the CSV export kept values exact on the premise that only the owner's data
+  is in it, but a Write grantee can edit the owner's items (title, username, note, websites, …). Cells starting with
+  `=`, `+`, `-`, `@`, tab or CR now get a leading `'` (OWASP); `export.csv_raw_values: true` keeps exact values. JSON is
+  unchanged (exact).
+- **SEC-004 FQ-I1:** the proof check, `consume()`, the bundle's used-proof list and the cooldown are one critical section
+  per user when a Symfony Lock factory exists (`export.lock_factory`, default `lock.factory`; a busy lock answers 429
+  `Retry-After: 1`). `symfony/lock` is suggested (and a dev dependency for the tests).
+- **SEC-004 FQ-I6:** `export.max_bytes` is checked against `SUM(LENGTH(ciphertext))` plus 512 bytes per item (the JSON
+  keeps attachments as base64); it was `× 0.75`, which under-counted.
 - **SEC-004 FQ-I2:** the health route had no throttle and every load decrypted every examined password and called the
   breach checker once per password. New `health.min_interval_seconds` (10: one computed report per viewer and owner per
   window, 429 + `Retry-After`, `VaultHealthThrottledException`) and `health.breach_cache_ttl` (86 400: breach answers
@@ -226,7 +236,9 @@ Accepted by the owner on 2026-11-05. The contract is the 1.16.0 design for symfo
   - the CSP is the shared sensitive set `default-src 'none'; frame-ancestors 'none'; sandbox` (stricter than the
     contract's); `Cache-Control: max-age=0, no-store, private` comes from the bundle response listener;
   - refusals answer an empty body with the status code (403, 413, 429, 503);
-  - CSV joins `websites` with newlines and tags with `, `; `export.cooldown_seconds: 0` disables the cooldown.
+  - CSV joins `websites` with newlines and tags with `, `; `export.cooldown_seconds: 0` disables the cooldown;
+  - Q-O7 (exact CSV values) was reversed after the SEC-004 audit (FQ-L3): CSV cells are neutralised by default, exact
+    values are an opt-in (`export.csv_raw_values`).
 
 ## [1.15.2] - 2026-11-05
 

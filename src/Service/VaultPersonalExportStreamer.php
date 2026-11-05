@@ -19,6 +19,7 @@ use function array_column;
 use function array_map;
 use function flush;
 use function implode;
+use function in_array;
 use function is_array;
 use function is_scalar;
 use function is_string;
@@ -55,6 +56,12 @@ final readonly class VaultPersonalExportStreamer
         'addressLine2', 'city', 'state', 'country', 'documentNumber', 'issuedBy', 'issuedDate', 'expiryDate',
     ];
 
+    /** Estimated bytes of metadata per exported item (id, type, title, folder, tags, dates, JSON keys). */
+    public const ITEM_OVERHEAD = 512;
+
+    /** First characters a spreadsheet may evaluate as a formula (OWASP CSV injection). */
+    public const CSV_FORMULA_PREFIXES = ['=', '+', '-', '@', "\t", "\r"];
+
     /** Payload keys of the attachment (JSON `attachment`, never in `fields`). */
     private const ATTACHMENT_KEYS = ['attachmentName', 'attachmentContent'];
 
@@ -66,11 +73,15 @@ final readonly class VaultPersonalExportStreamer
         private VaultPayloadCryptographerInterface $cryptographer,
         private ?LoggerInterface $logger = null,
         private ?string $managerName = null,
+        /** export.csv_raw_values: keep CSV cells exact (no formula neutralisation; SEC-004 FQ-L3). */
+        private bool $csvRawValues = false,
     ) {
     }
 
     /**
-     * Number of exportable items and the estimated decoded size (`SUM(LENGTH(ciphertext)) × 0.75`), before streaming.
+     * Number of exportable items and the estimated file size, before streaming: `SUM(LENGTH(ciphertext))` (the base64
+     * envelope is at least as long as the decrypted payload, attachments included, which the JSON keeps as base64) plus
+     * {@see self::ITEM_OVERHEAD} bytes of metadata per item (SEC-004 FQ-I6).
      *
      * @return array{count: int, bytes: int}
      */
@@ -81,7 +92,7 @@ final readonly class VaultPersonalExportStreamer
             ->setParameter('user', $user)
             ->getSingleResult();
 
-        return ['count' => (int) $row['count'], 'bytes' => (int) ((int) $row['bytes'] * 0.75)];
+        return ['count' => (int) $row['count'], 'bytes' => (int) $row['bytes'] + (int) $row['count'] * self::ITEM_OVERHEAD];
     }
 
     /**
@@ -232,7 +243,18 @@ final readonly class VaultPersonalExportStreamer
             };
         }
 
-        return $this->csvLine($cells);
+        return $this->csvLine($this->csvRawValues ? $cells : array_map(self::neutralise(...), $cells));
+    }
+
+    /**
+     * OWASP CSV-injection defence (SEC-004 FQ-L3): a cell starting with `= + - @`, tab or CR gets a leading `'`, so a
+     * spreadsheet shows it as text. Write grantees can edit the owner's items, so cells are not trusted. Values that
+     * legitimately start with these characters (some passwords) then start with `'`: use JSON, or
+     * `export.csv_raw_values: true`, for an exact migration file.
+     */
+    public static function neutralise(string $cell): string
+    {
+        return $cell !== '' && in_array($cell[0], self::CSV_FORMULA_PREFIXES, true) ? "'" . $cell : $cell;
     }
 
     private function cell(mixed $value): string
@@ -245,7 +267,7 @@ final readonly class VaultPersonalExportStreamer
     }
 
     /**
-     * One CSV line, every field quoted, values exact (no formula escaping: the export is the user's own data, Q-O7).
+     * One CSV line, every field quoted (`"` doubled).
      *
      * @param list<string> $cells
      */

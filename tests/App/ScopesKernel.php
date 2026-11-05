@@ -58,7 +58,7 @@ final class ScopesKernel extends BaseKernel
                 'export'    => ['enabled' => true, 'reauth_checker' => TestReauthChecker::class, 'max_items' => 5, 'cache_pool' => 'test.vault_secret_access_cache'],
             ]);
             // Profiles of every request, to prove that the routes returning decrypted values store none.
-            $container->loadFromExtension('framework', ['profiler' => ['enabled' => true, 'collect' => true]]);
+            $container->loadFromExtension('framework', ['profiler' => ['enabled' => true, 'collect' => true], 'lock' => 'flock']);
             $container->register(QueryCounterMiddleware::class, QueryCounterMiddleware::class)->addTag('doctrine.middleware');
             $container->register(TestScopeAccessResolver::class, TestScopeAccessResolver::class);
             $container->register(TestReauthChecker::class, TestReauthChecker::class);
