@@ -70,7 +70,7 @@ final class VaultHealthEndToEndTest extends WebTestCase
         $marker = 'mark' . bin2hex(random_bytes(16));
         $mine   = $this->scopeItem($alice, 'Visible weak', $marker);
         $this->scopeItem($alice, 'Invisible twin', $marker);
-        $this->scopeItem($alice, 'Strong', 'Str0ng-Enough-Passw0rd!');
+        $this->scopeItem($alice, 'Strong', $this->compliant());
         self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $mine->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
 
         $generated = [];
@@ -134,7 +134,7 @@ final class VaultHealthEndToEndTest extends WebTestCase
 
         // max_items is 3 on this kernel: a fourth login item refuses the report.
         foreach (['a', 'b', 'c', 'd'] as $title) {
-            $this->scopeItem($alice, $title, 'Str0ng-Enough-Passw0rd!');
+            $this->scopeItem($alice, $title, $this->compliant());
         }
         $client->request('GET', '/tools/vault/scopes/' . self::SCOPE . '/health');
         self::assertResponseStatusCodeSame(Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
@@ -164,7 +164,7 @@ final class VaultHealthEndToEndTest extends WebTestCase
         $crawler = $client->request('GET', '/tools/vault/items/new/login');
         $client->submit($crawler->filterXPath('//form[.//input[@name="vault_item_form[title]"]]')->form([
             'vault_item_form[title]'    => 'Strong',
-            'vault_item_form[password]' => 'Str0ng-Enough-Passw0rd!',
+            'vault_item_form[password]' => $this->compliant(),
         ]));
         self::assertResponseRedirects();
         $id = $this->em()->getConnection()->fetchOne('SELECT id FROM vault_items WHERE title = ?', ['Strong']);
@@ -177,6 +177,14 @@ final class VaultHealthEndToEndTest extends WebTestCase
     private function scopeItem(User $creator, string $title, string $password): VaultItem
     {
         return self::getContainer()->get(VaultItemCreator::class)->createInScope($this->managed($creator), VaultItemType::Login, $title, self::SCOPE, ['username' => 'u', 'password' => $password]);
+    }
+
+    /**
+     * A policy-compliant value built at run time (12+ characters, 4 classes): no literal credential in the source.
+     */
+    private function compliant(): string
+    {
+        return 'Aa1-' . bin2hex(random_bytes(8));
     }
 
     private function member(User $user, VaultScopeAccess $access): void

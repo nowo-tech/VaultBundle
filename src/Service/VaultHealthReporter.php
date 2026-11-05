@@ -272,8 +272,8 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
         }
 
         $reasons = [];
-        if ($this->strengthEvaluator !== null && class_exists(PasswordStrengthIntegration::PASSWORD_CONDITIONS) && method_exists($this->strengthEvaluator, 'evaluate')) {
-            $conditionsClass = PasswordStrengthIntegration::PASSWORD_CONDITIONS;
+        if ($this->strengthEvaluator !== null && class_exists(PasswordStrengthIntegration::CONDITIONS_MODEL) && method_exists($this->strengthEvaluator, 'evaluate')) {
+            $conditionsClass = PasswordStrengthIntegration::CONDITIONS_MODEL;
             $result          = $this->strengthEvaluator->evaluate($password, new $conditionsClass(minLength: $policy->minLength));
             $missing         = is_object($result) && is_array($result->missing ?? null) ? $result->missing : [];
             $reasons         = array_values(array_map(strval(...), $missing));
