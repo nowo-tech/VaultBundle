@@ -77,9 +77,11 @@ Sharing fails closed: without a `GRANT_LIST_QUERY` listener listing grantees nob
 | Grants: cross-tenant | A user who left an organization keeps item grants | The membership gate runs before grants on every request |
 | Grants: cross-tenant | Team ids collide across organizations | Host obligation: namespace team ids (e.g. `org-<uuid>:group-<uuid>`); the bundle compares them opaquely |
 | Scopes | A forged `{scope}` in the URL | Route requirement `[a-z0-9][a-z0-9_-]{0,127}` + `resolve()` on every request; the scope key is never read from form data; a non-member gets the deny status |
+| Scopes (SEC-004 FQ-L1) | A grants-only member (no baseline) learns the scope's folder and tag names from the scope page | The page lists only the folders and tags of the items the member may View (folders with their ancestors) and the folders the member may Share; members with a baseline see all of them |
+| Scope tags (SEC-004 FQ-I4) | A user with Admin on one scope item (a scope admin, or an Admin grant) creates scope tags by tagging it; the names then show to members and in the catalogue | Accepted: tagging is an item edit. Hosts that want tag creation restricted to `create` members veto Admin grants in `GRANT_POLICY_CHECK` or keep item grants at `read` / `write` |
 | Ownership | Scope rows deleted with their creator | `creator_id` is NULL on scope rows; `created_by_id` is `ON DELETE SET NULL` (audit only, never used for access) |
 
-Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time; **R3** team self-grants after a demotion.
+Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time; **R2** plaintext in PHP memory while a value is decrypted (reveal, copy, attachment, `/logins`, and the health report and decrypted export of later blocks), inherent to server-side encryption; **R3** team self-grants after a demotion.
 
 ## Reveal, copy and attachments (1.16.0)
 
@@ -138,7 +140,7 @@ Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, n
 
 Documented and accepted for **Pass (good)** / overall **Low** (re-audit **2026-08-20**):
 
-1. Plaintext payloads exist in PHP memory briefly after decrypt (inherent).
+1. **R2:** plaintext payloads exist in PHP memory briefly after decrypt (inherent).
 2. Extension Bearer API has no CSRF (token auth by design; rate limit + TTL + purge cron).
 3. Operator CLI key-on-argv risk when using `--old-key` / `--new-key` instead of `--*-key-file` (documented above; file-based options are the supported operator path).
 4. Generated encryption keys are shown **one-time** via session (not flash); host must use HTTPS.

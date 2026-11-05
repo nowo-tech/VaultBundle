@@ -14,7 +14,8 @@ use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_filter;
-use function array_keys;
+use function array_map;
+use function array_values;
 use function max;
 
 /**
@@ -37,7 +38,10 @@ final readonly class VaultScopeItemLister
      *
      * @throws VaultAccessDeniedException when the viewer is not a member, or a member without baseline and without any grant
      *
-     * @return array{items: list<VaultItem>, total: int, permissions: array<string, VaultPermission|null>, access: VaultScopeAccess}
+     * `visible` (since the SEC-004 FQ-L1 fix) is null for a member with a baseline, else every scope item the viewer may
+     * View: the caller lists only their folders and tags
+     *
+     * @return array{items: list<VaultItem>, total: int, permissions: array<string, VaultPermission|null>, access: VaultScopeAccess, visible: list<VaultItem>|null}
      */
     public function list(
         UserInterface $viewer,
@@ -59,9 +63,13 @@ final readonly class VaultScopeItemLister
         }
 
         $onlyIds = null;
+        $visible = null;
         if (!$access->baseline instanceof VaultPermission) {
-            // Grants only: the ids of the scope items the viewer may View (constant number of queries).
-            $onlyIds = array_keys(array_filter($this->accessGuard->resolvePermissionMap($viewer, $repository->findActiveByScope($scope))));
+            // Grants only: the scope items the viewer may View (constant number of queries).
+            $all     = $repository->findActiveByScope($scope);
+            $map     = $this->accessGuard->resolvePermissionMap($viewer, $all);
+            $visible = array_values(array_filter($all, static fn (VaultItem $item): bool => ($map[$item->getId()] ?? null) !== null));
+            $onlyIds = array_map(static fn (VaultItem $item): string => $item->getId(), $visible);
             if ($onlyIds === []) {
                 throw new VaultAccessDeniedException();
             }
@@ -70,6 +78,6 @@ final readonly class VaultScopeItemLister
         $perPage = max(1, $perPage);
         $result  = $repository->paginateByScope($scope, $onlyIds, $folderId, $tagId, $searchQuery, (max(1, $page) - 1) * $perPage, $perPage);
 
-        return $result + ['permissions' => $this->accessGuard->resolvePermissionMap($viewer, $result['items']), 'access' => $access];
+        return $result + ['permissions' => $this->accessGuard->resolvePermissionMap($viewer, $result['items']), 'access' => $access, 'visible' => $visible];
     }
 }

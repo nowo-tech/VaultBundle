@@ -380,6 +380,46 @@ final class VaultScopesEndToEndTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
     }
 
+    public function testGrantsOnlyMemberSeesOnlyTheFoldersAndTagsOfVisibleItems(): void
+    {
+        // SEC-004 FQ-L1: folder and tag names are scope metadata, not listed for items the member cannot View.
+        $client = $this->bootClient();
+        $alice  = $this->createUser('alice@example.com');
+        $bob    = $this->createUser('bob@example.com');
+        $this->member($alice, new VaultScopeAccess(VaultPermission::Admin, create: true));
+        $this->member($bob, new VaultScopeAccess(null));
+        $folders = self::getContainer()->get(VaultFolderService::class);
+        $parent  = $folders->createInScope($this->managed($alice), 'ParentVisible', self::SCOPE);
+        $child   = $folders->createInScope($this->managed($alice), 'ChildVisible', self::SCOPE, $parent);
+        $hidden  = $folders->createInScope($this->managed($alice), 'FolderMARKincident', self::SCOPE);
+        $admined = $folders->createInScope($this->managed($alice), 'AdminedEmpty', self::SCOPE);
+        $seen    = $this->creator()->createInScope($this->managed($alice), VaultItemType::Login, 'Granted', self::SCOPE, [], $child);
+        $secret  = $this->creator()->createInScope($this->managed($alice), VaultItemType::Login, 'Not granted', self::SCOPE, [], $hidden);
+        $this->tags()->syncItemTags($seen, $this->managed($alice), ['tagseen']);
+        $this->tags()->syncItemTags($secret, $this->managed($alice), ['tagmarkroot']);
+        $this->grants()->grant(VaultResourceType::Item, $seen->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        $this->grants()->grant(VaultResourceType::Folder, $admined->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Admin, $this->managed($alice));
+
+        $client->loginUser($bob);
+        $client->request('GET', '/tools/vault/scopes/' . self::SCOPE);
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        foreach (['Granted', 'ChildVisible', 'ParentVisible', 'tagseen', 'AdminedEmpty'] as $shown) {
+            self::assertStringContainsString($shown, $html, $shown);
+        }
+        foreach (['Not granted', 'FolderMARKincident', 'tagmarkroot'] as $absent) {
+            self::assertStringNotContainsString($absent, $html, $absent);
+        }
+
+        // A member with a baseline still sees every folder and tag.
+        $client->loginUser($alice);
+        $client->request('GET', '/tools/vault/scopes/' . self::SCOPE);
+        $html = (string) $client->getResponse()->getContent();
+        foreach (['FolderMARKincident', 'tagmarkroot', 'AdminedEmpty'] as $shown) {
+            self::assertStringContainsString($shown, $html, $shown);
+        }
+    }
+
     public function testMemberCreatesItemsAndFoldersInTheScope(): void
     {
         $client = $this->bootClient();
