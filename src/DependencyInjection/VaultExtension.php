@@ -367,6 +367,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $container->setParameter('nowo_vault.enabled_optional_route_keys', [...$enabled, 'personal_export', 'personal_export_download']);
         }
 
+        // Checked by ExportLockFactoryPass: an explicit, non-default id must resolve (SEC-004 FQ-I13).
+        $container->setParameter('nowo_vault.export.lock_factory', $export['enabled'] ? $export['lock_factory'] : null);
         $pool = new Reference($export['cache_pool']);
         $container->setDefinition(VaultReauthProofValidator::class, (new Definition(VaultReauthProofValidator::class))
             ->setAutowired(false)

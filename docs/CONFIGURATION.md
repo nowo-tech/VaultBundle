@@ -482,7 +482,7 @@ Since 1.16.0. YAML only. Off by default; when enabled the container fails to com
 | `export.include_attachments` | `true` | Attachments (base64) in the JSON file; never in CSV |
 | `export.cooldown_seconds` | `600` | One export per user per window (429 + `Retry-After`); `0` disables it |
 | `export.cache_pool` | `cache.app` | PSR-6 pool of the cooldown and of the used proof ids; share it between workers |
-| `export.lock_factory` | `lock.factory` | Symfony Lock factory service (`symfony/lock`, `framework.lock`): the proof check, consume and cooldown run under a per-user lock, so two parallel POSTs cannot both pass. Ignored when the service does not exist; `null` disables it. Use a store shared by all web nodes (Redis, a database); `flock` covers one host only |
+| `export.lock_factory` | `lock.factory` | Symfony Lock factory service (`symfony/lock`, `framework.lock`): the proof check, consume and cooldown run under a per-user lock, so two parallel POSTs cannot both pass. The default is ignored when the service does not exist; any other id must exist (the container fails to compile otherwise, so a typo cannot silently drop the lock); `null` disables it. Use a store shared by all web nodes (Redis, a database); `flock` covers one host only |
 | `export.csv_raw_values` | `false` | `false`: a CSV cell starting with `= + - @`, tab or CR gets a leading `'` (formula injection: people with Write access to an item can edit it). `true`: exact values (a migration file; open it in a spreadsheet at your own risk). JSON is always exact |
 
 ```yaml

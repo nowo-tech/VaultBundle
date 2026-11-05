@@ -230,7 +230,7 @@ vault:
         warning: 'Die Datei enthält Ihre Passwörter und andere Geheimnisse im Klartext. Bewahren Sie sie auf einem vertrauenswürdigen Gerät auf und löschen Sie sie, sobald Sie sie nicht mehr brauchen. Exportiert werden nur Ihre persönlichen Einträge, nicht mit Ihnen geteilte Einträge oder gemeinsame Tresore.'
         count: '%count% Einträge werden exportiert.'
         csv_warning: 'CSV übernimmt die Werte unverändert: Eine Tabellenkalkulation kann eine Zelle, die mit = + - oder @ beginnt, als Formel ausführen, und Personen, mit denen Sie einen Eintrag teilen, können ihn bearbeiten. Für einen Wechsel des Passwortmanagers besser JSON.'
-        csv_neutralised: 'Im CSV erhält ein Wert, der mit = + - @ (oder einem Tabulator) beginnt, ein vorangestelltes '', damit Tabellenkalkulationen ihn nicht als Formel ausführen; entfernen Sie es beim Import. JSON übernimmt alle Werte unverändert.'
+        csv_neutralised: 'Im CSV erhält ein Wert, der mit = + - @ (oder einem Tabulator oder Wagenrücklauf) beginnt, ein vorangestelltes '', damit Tabellenkalkulationen ihn nicht als Formel ausführen; entfernen Sie es beim Import. JSON übernimmt alle Werte unverändert.'
         attachments: 'Die JSON-Datei enthält die angehängten Dokumente.'
         format: 'Format'
         format_json: 'JSON'

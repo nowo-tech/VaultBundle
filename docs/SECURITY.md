@@ -172,7 +172,7 @@ The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service
 | Reveal throttled (1.16.0) | warning | `user_id`, `item_id`, `window` |
 | Reveal refused: audit listener failed (1.16.0) | error | `user_id`, `item_id`, exception **class** |
 | Health report generated (1.16.0) | info | `user_id`, `owner`, `examined`, `weak`, `reused`, `old`, `breached` |
-| Export refused (1.16.0) | notice | `user_id`, `reason` code (`invalid_request`, `reauth_missing`, `reauth_stale`, `primary_factor_missing`, `mfa_missing`, `session_mismatch`, `reauth_replayed`, `too_large`, `cooldown`, `decrypt_failed`, `audit_failed`) |
+| Export refused (1.16.0) | notice | `user_id`, `reason` code (`invalid_request`, `reauth_missing`, `reauth_stale`, `primary_factor_missing`, `mfa_missing`, `session_mismatch`, `reauth_replayed`, `too_large`, `cooldown`, `decrypt_failed`, `audit_failed`, `busy`) |
 | Items exported (1.16.0) | info | `user_id`, `count`, `format` |
 | Export stream failed (1.16.0) | error | `user_id`, exception **class** |
 | Personal data erased (1.16.0) | info | `user_id`, counts per step |

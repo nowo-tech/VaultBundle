@@ -183,6 +183,8 @@ policies, personal-data exporter / eraser and the decrypted personal export (1.1
 - **SEC-004 FQ-I1:** the proof check, `consume()`, the bundle's used-proof list and the cooldown are one critical section
   per user when a Symfony Lock factory exists (`export.lock_factory`, default `lock.factory`; a busy lock answers 429
   `Retry-After: 1`). `symfony/lock` is suggested (and a dev dependency for the tests).
+- **SEC-004 FQ-I13:** an explicit `export.lock_factory` that names no service now fails the container compile
+  (`ExportLockFactoryPass`); only the default `lock.factory` may be absent (then the export runs without the lock).
 - **SEC-004 FQ-I6:** `export.max_bytes` is checked against `SUM(LENGTH(ciphertext))` plus 512 bytes per item (the JSON
   keeps attachments as base64); it was `× 0.75`, which under-counted.
 - **SEC-004 FQ-I2:** the health route had no throttle and every load decrypted every examined password and called the
@@ -233,7 +235,7 @@ Accepted by the owner on 2026-11-05. The contract is the 1.16.0 design for symfo
   - besides the host's `consume()`, the bundle keeps its own list of used proof ids in `export.cache_pool`, so a proof
     is single use even with a host that ignores `consume()`;
   - extra refusal reason codes: `primary_factor_missing`, `reauth_replayed`, `invalid_request`, `decrypt_failed`,
-    `audit_failed`;
+    `audit_failed`, `busy` (another export of the same user holds the lock, 429);
   - the GET page also redirects to the re-authentication when any proof check fails, and showing it does not consume
     the proof;
   - the stream detaches the entities of each batch instead of calling `EntityManager::clear()` (the host's user and

@@ -230,7 +230,7 @@ vault:
         warning: 'Le fichier contient vos mots de passe et autres secrets en clair. Gardez-le sur un appareil de confiance et supprimez-le dès que vous n''en avez plus besoin. Seules vos entrées personnelles sont exportées : ni les entrées partagées avec vous ni les coffres partagés.'
         count: '%count% entrées seront exportées.'
         csv_warning: 'Le CSV garde les valeurs telles quelles : un tableur peut exécuter comme formule une cellule qui commence par = + - ou @, et les personnes avec qui vous partagez une entrée peuvent la modifier. Préférez JSON pour passer à un autre gestionnaire.'
-        csv_neutralised: 'En CSV, une valeur qui commence par = + - @ (ou une tabulation) est précédée d''un '' pour qu''un tableur ne l''exécute pas comme formule ; retirez-le à l''import. Le JSON garde toutes les valeurs exactes.'
+        csv_neutralised: 'En CSV, une valeur qui commence par = + - @ (ou une tabulation ou un retour chariot) est précédée d''un '' pour qu''un tableur ne l''exécute pas comme formule ; retirez-le à l''import. Le JSON garde toutes les valeurs exactes.'
         attachments: 'Le fichier JSON contient les documents joints.'
         format: 'Format'
         format_json: 'JSON'

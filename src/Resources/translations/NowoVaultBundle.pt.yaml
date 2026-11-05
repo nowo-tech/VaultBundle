@@ -230,7 +230,7 @@ vault:
         warning: 'O ficheiro contém as suas palavras-passe e outros segredos em texto claro. Guarde-o num dispositivo de confiança e apague-o quando já não precisar dele. Só são exportadas as suas entradas pessoais: não as partilhadas consigo nem os cofres partilhados.'
         count: 'Serão exportadas %count% entradas.'
         csv_warning: 'O CSV mantém os valores tal como estão: uma folha de cálculo pode executar como fórmula uma célula que comece por = + - ou @, e quem tem uma entrada partilhada consigo pode editá-la. Para mudar de gestor de palavras-passe, prefira JSON.'
-        csv_neutralised: 'No CSV, um valor que comece por = + - @ (ou uma tabulação) recebe um '' à frente para que a folha de cálculo não o execute como fórmula; retire-o ao importar. O JSON mantém todos os valores exatos.'
+        csv_neutralised: 'No CSV, um valor que comece por = + - @ (ou uma tabulação ou um retorno de carro) recebe um '' à frente para que a folha de cálculo não o execute como fórmula; retire-o ao importar. O JSON mantém todos os valores exatos.'
         attachments: 'O ficheiro JSON inclui os documentos anexos.'
         format: 'Formato'
         format_json: 'JSON'
