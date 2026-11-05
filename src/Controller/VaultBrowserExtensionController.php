@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Controller;
 
+use DateTimeImmutable;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
 use Nowo\VaultBundle\Dto\VaultBrowserExtensionLoginMatch;
@@ -116,7 +117,7 @@ final readonly class VaultBrowserExtensionController
         // One audit event per returned credential (ids and field names only, never a value).
         foreach ($matches as $match) {
             $this->eventDispatcher?->dispatch(
-                new VaultItemRevealedEvent($userId, $match->id, VaultItemType::Login, ['username', 'password', 'websites'], VaultItemRevealedEvent::CHANNEL_EXTENSION),
+                new VaultItemRevealedEvent($userId, $match->id, VaultItemType::Login, $match->revealedFields(), VaultItemRevealedEvent::CHANNEL_EXTENSION, VaultItemRevealedEvent::PURPOSE_AUTOFILL, $match->ownerKey, new DateTimeImmutable()),
                 VaultEvents::ITEM_REVEALED,
             );
         }

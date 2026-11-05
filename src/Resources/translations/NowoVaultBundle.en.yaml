@@ -56,6 +56,15 @@ vault:
         submit: Grant access
         existing: Current grants
         manage: Manage sharing
+        until: 'until %date%'
+        expired: Expired
+        expires_in: Access ends
+        expires_never: Never (permanent)
+        expires_1h: In 1 hour
+        expires_1d: In 1 day
+        expires_1w: In 1 week
+        expires_custom: On a date
+        expires_at: End date
     access:
         title: Access
         intro: Share this resource with other users or teams (groups). Each grant defines who can read, write, or administer it.
@@ -103,10 +112,17 @@ vault:
         tags: Tags
         tag_placeholder: e.g. work, personal
         tags_help: Type a tag and press Enter. Tags are reused across your items.
+        title_scope_help: 'The name is visible to every member in the catalogue. Do not put passwords, URLs or account names in it.'
+        catalogue_hidden: Hide from the catalogue
+        catalogue_hidden_help: Members without access will not see that this entry exists. Access itself does not change.
+        password_policy: 'The password does not meet the password policy (at least %min_length% characters and %min_classes% of: lowercase, uppercase, digits, symbols).'
     reveal:
         show: "Show"
         hide: "Hide"
         error: "The value could not be loaded."
+        copy: Copy
+        copied: Copied
+        download_attachment: Download attachment
     action:
         open: Open
         save: Save
@@ -179,6 +195,7 @@ vault:
             key_invalid: "The encryption key must be a base64-encoded 32-byte libsodium key. Nothing was saved."
             key_storage_unavailable: "The encryption key cannot be stored in the database: install nowo-tech/doctrine-encrypt-bundle so it is encrypted at rest, or configure nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes must be zero or greater.
+        grant_refused: Access could not be granted.
     runtime_config:
         title: Runtime configuration
         intro: Database settings for vault encryption key, attachment size limit, and password strength level.
@@ -195,3 +212,54 @@ vault:
         generate_key: Generate VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Max attachment size (bytes)
         password_level: Password strength level
+    scope:
+        items:
+            title: Shared vault
+            description: 'Entries owned by %scope%. Access depends on your role in it and on the access granted to you.'
+        health_link: Password health
+    catalogue:
+        title: Catalogue
+        description: 'Entries of %scope% you can ask access to. Only names, types, tags and the date of the last change are shown.'
+        updated_on: Last change
+        access: Access
+        has_access: You have access
+        empty: No entries in the catalogue.
+    export:
+        title: 'Export my vault'
+        description: 'Download a decrypted copy of your personal vault.'
+        warning: 'The file contains your passwords and other secrets in clear text. Keep it on a device you trust and delete it once you no longer need it. Only your personal entries are exported: entries shared with you and shared vaults are not.'
+        count: '%count% entries will be exported.'
+        csv_warning: 'CSV keeps values exactly as stored: a spreadsheet may run a cell that starts with = + - or @ as a formula, and people you share an entry with can edit it. Prefer JSON to move to another password manager.'
+        csv_neutralised: 'In CSV, a value that starts with = + - @ (or a tab or carriage return) gets a leading '' so spreadsheets do not run it as a formula; remove it when importing. JSON keeps every value exact.'
+        attachments: 'The JSON file includes the attached documents.'
+        format: 'Format'
+        format_json: 'JSON'
+        format_csv: 'CSV (without attachments)'
+        download: 'Download'
+    health:
+        title: Password health
+        description: 'Weak, reused and old passwords of %scope%, computed now for the entries you can open. Nothing is stored.'
+        summary: '%examined% checked, %skipped% without access: %weak% weak, %reused% reused, %old% old, %breached% breached.'
+        weak: Weak
+        reused: 'Reused (group %group%)'
+        old: 'Old (%days% days)'
+        breached: Breached
+        status: Status
+        ok: OK
+        empty: No login entries to check.
+        reason:
+            min_length: too short
+            min_classes: too few character types
+            empty: no password
+            max_length: 'too long'
+            require_lowercase: 'no lowercase letter'
+            require_uppercase: 'no uppercase letter'
+            require_digit: 'no digit'
+            require_special: 'no symbol'
+            disallow_whitespace: 'contains whitespace'
+            not_contain: 'contains a forbidden word'
+            min_unique_chars: 'too few distinct characters'
+            regex: 'does not match the required pattern'
+            pattern: 'does not match the required pattern'
+        too_large: Too many entries for an on-demand report.
+        throttled: 'A new report can be computed in a few seconds.'

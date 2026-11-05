@@ -73,6 +73,7 @@
         "symfony/asset": "^7.4 || ^8.0",
         "symfony/browser-kit": "^7.4 || ^8.0",
         "symfony/dom-crawler": "^7.4 || ^8.0",
+        "symfony/lock": "^7.4 || ^8.0",
         "symfony/var-exporter": "^6.4 || ^7.0 || ^8.0",
         "vincentlanglet/twig-cs-fixer": "^4.0"
     },
@@ -111,7 +112,8 @@
         "nowo-tech/doctrine-encrypt-bundle": "Encrypts vault_settings.encryption_key at rest when storing the vault master key in the database.",
         "nowo-tech/password-strength-bundle": "Strength policy, live feedback, and generator for login password fields.",
         "nowo-tech/password-toggle-bundle": "Show/hide toggle for login password fields (used with password-strength-bundle).",
-        "nowo-tech/tag-input-bundle": "Tagify-powered multi-tag input for item labels."
+        "nowo-tech/tag-input-bundle": "Tagify-powered multi-tag input for item labels.",
+        "symfony/lock": "Makes the decrypted export's proof check, consume and cooldown atomic per user (export.lock_factory)."
     },
     "minimum-stability": "stable",
     "prefer-stable": true,

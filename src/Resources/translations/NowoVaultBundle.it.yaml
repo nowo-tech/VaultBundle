@@ -56,6 +56,15 @@ vault:
         submit: Concedi accesso
         existing: Permessi attuali
         manage: Gestisci condivisione
+        until: 'fino al %date%'
+        expired: Scaduto
+        expires_in: 'L''accesso termina'
+        expires_never: Mai (permanente)
+        expires_1h: Tra 1 ora
+        expires_1d: Tra 1 giorno
+        expires_1w: Tra 1 settimana
+        expires_custom: In una data
+        expires_at: Data di fine
     access:
         title: Accesso
         intro: Condividi questa risorsa con altri utenti o team (gruppi). Ogni permesso definisce chi può leggerla, modificarla o amministrarla.
@@ -103,10 +112,17 @@ vault:
         tags: Tag
         tag_placeholder: es. lavoro, personale
         tags_help: Digita un tag e premi Invio. I tag vengono riutilizzati tra i tuoi elementi.
+        title_scope_help: 'Il nome è visibile a tutti i membri nel catalogo. Non inserire password, URL o nomi di account.'
+        catalogue_hidden: Nascondi dal catalogo
+        catalogue_hidden_help: 'I membri senza accesso non vedranno che questa voce esiste. L''accesso non cambia.'
+        password_policy: 'La password non rispetta la policy (almeno %min_length% caratteri e %min_classes% tra: minuscole, maiuscole, cifre, simboli).'
     reveal:
         show: "Mostra"
         hide: "Nascondi"
         error: "Impossibile caricare il valore."
+        copy: Copia
+        copied: Copiato
+        download_attachment: Scarica allegato
     action:
         open: Apri
         save: Salva
@@ -179,6 +195,7 @@ vault:
             key_invalid: "La chiave di crittografia deve essere una chiave libsodium di 32 byte codificata in base64. Non è stato salvato nulla."
             key_storage_unavailable: "La chiave di crittografia non può essere memorizzata nel database: installa nowo-tech/doctrine-encrypt-bundle per crittografarla a riposo, oppure configura nowo_vault.encryption_key tramite YAML/env."
             max_attachment_invalid: max_attachment_bytes deve essere zero o maggiore.
+        grant_refused: 'Non è stato possibile concedere l''accesso.'
     runtime_config:
         title: Configurazione runtime
         intro: Impostazioni database per chiave di crittografia, limite allegati e livello password.
@@ -195,3 +212,54 @@ vault:
         generate_key: Genera VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Dimensione massima allegati (byte)
         password_level: Livello robustezza password
+    scope:
+        items:
+            title: Cassaforte condivisa
+            description: 'Voci di %scope%. L''accesso dipende dal tuo ruolo e dagli accessi che ti sono stati concessi.'
+        health_link: Salute delle password
+    catalogue:
+        title: Catalogo
+        description: 'Voci di %scope% a cui puoi chiedere l''accesso. Sono mostrati solo nomi, tipi, tag e la data dell''ultima modifica.'
+        updated_on: Ultima modifica
+        access: Accesso
+        has_access: Hai accesso
+        empty: Nessuna voce nel catalogo.
+    export:
+        title: 'Esporta la mia cassaforte'
+        description: 'Scarica una copia decifrata della tua cassaforte personale.'
+        warning: 'Il file contiene in chiaro le tue password e gli altri segreti. Conservalo su un dispositivo affidabile ed eliminalo quando non ti serve più. Vengono esportate solo le tue voci personali: non quelle condivise con te né le casseforti condivise.'
+        count: 'Verranno esportate %count% voci.'
+        csv_warning: 'Il CSV mantiene i valori così come sono: un foglio di calcolo può eseguire come formula una cella che inizia con = + - o @, e chi ha una voce condivisa con te può modificarla. Per passare a un altro gestore meglio JSON.'
+        csv_neutralised: 'Nel CSV, un valore che inizia con = + - @ (o una tabulazione o un ritorno a capo) riceve un '' iniziale perché il foglio di calcolo non lo esegua come formula; rimuovilo durante l''importazione. Il JSON mantiene tutti i valori esatti.'
+        attachments: 'Il file JSON include i documenti allegati.'
+        format: 'Formato'
+        format_json: 'JSON'
+        format_csv: 'CSV (senza allegati)'
+        download: 'Scarica'
+    health:
+        title: Salute delle password
+        description: 'Password deboli, riutilizzate e vecchie di %scope%, calcolate ora per le voci che puoi aprire. Nulla viene salvato.'
+        summary: '%examined% controllate, %skipped% senza accesso: %weak% deboli, %reused% riutilizzate, %old% vecchie, %breached% compromesse.'
+        weak: Debole
+        reused: 'Riutilizzata (gruppo %group%)'
+        old: 'Vecchia (%days% giorni)'
+        breached: Compromessa
+        status: Stato
+        ok: OK
+        empty: Nessun login da controllare.
+        reason:
+            min_length: troppo corta
+            min_classes: pochi tipi di caratteri
+            empty: nessuna password
+            max_length: 'troppo lunga'
+            require_lowercase: 'nessuna minuscola'
+            require_uppercase: 'nessuna maiuscola'
+            require_digit: 'nessuna cifra'
+            require_special: 'nessun simbolo'
+            disallow_whitespace: 'contiene spazi'
+            not_contain: 'contiene una parola vietata'
+            min_unique_chars: 'pochi caratteri diversi'
+            regex: 'non rispetta il formato richiesto'
+            pattern: 'non rispetta il formato richiesto'
+        too_large: Troppe voci per un report immediato.
+        throttled: 'Un nuovo report potrà essere calcolato tra qualche secondo.'

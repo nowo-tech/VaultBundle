@@ -46,6 +46,207 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Scope-owned vaults, temporary grants, metadata catalogue, reveal / copy / attachment download, password health and
+policies, personal-data exporter / eraser and the decrypted personal export (1.16.0 contract, gaps 1 to 7). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **Scope-owned vaults (gap 1):** items, folders and tags can be owned by a host scope (`owner_scope`, e.g.
+  `project-<uuid>`) instead of a user. New `VaultOwner` value object (`user()` / `scope()`, `key()`, `equals()`),
+  `VaultItem::forScope()`, `VaultFolder::forScope()`, `VaultTag::forScope()`, `getOwner()`, `getOwnerScope()`,
+  `getCreatedBy()` (audit only, `ON DELETE SET NULL`). The host decides membership through
+  `VaultScopeAccessResolverInterface::resolve($user, $scope)` → `VaultScopeAccess` (baseline permission, `catalogue`,
+  `health`, `create`) or `null` for a non-member; the answer is memoized per request only
+  (`RequestScopedScopeAccessCache`, `kernel.reset`). Config `scopes.enabled` / `scopes.access_resolver` (compile error
+  when enabled without a resolver). Effective permission = owner (personal) or the scope baseline, plus active grants on
+  the item and on its folder when the folder has the same owner; a non-member is denied everything, grants included.
+- **Scope pages** (registered only with `scopes.enabled`): `scope_items` (`GET /tools/vault/scopes/{scope}`),
+  `scope_item_new` (`/tools/vault/scopes/{scope}/items/new/{type}`), `scope_folder_create` (`POST …/folders`). The scope
+  key comes from the route (`[a-z0-9][a-z0-9_-]{0,127}`), is re-validated on every request and answers the deny status
+  for a non-member. Services for hosts that render their own pages: `VaultScopeItemLister`,
+  `VaultItemCreator::createInScope()`, `VaultFolderService::createInScope()`, scope tags in `VaultTagService`. New
+  template `vault/scope_items.html.twig`; the item form shows a catalogue warning on the title of scope items and a
+  *Hide from the catalogue* choice for scope admins.
+- **Temporary grants (gap 2):** `vault_grants.expires_at`; a grant is active while `now < expiresAt`, checked on every
+  read path (guard, repository queries, *Shared with me*, extension `/logins`, field reveal) against the injected clock,
+  with no purge lag. `VaultGrantService::grantAs($actor, …, ?$expiresAt)` re-checks Share at the call, refuses self
+  grants, unlisted grantees (fail closed), non-member user grantees of scope resources, expiries outside
+  `grants.temporary.min_ttl` / `max_ttl` and permissions above `grants.temporary.max_permission` (`read` by default,
+  `admin` refused by the config tree), then dispatches the vetoable `GRANT_POLICY_CHECK`; a temporary grant never
+  replaces or upgrades a permanent one (`unchanged` / `would_replace_permanent`). Race-safe writes (unique-violation
+  retry, conditional `UPDATE` / `DELETE` with affected-row checks). `revokeAs($actor, $grant)`. Optional expiry choice in
+  the share form (`grants.temporary.ui`), expiry and *Expired* badge on the share page.
+- **`nowo:vault:grants:purge-expired`** (`--batch-size`, `--limit`, `--dry-run`; prints `{"expired":n,"dry_run":b}`):
+  deletes expired grants with a conditional delete and emits `GRANT_EXPIRED` once per row (concurrent purgers and
+  extensions are safe). `VaultGrantExpiryService`.
+- **`nowo:vault:schema:check-downgrade`:** read-only counts of the rows that block a rollback to 1.15.x.
+- **Events (ids only, after the flush):** `GRANT_POLICY_CHECK` (`VaultGrantPolicyCheckEvent`, vetoable with a code),
+  `GRANT_CREATED`, `GRANT_UPDATED` (previous permission / expiry), `GRANT_REVOKED` (reason `manual`, `resource_purged`),
+  `GRANT_EXPIRED` (`VaultGrantChangeEvent`), `ITEM_CHANGED` (`VaultItemChangeEvent`: created, updated, trashed, restored,
+  purged, moved; `secretChanged`).
+- **`vault_items.secret_changed_at`:** set on create and when a secret field (or the attachment) changes; title, tag,
+  folder and rotation changes leave it alone.
+- **Metadata-only catalogue (gap 3):** `VaultCatalogue::page($viewer, $scope, VaultCatalogueQuery)` →
+  `VaultCataloguePage` of `VaultCatalogueEntry` (id, title, type, scope tag names, owner scope, `updatedOn` date only
+  at 00:00 UTC, `viewerHasAccess`). Scalar DQL only: no `VaultItem` (and no ciphertext) is hydrated; constant number of
+  queries per page. Members need `VaultScopeAccess::$catalogue`; `CATALOGUE_ACCESS_CHECK`
+  (`VaultCatalogueAccessCheckEvent`) can grant or deny. Hidden (`catalogue_hidden`) and trashed items are left out.
+  Search (2 to 100 characters, wildcards literal), type and tag filters. Route `catalogue`
+  (`/tools/vault/scopes/{scope}/catalogue`, with `scopes.enabled` and `catalogue.enabled`), template
+  `vault/catalogue.html.twig` with the host block `vault_catalogue_row_actions` (receives `entry` only) for *Request
+  access*.
+- **Reveal additions (gap 4, on top of the 1.15.2 `item_reveal` route):** `purpose=copy` (audited as `ITEM_COPIED`);
+  the JSON is the ZK-ready envelope `{"item","field","purpose","encoding":"plain","value"}`; `ITEM_FIELD_REVEAL_CHECK`
+  (`VaultFieldRevealCheckEvent`) vetoes a field (answered 404); a throwing audit listener refuses the reveal with 503
+  (no audit, no reveal); `reveal.revealable_fields` (per type; default the secret fields); `reveal.rate_limit` (30 per
+  user per minute, 300 per hour, 10 per user, item and field per minute; 429 + `Retry-After` + `REVEAL_THROTTLED`);
+  `reveal.auto_hide_seconds` (30). The reveal, copy and attachment responses carry `Referrer-Policy: no-referrer`,
+  `X-Robots-Tag: noindex, nofollow` and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox`,
+  and disable the profiler. `VaultFieldRevealer` service; `VaultRevealedValue` (dumps `***`, refuses serialization);
+  `VaultDecryptionFailedException` (generic message, no previous exception; 503).
+- **Attachment download:** `item_attachment` (`POST /tools/vault/items/{id}/attachment`, CSRF `vault_reveal_<id>`,
+  View, field veto `attachment`, rate limited, `ITEM_ATTACHMENT_DOWNLOADED`), always `application/octet-stream` with a
+  sanitised `Content-Disposition` file name (basename, no control characters or `"\/`, 100 characters,
+  `attachment.bin` fallback, RFC 5987 `filename*`). Before 1.16.0 an attachment could be uploaded but never retrieved.
+- **`vault.js`:** Copy button (clipboard, the value never enters the page), auto-hide of a revealed value, wipe when
+  the tab is hidden or a dialog closes, attachment download, refuses an `encoding` other than `plain`.
+- **Password health (gap 5):** `VaultHealthReporterInterface` (`forScope($viewer, $scope, ?$policy)`,
+  `forPersonalVault($owner, ?$policy)`; server strategy `VaultHealthReporter`) → `VaultHealthReport` of
+  `VaultHealthItemResult` (item id, title, `weak` + `weakReasons` codes, `reuseGroup` local to the report, `old` +
+  `ageDays`, `breached`). Computed on demand in the request's process, over the owner's active login items the viewer
+  may View (the others are counted in `skipped` and never compared); reuse uses a per-run random HMAC key that is wiped
+  and never leaves the method; nothing is persisted. Weak uses `nowo-tech/password-strength-bundle`'s evaluator when
+  installed (plus the class count), else a built-in length / character-class check; old uses `secret_changed_at`
+  (falling back to `created_at`). Optional host `VaultBreachCheckerInterface` (`health.breach_checker`, null on failure).
+  `health.max_items` (2 000; `VaultHealthTooLargeException`, 413), optional per-viewer cache of the flags only
+  (`health.cache_ttl`, off). Scope access needs `VaultScopeAccess::$health` and the vetoable `HEALTH_ACCESS_CHECK`
+  (`VaultHealthAccessCheckEvent`); `HEALTH_REPORT_GENERATED` (`VaultHealthReportGeneratedEvent`, counts only). Route
+  `health` (`GET /tools/vault/scopes/{scope}/health`, with `scopes.enabled` and `health.enabled`), template
+  `vault/health.html.twig`.
+- **Password policies:** `VaultPasswordPolicy` (`minLength`, `minClasses`, `maxAgeDays`, `enforceOnSave`),
+  `VaultPasswordPolicyResolverInterface::forOwner(VaultOwner)` (default `ConfigVaultPasswordPolicyResolver` reads
+  `health.policy`; `health.policy_resolver` for a per-owner host resolver). With `enforceOnSave` the item form validates
+  a typed login password (`VaultPasswordPolicyConstraint`; an empty value keeps the stored one and is not re-validated;
+  the message names the missing rules, never the value).
+- **Personal data (gap 6):** `VaultPersonalDataExporter::export(string $userId)` (metadata only: personal items with
+  folder and tag names and timestamps, folders, tags, grants received (resource title only when the user can View it
+  now), grants given, scope items created (id, scope, date), extension token dates; never a value, a ciphertext or a
+  hash) and `VaultPersonalDataEraser::erase(string $userId, int $batchSize = 500)` → `VaultErasureResult`: in order,
+  grants to the user and grants on the user's personal items and folders are deleted (`GRANT_REVOKED`, reason
+  `erasure`), the remaining grants the user created are kept with `created_by_id = NULL`, then tag links, personal items
+  (trash included), personal folders (children first) and tags are deleted, scope rows the user created get
+  `created_by_id = NULL`, and extension tokens are deleted; one transaction per batch, no reliance on `ON DELETE
+  CASCADE`, idempotent. `PERSONAL_DATA_ERASED` (`VaultPersonalDataErasedEvent`: user id, counts).
+- **Decrypted personal export (gap 7):** `personal_export` (`GET /tools/vault/export`, warning page) and
+  `personal_export_download` (`POST`, CSRF `vault_personal_export`), registered with `export.enabled`. The host
+  implements `VaultReauthenticationCheckerInterface` (`getProof()`, `consume()`, `getReauthenticationUrl()`; required,
+  compile error otherwise); `VaultReauthProofValidator` checks the `VaultReauthProof` against the bundle clock (user,
+  purpose, `export.reauth_max_age` ≤ 900 s, 30 s skew, `export.accepted_primary_factors`, an
+  `export.accepted_mfa_factors` factor when MFA is enrolled, the session binding) and keeps its own list of used proof
+  ids (single use even with a buggy host). Then `export.max_items` / `export.max_bytes` (413), `export.cooldown_seconds`
+  (429 + `Retry-After`), a decrypt pre-flight up to 500 items (503), the proof consumed, `ITEMS_EXPORTED`
+  (`VaultItemsExportedEvent`; a throwing listener refuses with 503) and a `StreamedResponse` written in batches of 50
+  with no temporary file: JSON (`nowo-vault-export` v1, attachments with `export.include_attachments`) or CSV (fixed
+  header, every field quoted, cells starting with `= + - @`, tab or CR prefixed with `'` unless
+  `export.csv_raw_values`). Personal items only (never shared-with-me or scope items). Headers:
+  `Cache-Control: max-age=0, no-store, private`, `nosniff`, `Referrer-Policy: no-referrer`, the sandbox CSP,
+  `X-Accel-Buffering: no`, a fixed `attachment; filename="vault-export-<date>.<format>"`; the profiler is disabled.
+  Template `vault/export.html.twig`, form `VaultPersonalExportType`.
+- `VaultItemRevealedEvent` gains `getPurpose()` (`reveal`, `copy`, `autofill`, `attachment`), `getOwnerKey()` and
+  `getOccurredAt()`; the extension `/logins` events use purpose `autofill`.
+- `VaultAccessGuard::resolvePermissionMap($user, $items)` (constant number of queries per list) and
+  `resolveScopeAccess()`; `VaultGrantExpiryRepositoryInterface` (implemented by the Doctrine grant repository).
+
+### Changed
+
+- The guard loads the user's and teams' active grants on an item and its folder in **one** query (the redundant third
+  lookup is gone with the Doctrine repository); folder grants apply when the folder has the item's owner (SEC-004 M1,
+  generalised to scopes).
+- Purging an item or folder deletes its grants in the same transaction (`GRANT_REVOKED`, reason `resource_purged`);
+  1.15 left orphan grants.
+- The share and revoke pages use `grantAs()` / `revokeAs()`; a refused grant shows a flash instead of saving.
+- Grant log entries also carry `expires_at` and `actor_id` when set; refusals are logged at `notice` with the code.
+- Every bundle response also gets `Expires: 0`.
+
+### Deprecated
+
+- `VaultItem::getCreator()`, `VaultFolder::getCreator()`, `VaultTag::getCreator()` (use `getOwner()`; they throw
+  `VaultOwnerException` for scope rows).
+- `VaultGrantService::grant()` and `revoke()` (use `grantAs()` / `revokeAs()`).
+
+### Fixed
+
+- **SEC-004 FQ-L3 (CSV formula injection):** the CSV export kept values exact on the premise that only the owner's data
+  is in it, but a Write grantee can edit the owner's items (title, username, note, websites, …). Cells starting with
+  `=`, `+`, `-`, `@`, tab or CR now get a leading `'` (OWASP); `export.csv_raw_values: true` keeps exact values. JSON is
+  unchanged (exact).
+- **SEC-004 FQ-I1:** the proof check, `consume()`, the bundle's used-proof list and the cooldown are one critical section
+  per user when a Symfony Lock factory exists (`export.lock_factory`, default `lock.factory`; a busy lock answers 429
+  `Retry-After: 1`). `symfony/lock` is suggested (and a dev dependency for the tests).
+- **SEC-004 FQ-I13:** an explicit `export.lock_factory` that names no service now fails the container compile
+  (`ExportLockFactoryPass`); only the default `lock.factory` may be absent (then the export runs without the lock).
+- **SEC-004 FQ-I6:** `export.max_bytes` is checked against `SUM(LENGTH(ciphertext))` plus 512 bytes per item (the JSON
+  keeps attachments as base64); it was `× 0.75`, which under-counted.
+- **SEC-004 FQ-I2:** the health route had no throttle and every load decrypted every examined password and called the
+  breach checker once per password. New `health.min_interval_seconds` (10: one computed report per viewer and owner per
+  window, 429 + `Retry-After`, `VaultHealthThrottledException`) and `health.breach_cache_ttl` (86 400: breach answers
+  cached per item id and secret change, never keyed by the value).
+- **SEC-004 FQ-L2:** the browser extension `/logins` lookup returned the password without dispatching
+  `ITEM_FIELD_REVEAL_CHECK`, so a host veto enforced on the web reveal was bypassed. It now dispatches the check for
+  `password` (channel `extension`, purpose `autofill`); a vetoed password is sent as an empty string, flagged
+  `VaultBrowserExtensionLoginMatch::$passwordWithheld` (and `"passwordWithheld": true` in the `/logins` JSON, FQ-I14)
+  and left out of the `ITEM_REVEALED` field list. See [BROWSER-EXTENSION](BROWSER-EXTENSION.md#logins-response).
+- **SEC-004 FQ-I5:** the `/logins` audit events (`ITEM_REVEALED`, purpose `autofill`) now carry the owner key.
+- **SEC-004 FQ-I7:** the catalogue date is computed in UTC (it could be one day off on hosts whose PHP timezone is not
+  UTC).
+- **SEC-004 FQ-L1:** on the scope items page, a member without a baseline (explicit grants only) saw the names of every
+  scope folder and tag. The page now lists only the folders (with their ancestors) and tags of the items the member may
+  View, plus the folders they may Share. `VaultScopeItemLister::list()` also returns `visible` (null with a baseline).
+- **SEC-004 FQ-L4 / FQ-I12:** the item page's folder select listed every scope folder, in view mode too. A member who
+  cannot organise the item now gets only its current folder; one who can (Admin on the item) gets the folders they may
+  use (all with a baseline, else those of their visible items with ancestors and those they may Share), plus the
+  current one. New `VaultScopeItemLister::visibleFolders()`.
+
+- Key rotation (`nowo:vault:reencrypt`) touched `updated_at` of every item, which reordered every list; it now uses
+  `VaultItem::replaceCiphertextForRotation()`.
+
+### Accepted deviations from contract vault-next v1.0
+
+Accepted by the owner on 2026-11-05. The contract is the 1.16.0 design for symfony-beacon; where the code differs:
+
+- **Reveal (gap 4):** the 1.15.2 route `/tools/vault/items/{id}/reveal/{field}` is kept, and `VaultItemRevealedEvent`
+  is extended (`purpose`, `ownerKey`, `occurredAt`) instead of a new `VaultItemRevealEvent` class.
+  `reveal.secret_fields` is not configurable (it would reopen the 1.15.2 HTML leak); `reveal.revealable_fields` defaults
+  to the secret fields. There is no `browser_extension.logins_rate_limit` (the 1.15.2 shared secret-access budget covers
+  `/logins`) and no `grants.require_grantee_list` (1.15.2 already fails closed).
+- **Routes:** the new routes (scope pages, catalogue, health, attachment, export) are optional route keys enabled by
+  the extension, so a loader built without the list keeps the 1.15 route set. The attachment download lives in
+  `VaultRevealController`.
+- **Tests:** two 1.15.2 assertions changed on purpose (the exact reveal JSON, now the envelope, and the
+  `VaultItemRevealedEvent` property list).
+- **Health (gap 5):** the scope page has no link to the health report (hosts link to the `health` route, as for the
+  catalogue); unknown weak-reason codes are shown as is.
+- **Personal data (gap 6):** to include a received grant's title only when the user can View the resource now, the
+  exporter loads those resources and asks the access guard (it outputs the title only; every other section uses scalar
+  queries). The eraser emits `GRANT_REVOKED` (reason `erasure`) through `VaultGrantService::dispatchChange()` after a
+  conditional delete per row (no `revokeForSystem()` method) and writes with DQL / DBAL only (it never flushes the
+  host's unit of work). The exporter and eraser services are private (inject them).
+- **Decrypted export (gap 7):**
+  - besides the host's `consume()`, the bundle keeps its own list of used proof ids in `export.cache_pool`, so a proof
+    is single use even with a host that ignores `consume()`;
+  - extra refusal reason codes: `primary_factor_missing`, `reauth_replayed`, `invalid_request`, `decrypt_failed`,
+    `audit_failed`, `busy` (another export of the same user holds the lock, 429);
+  - the GET page also redirects to the re-authentication when any proof check fails, and showing it does not consume
+    the proof;
+  - the stream detaches the entities of each batch instead of calling `EntityManager::clear()` (the host's user and
+    pending entities stay managed);
+  - the CSP is the shared sensitive set `default-src 'none'; frame-ancestors 'none'; sandbox` (stricter than the
+    contract's); `Cache-Control: max-age=0, no-store, private` comes from the bundle response listener;
+  - refusals answer an empty body with the status code (403, 413, 429, 503);
+  - CSV joins `websites` with newlines and tags with `, `; `export.cooldown_seconds: 0` disables the cooldown;
+  - Q-O7 (exact CSV values) was reversed after the SEC-004 audit (FQ-L3): CSV cells are neutralised by default, exact
+    values are an opt-in (`export.csv_raw_values`).
+
 ## [1.15.2] - 2026-11-05
 
 Security hardening: no decrypted secret in the item HTML, `no-store` on every bundle response, fail-closed sharing without a grantee listener, `security.deny_status`, audited and rate-limited secret access. See [UPGRADING](UPGRADING.md#to-1152).

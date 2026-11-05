@@ -80,7 +80,8 @@ final readonly class VaultPayloadReencryptionService
                 }
 
                 if (!$dryRun) {
-                    $item->setCiphertext($newCryptographer->encrypt($plaintext));
+                    // 1.16.0: rotation leaves updated_at and secret_changed_at untouched (lists keep their order, ages stay).
+                    $item->replaceCiphertextForRotation($newCryptographer->encrypt($plaintext));
                     $updated[] = $item;
                 }
 

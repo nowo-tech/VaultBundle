@@ -17,11 +17,15 @@ use Nowo\UiKitBundle\View\Pagination;
 use Nowo\UiKitBundle\View\SettingsPage;
 use Nowo\UiKitBundle\View\SettingsSection;
 use Nowo\UiKitBundle\View\Table;
+use Nowo\VaultBundle\Dto\VaultCataloguePage;
+use Nowo\VaultBundle\Dto\VaultHealthItemResult;
+use Nowo\VaultBundle\Dto\VaultHealthReport;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Entity\VaultTag;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Enum\VaultPermission;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -304,10 +308,11 @@ final readonly class VaultPageFactory
      *
      * @param array<string, array{path: string, name: string}> $routes
      * @param list<string> $formThemes
+     * @param string|null $backUrl back / cancel target (1.16.0: the scope list for a scope item); null = the items list
      */
-    public function itemForm(array $routes, FormView $form, VaultItemType $type, ?VaultItem $item, bool $readOnly, ?string $activeFolder, array $formThemes = []): FormPage
+    public function itemForm(array $routes, FormView $form, VaultItemType $type, ?VaultItem $item, bool $readOnly, ?string $activeFolder, array $formThemes = [], ?string $backUrl = null): FormPage
     {
-        $backUrl = $this->url($routes['items']['name'], array_filter(['folder' => $activeFolder], static fn (?string $v): bool => $v !== null && $v !== ''));
+        $backUrl ??= $this->url($routes['items']['name'], array_filter(['folder' => $activeFolder], static fn (?string $v): bool => $v !== null && $v !== ''));
 
         return new FormPage(
             header: new PageHeader(
@@ -325,6 +330,156 @@ final readonly class VaultPageFactory
             formThemes: $formThemes,
             formTag: !$readOnly,
             formAttributes: ['class' => 'vault-form', 'data-vault-item-form' => $type->value, 'data-vault-readonly' => '0'],
+        );
+    }
+
+    /**
+     * Scope vault list (1.16.0): one create action per item type when the member may create, search filter, item
+     * cells, row actions View / Access / Edit / Trash according to the member's effective permission per item.
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     * @param list<VaultItem> $items
+     * @param array<string, VaultPermission|null> $permissions item id => effective permission
+     * @param array<string, FormView> $trashForms item id => CSRF-only trash form (scope admins)
+     */
+    public function scopeItems(
+        array $routes,
+        string $scope,
+        array $items,
+        array $permissions,
+        array $trashForms,
+        FormView $searchForm,
+        ?Pagination $pagination,
+        bool $canCreate,
+        ?string $activeFolder,
+    ): ListPage {
+        $create = [];
+        if ($canCreate) {
+            foreach (VaultItemType::cases() as $type) {
+                $create[] = new Action(
+                    'create',
+                    VaultPages::label('vault.type.' . $type->value),
+                    $this->url($routes['scope_item_new']['name'], array_filter(['scope' => $scope, 'type' => $type->value, 'folder' => $activeFolder], static fn (?string $v): bool => $v !== null && $v !== '')),
+                    icon: 'create',
+                    variant: 'secondary',
+                    attributes: ['data-testid' => 'vault-scope-new-' . $type->value],
+                );
+            }
+        }
+
+        return new ListPage(
+            header: new PageHeader(
+                VaultPages::label('vault.scope.items.title'),
+                VaultPages::label('vault.scope.items.description', ['%scope%' => $scope]),
+                $create,
+                back: new BackLink($this->url($routes['index']['name']), VaultPages::label('vault.title'), 'vault-back'),
+            ),
+            columns: [
+                new Column('type', VaultPages::label('vault.list.type'), priority: 2),
+                new Column('title', VaultPages::label('vault.list.title'), required: true),
+                new Column('tags', VaultPages::label('vault.form.tags'), priority: 3),
+                new Column('folder', VaultPages::label('vault.list.folder'), priority: 2),
+            ],
+            rows: $items,
+            filters: $searchForm,
+            rowActions: fn (VaultItem $item): array => $this->scopeItemActions($routes, $item, $permissions[$item->getId()] ?? null, $trashForms),
+            pagination: $pagination,
+            empty: new EmptyState(null, VaultPages::label('vault.empty.items')),
+            filtersClearHref: $this->url($routes['scope_items']['name'], ['scope' => $scope]),
+            bundle: VaultPages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'vault-scope-items'],
+            actionsLabel: VaultPages::label('vault.list.actions'),
+            filtersSubmit: new Action('filter', VaultPages::label('vault.action.search'), icon: 'filter'),
+            filtersClear: new Action('cancel', VaultPages::label('vault.search.clear')),
+        );
+    }
+
+    /**
+     * Scope catalogue (1.16.0): metadata only, no row action of the bundle (the host renders *Request access* in the
+     * `vault_catalogue_row_actions` block); filters: title search, type and tag chips.
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     */
+    public function catalogue(array $routes, string $scope, VaultCataloguePage $catalogue, FormView $searchForm, Pagination $pagination): ListPage
+    {
+        return new ListPage(
+            header: new PageHeader(
+                VaultPages::label('vault.catalogue.title'),
+                VaultPages::label('vault.catalogue.description', ['%scope%' => $scope]),
+                back: new BackLink($this->url($routes['scope_items']['name'], ['scope' => $scope]), VaultPages::label('vault.scope.items.title'), 'vault-back'),
+            ),
+            columns: [
+                new Column('title', VaultPages::label('vault.list.title'), required: true),
+                new Column('type', VaultPages::label('vault.list.type'), priority: 2),
+                new Column('tags', VaultPages::label('vault.form.tags'), priority: 3),
+                new Column('updatedOn', VaultPages::label('vault.catalogue.updated_on'), priority: 2),
+                new Column('access', VaultPages::label('vault.catalogue.access')),
+            ],
+            rows: $catalogue->entries,
+            filters: $searchForm,
+            pagination: $pagination,
+            empty: new EmptyState(null, VaultPages::label('vault.catalogue.empty')),
+            filtersClearHref: $this->url($routes['catalogue']['name'], ['scope' => $scope]),
+            bundle: VaultPages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'vault-catalogue'],
+            actionsLabel: VaultPages::label('vault.list.actions'),
+            filtersSubmit: new Action('filter', VaultPages::label('vault.action.search'), icon: 'filter'),
+            filtersClear: new Action('cancel', VaultPages::label('vault.search.clear')),
+        );
+    }
+
+    /**
+     * Scope password health (1.16.0): one row per examined login item with its flags (never a value).
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     */
+    public function health(array $routes, string $scope, VaultHealthReport $report): ListPage
+    {
+        return new ListPage(
+            header: new PageHeader(
+                VaultPages::label('vault.health.title'),
+                VaultPages::label('vault.health.description', ['%scope%' => $scope]),
+                back: new BackLink($this->url($routes['scope_items']['name'], ['scope' => $scope]), VaultPages::label('vault.scope.items.title'), 'vault-back'),
+            ),
+            columns: [
+                new Column('title', VaultPages::label('vault.list.title'), required: true),
+                new Column('status', VaultPages::label('vault.health.status')),
+            ],
+            rows: $report->items,
+            rowActions: fn (VaultHealthItemResult $result): array => [Action::view($this->url($routes['item_view']['name'], ['id' => $result->itemId]), VaultPages::label('vault.action.view'))],
+            empty: new EmptyState(null, VaultPages::label('vault.health.empty')),
+            bundle: VaultPages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'vault-health'],
+            actionsLabel: VaultPages::label('vault.list.actions'),
+        );
+    }
+
+    /**
+     * Decrypted personal export (1.16.0): the warning, the format choice and *Download* (POST + CSRF).
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     */
+    public function export(array $routes, FormView $form): FormPage
+    {
+        $backUrl = $this->url($routes['index']['name']);
+
+        return new FormPage(
+            header: new PageHeader(
+                VaultPages::label('vault.export.title'),
+                VaultPages::label('vault.export.description'),
+                back: new BackLink($backUrl, VaultPages::label('vault.action.back'), 'vault-back'),
+            ),
+            form: $form,
+            submitLabel: VaultPages::label('vault.export.download'),
+            cancelHref: $backUrl,
+            cancelLabel: VaultPages::label('vault.action.back'),
+            bundle: VaultPages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'vault-export'],
+            formAttributes: ['class' => 'vault-form'],
         );
     }
 
@@ -472,6 +627,41 @@ final readonly class VaultPageFactory
                 label: VaultPages::label('vault.action.trash'),
                 form: $trashForms[$id],
             );
+        }
+
+        return $actions;
+    }
+
+    /**
+     * Row actions of a scope item: View for any access, Edit with write, Access (share) and Trash with admin.
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     * @param array<string, FormView> $trashForms
+     *
+     * @return list<Action>
+     */
+    private function scopeItemActions(array $routes, VaultItem $item, ?VaultPermission $permission, array $trashForms): array
+    {
+        $id      = $item->getId();
+        $actions = [Action::view($this->url($routes['item_view']['name'], ['id' => $id]), VaultPages::label('vault.action.view'))];
+        if ($permission?->allowsWrite() === true) {
+            $actions[] = Action::edit($this->url($routes['item_edit']['name'], ['id' => $id]), VaultPages::label('vault.action.edit'));
+        }
+        if ($permission?->allowsAdmin() === true) {
+            $actions[] = new Action('share', VaultPages::label('vault.action.access'), $this->url($routes['item_share']['name'], ['id' => $id]), icon: 'share');
+            if (isset($trashForms[$id])) {
+                $actions[] = Action::delete(
+                    $this->url($routes['item_trash']['name'], ['id' => $id]),
+                    confirm: new Confirm(
+                        VaultPages::label('vault.confirm.trash_title', ['%name%' => $item->getTitle()]),
+                        VaultPages::label('vault.confirm.trash'),
+                        VaultPages::label('vault.action.trash'),
+                        cancelLabel: VaultPages::label('vault.action.cancel'),
+                    ),
+                    label: VaultPages::label('vault.action.trash'),
+                    form: $trashForms[$id],
+                );
+            }
         }
 
         return $actions;

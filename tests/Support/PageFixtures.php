@@ -6,7 +6,11 @@ namespace Nowo\VaultBundle\Tests\Support;
 
 use DateTimeImmutable;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\VaultBundle\Dto\VaultCatalogueEntry;
+use Nowo\VaultBundle\Dto\VaultCataloguePage;
 use Nowo\VaultBundle\Dto\VaultGranteeChoice;
+use Nowo\VaultBundle\Dto\VaultHealthItemResult;
+use Nowo\VaultBundle\Dto\VaultHealthReport;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Dto\VaultShareFormData;
 use Nowo\VaultBundle\Entity\VaultFolder;
@@ -22,12 +26,15 @@ use Nowo\VaultBundle\Form\VaultFolderCreateType;
 use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Form\VaultItemSearchType;
 use Nowo\VaultBundle\Form\VaultPasswordGeneratorType;
+use Nowo\VaultBundle\Form\VaultPersonalExportType;
 use Nowo\VaultBundle\Form\VaultRuntimeConfigType;
 use Nowo\VaultBundle\Form\VaultShareType;
+use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Tests\App\Kernel;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Ui\VaultPageFactory;
 use Nowo\VaultBundle\Ui\VaultPages;
+use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
@@ -39,6 +46,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RequestContext;
 
 use function assert;
+use function count;
 use function http_build_query;
 
 /**
@@ -218,6 +226,165 @@ final class PageFixtures
     }
 
     /**
+     * Scope vault list (1.16.0): a member with create and admin on one item, read on another; or an empty scope seen
+     * by a member without create.
+     *
+     * @return array<string, mixed>
+     */
+    public static function scopeItems(bool $empty = false, ?VaultPageFactory $factory = null): array
+    {
+        $factory ??= self::factory();
+        $routes = self::routes();
+        $folder = VaultFolder::forScope('Payments', 'org-1', null);
+        $tag    = VaultTag::forScope('prod', 'org-1');
+        $items  = [];
+        if (!$empty) {
+            $stripe = VaultItem::forScope(VaultItemType::Login, 'Stripe', 'org-1', null, 'cipher', $folder);
+            $stripe->setTags([$tag]);
+            $items = [$stripe, VaultItem::forScope(VaultItemType::SecureNote, 'Runbook', 'org-1', null, 'cipher')];
+        }
+        $permissions = $empty ? [] : [$items[0]->getId() => VaultPermission::Admin, $items[1]->getId() => VaultPermission::Read];
+        $search      = self::forms()->createNamed('', VaultItemSearchType::class, ['q' => ''], [
+            'action'  => '/nowo_vault_scope_items?scope=org-1',
+            'filters' => ['folder' => null, 'tag' => null],
+        ])->createView();
+        $access = new VaultScopeAccess($empty ? VaultPermission::Read : VaultPermission::Write, true, false, !$empty);
+
+        return $factory->context([
+            'page' => $factory->scopeItems(
+                $routes,
+                'org-1',
+                $items,
+                $permissions,
+                $empty ? [] : self::actionForms([$items[0]], 'vault_trash_'),
+                $search,
+                $factory->pagination('nowo_vault_scope_items', 1, 50, $empty ? 0 : 2, ['scope' => 'org-1']),
+                !$empty,
+                null,
+            ),
+            'scope'        => 'org-1',
+            'access'       => $access,
+            'items'        => $items,
+            'permissions'  => $permissions,
+            'folders'      => $empty ? [] : [$folder],
+            'tags'         => $empty ? [] : [$tag],
+            'activeFolder' => null,
+            'activeTag'    => null,
+            'searchQuery'  => '',
+            'routes'       => $routes,
+            'folderForm'   => $empty ? null : self::forms()->createNamed('', VaultFolderCreateType::class, null, ['action' => '/nowo_vault_scope_folder_create', 'csrf_token_id' => 'vault_scope_folder_create_org-1'])->createView(),
+        ]);
+    }
+
+    /**
+     * Decrypted personal export (1.16.0): the warning page with both formats, or JSON only without attachments.
+     *
+     * @return array<string, mixed>
+     */
+    public static function export(bool $jsonOnly = false, ?VaultPageFactory $factory = null): array
+    {
+        $factory ??= self::factory();
+        $routes  = self::routes();
+        $formats = $jsonOnly ? ['json'] : ['json', 'csv'];
+        $form    = self::forms()->createNamed('', VaultPersonalExportType::class, ['format' => 'json'], ['formats' => $formats, 'action' => '/nowo_vault_personal_export_download'])->createView();
+
+        return $factory->context([
+            'page'               => $factory->export($routes, $form),
+            'count'              => 3,
+            'formats'            => $formats,
+            'includeAttachments' => !$jsonOnly,
+            'routes'             => $routes,
+        ]);
+    }
+
+    /**
+     * Scope password health (1.16.0): one weak + reused + old + breached row and one healthy row, or an empty report.
+     *
+     * @return array<string, mixed>
+     */
+    public static function health(bool $empty = false, ?VaultPageFactory $factory = null): array
+    {
+        $factory ??= self::factory();
+        $routes = self::routes();
+        $items  = $empty ? [] : [
+            new VaultHealthItemResult('00000000-0000-4000-8000-000000000001', 'Stripe', true, ['min_length', 'require_digit'], 1, true, 400, true),
+            new VaultHealthItemResult('00000000-0000-4000-8000-000000000002', 'Mail', false, [], null, false, 3, null),
+        ];
+        $report = new VaultHealthReport(VaultOwner::scope('org-1'), new DateTimeImmutable('2026-11-05 12:00:00'), count($items), $empty ? 0 : 1, $items);
+
+        return $factory->context([
+            'page'   => $factory->health($routes, 'org-1', $report),
+            'scope'  => 'org-1',
+            'report' => $report,
+            'routes' => $routes,
+        ]);
+    }
+
+    /**
+     * Scope catalogue (1.16.0): two entries (one already accessible), or an empty catalogue.
+     *
+     * @return array<string, mixed>
+     */
+    public static function catalogue(bool $empty = false, ?VaultPageFactory $factory = null): array
+    {
+        $factory ??= self::factory();
+        $routes  = self::routes();
+        $entries = $empty ? [] : [
+            new VaultCatalogueEntry('00000000-0000-4000-8000-000000000001', 'Stripe', VaultItemType::Login, ['prod'], 'org-1', new DateTimeImmutable('2026-11-04'), false),
+            new VaultCatalogueEntry('00000000-0000-4000-8000-000000000002', 'Company card', VaultItemType::CreditCard, [], 'org-1', new DateTimeImmutable('2026-10-30'), true),
+        ];
+        $page   = new VaultCataloguePage($entries, $empty ? 0 : 2, 1, 50);
+        $search = self::forms()->createNamed('', VaultItemSearchType::class, ['q' => ''], [
+            'action'  => '/nowo_vault_catalogue?scope=org-1',
+            'filters' => ['type' => $empty ? null : 'login'],
+        ])->createView();
+
+        return $factory->context([
+            'page'        => $factory->catalogue($routes, 'org-1', $page, $search, $factory->pagination('nowo_vault_catalogue', 1, 50, $page->total, ['scope' => 'org-1'])),
+            'scope'       => 'org-1',
+            'catalogue'   => $page,
+            'tags'        => $empty ? [] : [VaultTag::forScope('prod', 'org-1')],
+            'itemTypes'   => VaultItemType::cases(),
+            'activeType'  => $empty ? null : 'login',
+            'activeTag'   => null,
+            'searchQuery' => '',
+            'routes'      => $routes,
+        ]);
+    }
+
+    /**
+     * Share page with the temporary-grant fields (1.16.0) and one active and one expired temporary grant.
+     *
+     * @return array<string, mixed>
+     */
+    public static function shareTemporary(?VaultPageFactory $factory = null): array
+    {
+        $factory ??= self::factory();
+        $routes = self::routes();
+        $user   = new TestUser();
+        $item   = new VaultItem(VaultItemType::Login, 'GitHub', $user, 'cipher');
+        $form   = self::forms()->create(VaultShareType::class, new VaultShareFormData(), ['temporary_ui' => true])->createView();
+        $grants = [
+            new VaultGrant(VaultResourceType::Item, $item->getId(), GranteeType::User, 'user-2', VaultPermission::Read, $user, new DateTimeImmutable('2026-11-06 14:00:00')),
+            new VaultGrant(VaultResourceType::Item, $item->getId(), GranteeType::User, 'user-3', VaultPermission::Read, $user, new DateTimeImmutable('2026-11-01 09:00:00')),
+        ];
+        $revoke = [];
+        foreach ($grants as $grant) {
+            $revoke[$grant->getId()] = self::actionForm('vault_revoke_grant_' . $grant->getId());
+        }
+
+        return $factory->context([
+            'page'          => $factory->share($form, $item->getTitle(), $routes['items']['name'], []),
+            'grantsTable'   => $factory->grantsTable($grants, $revoke, $item->getId(), $routes['item_grant_revoke']['name']),
+            'grants'        => $grants,
+            'expiredGrants' => [$grants[0]->getId() => false, $grants[1]->getId() => true],
+            'resourceLabel' => $item->getTitle(),
+            'granteeLabels' => [],
+            'routes'        => $routes,
+        ]);
+    }
+
+    /**
      * @param 'configured'|'editable'|'one_time'|'unavailable' $mode
      *
      * @return array<string, mixed>
@@ -262,7 +429,7 @@ final class PageFixtures
     public static function routes(): array
     {
         $routes = [];
-        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'item_reveal', 'runtime_config'] as $key) {
+        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'item_reveal', 'runtime_config', 'scope_items', 'scope_item_new', 'scope_folder_create', 'catalogue', 'health', 'item_attachment', 'personal_export', 'personal_export_download'] as $key) {
             $routes[$key] = ['path' => '/' . $key, 'name' => 'nowo_vault_' . $key];
         }
 

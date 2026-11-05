@@ -1,0 +1,48 @@
+{#
+  Scope password health (1.16.0, REQ-UI-003): UiKit list scaffold. Variable: page (View\ListPage from
+  VaultPageFactory::health(): header vault.health.title (intro = the scope key) with a back link to the scope vault;
+  columns title, status; rows = list<VaultHealthItemResult> (flags only: weak reasons, reuse group, age, breached;
+  never a password, a fingerprint or a hash); row action View; EmptyState).
+  Also: scope, report (VaultHealthReport: examined, skipped, generatedAt, counts), routes.
+  Data blocks filled: nowo_ui_list_filters (summary), nowo_ui_list_row.
+#}
+{% extends '@NowoUiKit/page/list.html.twig' %}
+{% trans_default_domain 'NowoVaultBundle' %}
+
+{% block nowo_ui_styles %}{{ parent() }}<link rel="stylesheet" href="{{ asset('vault.css', 'nowo_vault') }}">{% endblock %}
+
+{% block nowo_ui_list_filters %}
+    {% set _b = page.bundle %}
+    <p class="{{ nowo_ui_class('muted', _b) }}" data-testid="vault-health-summary">
+        {{ 'vault.health.summary'|trans({'%examined%': report.examined, '%skipped%': report.skipped, '%weak%': report.weakCount, '%reused%': report.reusedCount, '%old%': report.oldCount, '%breached%': report.breachedCount}) }}
+    </p>
+{% endblock %}
+
+{% block nowo_ui_list_row %}
+    {% set _b = page.bundle %}
+    {% set _cell = nowo_ui_class('table_cell', _b) %}
+    <td class="{{ _cell }}" data-label="{{ 'vault.list.title'|trans }}" data-required="1">{{ row.title }}</td>
+    <td class="{{ _cell }}" data-label="{{ 'vault.health.status'|trans }}" data-testid="vault-health-status">
+        {% if row.weak %}
+            {% set _known = ['empty', 'min_length', 'min_classes', 'max_length', 'require_lowercase', 'require_uppercase', 'require_digit', 'require_special', 'disallow_whitespace', 'not_contain', 'min_unique_chars', 'regex', 'pattern'] %}
+            {% set _reasons = [] %}
+            {% for reason in row.weakReasons %}
+                {% set _reasons = _reasons|merge([reason in _known ? ('vault.health.reason.' ~ reason)|trans : reason]) %}
+            {% endfor %}
+            <span class="{{ nowo_ui_class('badge_warning', _b) }}" data-testid="vault-health-weak">{{ 'vault.health.weak'|trans }}</span>
+            <span class="{{ nowo_ui_class('muted', _b) }}">{{ _reasons|join(', ') }}</span>
+        {% endif %}
+        {% if row.reuseGroup is not null %}
+            <span class="{{ nowo_ui_class('badge_warning', _b) }}" data-testid="vault-health-reused">{{ 'vault.health.reused'|trans({'%group%': row.reuseGroup}) }}</span>
+        {% endif %}
+        {% if row.old %}
+            <span class="{{ nowo_ui_class('badge_neutral', _b) }}" data-testid="vault-health-old">{{ 'vault.health.old'|trans({'%days%': row.ageDays}) }}</span>
+        {% endif %}
+        {% if row.breached %}
+            <span class="{{ nowo_ui_class('badge_danger', _b) }}" data-testid="vault-health-breached">{{ 'vault.health.breached'|trans }}</span>
+        {% endif %}
+        {% if not row.weak and row.reuseGroup is null and not row.old and not row.breached %}
+            <span class="{{ nowo_ui_class('badge_success', _b) }}">{{ 'vault.health.ok'|trans }}</span>
+        {% endif %}
+    </td>
+{% endblock %}

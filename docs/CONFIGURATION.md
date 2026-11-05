@@ -26,6 +26,12 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
   - [Updating from your application](#updating-from-your-application)
 - [Browser extension](#browser-extension)
   - [Purging expired tokens](#purging-expired-tokens)
+- [Scope vaults (`scopes`)](#scope-vaults-scopes)
+- [Temporary grants (`grants.temporary`)](#temporary-grants-grantstemporary)
+- [Catalogue (`catalogue`)](#catalogue-catalogue)
+- [Reveal (`reveal`)](#reveal-reveal)
+- [Password health (`health`)](#password-health-health)
+- [Decrypted personal export (`export`)](#decrypted-personal-export-export)
 
 ## Required
 
@@ -106,6 +112,8 @@ All routes are configurable under `nowo_vault.routes` and `nowo_vault.browser_ex
 
 Each controller action declares its route with a Symfony `#[Route]` attribute (REQ-SF-004): HTTP methods, requirements, the default path / name and the configuration key (`options: {nowo_vault_route: <key>}`). The `nowo_vault` loader reads those attributes and applies the configured `path` / `name`, so the attribute defaults equal the configuration defaults and existing overrides keep working. Do **not** import `vendor/nowo-tech/vault-bundle/src/Controller/` as an `attribute` resource: that would register the routes a second time with the default paths, ignoring your configuration.
 
+Since 1.16.0 the scope routes `scope_items` (`/tools/vault/scopes/{scope}`), `scope_item_new` (`/tools/vault/scopes/{scope}/items/new/{type}`) and `scope_folder_create` (`POST /tools/vault/scopes/{scope}/folders`) exist only with `scopes.enabled: true` (see [Scope vaults](#scope-vaults-scopes)).
+
 Since 1.15.2 the `item_reveal` route (`POST /tools/vault/items/{id}/reveal/{field}`) returns one secret field as JSON; the item pages never contain stored secrets (see [SECURITY](SECURITY.md#secret-fields)). Every bundle response is sent with `Cache-Control: no-store, private` and `Pragma: no-cache`.
 
 ## Pagination
@@ -122,7 +130,7 @@ nowo_vault:
 
 ## Clock and logger
 
-Services that compare times (extension token expiry and last-use touch) use the `Psr\Clock\ClockInterface` service when the host registers one (FrameworkBundle does with `symfony/clock`), so tests can freeze time; without it they use the system clock. Doctrine entities still stamp `createdAt` / `updatedAt` / `deletedAt` with the system time (entities cannot receive services, REQ-ORM-001); `VaultExtensionToken::isExpired()` / `touch()` accept an optional `$now`.
+Services that compare times (extension token expiry and last-use touch; since 1.16.0 grant expiry on every read, the expired-grant purge and `secret_changed_at`) use the `Psr\Clock\ClockInterface` service when the host registers one (FrameworkBundle does with `symfony/clock`), so tests can freeze time; without it they use the system clock. Doctrine entities still stamp `createdAt` / `updatedAt` / `deletedAt` with the system time (entities cannot receive services, REQ-ORM-001); `VaultExtensionToken::isExpired()` / `touch()` accept an optional `$now`.
 
 Sensitive operations log through the injected `logger` service (`Psr\Log\LoggerInterface`, default Monolog channel `app` when MonologBundle is installed; nothing is logged without a logger). See [SECURITY.md](SECURITY.md#logging) for what is and is not logged.
 
@@ -138,7 +146,7 @@ The manage pages follow the UiKit page contract (REQ-UI-003): each page extends 
 | `web_ui.enabled` | `true` | Register the manage UI routes (home, items, shared, trash, item forms, sharing, runtime config). `false` keeps only the browser-extension API |
 | `web_ui.path_prefix` | `''` | Prefix prepended to every vault route path (manage UI and browser-extension API), e.g. `/admin` |
 | `web_ui.layout_template` | `null` | Layout the pages extend. `null` = `nowo_ui_kit.layouts.admin` (recommended). A 1.x layout without the UiKit canonical blocks is wrapped in a deprecated bridge |
-| `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`. Unknown page ids are rejected |
+| `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`, `scope_items`, `catalogue` (1.16.0). Unknown page ids are rejected |
 
 ```yaml
 nowo_vault:
@@ -366,3 +374,124 @@ Example cron:
 ```cron
 0 * * * * cd /var/www/app && php bin/console nowo:vault:extension-tokens:purge --no-interaction
 ```
+
+## Scope vaults (`scopes`)
+
+Since 1.16.0 items, folders and tags can be owned by a **scope** of your application (a project, an organization)
+instead of a user. YAML only (never editable from the runtime-config screen).
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `scopes.enabled` | `false` | Registers the scope routes and allows scope rows |
+| `scopes.access_resolver` | `null` | Service id implementing `Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface`. **Required** when enabled (the container fails to compile otherwise) |
+
+```yaml
+nowo_vault:
+    scopes:
+        enabled: true
+        access_resolver: App\Vault\ProjectScopeAccessResolver
+```
+
+The resolver returns, for a user and a scope key, `null` (not a member: no access to anything in the scope, grants
+included) or a `VaultScopeAccess` (`baseline` permission on every scope item or `null` for explicit grants only,
+`catalogue`, `health`, `create`). It is called at most once per (user, scope) per request and never cached across
+requests, so a user who leaves a scope loses access on the next request. Scope keys match
+`^[a-z0-9][a-z0-9_-]{0,127}$`; a malformed key never reaches the resolver. See
+[examples/AccessControl.md](examples/AccessControl.md#scope-vaults).
+
+## Temporary grants (`grants.temporary`)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `grants.temporary.min_ttl` | `PT5M` | Shortest lifetime accepted by `VaultGrantService::grantAs()` (ISO 8601 duration) |
+| `grants.temporary.max_ttl` | `P30D` | Longest lifetime |
+| `grants.temporary.max_permission` | `read` | `read` or `write`. `admin` is refused by the config tree: it includes Share, so a temporary grantee could mint grants that outlive its own |
+| `grants.temporary.ui` | `false` | Adds an expiry choice (never, 1 hour, 1 day, 1 week, a date) to the share form |
+
+A temporary grant stops working at `expiresAt` on every read (strict: active while `now < expiresAt`, using the
+injected clock). Schedule the housekeeping command, which deletes expired rows and emits `GRANT_EXPIRED` once per row:
+
+```bash
+php bin/console nowo:vault:grants:purge-expired [--batch-size=500] [--limit=N] [--dry-run]
+# {"expired":3,"dry_run":false}
+```
+
+## Catalogue (`catalogue`)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `catalogue.enabled` | `false` | Registers the `catalogue` route (`/tools/vault/scopes/{scope}/catalogue`). Needs `scopes.enabled` |
+| `catalogue.per_page` | `50` | Entries per catalogue page (1–500) |
+
+The catalogue shows, to scope members whose `VaultScopeAccess::$catalogue` is true (or whom a
+`CATALOGUE_ACCESS_CHECK` listener grants), the id, title, type, scope tag names and the **date** of the last change of
+every active item that is not *Hidden from the catalogue*. See [SECURITY](SECURITY.md#catalogue-leakage) for what this
+discloses.
+
+## Reveal (`reveal`)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `reveal.auto_hide_seconds` | `30` | Seconds a revealed value stays in its input (`vault.js`); `0` = until *Hide* |
+| `reveal.revealable_fields` | `{}` | Payload keys the reveal route answers, per item type (`login: [password, note, username]`). Types not listed answer their secret fields. Secret fields are never rendered whatever this option says |
+| `reveal.rate_limit.enabled` | `true` | Limits of the web reveal, copy and attachment routes (on top of `security.secret_access_rate_limit`) |
+| `reveal.rate_limit.per_user_per_minute` | `30` | |
+| `reveal.rate_limit.per_user_per_hour` | `300` | |
+| `reveal.rate_limit.per_user_item_field_per_minute` | `10` | |
+| `reveal.rate_limit.cache_pool` | `cache.app` | PSR-6 pool shared by all workers (not an array pool) |
+
+Over a limit the route answers 429 with `Retry-After`, logs a warning and dispatches `REVEAL_THROTTLED`.
+
+## Password health (`health`)
+
+Since 1.16.0. YAML only.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `health.enabled` | `false` | Registers the `health` route (`/tools/vault/scopes/{scope}/health`). Needs `scopes.enabled`. `VaultHealthReporterInterface` works without it (e.g. `forPersonalVault()` from a host page) |
+| `health.max_items` | `2000` | Login items above which a report is refused (`VaultHealthTooLargeException`, 413 on the route) |
+| `health.cache_ttl` | `0` | Seconds a report is cached per viewer; `0` = never. Only the flags, titles and group numbers are cached, never a value or a fingerprint |
+| `health.min_interval_seconds` | `10` | One **computed** report per viewer and owner per window (429 + `Retry-After` on the route, `VaultHealthThrottledException` for direct calls); `0` = no limit. Every computed report decrypts each examined password and may call the breach checker once per password |
+| `health.breach_cache_ttl` | `86400` | Seconds a breach-checker answer is kept per item and secret change (keyed by the item id and `secret_changed_at`, never by the value; failures are not cached); `0` = never |
+| `health.cache_pool` | `cache.app` | PSR-6 pool of the report cache, the throttle and the breach answers; share it between workers |
+| `health.breach_checker` | `null` | Service id implementing `VaultBreachCheckerInterface` (`isBreached(#[SensitiveParameter] string): ?bool`). Use a k-anonymity range API: never send the password or its full hash |
+| `health.policy_resolver` | `null` | Service id implementing `VaultPasswordPolicyResolverInterface` (`forOwner(VaultOwner): ?VaultPasswordPolicy`). Null = `health.policy` for every owner |
+| `health.policy.min_length` | `12` | Shorter passwords are weak |
+| `health.policy.min_classes` | `3` | Character classes required (1–4: lowercase, uppercase, digits, symbols) |
+| `health.policy.max_age_days` | `365` | A password whose secret last changed earlier is *old* |
+| `health.policy.enforce_on_save` | `false` | Validate typed login passwords in the item form (create, and edit when a new value is typed) |
+
+Scope reports need `VaultScopeAccess::$health` (host resolver) and a `HEALTH_ACCESS_CHECK` that is not denied. They
+cover the scope's active login items **the viewer may View**; the others are counted as *without access* and never
+compared, so a report cannot say that a password equals one the viewer cannot open.
+
+## Decrypted personal export (`export`)
+
+Since 1.16.0. YAML only. Off by default; when enabled the container fails to compile without `reauth_checker`.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `export.enabled` | `false` | Registers `personal_export` (`GET /tools/vault/export`) and `personal_export_download` (`POST`) |
+| `export.reauth_checker` | `null` | Service id implementing `Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface`. **Required** when enabled; there is no default implementation |
+| `export.reauth_max_age` | `300` | Seconds a re-authentication stays fresh (1–900, checked against the bundle clock; 30 s of clock skew tolerated) |
+| `export.accepted_primary_factors` | `[password]` | Primary factors accepted in the proof (add `sso_reauth` for SSO-only users re-authenticated with `prompt=login`) |
+| `export.accepted_mfa_factors` | `[totp, webauthn]` | Required when the proof says MFA is enrolled. Recovery codes are not accepted by default |
+| `export.formats` | `[json, csv]` | Offered formats; the first is preselected |
+| `export.max_items` | `5000` | 413 above, before any byte |
+| `export.max_bytes` | `52428800` | Estimated file size (`SUM(LENGTH(ciphertext))` + 512 bytes per item; attachments stay base64 in JSON); 413 above |
+| `export.include_attachments` | `true` | Attachments (base64) in the JSON file; never in CSV |
+| `export.cooldown_seconds` | `600` | One export per user per window (429 + `Retry-After`); `0` disables it |
+| `export.cache_pool` | `cache.app` | PSR-6 pool of the cooldown and of the used proof ids; share it between workers |
+| `export.lock_factory` | `lock.factory` | Symfony Lock factory service (`symfony/lock`, `framework.lock`): the proof check, consume and cooldown run under a per-user lock, so two parallel POSTs cannot both pass. The default is ignored when the service does not exist; any other id must exist (the container fails to compile otherwise, so a typo cannot silently drop the lock); `null` disables it. Use a store shared by all web nodes (Redis, a database); `flock` covers one host only |
+| `export.csv_raw_values` | `false` | `false`: a CSV cell starting with `= + - @`, tab or CR gets a leading `'` (formula injection: people with Write access to an item can edit it). `true`: exact values (a migration file; open it in a spreadsheet at your own risk). JSON is always exact |
+
+```yaml
+nowo_vault:
+    export:
+        enabled: true
+        reauth_checker: App\Vault\Security\ReauthChecker
+```
+
+See [USAGE](USAGE.md#decrypted-export) for the hook and [SECURITY](SECURITY.md#personal-data-and-decrypted-export-1160)
+for the host obligations.
+

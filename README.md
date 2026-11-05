@@ -21,6 +21,12 @@ This bundle is **FrankenPHP worker mode friendly**.
 - **Tags** — label items, filter and search by tag
 - `VaultGrant` for users and teams (read / write / admin) + share UI
 - `VaultTeamMembershipResolverInterface` for team-based grants
+- **Scope vaults** — items, folders and tags owned by a project or organization of the host (`VaultScopeAccessResolverInterface`, membership checked on every request)
+- **Catalogue** — metadata-only list of a scope's items (no payload loaded) so members can request access
+- **On-demand reveal** — Show / Copy per secret field and attachment download, audited and rate limited; no secret in the page
+- **Temporary grants** — `grantAs()` with an expiry enforced on every read, `nowo:vault:grants:purge-expired`, grant audit events
+- **Password health** — weak, reused, old and (optionally) breached passwords per scope, computed on demand without storing fingerprints; password policies enforced on save
+- **Personal data** — GDPR exporter (metadata only) and ordered eraser; **decrypted personal export** behind a fresh, single-use re-authentication (host hook), streamed without temp files
 - **Browser extension** — REST API + Chrome/Firefox autofill (optional)
 - **Runtime config** — optional DB-backed settings with admin UI
 - **Key rotation** — `nowo:vault:reencrypt`; **`nowo:vault:extension-tokens:purge`** for expired browser-extension tokens

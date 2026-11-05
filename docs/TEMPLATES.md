@@ -29,6 +29,10 @@ missing-translation rule), which renders every page below in its significant sta
 | Trash | `vault/trash.html.twig` | `page/list` | `ListPage` (column: title; rowActions: restore, delete = purge behind a `Confirm`; `Pagination`; `EmptyState`) | — (default cells) |
 | Item create / edit / view | `vault/item_form.html.twig` | `page/form` | `FormPage` (header: item type, intro = title; `VaultItemFormType`; submit `vault.action.save`; cancel = items list; read-only items: `formTag` false) | `nowo_ui_form_body` (per-item-type layout + child loop) |
 | Share access | `vault/share.html.twig` | `page/form` | `FormPage` (`VaultShareType`; submit `vault.share.submit`) + `Table` of grants (`VaultPageFactory::grantsTable()`, row action delete = revoke behind a `Confirm`) | `nowo_ui_form_body`, `nowo_ui_form_aside` (current grants through the UiKit `table` partial) |
+| Catalogue (1.16.0) | `vault/catalogue.html.twig` | `page/list` | `ListPage` from `VaultPageFactory::catalogue()` (filters: `VaultItemSearchType` + type / tag chips; columns: title, type, tags, last change (date), access; no bundle row action; `Pagination`; `EmptyState`) | `nowo_ui_list_filters`, `nowo_ui_list_row`; host block `vault_catalogue_row_actions` (`entry` only) |
+| Scope vault (1.16.0) | `vault/scope_items.html.twig` | `page/list` | `ListPage` from `VaultPageFactory::scopeItems()` (header actions: one create action per item type when the member may create; filters: `VaultItemSearchType`; columns: type, title, tags, folder; rowActions by effective permission: view, edit (write), share + delete = trash (admin); `Pagination`; `EmptyState`) | `nowo_ui_list_filters` (scope folders and tags), `nowo_ui_list_row` |
+| Password health (1.16.0) | `vault/health.html.twig` | `page/list` | `ListPage` from `VaultPageFactory::health()` (header: intro = scope key, back link to the scope vault; columns: title, status; rows: `VaultHealthItemResult` flags only; row action view; `EmptyState`) | `nowo_ui_list_filters` (summary counts), `nowo_ui_list_row` (weak reasons, reuse group, age, breached badges) |
+| Decrypted export (1.16.0) | `vault/export.html.twig` | `page/form` | `FormPage` from `VaultPageFactory::export()` (header `vault.export.title` with a back link; `VaultPersonalExportType` (format); submit `vault.export.download`; cancel = vault home) | `nowo_ui_form_body` (warning, item count, CSV / attachment notes, child loop) |
 | Runtime configuration | `vault/runtime_config.html.twig` | `page/settings` | `SettingsPage` (one section `runtime` with `VaultRuntimeConfigType`; intro = last update) | `nowo_ui_settings_section` (encryption key states + child loop + submit) |
 
 Destructive actions (move an item or a folder to the trash, delete a tag, purge, remove access) are POST forms with a
@@ -44,8 +48,12 @@ the generator dialog).
 | My items | `routes`, `items`, `total`, `readOnlyMap`, `grantCounts`, `folders`, `tags`, `folderActions` (folder id => `Action` list), `tagActions` (tag id => `Action`), `folderForm`, `activeFolder`, `activeTag`, `searchQuery` |
 | Shared items | `routes`, `items`, `readOnlyMap` |
 | Trash | `routes`, `items` |
-| Item form | `form`, `itemType`, `item`, `readOnly`, `viewMode`, `folders`, `routes`, `tagInputEnabled`, `passwordStrengthEnabled`, `activeFolder` |
-| Share access | `grantsTable`, `grants`, `granteeLabels`, `resourceLabel`, `routes` |
+| Item form | `form`, `itemType`, `item`, `readOnly`, `viewMode`, `folders`, `routes`, `tagInputEnabled`, `passwordStrengthEnabled`, `activeFolder`, `revealFields`, `revealAutoHideSeconds` (1.16.0), `hasAttachment` (1.16.0) |
+| Share access | `grantsTable`, `grants`, `granteeLabels`, `resourceLabel`, `routes`, `sharingAvailable`, `expiredGrants` (1.16.0: grant id => expired, not yet purged) |
+| Catalogue | `scope`, `catalogue` (`VaultCataloguePage`), `tags`, `itemTypes`, `activeType`, `activeTag`, `searchQuery`, `routes` |
+| Scope vault | `scope`, `access` (`VaultScopeAccess`), `items`, `permissions` (item id => `VaultPermission`/null), `folders`, `tags`, `folderForm` (null without create), `activeFolder`, `activeTag`, `searchQuery`, `routes` |
+| Password health | `scope`, `report` (`VaultHealthReport`: `examined`, `skipped`, `generatedAt`, `weakCount`, `reusedCount`, `oldCount`, `breachedCount`), `routes` |
+| Decrypted export | `count`, `formats`, `includeAttachments`, `routes` |
 | Runtime configuration | `routes`, `runtimeConfigRoute`, `dbUpdatedAt`, `hasDbEncryptionKey`, `hasYamlEncryptionKey`, `canStoreEncryptionKey`, `showOneTimeKeyWarning`, `form` |
 
 Every page also receives `nowo_vault_legacy_layout` / `nowo_vault_legacy_blocks` (the deprecated 1.x layout bridge).

@@ -41,4 +41,82 @@ final class VaultEvents
      * and the channel only, never a value.
      */
     public const ITEM_REVEALED = 'nowo_vault.item_revealed';
+
+    /**
+     * Vetoable last check of VaultGrantService::grantAs() (1.16.0): {@see VaultGrantPolicyCheckEvent::deny()}.
+     */
+    public const GRANT_POLICY_CHECK = 'nowo_vault.grant_policy_check';
+
+    /**
+     * A grant was created (1.16.0, {@see VaultGrantChangeEvent}; after the flush).
+     */
+    public const GRANT_CREATED = 'nowo_vault.grant_created';
+
+    /**
+     * A grant got a new permission or expiry (1.16.0, {@see VaultGrantChangeEvent} with the previous values).
+     */
+    public const GRANT_UPDATED = 'nowo_vault.grant_updated';
+
+    /**
+     * A grant was revoked (1.16.0, {@see VaultGrantChangeEvent}, reason manual | erasure | resource_purged).
+     */
+    public const GRANT_REVOKED = 'nowo_vault.grant_revoked';
+
+    /**
+     * An expired grant was purged (1.16.0, {@see VaultGrantChangeEvent}, actor null). Access had already ended.
+     */
+    public const GRANT_EXPIRED = 'nowo_vault.grant_expired';
+
+    /**
+     * An item was created, updated, trashed, restored, purged or moved (1.16.0, {@see VaultItemChangeEvent}, ids only).
+     */
+    public const ITEM_CHANGED = 'nowo_vault.item_changed';
+
+    /**
+     * Vetoable access check of a scope catalogue (1.16.0, {@see VaultCatalogueAccessCheckEvent}).
+     */
+    public const CATALOGUE_ACCESS_CHECK = 'nowo_vault.catalogue_access_check';
+
+    /**
+     * Vetoable check before one field or the attachment leaves the vault (1.16.0, {@see VaultFieldRevealCheckEvent}).
+     */
+    public const ITEM_FIELD_REVEAL_CHECK = 'nowo_vault.item_field_reveal_check';
+
+    /**
+     * A field was copied to the clipboard (1.16.0, {@see VaultItemRevealedEvent}, purpose `copy`). A throwing
+     * listener refuses the copy (503).
+     */
+    public const ITEM_COPIED = 'nowo_vault.item_copied';
+
+    /**
+     * An attachment was downloaded (1.16.0, {@see VaultItemRevealedEvent}, purpose `attachment`). A throwing listener
+     * refuses the download (503).
+     */
+    public const ITEM_ATTACHMENT_DOWNLOADED = 'nowo_vault.item_attachment_downloaded';
+
+    /**
+     * A reveal, copy or download was refused by `reveal.rate_limit` (1.16.0, {@see VaultRevealThrottledEvent}).
+     */
+    public const REVEAL_THROTTLED = 'nowo_vault.reveal_throttled';
+
+    /**
+     * Vetoable access check of a scope health report (1.16.0, {@see VaultHealthAccessCheckEvent}).
+     */
+    public const HEALTH_ACCESS_CHECK = 'nowo_vault.health_access_check';
+
+    /**
+     * A health report was generated (1.16.0, {@see VaultHealthReportGeneratedEvent}, counts only).
+     */
+    public const HEALTH_REPORT_GENERATED = 'nowo_vault.health_report_generated';
+
+    /**
+     * A decrypted personal export passed every check and is about to stream (1.16.0, {@see VaultItemsExportedEvent};
+     * a listener that throws refuses the export with 503).
+     */
+    public const ITEMS_EXPORTED = 'nowo_vault.items_exported';
+
+    /**
+     * The personal data of a user was erased (1.16.0, {@see VaultPersonalDataErasedEvent}, counts only).
+     */
+    public const PERSONAL_DATA_ERASED = 'nowo_vault.personal_data_erased';
 }

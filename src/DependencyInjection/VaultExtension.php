@@ -11,8 +11,10 @@ use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
+use Nowo\VaultBundle\Controller\VaultExportController;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
+use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
@@ -23,19 +25,31 @@ use Nowo\VaultBundle\Repository\DoctrineOrmVaultSettingsRepository;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultTagRepository;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
+use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
 use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
+use Nowo\VaultBundle\Security\ConfigVaultPasswordPolicyResolver;
+use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
+use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\RuntimeKeyVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
+use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
+use Nowo\VaultBundle\Security\VaultReauthProofValidator;
+use Nowo\VaultBundle\Security\VaultRevealRateLimiter;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
+use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
+use Nowo\VaultBundle\Service\VaultHealthReporter;
+use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
+use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -58,6 +72,12 @@ use function sprintf;
  */
 final class VaultExtension extends Extension implements PrependExtensionInterface
 {
+    /** Server-side evaluator of nowo-tech/password-strength-bundle, used by the health report when installed. */
+    public const STRENGTH_EVALUATOR = 'Nowo\\PasswordStrengthBundle\\Service\\PasswordStrengthEvaluator';
+
+    /** Route keys registered only with `scopes.enabled` (1.16.0; see VaultRouteLoader::OPTIONAL_ROUTE_KEYS). */
+    public const SCOPE_ROUTE_KEYS = ['scope_items', 'scope_item_new', 'scope_folder_create'];
+
     /**
      * Processes the `nowo_vault` configuration and registers the bundle services and parameters.
      */
@@ -114,6 +134,13 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.browser_extension.token_ttl', (int) $browserExtension['token_ttl']);
         $container->setParameter('nowo_vault.browser_extension.max_login_items', (int) $browserExtension['max_login_items']);
         $container->setParameter('nowo_vault.pagination.per_page', (int) $config['pagination']['per_page']);
+        $container->setParameter('nowo_vault.entity_manager', $emName);
+        $container->setParameter('nowo_vault.grants.temporary', $config['grants']['temporary']);
+        $container->setParameter('nowo_vault.grants.temporary.ui', (bool) $config['grants']['temporary']['ui']);
+        $this->registerScopes($config['scopes'], $config['catalogue'], $config['health']['enabled'], $container);
+        $this->registerHealth($config['health'], $container);
+        $this->registerExport($config['export'], $container);
+        $this->registerReveal($config['reveal'], $container);
         $container->setParameter('nowo_vault.browser_extension.routes', $browserExtension['routes']);
         $container->setParameter('nowo_vault.browser_extension.cors_allowed_origins', $browserExtension['cors_allowed_origins']);
         $loginRateLimit = $browserExtension['login_rate_limit'];
@@ -165,9 +192,12 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $container->setAlias($interface, $repoClass);
         }
 
-        // Token expiry queries read the host clock when one is registered (REQ-DI-001).
+        // Token and grant expiry queries read the host clock when one is registered (REQ-DI-001).
         $container->getDefinition(DoctrineOrmVaultExtensionTokenRepository::class)
             ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE));
+        $container->getDefinition(DoctrineOrmVaultGrantRepository::class)
+            ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE));
+        $container->setAlias(VaultGrantExpiryRepositoryInterface::class, DoctrineOrmVaultGrantRepository::class);
 
         $container->setDefinition(VaultMetadataListener::class, (new Definition(VaultMetadataListener::class))
             ->setArgument('$itemsTableName', $itemsTable)
@@ -253,6 +283,131 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$allowedOrigins', $browserExtension['cors_allowed_origins'])
             ->setArgument('$kernelEnvironment', '%kernel.environment%'));
 
+    }
+
+    /**
+     * Scope vaults (1.16.0): the host resolver behind the request-scoped cache, and the route keys of disabled
+     * features. Fails at compile time when scopes are enabled without a resolver.
+     *
+     * @param array{enabled: bool, access_resolver: string|null} $scopes
+     * @param array{enabled: bool, per_page: int} $catalogue
+     */
+    private function registerScopes(array $scopes, array $catalogue, bool $health, ContainerBuilder $container): void
+    {
+        $resolverId = $scopes['access_resolver'] ?? null;
+        if ($scopes['enabled'] && (!is_string($resolverId) || $resolverId === '')) {
+            throw new LogicException('nowo_vault.scopes.enabled requires nowo_vault.scopes.access_resolver (a service implementing VaultScopeAccessResolverInterface).');
+        }
+
+        if (!$scopes['enabled']) {
+            $resolverId = NullVaultScopeAccessResolver::class;
+            $container->setDefinition(NullVaultScopeAccessResolver::class, new Definition(NullVaultScopeAccessResolver::class));
+        }
+        $container->setAlias(VaultScopeAccessResolverInterface::class, $resolverId);
+        $container->setDefinition(RequestScopedScopeAccessCache::class, (new Definition(RequestScopedScopeAccessCache::class))
+            ->setArgument('$resolver', new Reference(VaultScopeAccessResolverInterface::class))
+            ->addTag('kernel.reset', ['method' => 'reset']));
+
+        $container->setParameter('nowo_vault.scopes.enabled', $scopes['enabled']);
+        $enabled = ['item_attachment'];
+        if ($scopes['enabled']) {
+            $enabled = [...$enabled, ...self::SCOPE_ROUTE_KEYS];
+            if ($catalogue['enabled']) {
+                $enabled[] = 'catalogue';
+            }
+            if ($health) {
+                $enabled[] = 'health';
+            }
+        }
+        $container->setParameter('nowo_vault.enabled_optional_route_keys', $enabled);
+        $container->setParameter('nowo_vault.catalogue.per_page', $catalogue['per_page']);
+    }
+
+    /**
+     * Health report (1.16.0): the reporter, the password policy resolver and the optional breach checker.
+     *
+     * @param array{enabled: bool, max_items: int, cache_ttl: int, min_interval_seconds: int, breach_cache_ttl: int, cache_pool: string, breach_checker: string|null, policy_resolver: string|null, policy: array{min_length: int, min_classes: int, max_age_days: int, enforce_on_save: bool}} $health
+     */
+    private function registerHealth(array $health, ContainerBuilder $container): void
+    {
+        $policy = $health['policy'];
+        $container->setDefinition(ConfigVaultPasswordPolicyResolver::class, (new Definition(ConfigVaultPasswordPolicyResolver::class))
+            ->setArgument('$policy', (new Definition(VaultPasswordPolicy::class))->setArguments([$policy['min_length'], $policy['min_classes'], $policy['max_age_days'], $policy['enforce_on_save']])));
+        $resolverId = $health['policy_resolver'];
+        $container->setAlias(VaultPasswordPolicyResolverInterface::class, is_string($resolverId) && $resolverId !== '' ? $resolverId : ConfigVaultPasswordPolicyResolver::class);
+
+        $breachId = $health['breach_checker'];
+        $container->getDefinition(VaultHealthReporter::class)
+            ->setArgument('$breachChecker', is_string($breachId) && $breachId !== '' ? new Reference($breachId) : null)
+            ->setArgument('$strengthEvaluator', new Reference(self::STRENGTH_EVALUATOR, ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$cache', new Reference($health['cache_pool']))
+            ->setArgument('$cacheTtl', $health['cache_ttl'])
+            ->setArgument('$maxItems', $health['max_items'])
+            ->setArgument('$minIntervalSeconds', $health['min_interval_seconds'])
+            ->setArgument('$breachCacheTtl', $health['breach_cache_ttl']);
+        $container->setAlias(VaultHealthReporterInterface::class, VaultHealthReporter::class);
+    }
+
+    /**
+     * Decrypted personal export (1.16.0): the host re-authentication hook (required when enabled), the proof validator,
+     * the limits of the export controller and its two optional routes.
+     *
+     * @param array{enabled: bool, reauth_checker: string|null, reauth_max_age: int, accepted_primary_factors: list<string>, accepted_mfa_factors: list<string>, formats: list<string>, max_items: int, max_bytes: int, include_attachments: bool, cooldown_seconds: int, cache_pool: string, lock_factory: string|null, csv_raw_values: bool} $export
+     */
+    private function registerExport(array $export, ContainerBuilder $container): void
+    {
+        $checkerId = $export['reauth_checker'];
+        if ($export['enabled']) {
+            if (!is_string($checkerId) || $checkerId === '') {
+                throw new LogicException('nowo_vault.export.enabled requires nowo_vault.export.reauth_checker (a service implementing VaultReauthenticationCheckerInterface); there is no default.');
+            }
+            $container->setAlias(VaultReauthenticationCheckerInterface::class, $checkerId);
+            /** @var list<string> $enabled */
+            $enabled = $container->getParameter('nowo_vault.enabled_optional_route_keys');
+            $container->setParameter('nowo_vault.enabled_optional_route_keys', [...$enabled, 'personal_export', 'personal_export_download']);
+        }
+
+        // Checked by ExportLockFactoryPass: an explicit, non-default id must resolve (SEC-004 FQ-I13).
+        $container->setParameter('nowo_vault.export.lock_factory', $export['enabled'] ? $export['lock_factory'] : null);
+        $pool = new Reference($export['cache_pool']);
+        $container->setDefinition(VaultReauthProofValidator::class, (new Definition(VaultReauthProofValidator::class))
+            ->setAutowired(false)
+            ->setArgument('$maxAge', $export['reauth_max_age'])
+            ->setArgument('$acceptedPrimaryFactors', $export['accepted_primary_factors'])
+            ->setArgument('$acceptedMfaFactors', $export['accepted_mfa_factors'])
+            ->setArgument('$consumedProofs', $pool)
+            ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE)));
+        $container->getDefinition(VaultExportController::class)
+            ->setArgument('$cooldownPool', $pool)
+            ->setArgument('$reauthChecker', new Reference(VaultReauthenticationCheckerInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$formats', $export['formats'])
+            ->setArgument('$maxItems', $export['max_items'])
+            ->setArgument('$maxBytes', $export['max_bytes'])
+            ->setArgument('$cooldownSeconds', $export['cooldown_seconds'])
+            ->setArgument('$includeAttachments', $export['include_attachments'])
+            ->setArgument('$lockFactory', is_string($export['lock_factory']) && $export['lock_factory'] !== '' ? new Reference($export['lock_factory'], ContainerInterface::NULL_ON_INVALID_REFERENCE) : null)
+            ->setArgument('$csvRawValues', $export['csv_raw_values']);
+        $container->getDefinition(VaultPersonalExportStreamer::class)->setArgument('$csvRawValues', $export['csv_raw_values']);
+    }
+
+    /**
+     * Reveal additions (1.16.0): the per-user reveal limiter, the revealable fields and the auto-hide delay.
+     *
+     * @param array{auto_hide_seconds: int, revealable_fields: array<string, list<string>>, rate_limit: array{enabled: bool, per_user_per_minute: int, per_user_per_hour: int, per_user_item_field_per_minute: int, cache_pool: string}} $reveal
+     */
+    private function registerReveal(array $reveal, ContainerBuilder $container): void
+    {
+        $limit = $reveal['rate_limit'];
+        $container->setDefinition(VaultRevealRateLimiter::class, (new Definition(VaultRevealRateLimiter::class))
+            ->setAutowired(false)
+            ->setArgument('$cache', new Reference($limit['cache_pool']))
+            ->setArgument('$perUserPerMinute', $limit['per_user_per_minute'])
+            ->setArgument('$perUserPerHour', $limit['per_user_per_hour'])
+            ->setArgument('$perUserItemFieldPerMinute', $limit['per_user_item_field_per_minute'])
+            ->setArgument('$enabled', $limit['enabled'])
+            ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE)));
+        $container->setParameter('nowo_vault.reveal.auto_hide_seconds', $reveal['auto_hide_seconds']);
+        $container->setParameter('nowo_vault.reveal.revealable_fields', $reveal['revealable_fields'] === [] ? null : $reveal['revealable_fields']);
     }
 
     /**

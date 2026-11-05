@@ -11,6 +11,8 @@ use Nowo\VaultBundle\Dto\VaultShareFormData;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
@@ -48,6 +50,9 @@ final class VaultShareType extends AbstractType
     {
         /** @var list<VaultGranteeChoice> $granteeChoices */
         $granteeChoices = $options['grantee_choices'];
+        if ($options['temporary_ui']) {
+            $this->addExpiryFields($builder);
+        }
 
         if ($granteeChoices !== []) {
             $this->addChoice($builder, 'granteeSelection', [
@@ -108,6 +113,34 @@ final class VaultShareType extends AbstractType
     /**
      * Exposes whether the grantee picker is used to the template.
      */
+    /**
+     * Optional expiry of the grant (1.16.0, `grants.temporary.ui`): permanent, 1 hour, 1 day, 1 week or a custom date
+     * (the service refuses anything outside `grants.temporary.min_ttl` / `max_ttl`).
+     */
+    /**
+     * @param FormBuilderInterface<VaultShareFormData|null> $builder
+     */
+    private function addExpiryFields(FormBuilderInterface $builder): void
+    {
+        $builder->add('expiresIn', ChoiceType::class, [
+            'required'    => false,
+            'label'       => 'vault.share.expires_in',
+            'placeholder' => 'vault.share.expires_never',
+            'choices'     => [
+                'vault.share.expires_1h'     => 'PT1H',
+                'vault.share.expires_1d'     => 'P1D',
+                'vault.share.expires_1w'     => 'P7D',
+                'vault.share.expires_custom' => 'custom',
+            ],
+        ]);
+        $builder->add('expiresAt', DateTimeType::class, [
+            'required' => false,
+            'widget'   => 'single_text',
+            'input'    => 'datetime_immutable',
+            'label'    => 'vault.share.expires_at',
+        ]);
+    }
+
     public function buildView(FormView $view, FormInterface $form, array $options): void
     {
         $view->vars['grantee_picker'] = $options['grantee_choices'] !== [];
@@ -122,8 +155,10 @@ final class VaultShareType extends AbstractType
             'data_class'         => VaultShareFormData::class,
             'translation_domain' => 'NowoVaultBundle',
             'grantee_choices'    => [],
+            'temporary_ui'       => false,
         ]);
         $resolver->setAllowedTypes('grantee_choices', 'array');
+        $resolver->setAllowedTypes('temporary_ui', 'bool');
     }
 
     /**

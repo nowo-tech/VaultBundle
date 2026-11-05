@@ -7,6 +7,11 @@
 - [Browser extension API](#browser-extension-api)
 - [Secrets and CLI](#secrets-and-cli)
 - [Secret fields](#secret-fields)
+- [Scope vaults and temporary grants (1.16.0)](#scope-vaults-and-temporary-grants-1160)
+- [Reveal, copy and attachments (1.16.0)](#reveal-copy-and-attachments-1160)
+- [Password health (1.16.0)](#password-health-1160)
+- [Personal data and decrypted export (1.16.0)](#personal-data-and-decrypted-export-1160)
+- [Catalogue leakage](#catalogue-leakage)
 - [Logging](#logging)
 - [Accepted residuals (REQ-SEC-004)](#accepted-residuals-req-sec-004)
 - [Release checklist (12.4.1)](#release-checklist-1241)
@@ -20,7 +25,9 @@
 | Extension login | Brute force | `browser_extension.login_rate_limit` (cache-backed, enabled by default) |
 | Extension tokens | DB growth / leaked tokens | Short `token_ttl`, cron `nowo:vault:extension-tokens:purge`, HTTPS |
 | Manage routes | Unauthorized access | Symfony firewall + `VaultAccessCheckerInterface`. Keep `security.allow_unauthenticated: false` in production (demo-only AllowAll bypass). |
-| Item/folder ACL | IDOR | Creator ownership + `VaultGrant` + events |
+| Item/folder ACL | IDOR | Owner (user or scope membership) + active `VaultGrant` + events |
+| Scope membership | A user who left a scope keeps access | Membership resolved on every request (`VaultScopeAccessResolverInterface`, memoized per request only); a non-member is denied everything, grants included |
+| Temporary grants | Access after expiry, escalation | Expiry checked on every read against the clock (no purge lag); temporary grants capped at `write`; never replace a permanent grant |
 | Secret fields | Disclosure in HTML / caches | Never rendered; per-field reveal (CSRF, View, rate limit, `ITEM_REVEALED`); `no-store` on every bundle response |
 | Share form | Cross-tenant grants | Fail closed without a `GRANT_LIST_QUERY` listener |
 | Attachments | Oversized uploads | `max_attachment_bytes` limit |
@@ -55,6 +62,100 @@ Since 1.15.2 no decrypted secret reaches the item HTML. Secret fields per type: 
 
 Sharing fails closed: without a `GRANT_LIST_QUERY` listener listing grantees nobody can be granted (`security.allow_unlisted_grantees: true` restores the unsafe free-text form). `security.deny_status: 404` hides whether an item or folder exists from users without access.
 
+## Scope vaults and temporary grants (1.16.0)
+
+| Area | Threat | Control |
+| --- | --- | --- |
+| Grants: escalation | A temporary grantee mints permanent grants that outlive its expiry | Temporary grants are capped at `write` by the config tree (`grants.temporary.max_permission`); Share needs `admin` |
+| Grants: escalation | A `write` grantee moves an item into its own folder to inherit folder grants (GHSA-vq49-95v8-97mg) | Folder grants apply only when the folder has the item's owner; folder / tag changes need the personal owner or scope admin |
+| Grants: escalation | Self-grant, or a temporary grant that downgrades or replaces a permanent one | `self_grant`; a covered temporary grant is `unchanged`, an upgrade is refused (`would_replace_permanent`) |
+| Grants: escalation | A host approval acts with a stale approver | `grantAs()` re-checks Share at the call |
+| Grants: escalation (residual R3) | A demoted scope admin keeps what they granted to their own team | Accepted. Veto in `GRANT_POLICY_CHECK`; the baseline still drops with the role |
+| Grants: expiry | An expired grant works until the purge | Filtered in every query **and** re-checked with `VaultGrant::isActiveAt()` against `ClockInterface`; the purge only deletes rows and emits `GRANT_EXPIRED` |
+| Grants: expiry | Clock skew between web nodes and the database | `now` comes from PHP (`ClockInterface`), never from the database; run NTP. Active while `now < expiresAt` |
+| Grants: races | Double revoke, revoke vs purge, extend vs purge | Conditional `DELETE … WHERE id` (and `expires_at <= now` for the purge) with an affected-rows check: one event per deletion; an extended grant survives |
+| Grants: races (residual R1) | A revoke lands while a request is between the access check and the response | Accepted: the window is one request |
+| Grants: cross-tenant | Any typed grantee id is accepted | Fail closed without a `GRANT_LIST_QUERY` listener (1.15.2); a user grantee of a scope resource must be a scope member (`grantee_not_in_scope`) |
+| Grants: cross-tenant | A user who left an organization keeps item grants | The membership gate runs before grants on every request |
+| Grants: cross-tenant | Team ids collide across organizations | Host obligation: namespace team ids (e.g. `org-<uuid>:group-<uuid>`); the bundle compares them opaquely |
+| Scopes | A forged `{scope}` in the URL | Route requirement `[a-z0-9][a-z0-9_-]{0,127}` + `resolve()` on every request; the scope key is never read from form data; a non-member gets the deny status |
+| Scopes (SEC-004 FQ-L1) | A grants-only member (no baseline) learns the scope's folder and tag names from the scope page or the item page's folder select (FQ-L4, FQ-I12) | The page lists only the folders and tags of the items the member may View (folders with their ancestors) and the folders the member may Share; the item page shows only the current folder to members who cannot organise the item, and the same filtered list to Admin grantees; members with a baseline see all of them |
+| Scope tags (SEC-004 FQ-I4) | A user with Admin on one scope item (a scope admin, or an Admin grant) creates scope tags by tagging it; the names then show to members and in the catalogue | Accepted: tagging is an item edit. Hosts that want tag creation restricted to `create` members veto Admin grants in `GRANT_POLICY_CHECK` or keep item grants at `read` / `write` |
+| Ownership | Scope rows deleted with their creator | `creator_id` is NULL on scope rows; `created_by_id` is `ON DELETE SET NULL` (audit only, never used for access) |
+
+Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time; **R2** plaintext in PHP memory while a value is decrypted (reveal, copy, attachment, `/logins`, and the health report and decrypted export of later blocks), inherent to server-side encryption; **R3** team self-grants after a demotion.
+
+## Reveal, copy and attachments (1.16.0)
+
+| Threat | Control |
+| --- | --- |
+| Field probing, or a field a read-only grantee should not see | Per-type allow-list (`reveal.revealable_fields`, default the secret fields; anything else 404 like an inaccessible item) and the `ITEM_FIELD_REVEAL_CHECK` veto |
+| Cross-site POST, `<img>` or link prefetch triggers reveals | POST only, per-item CSRF token in a header, no GET route; no CORS on these routes |
+| A compromised session dumps every secret | `security.secret_access_rate_limit` plus `reveal.rate_limit` (per minute, per hour, per item and field), `REVEAL_THROTTLED`, an audit event per reveal |
+| Values in logs, events, exceptions, the profiler, flashes or caches | Events carry no value (reflection test); `VaultRevealedValue` dumps `***` and refuses serialization; `VaultDecryptionFailedException` has a generic message and no previous exception; `#[\SensitiveParameter]`; the profiler is disabled on these routes; `no-store` |
+| The value stays in the DOM or the back/forward cache | Auto-hide, wipe on `pagehide` / hidden tab / dialog close, Copy without the DOM, `no-store` |
+| Copy leaves the value in the system clipboard (SEC-004 FQ-I11) | Accepted: the bundle never reads or clears the clipboard (the Clipboard API cannot tell whether the user copied something else since, and clearing it would discard that). Users clear it themselves; hosts with OS clipboard history should tell users so |
+| A host veto (`ITEM_FIELD_REVEAL_CHECK`) is bypassed through the extension `/logins` (SEC-004 FQ-L2) | `/logins` dispatches the same check for `password` (channel `extension`, purpose `autofill`); a vetoed password is sent empty and left out of the audit event's field list |
+| The reveal succeeds although the audit write failed | A throwing audit listener refuses the reveal (503): no audit, no reveal |
+| A downloaded file is rendered in the page origin or carries user data in its name | Always `application/octet-stream`, `nosniff`, `Content-Disposition: attachment` with a sanitised basename, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` |
+| Decrypt during a key rotation | Fails closed with a generic 503 |
+
+## Password health (1.16.0)
+
+| Threat | Control |
+| --- | --- |
+| Reuse side channel: the report says that a password equals one in an item the viewer cannot open (another user, another scope) | Reuse is computed only over the items the viewer may View, within one owner; the others are counted in `skipped` and never compared (oracle test) |
+| Stored fingerprints become an offline guessing target | Fingerprints use a per-run random 32-byte HMAC key, wiped after the run; nothing is persisted or returned |
+| Oracle by planting guesses | A scope report needs `health` (scope admin in Beacon), who already has View on every compared item |
+| A cache leaks values or fingerprints | Off by default; when on, only the report (flags, titles, group numbers) is cached, per viewer |
+| The health page is reloaded to burn CPU or the breach API (SEC-004 FQ-I2) | Each computed report decrypts every examined password (up to `health.max_items`). `health.min_interval_seconds` (10 s) limits computed reports per viewer and owner; breach answers are cached per item and secret change (`health.breach_cache_ttl`), never keyed by the value |
+| A breach lookup sends the password or its full hash | `VaultBreachCheckerInterface` is host code: use a k-anonymity range API (5-character SHA-1 prefix) and declare it in the privacy text. Failures count as unknown (`null`) |
+| The policy violation echoes the password | The message names the missing rules only; the invalid value is blanked |
+
+## Personal data and decrypted export (1.16.0)
+
+| Threat | Control |
+| --- | --- |
+| An old login or remember-me counts as fresh | The bundle checks `authenticatedAt` against its own clock (`export.reauth_max_age`, default 300 s, at most 900 s; 30 s skew) |
+| MFA bypass through the hook: login-time MFA, a recovery code, `mfaEnrolled: false` | Factor sets enforced by the bundle (`accepted_primary_factors`, `accepted_mfa_factors`; recovery codes excluded by default). Host obligations below. Residual **R4**: a dishonest hook cannot be detected |
+| A proof is replayed, or comes from another session | Single use: the host's `consume()` before the first byte **and** the bundle's own list of used proof ids (cache pool); `sessionBinding` must equal `sha256(session id)`; purpose binding |
+| A cross-site POST starts a download | CSRF token `vault_personal_export` plus a fresh proof the attacker cannot produce |
+| Caching, sniffing, rendering in the page origin, user data in the file name | `Cache-Control: max-age=0, no-store, private`, `Pragma: no-cache`, `nosniff`, `Content-Disposition: attachment` with a fixed ASCII name, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox`, `Referrer-Policy: no-referrer`; the profiler is disabled |
+| The file lands on disk | `StreamedResponse` written in batches with `echo` / `flush()`; no temporary file (static test plus a temp-dir listing); `X-Accel-Buffering: no` |
+| Size / DoS | Pre-count and size estimate (413; `SUM(LENGTH(ciphertext))` + 512 bytes per item, SEC-004 FQ-I6), batches of 50 entities detached after use, cooldown (429) |
+| Scope or shared items in the file | The query is `creator = user AND owner_scope IS NULL AND deleted_at IS NULL`; fixture test with markers |
+| The export is not audited | `ITEMS_EXPORTED` before the first byte; a throwing listener refuses with 503 (no audit, no export) |
+| Mid-stream decrypt failure (key rotation) | Pre-flight for exports up to 500 items (503 before any byte); otherwise the stream stops and the file is invalid by construction (no closing bracket, `#error` CSV trailer); logged as an error with the exception class |
+| CSV formula injection (SEC-004 FQ-L3) | The Q-O7 premise ("only the user's own data, nobody can plant cells") does not hold: a **Write grantee** can edit the title, username, note and websites of the owner's items. By default every CSV cell starting with `=`, `+`, `-`, `@`, tab or CR gets a leading `'` (OWASP), and the page says so. `export.csv_raw_values: true` restores exact values for owners who accept the risk; JSON is always exact |
+| The personal-data export leaks values or third-party titles | Scalar queries, metadata only; titles of received grants only when the user can View the resource now; scope item titles omitted |
+| The exporter loads resources to decide the received-grant titles (SEC-004 FQ-I3) | Accepted deviation: for each received grant it loads the item or folder (ciphertext included, never decrypted or output) and asks the access guard, so the host's `ITEM_ACCESS_CHECK` / `FOLDER_ACCESS_CHECK` listeners run in whatever context calls the exporter (CLI, a queue worker for an access request): they must not depend on a request or a session there |
+| Parallel POSTs with one proof (SEC-004 FQ-I1) | With `export.lock_factory` (default `lock.factory`) the proof check, consume, used-proof list and cooldown run under a per-user lock; without symfony/lock the window is two requests of the same session, and an atomic host `consume()` closes it |
+| The eraser leaves orphans or relies on cascades | Explicit ordered deletes, one transaction per batch, tests over the six tables; grants given on scope resources are kept with `created_by_id = NULL` |
+
+**Host obligations** for `VaultReauthenticationCheckerInterface` (the bundle cannot verify them): list in `factors` only
+the factors verified in the re-auth step (never at login, never through remember-me or an SSO session reuse); read
+`mfaEnrolled` from the store, not from the session; protect the re-auth page against CSRF and rate-limit it; regenerate
+the session id **before** recording `sessionBinding`; follow `returnTo` only when it is a same-origin path; return a
+consumed proof never again.
+
+## Catalogue leakage
+
+The catalogue is metadata only by construction (scalar queries: no item, no ciphertext is loaded), but what it shows
+is disclosed to every member with the `catalogue` flag:
+
+1. **Titles.** Users put hosts, account emails or even passwords in titles. The item form of a scope item warns about
+   it; the title stays searchable by design.
+2. **Existence and inventory.** Members learn which services the scope uses and how many credentials exist per type
+   (`item_type` reveals that a card, passport or ID document is stored). Use *Hide from the catalogue*
+   (`catalogue_hidden`) per item; keep identity documents in personal vaults.
+3. **Change timing.** The date (not the time) of the last change is shown.
+4. **Tags** can name environments ("prod", "root").
+5. **Enumeration.** Item ids are random UUIDs and every item route checks access; with `deny_status: 404` an id
+   confirms nothing.
+6. **No URL leak.** `websites` stays encrypted and never reaches the catalogue.
+
+Accepted residual **R5**: catalogue metadata is disclosed to scope members, by design.
+
 ## Logging
 
 The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service; no-op when none is registered). Every record carries `bundle: nowo_vault` and an `action` key; context holds identifiers and counters only.
@@ -64,19 +165,29 @@ The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service
 | Extension login rejected (bad credentials / account or Vault role denied) | notice | `reason` only — **never** the submitted username or password |
 | Extension token issued / all tokens of a user revoked | info | `user_id`, `count` |
 | `/logins` lookup truncated by `max_login_items` | warning | `user_id`, `available`, `scanned` |
-| Grant created / updated / revoked | info | `resource_type`, `resource_id`, `grantee_type`, `grantee_id`, `permission` |
+| Grant created / updated / revoked | info | `resource_type`, `resource_id`, `grantee_type`, `grantee_id`, `permission`; since 1.16.0 also `expires_at` and `actor_id` when set |
+| Grant refused (1.16.0) | notice | `code`, `actor_id`, `resource_type`, `resource_id` |
+| Expired grants purged (1.16.0) | info | `count`, `dry_run` |
+| Field revealed / copied / attachment downloaded (1.16.0) | info | `user_id`, `item_id`, `field`, `purpose`, `channel` |
+| Reveal throttled (1.16.0) | warning | `user_id`, `item_id`, `window` |
+| Reveal refused: audit listener failed (1.16.0) | error | `user_id`, `item_id`, exception **class** |
+| Health report generated (1.16.0) | info | `user_id`, `owner`, `examined`, `weak`, `reused`, `old`, `breached` |
+| Export refused (1.16.0) | notice | `user_id`, `reason` code (`invalid_request`, `reauth_missing`, `reauth_stale`, `primary_factor_missing`, `mfa_missing`, `session_mismatch`, `reauth_replayed`, `too_large`, `cooldown`, `decrypt_failed`, `audit_failed`, `busy`) |
+| Items exported (1.16.0) | info | `user_id`, `count`, `format` |
+| Export stream failed (1.16.0) | error | `user_id`, exception **class** |
+| Personal data erased (1.16.0) | info | `user_id`, counts per step |
 | Item / folder purged | info | `item_id` / `folder_id` |
 | Runtime configuration updated / reset | notice | changed top-level **keys** and `encryption_key_change` (bool) — never the values |
 | `nowo:vault:reencrypt` started / finished / rejected / failed; key persisted to DB | info / error / notice | `dry_run`, `include_deleted`, counters, error message (no key material) |
 | `nowo:vault:extension-tokens:purge` | info | `count` |
 
-Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, notes, attachments, card data), item titles, Bearer tokens or their hashes, usernames typed in the extension, session ids. Route your Monolog handlers so these records do not reach third parties you would not trust with resource ids.
+Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, notes, attachments, card data), item titles, Bearer tokens or their hashes, usernames typed in the extension, session ids; since 1.16.0 also revealed values, health fingerprints and their HMAC key, export contents, re-auth proof ids and session bindings, and the file names of attachments (they may contain personal data). Route your Monolog handlers so these records do not reach third parties you would not trust with resource ids.
 
 ## Accepted residuals (REQ-SEC-004)
 
 Documented and accepted for **Pass (good)** / overall **Low** (re-audit **2026-08-20**):
 
-1. Plaintext payloads exist in PHP memory briefly after decrypt (inherent).
+1. **R2:** plaintext payloads exist in PHP memory briefly after decrypt (inherent).
 2. Extension Bearer API has no CSRF (token auth by design; rate limit + TTL + purge cron).
 3. Operator CLI key-on-argv risk when using `--old-key` / `--new-key` instead of `--*-key-file` (documented above; file-based options are the supported operator path).
 4. Generated encryption keys are shown **one-time** via session (not flash); host must use HTTPS.

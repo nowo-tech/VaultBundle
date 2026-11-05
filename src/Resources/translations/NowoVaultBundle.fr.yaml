@@ -56,6 +56,15 @@ vault:
         submit: Accorder l'accès
         existing: Droits actuels
         manage: Gérer le partage
+        until: 'jusqu''au %date%'
+        expired: Expiré
+        expires_in: 'Fin de l''accès'
+        expires_never: Jamais (permanent)
+        expires_1h: Dans 1 heure
+        expires_1d: Dans 1 jour
+        expires_1w: Dans 1 semaine
+        expires_custom: À une date
+        expires_at: Date de fin
     access:
         title: Accès
         intro: Partagez cette ressource avec d'autres utilisateurs ou équipes (groupes). Chaque droit définit qui peut la lire, la modifier ou l'administrer.
@@ -103,10 +112,17 @@ vault:
         tags: Étiquettes
         tag_placeholder: ex. travail, personnel
         tags_help: Saisissez un tag et appuyez sur Entrée. Les tags sont réutilisés entre vos éléments.
+        title_scope_help: 'Le nom est visible par tous les membres dans le catalogue. N''y mettez ni mot de passe, ni URL, ni nom de compte.'
+        catalogue_hidden: Masquer dans le catalogue
+        catalogue_hidden_help: 'Les membres sans accès ne verront pas que cette entrée existe. L''accès lui-même ne change pas.'
+        password_policy: 'Le mot de passe ne respecte pas la politique (au moins %min_length% caractères et %min_classes% parmi : minuscules, majuscules, chiffres, symboles).'
     reveal:
         show: "Afficher"
         hide: "Masquer"
         error: "Impossible de charger la valeur."
+        copy: Copier
+        copied: Copié
+        download_attachment: Télécharger la pièce jointe
     action:
         open: Ouvrir
         save: Enregistrer
@@ -179,6 +195,7 @@ vault:
             key_invalid: "La clé de chiffrement doit être une clé libsodium de 32 octets encodée en base64. Rien n’a été enregistré."
             key_storage_unavailable: "La clé de chiffrement ne peut pas être stockée en base de données : installez nowo-tech/doctrine-encrypt-bundle pour la chiffrer au repos, ou configurez nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes doit être zéro ou supérieur.
+        grant_refused: 'L''accès n''a pas pu être accordé.'
     runtime_config:
         title: Configuration runtime
         intro: Paramètres en base de données pour la clé de chiffrement, la limite de pièces jointes et le niveau de mot de passe.
@@ -195,3 +212,54 @@ vault:
         generate_key: Générer VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Taille max. des pièces jointes (octets)
         password_level: Niveau de robustesse du mot de passe
+    scope:
+        items:
+            title: Coffre partagé
+            description: 'Entrées appartenant à %scope%. L''accès dépend de votre rôle et des accès qui vous ont été accordés.'
+        health_link: Santé des mots de passe
+    catalogue:
+        title: Catalogue
+        description: 'Entrées de %scope% auxquelles vous pouvez demander l''accès. Seuls les noms, types, étiquettes et la date de la dernière modification sont affichés.'
+        updated_on: Dernière modification
+        access: Accès
+        has_access: Vous avez accès
+        empty: Aucune entrée dans le catalogue.
+    export:
+        title: 'Exporter mon coffre'
+        description: 'Téléchargez une copie déchiffrée de votre coffre personnel.'
+        warning: 'Le fichier contient vos mots de passe et autres secrets en clair. Gardez-le sur un appareil de confiance et supprimez-le dès que vous n''en avez plus besoin. Seules vos entrées personnelles sont exportées : ni les entrées partagées avec vous ni les coffres partagés.'
+        count: '%count% entrées seront exportées.'
+        csv_warning: 'Le CSV garde les valeurs telles quelles : un tableur peut exécuter comme formule une cellule qui commence par = + - ou @, et les personnes avec qui vous partagez une entrée peuvent la modifier. Préférez JSON pour passer à un autre gestionnaire.'
+        csv_neutralised: 'En CSV, une valeur qui commence par = + - @ (ou une tabulation ou un retour chariot) est précédée d''un '' pour qu''un tableur ne l''exécute pas comme formule ; retirez-le à l''import. Le JSON garde toutes les valeurs exactes.'
+        attachments: 'Le fichier JSON contient les documents joints.'
+        format: 'Format'
+        format_json: 'JSON'
+        format_csv: 'CSV (sans pièces jointes)'
+        download: 'Télécharger'
+    health:
+        title: Santé des mots de passe
+        description: 'Mots de passe faibles, réutilisés et anciens de %scope%, calculés maintenant pour les entrées que vous pouvez ouvrir. Rien n''est stocké.'
+        summary: '%examined% vérifiés, %skipped% sans accès : %weak% faibles, %reused% réutilisés, %old% anciens, %breached% compromis.'
+        weak: Faible
+        reused: 'Réutilisé (groupe %group%)'
+        old: 'Ancien (%days% jours)'
+        breached: Compromis
+        status: État
+        ok: OK
+        empty: Aucun identifiant à vérifier.
+        reason:
+            min_length: trop court
+            min_classes: trop peu de types de caractères
+            empty: aucun mot de passe
+            max_length: 'trop long'
+            require_lowercase: 'aucune minuscule'
+            require_uppercase: 'aucune majuscule'
+            require_digit: 'aucun chiffre'
+            require_special: 'aucun symbole'
+            disallow_whitespace: 'contient des espaces'
+            not_contain: 'contient un mot interdit'
+            min_unique_chars: 'trop peu de caractères distincts'
+            regex: 'ne respecte pas le format exigé'
+            pattern: 'ne respecte pas le format exigé'
+        too_large: 'Trop d''entrées pour un rapport à la demande.'
+        throttled: 'Un nouveau rapport pourra être calculé dans quelques secondes.'

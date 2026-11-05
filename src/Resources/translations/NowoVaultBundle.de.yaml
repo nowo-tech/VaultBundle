@@ -56,6 +56,15 @@ vault:
         submit: Zugriff gewähren
         existing: Aktuelle Berechtigungen
         manage: Freigabe verwalten
+        until: 'bis %date%'
+        expired: Abgelaufen
+        expires_in: Zugriff endet
+        expires_never: Nie (dauerhaft)
+        expires_1h: In 1 Stunde
+        expires_1d: In 1 Tag
+        expires_1w: In 1 Woche
+        expires_custom: An einem Datum
+        expires_at: Enddatum
     access:
         title: Zugriff
         intro: Teilen Sie diese Ressource mit anderen Benutzern oder Teams (Gruppen). Jede Berechtigung legt fest, wer lesen, schreiben oder verwalten darf.
@@ -103,10 +112,17 @@ vault:
         tags: Schlagwörter
         tag_placeholder: z. B. Arbeit, privat
         tags_help: Tag eingeben und Enter drücken. Tags werden über Ihre Elemente hinweg wiederverwendet.
+        title_scope_help: 'Der Name ist für alle Mitglieder im Katalog sichtbar. Keine Passwörter, URLs oder Kontonamen eintragen.'
+        catalogue_hidden: Im Katalog ausblenden
+        catalogue_hidden_help: 'Mitglieder ohne Zugriff sehen nicht, dass dieser Eintrag existiert. Der Zugriff selbst ändert sich nicht.'
+        password_policy: 'Das Passwort erfüllt die Richtlinie nicht (mindestens %min_length% Zeichen und %min_classes% von: Kleinbuchstaben, Großbuchstaben, Ziffern, Symbolen).'
     reveal:
         show: "Anzeigen"
         hide: "Verbergen"
         error: "Der Wert konnte nicht geladen werden."
+        copy: Kopieren
+        copied: Kopiert
+        download_attachment: Anhang herunterladen
     action:
         open: Öffnen
         save: Speichern
@@ -179,6 +195,7 @@ vault:
             key_invalid: "Der Verschlüsselungsschlüssel muss ein base64-kodierter 32-Byte-libsodium-Schlüssel sein. Es wurde nichts gespeichert."
             key_storage_unavailable: "Der Verschlüsselungsschlüssel kann nicht in der Datenbank gespeichert werden: Installieren Sie nowo-tech/doctrine-encrypt-bundle (Verschlüsselung at rest) oder konfigurieren Sie nowo_vault.encryption_key über YAML/env."
             max_attachment_invalid: max_attachment_bytes muss null oder größer sein.
+        grant_refused: Der Zugriff konnte nicht erteilt werden.
     runtime_config:
         title: Laufzeitkonfiguration
         intro: Datenbankeinstellungen für Vault-Verschlüsselungsschlüssel, Anhangsgrößenlimit und Passwortstärke.
@@ -195,3 +212,54 @@ vault:
         generate_key: VAULT_ENCRYPTION_KEY generieren
         max_attachment_bytes: Max. Anhangsgröße (Bytes)
         password_level: Passwortstärke
+    scope:
+        items:
+            title: Gemeinsamer Tresor
+            description: 'Einträge von %scope%. Der Zugriff hängt von deiner Rolle dort und von den dir erteilten Freigaben ab.'
+        health_link: Passwort-Gesundheit
+    catalogue:
+        title: Katalog
+        description: 'Einträge von %scope%, für die du Zugriff anfragen kannst. Es werden nur Namen, Typen, Tags und das Datum der letzten Änderung angezeigt.'
+        updated_on: Letzte Änderung
+        access: Zugriff
+        has_access: Du hast Zugriff
+        empty: Keine Einträge im Katalog.
+    export:
+        title: 'Meinen Tresor exportieren'
+        description: 'Laden Sie eine entschlüsselte Kopie Ihres persönlichen Tresors herunter.'
+        warning: 'Die Datei enthält Ihre Passwörter und andere Geheimnisse im Klartext. Bewahren Sie sie auf einem vertrauenswürdigen Gerät auf und löschen Sie sie, sobald Sie sie nicht mehr brauchen. Exportiert werden nur Ihre persönlichen Einträge, nicht mit Ihnen geteilte Einträge oder gemeinsame Tresore.'
+        count: '%count% Einträge werden exportiert.'
+        csv_warning: 'CSV übernimmt die Werte unverändert: Eine Tabellenkalkulation kann eine Zelle, die mit = + - oder @ beginnt, als Formel ausführen, und Personen, mit denen Sie einen Eintrag teilen, können ihn bearbeiten. Für einen Wechsel des Passwortmanagers besser JSON.'
+        csv_neutralised: 'Im CSV erhält ein Wert, der mit = + - @ (oder einem Tabulator oder Wagenrücklauf) beginnt, ein vorangestelltes '', damit Tabellenkalkulationen ihn nicht als Formel ausführen; entfernen Sie es beim Import. JSON übernimmt alle Werte unverändert.'
+        attachments: 'Die JSON-Datei enthält die angehängten Dokumente.'
+        format: 'Format'
+        format_json: 'JSON'
+        format_csv: 'CSV (ohne Anhänge)'
+        download: 'Herunterladen'
+    health:
+        title: Passwort-Gesundheit
+        description: 'Schwache, wiederverwendete und alte Passwörter von %scope%, jetzt für die Einträge berechnet, die du öffnen kannst. Nichts wird gespeichert.'
+        summary: '%examined% geprüft, %skipped% ohne Zugriff: %weak% schwach, %reused% wiederverwendet, %old% alt, %breached% kompromittiert.'
+        weak: Schwach
+        reused: 'Wiederverwendet (Gruppe %group%)'
+        old: 'Alt (%days% Tage)'
+        breached: Kompromittiert
+        status: Status
+        ok: OK
+        empty: Keine Logins zu prüfen.
+        reason:
+            min_length: zu kurz
+            min_classes: zu wenige Zeichenarten
+            empty: kein Passwort
+            max_length: 'zu lang'
+            require_lowercase: 'kein Kleinbuchstabe'
+            require_uppercase: 'kein Großbuchstabe'
+            require_digit: 'keine Ziffer'
+            require_special: 'kein Sonderzeichen'
+            disallow_whitespace: 'enthält Leerzeichen'
+            not_contain: 'enthält ein verbotenes Wort'
+            min_unique_chars: 'zu wenige verschiedene Zeichen'
+            regex: 'entspricht nicht dem geforderten Muster'
+            pattern: 'entspricht nicht dem geforderten Muster'
+        too_large: Zu viele Einträge für einen Sofortbericht.
+        throttled: 'Ein neuer Bericht kann in einigen Sekunden berechnet werden.'

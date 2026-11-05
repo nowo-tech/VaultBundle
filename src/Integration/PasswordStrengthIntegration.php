@@ -18,6 +18,9 @@ final class PasswordStrengthIntegration
 
     public const PASSWORD_STRENGTH_VALIDATOR = 'Nowo\\PasswordStrengthBundle\\Validator\\PasswordStrength';
 
+    /** Conditions model of the server-side strength evaluator (1.16.0 health report). */
+    public const CONDITIONS_MODEL = 'Nowo\\PasswordStrengthBundle\\Model\\PasswordConditions';
+
     public const PACKAGE = 'nowo-tech/password-strength-bundle';
 
     /**

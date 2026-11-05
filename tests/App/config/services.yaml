@@ -9,6 +9,12 @@ services:
 
     Nowo\VaultBundle\Tests\App\EventSubscriber\RevealRecorderSubscriber: ~
 
+    Nowo\VaultBundle\Tests\App\EventSubscriber\VaultEventRecorderSubscriber: ~
+
+    Nowo\VaultBundle\Tests\App\EventSubscriber\ShareRevocationSubscriber: ~
+
+    Nowo\VaultBundle\Tests\App\EventSubscriber\ScopesKernelListeners: ~
+
     # Rate-limit cache that survives the services reset between test requests (cache.app is an ArrayAdapter that is
     # reset); the tests clear it before use.
     test.vault_secret_access_cache:

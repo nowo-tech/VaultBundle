@@ -6,7 +6,8 @@ on:
   push:
     branches: [main, master]
   pull_request:
-    branches: [main, master]
+    # feat/** : stacked feature branches (e.g. feat/1.16.0-scopes) get the same checks before they reach main.
+    branches: [main, master, 'feat/**']
 
 jobs:
   git-hygiene:

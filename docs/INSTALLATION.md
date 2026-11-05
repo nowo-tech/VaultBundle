@@ -76,6 +76,8 @@ php bin/console doctrine:schema:update --force
 
 Default tables: `{table_prefix}_items`, `{table_prefix}_folders`, `{table_prefix}_grants`, `{table_prefix}_tags`, `{table_prefix}_item_tag`, `{table_prefix}_settings` (e.g. `vault_items`). The settings table is created when `config_storage.enabled: true`.
 
+Since 1.16.0 items, folders and tags have an owner that is either a user (`creator_id`) or a host scope (`owner_scope`), plus `created_by_id` (audit, `ON DELETE SET NULL`); items have `secret_changed_at` and `catalogue_hidden`; grants have `expires_at`. The reference DDL for MySQL, MariaDB and PostgreSQL, and the backfill to add to an upgrade migration, are in [UPGRADING.md](UPGRADING.md#schema).
+
 ## Security firewall
 
 Manage routes require authentication:

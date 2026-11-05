@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Service;
 
 use InvalidArgumentException;
+use LogicException;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Entity\VaultTag;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
+use Nowo\VaultBundle\Repository\VaultScopeTagRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
-use Nowo\VaultBundle\Support\UserIdResolver;
 
 use function mb_strlen;
 use function preg_replace;
@@ -42,21 +43,33 @@ final readonly class VaultTagService
     }
 
     /**
-     * Replaces the item tags with the normalised, deduplicated names (creating missing tags).
+     * Returns the scope's shared tags (1.16.0).
+     *
+     * @return list<VaultTag>
+     */
+    public function listForScope(string $scope): array
+    {
+        return $this->scopeTags()->findByScope($scope);
+    }
+
+    /**
+     * Replaces the item tags with the normalised, deduplicated names (creating missing tags). The tags have the
+     * item's owner: the creator's tags for a personal item, the scope's tags for a scope item (1.16.0).
      *
      * @param list<string> $tagNames
      */
     public function syncItemTags(VaultItem $item, object $creator, array $tagNames): void
     {
-        $tags = [];
-        $seen = [];
+        $scope = $item->getOwnerScope();
+        $tags  = [];
+        $seen  = [];
         foreach ($tagNames as $name) {
             $normalized = self::normalizeName($name);
             if ($normalized === '') {
                 continue;
             }
 
-            $tag = $this->findOrCreate($creator, $normalized);
+            $tag = $scope !== null ? $this->findOrCreateInScope($scope, $normalized) : $this->findOrCreate($creator, $normalized);
             if (isset($seen[$tag->getId()])) {
                 continue;
             }
@@ -91,17 +104,47 @@ final readonly class VaultTagService
     }
 
     /**
+     * Returns the scope tag with this name, creating it when missing (1.16.0).
+     */
+    public function findOrCreateInScope(string $scope, string $name): VaultTag
+    {
+        $normalized = self::normalizeName($name);
+        if ($normalized === '') {
+            throw new InvalidArgumentException('Tag name cannot be empty.');
+        }
+
+        $existing = $this->scopeTags()->findOneByScopeAndName($scope, $normalized);
+        if ($existing instanceof VaultTag) {
+            return $existing;
+        }
+
+        $tag = VaultTag::forScope($normalized, $scope);
+        $this->tagRepository->save($tag);
+
+        return $tag;
+    }
+
+    /**
      * Deletes a tag owned by the creator. Items keep their other tags; this label is removed from them.
      */
     public function deleteForCreator(object $creator, string $tagId): void
     {
         $tag = $this->tagRepository->findById($tagId);
-        if (!$tag instanceof VaultTag || !UserIdResolver::isSameUser($creator, $tag->getCreator())) {
+        if (!$tag instanceof VaultTag || !$tag->getOwner()->isUser($creator)) {
             throw new InvalidArgumentException('Tag not found or not owned by the current user.');
         }
 
         // @igor-ignore - Service coordinates I/O or request-scoped work; not unsafe worker singleton state.
         $this->tagRepository->remove($tag);
+    }
+
+    private function scopeTags(): VaultScopeTagRepositoryInterface
+    {
+        if (!$this->tagRepository instanceof VaultScopeTagRepositoryInterface) {
+            throw new LogicException('Scope tags need a tag repository implementing VaultScopeTagRepositoryInterface.');
+        }
+
+        return $this->tagRepository;
     }
 
     /**
