@@ -134,6 +134,13 @@ to 4). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
 
 ### Fixed
 
+- **SEC-004 FQ-L2:** the browser extension `/logins` lookup returned the password without dispatching
+  `ITEM_FIELD_REVEAL_CHECK`, so a host veto enforced on the web reveal was bypassed. It now dispatches the check for
+  `password` (channel `extension`, purpose `autofill`); a vetoed password is sent as an empty string, flagged
+  `VaultBrowserExtensionLoginMatch::$passwordWithheld` and left out of the `ITEM_REVEALED` field list.
+- **SEC-004 FQ-I5:** the `/logins` audit events (`ITEM_REVEALED`, purpose `autofill`) now carry the owner key.
+- **SEC-004 FQ-I7:** the catalogue date is computed in UTC (it could be one day off on hosts whose PHP timezone is not
+  UTC).
 - **SEC-004 FQ-L1:** on the scope items page, a member without a baseline (explicit grants only) saw the names of every
   scope folder and tag. The page now lists only the folders (with their ancestors) and tags of the items the member may
   View, plus the folders they may Share. `VaultScopeItemLister::list()` also returns `visible` (null with a baseline).

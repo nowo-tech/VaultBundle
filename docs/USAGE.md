@@ -129,7 +129,7 @@ Scope admins can keep an item out of the catalogue with *Hide from the catalogue
 ## Reveal, copy and attachments
 
 Secret fields are never in the page (1.15.2). The item page offers, per stored secret field, **Show** (the value
-stays `reveal.auto_hide_seconds` in the input, then disappears) and **Copy** (written to the clipboard, never into the
+stays `reveal.auto_hide_seconds` in the input, then disappears) and **Copy** (written to the clipboard, where it stays until something else is copied; never into the
 page), and for documents with a stored file a **Download attachment** button. All three are POST requests with the
 `vault_reveal_<item id>` CSRF token in `X-CSRF-Token`, checked for View access, vetoable per field
 (`ITEM_FIELD_REVEAL_CHECK`), rate limited, and audited **before** the value leaves (`ITEM_REVEALED`, `ITEM_COPIED`,

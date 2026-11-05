@@ -10,12 +10,16 @@ use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
+use Nowo\VaultBundle\Event\VaultEvents;
+use Nowo\VaultBundle\Event\VaultFieldRevealCheckEvent;
+use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function array_slice;
 use function count;
@@ -37,6 +41,7 @@ final readonly class VaultBrowserExtensionLoginResolver
         private VaultLoginDomainMatcher $domainMatcher,
         private int $maxLoginItems = 1000,
         private ?LoggerInterface $logger = null,
+        private ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -68,19 +73,36 @@ final readonly class VaultBrowserExtensionLoginResolver
                 continue;
             }
 
+            // SEC-004 FQ-L2: the same per-field veto as the web reveal (channel extension, purpose autofill); a vetoed
+            // password is sent empty and left out of the audit field list.
+            $withheld  = !$this->passwordAllowed($user, $item);
             $matches[] = new VaultBrowserExtensionLoginMatch(
                 $item->getId(),
                 $item->getTitle(),
                 $data->username,
-                $data->password,
+                $withheld ? '' : $data->password,
                 array_values(array_filter($data->websites)),
                 $score,
+                $item->getOwner()->key(),
+                $withheld,
             );
         }
 
         usort($matches, static fn (VaultBrowserExtensionLoginMatch $a, VaultBrowserExtensionLoginMatch $b): int => $b->matchScore <=> $a->matchScore);
 
         return $matches;
+    }
+
+    private function passwordAllowed(UserInterface $user, VaultItem $item): bool
+    {
+        if (!$this->eventDispatcher instanceof EventDispatcherInterface) {
+            return true;
+        }
+
+        $check = new VaultFieldRevealCheckEvent($user, $item, 'password', VaultItemRevealedEvent::PURPOSE_AUTOFILL, VaultItemRevealedEvent::CHANNEL_EXTENSION);
+        $this->eventDispatcher->dispatch($check, VaultEvents::ITEM_FIELD_REVEAL_CHECK);
+
+        return $check->isGranted();
     }
 
     /**

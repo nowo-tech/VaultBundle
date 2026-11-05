@@ -111,7 +111,7 @@ final readonly class VaultCatalogue
                 $type,
                 $tags[$row['id']] ?? [],
                 $scope,
-                new DateTimeImmutable($row['updatedAt']->format('Y-m-d') . ' 00:00:00', new DateTimeZone('UTC')),
+                new DateTimeImmutable(DateTimeImmutable::createFromInterface($row['updatedAt'])->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d') . ' 00:00:00', new DateTimeZone('UTC')),
                 $access[$row['id']] ?? false,
             );
         }
