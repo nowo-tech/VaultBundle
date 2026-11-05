@@ -115,6 +115,7 @@ vault:
         title_scope_help: 'Il nome è visibile a tutti i membri nel catalogo. Non inserire password, URL o nomi di account.'
         catalogue_hidden: Nascondi dal catalogo
         catalogue_hidden_help: 'I membri senza accesso non vedranno che questa voce esiste. L''accesso non cambia.'
+        password_policy: 'La password non rispetta la policy (almeno %min_length% caratteri e %min_classes% tra: minuscole, maiuscole, cifre, simboli).'
     reveal:
         show: "Mostra"
         hide: "Nascondi"
@@ -215,6 +216,7 @@ vault:
         items:
             title: Cassaforte condivisa
             description: 'Voci di %scope%. L''accesso dipende dal tuo ruolo e dagli accessi che ti sono stati concessi.'
+        health_link: Salute delle password
     catalogue:
         title: Catalogo
         description: 'Voci di %scope% a cui puoi chiedere l''accesso. Sono mostrati solo nomi, tipi, tag e la data dell''ultima modifica.'
@@ -222,3 +224,19 @@ vault:
         access: Accesso
         has_access: Hai accesso
         empty: Nessuna voce nel catalogo.
+    health:
+        title: Salute delle password
+        description: 'Password deboli, riutilizzate e vecchie di %scope%, calcolate ora per le voci che puoi aprire. Nulla viene salvato.'
+        summary: '%examined% controllate, %skipped% senza accesso: %weak% deboli, %reused% riutilizzate, %old% vecchie, %breached% compromesse.'
+        weak: Debole
+        reused: 'Riutilizzata (gruppo %group%)'
+        old: 'Vecchia (%days% giorni)'
+        breached: Compromessa
+        status: Stato
+        ok: OK
+        empty: Nessun login da controllare.
+        reason:
+            min_length: troppo corta
+            min_classes: pochi tipi di caratteri
+            empty: nessuna password
+        too_large: Troppe voci per un report immediato.

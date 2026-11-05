@@ -98,4 +98,14 @@ final class VaultEvents
      * A reveal, copy or download was refused by `reveal.rate_limit` (1.16.0, {@see VaultRevealThrottledEvent}).
      */
     public const REVEAL_THROTTLED = 'nowo_vault.reveal_throttled';
+
+    /**
+     * Vetoable access check of a scope health report (1.16.0, {@see VaultHealthAccessCheckEvent}).
+     */
+    public const HEALTH_ACCESS_CHECK = 'nowo_vault.health_access_check';
+
+    /**
+     * A health report was generated (1.16.0, {@see VaultHealthReportGeneratedEvent}, counts only).
+     */
+    public const HEALTH_REPORT_GENERATED = 'nowo_vault.health_report_generated';
 }

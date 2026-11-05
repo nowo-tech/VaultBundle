@@ -8,6 +8,8 @@ use Nowo\FormKitBundle\Attribute\FormKitConfig;
 use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
+use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
+use Nowo\VaultBundle\Validator\VaultPasswordPolicyConstraint;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
@@ -128,7 +130,9 @@ final class VaultItemFormType extends AbstractType
             ])));
 
             $this->addTagsField($optional);
-            $this->addItemPasswordField($secret('password'));
+            // 1.16.0: the owner's password policy, when it is enforced on save (an empty value keeps the stored one).
+            $policy = $options['password_policy'];
+            $this->addItemPasswordField(array_merge_recursive($secret('password'), $policy instanceof VaultPasswordPolicy && $policy->enforceOnSave ? ['constraints' => [new VaultPasswordPolicyConstraint($policy)]] : []));
 
             $this->addTypedField('folder', EntityType::class, [
                 'class'        => VaultFolder::class,
@@ -260,6 +264,11 @@ final class VaultItemFormType extends AbstractType
                 $options['constraints'] = [new $validatorClass(['policyMode' => 'level', 'level' => $level])];
             }
 
+            /** @var list<object> $policyConstraints */
+            $policyConstraints = $secretOptions['constraints'] ?? [];
+            unset($secretOptions['constraints']);
+            $options['constraints'] = [...$options['constraints'], ...$policyConstraints];
+
             // @phpstan-ignore argument.type (optional PasswordStrengthBundle form type resolved at runtime)
             $this->addTypedField('password', $passwordType, array_merge($options, $secretOptions));
 
@@ -289,7 +298,10 @@ final class VaultItemFormType extends AbstractType
             'allow_secret_clear' => false,
             // 1.16.0: scope item (catalogue help on the title, catalogue_hidden choice).
             'scope_item' => false,
+            // 1.16.0: VaultPasswordPolicy of the item owner (validated when enforceOnSave).
+            'password_policy' => null,
         ]);
+        $resolver->setAllowedTypes('password_policy', ['null', VaultPasswordPolicy::class]);
         $resolver->setAllowedTypes('scope_item', 'bool');
         $resolver->setAllowedTypes('folders', 'array');
         $resolver->setAllowedTypes('stored_secret_fields', 'string[]');

@@ -115,6 +115,7 @@ vault:
         title_scope_help: 'El nombre es visible para todos los miembros en el catálogo. No incluyas contraseñas, URL ni nombres de cuenta.'
         catalogue_hidden: Ocultar del catálogo
         catalogue_hidden_help: Los miembros sin acceso no verán que esta entrada existe. El acceso no cambia.
+        password_policy: 'La contraseña no cumple la política (al menos %min_length% caracteres y %min_classes% de: minúsculas, mayúsculas, dígitos, símbolos).'
     reveal:
         show: "Mostrar"
         hide: "Ocultar"
@@ -215,6 +216,7 @@ vault:
         items:
             title: Bóveda compartida
             description: 'Entradas de %scope%. El acceso depende de tu rol en ella y de los permisos que te hayan concedido.'
+        health_link: Salud de las contraseñas
     catalogue:
         title: Catálogo
         description: 'Entradas de %scope% a las que puedes pedir acceso. Solo se muestran nombres, tipos, etiquetas y la fecha del último cambio.'
@@ -222,3 +224,19 @@ vault:
         access: Acceso
         has_access: Tienes acceso
         empty: No hay entradas en el catálogo.
+    health:
+        title: Salud de las contraseñas
+        description: 'Contraseñas débiles, reutilizadas y antiguas de %scope%, calculadas ahora para las entradas que puedes abrir. No se guarda nada.'
+        summary: '%examined% revisadas, %skipped% sin acceso: %weak% débiles, %reused% reutilizadas, %old% antiguas, %breached% filtradas.'
+        weak: Débil
+        reused: 'Reutilizada (grupo %group%)'
+        old: 'Antigua (%days% días)'
+        breached: Filtrada
+        status: Estado
+        ok: Correcta
+        empty: No hay accesos que revisar.
+        reason:
+            min_length: demasiado corta
+            min_classes: pocos tipos de caracteres
+            empty: sin contraseña
+        too_large: Demasiadas entradas para un informe al momento.

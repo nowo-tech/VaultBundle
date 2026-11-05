@@ -115,6 +115,7 @@ vault:
         title_scope_help: 'O nome é visível para todos os membros no catálogo. Não inclua palavras-passe, URL nem nomes de conta.'
         catalogue_hidden: Ocultar do catálogo
         catalogue_hidden_help: Os membros sem acesso não verão que esta entrada existe. O acesso não muda.
+        password_policy: 'A palavra-passe não cumpre a política (pelo menos %min_length% caracteres e %min_classes% de: minúsculas, maiúsculas, dígitos, símbolos).'
     reveal:
         show: "Mostrar"
         hide: "Ocultar"
@@ -215,6 +216,7 @@ vault:
         items:
             title: Cofre partilhado
             description: 'Entradas de %scope%. O acesso depende da sua função e dos acessos que lhe foram concedidos.'
+        health_link: Saúde das palavras-passe
     catalogue:
         title: Catálogo
         description: 'Entradas de %scope% a que pode pedir acesso. Só são mostrados nomes, tipos, etiquetas e a data da última alteração.'
@@ -222,3 +224,19 @@ vault:
         access: Acesso
         has_access: Tem acesso
         empty: Sem entradas no catálogo.
+    health:
+        title: Saúde das palavras-passe
+        description: 'Palavras-passe fracas, reutilizadas e antigas de %scope%, calculadas agora para as entradas que pode abrir. Nada é guardado.'
+        summary: '%examined% verificadas, %skipped% sem acesso: %weak% fracas, %reused% reutilizadas, %old% antigas, %breached% comprometidas.'
+        weak: Fraca
+        reused: 'Reutilizada (grupo %group%)'
+        old: 'Antiga (%days% dias)'
+        breached: Comprometida
+        status: Estado
+        ok: OK
+        empty: Sem credenciais para verificar.
+        reason:
+            min_length: demasiado curta
+            min_classes: poucos tipos de caracteres
+            empty: sem palavra-passe
+        too_large: Demasiadas entradas para um relatório imediato.

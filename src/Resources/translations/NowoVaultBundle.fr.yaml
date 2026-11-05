@@ -115,6 +115,7 @@ vault:
         title_scope_help: 'Le nom est visible par tous les membres dans le catalogue. N''y mettez ni mot de passe, ni URL, ni nom de compte.'
         catalogue_hidden: Masquer dans le catalogue
         catalogue_hidden_help: 'Les membres sans accès ne verront pas que cette entrée existe. L''accès lui-même ne change pas.'
+        password_policy: 'Le mot de passe ne respecte pas la politique (au moins %min_length% caractères et %min_classes% parmi : minuscules, majuscules, chiffres, symboles).'
     reveal:
         show: "Afficher"
         hide: "Masquer"
@@ -215,6 +216,7 @@ vault:
         items:
             title: Coffre partagé
             description: 'Entrées appartenant à %scope%. L''accès dépend de votre rôle et des accès qui vous ont été accordés.'
+        health_link: Santé des mots de passe
     catalogue:
         title: Catalogue
         description: 'Entrées de %scope% auxquelles vous pouvez demander l''accès. Seuls les noms, types, étiquettes et la date de la dernière modification sont affichés.'
@@ -222,3 +224,19 @@ vault:
         access: Accès
         has_access: Vous avez accès
         empty: Aucune entrée dans le catalogue.
+    health:
+        title: Santé des mots de passe
+        description: 'Mots de passe faibles, réutilisés et anciens de %scope%, calculés maintenant pour les entrées que vous pouvez ouvrir. Rien n''est stocké.'
+        summary: '%examined% vérifiés, %skipped% sans accès : %weak% faibles, %reused% réutilisés, %old% anciens, %breached% compromis.'
+        weak: Faible
+        reused: 'Réutilisé (groupe %group%)'
+        old: 'Ancien (%days% jours)'
+        breached: Compromis
+        status: État
+        ok: OK
+        empty: Aucun identifiant à vérifier.
+        reason:
+            min_length: trop court
+            min_classes: trop peu de types de caractères
+            empty: aucun mot de passe
+        too_large: 'Trop d''entrées pour un rapport à la demande.'

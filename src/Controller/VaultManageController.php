@@ -33,6 +33,7 @@ use Nowo\VaultBundle\Repository\VaultItemFolderCounterInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
@@ -49,6 +50,7 @@ use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Ui\VaultPageFactory;
 use Nowo\VaultBundle\Ui\VaultPages;
+use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -122,6 +124,7 @@ final class VaultManageController extends AbstractController
         private readonly ?Profiler $profiler = null,
         /** reveal.auto_hide_seconds (1.16.0). */
         private readonly int $revealAutoHideSeconds = 30,
+        private readonly ?VaultPasswordPolicyResolverInterface $passwordPolicyResolver = null,
     ) {
     }
 
@@ -329,7 +332,10 @@ final class VaultManageController extends AbstractController
             $user,
             $request->query->getString('folder') ?: null,
         );
-        $form = $this->createForm(VaultItemFormType::class, $data, ['folders' => $folders]);
+        $form = $this->createForm(VaultItemFormType::class, $data, [
+            'folders'         => $folders,
+            'password_policy' => $itemType === VaultItemType::Login ? $this->passwordPolicyResolver?->forOwner(VaultOwner::user($user)) : null,
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -412,6 +418,7 @@ final class VaultManageController extends AbstractController
             'stored_secret_fields' => $storedSecrets,
             'allow_secret_clear'   => !$viewMode && !$readOnly,
             'scope_item'           => $scope !== null && $canOrganise,
+            'password_policy'      => $item->getItemType() === VaultItemType::Login ? $this->passwordPolicyResolver?->forOwner($item->getOwner()) : null,
         ]);
 
         if (!$viewMode && $request instanceof Request) {

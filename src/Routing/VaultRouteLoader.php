@@ -37,12 +37,12 @@ final class VaultRouteLoader extends Loader
 
     /**
      * Route keys added in 1.16.0, registered only when the bundle extension enables them: the scope pages
-     * (`scopes.enabled`), the catalogue (`catalogue.enabled` with scopes) and the attachment download (always, with the
+     * (`scopes.enabled`), the catalogue (`catalogue.enabled` with scopes), the health report (`health.enabled` with scopes) and the attachment download (always, with the
      * manage UI). A loader built without the list registers the 1.15 route set.
      *
      * @var list<string>
      */
-    public const OPTIONAL_ROUTE_KEYS = ['scope_items', 'scope_item_new', 'scope_folder_create', 'catalogue', 'item_attachment'];
+    public const OPTIONAL_ROUTE_KEYS = ['scope_items', 'scope_item_new', 'scope_folder_create', 'catalogue', 'health', 'item_attachment'];
 
     /**
      * Stores the runtime configuration source and the feature flags that decide which controllers are routed.

@@ -18,6 +18,8 @@ use Nowo\UiKitBundle\View\SettingsPage;
 use Nowo\UiKitBundle\View\SettingsSection;
 use Nowo\UiKitBundle\View\Table;
 use Nowo\VaultBundle\Dto\VaultCataloguePage;
+use Nowo\VaultBundle\Dto\VaultHealthItemResult;
+use Nowo\VaultBundle\Dto\VaultHealthReport;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -425,6 +427,33 @@ final readonly class VaultPageFactory
             actionsLabel: VaultPages::label('vault.list.actions'),
             filtersSubmit: new Action('filter', VaultPages::label('vault.action.search'), icon: 'filter'),
             filtersClear: new Action('cancel', VaultPages::label('vault.search.clear')),
+        );
+    }
+
+    /**
+     * Scope password health (1.16.0): one row per examined login item with its flags (never a value).
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     */
+    public function health(array $routes, string $scope, VaultHealthReport $report): ListPage
+    {
+        return new ListPage(
+            header: new PageHeader(
+                VaultPages::label('vault.health.title'),
+                VaultPages::label('vault.health.description', ['%scope%' => $scope]),
+                back: new BackLink($this->url($routes['scope_items']['name'], ['scope' => $scope]), VaultPages::label('vault.scope.items.title'), 'vault-back'),
+            ),
+            columns: [
+                new Column('title', VaultPages::label('vault.list.title'), required: true),
+                new Column('status', VaultPages::label('vault.health.status')),
+            ],
+            rows: $report->items,
+            rowActions: fn (VaultHealthItemResult $result): array => [Action::view($this->url($routes['item_view']['name'], ['id' => $result->itemId]), VaultPages::label('vault.action.view'))],
+            empty: new EmptyState(null, VaultPages::label('vault.health.empty')),
+            bundle: VaultPages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'vault-health'],
+            actionsLabel: VaultPages::label('vault.list.actions'),
         );
     }
 

@@ -115,6 +115,7 @@ vault:
         title_scope_help: 'De naam is zichtbaar voor elk lid in de catalogus. Zet er geen wachtwoorden, URL''s of accountnamen in.'
         catalogue_hidden: Verbergen in de catalogus
         catalogue_hidden_help: Leden zonder toegang zien niet dat dit item bestaat. De toegang zelf verandert niet.
+        password_policy: 'Het wachtwoord voldoet niet aan het beleid (minstens %min_length% tekens en %min_classes% van: kleine letters, hoofdletters, cijfers, symbolen).'
     reveal:
         show: "Tonen"
         hide: "Verbergen"
@@ -215,6 +216,7 @@ vault:
         items:
             title: Gedeelde kluis
             description: 'Items van %scope%. Toegang hangt af van je rol daarin en van de toegang die je is verleend.'
+        health_link: Wachtwoordgezondheid
     catalogue:
         title: Catalogus
         description: 'Items van %scope% waarvoor je toegang kunt aanvragen. Alleen namen, types, tags en de datum van de laatste wijziging worden getoond.'
@@ -222,3 +224,19 @@ vault:
         access: Toegang
         has_access: Je hebt toegang
         empty: Geen items in de catalogus.
+    health:
+        title: Wachtwoordgezondheid
+        description: 'Zwakke, hergebruikte en oude wachtwoorden van %scope%, nu berekend voor de items die je kunt openen. Er wordt niets opgeslagen.'
+        summary: '%examined% gecontroleerd, %skipped% zonder toegang: %weak% zwak, %reused% hergebruikt, %old% oud, %breached% gelekt.'
+        weak: Zwak
+        reused: 'Hergebruikt (groep %group%)'
+        old: 'Oud (%days% dagen)'
+        breached: Gelekt
+        status: Status
+        ok: OK
+        empty: Geen logins om te controleren.
+        reason:
+            min_length: te kort
+            min_classes: te weinig tekensoorten
+            empty: geen wachtwoord
+        too_large: Te veel items voor een rapport op aanvraag.

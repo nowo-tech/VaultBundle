@@ -115,6 +115,7 @@ vault:
         title_scope_help: 'Der Name ist für alle Mitglieder im Katalog sichtbar. Keine Passwörter, URLs oder Kontonamen eintragen.'
         catalogue_hidden: Im Katalog ausblenden
         catalogue_hidden_help: 'Mitglieder ohne Zugriff sehen nicht, dass dieser Eintrag existiert. Der Zugriff selbst ändert sich nicht.'
+        password_policy: 'Das Passwort erfüllt die Richtlinie nicht (mindestens %min_length% Zeichen und %min_classes% von: Kleinbuchstaben, Großbuchstaben, Ziffern, Symbolen).'
     reveal:
         show: "Anzeigen"
         hide: "Verbergen"
@@ -215,6 +216,7 @@ vault:
         items:
             title: Gemeinsamer Tresor
             description: 'Einträge von %scope%. Der Zugriff hängt von deiner Rolle dort und von den dir erteilten Freigaben ab.'
+        health_link: Passwort-Gesundheit
     catalogue:
         title: Katalog
         description: 'Einträge von %scope%, für die du Zugriff anfragen kannst. Es werden nur Namen, Typen, Tags und das Datum der letzten Änderung angezeigt.'
@@ -222,3 +224,19 @@ vault:
         access: Zugriff
         has_access: Du hast Zugriff
         empty: Keine Einträge im Katalog.
+    health:
+        title: Passwort-Gesundheit
+        description: 'Schwache, wiederverwendete und alte Passwörter von %scope%, jetzt für die Einträge berechnet, die du öffnen kannst. Nichts wird gespeichert.'
+        summary: '%examined% geprüft, %skipped% ohne Zugriff: %weak% schwach, %reused% wiederverwendet, %old% alt, %breached% kompromittiert.'
+        weak: Schwach
+        reused: 'Wiederverwendet (Gruppe %group%)'
+        old: 'Alt (%days% Tage)'
+        breached: Kompromittiert
+        status: Status
+        ok: OK
+        empty: Keine Logins zu prüfen.
+        reason:
+            min_length: zu kurz
+            min_classes: zu wenige Zeichenarten
+            empty: kein Passwort
+        too_large: Zu viele Einträge für einen Sofortbericht.

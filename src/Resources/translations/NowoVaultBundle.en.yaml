@@ -115,6 +115,7 @@ vault:
         title_scope_help: 'The name is visible to every member in the catalogue. Do not put passwords, URLs or account names in it.'
         catalogue_hidden: Hide from the catalogue
         catalogue_hidden_help: Members without access will not see that this entry exists. Access itself does not change.
+        password_policy: 'The password does not meet the password policy (at least %min_length% characters and %min_classes% of: lowercase, uppercase, digits, symbols).'
     reveal:
         show: "Show"
         hide: "Hide"
@@ -215,6 +216,7 @@ vault:
         items:
             title: Shared vault
             description: 'Entries owned by %scope%. Access depends on your role in it and on the access granted to you.'
+        health_link: Password health
     catalogue:
         title: Catalogue
         description: 'Entries of %scope% you can ask access to. Only names, types, tags and the date of the last change are shown.'
@@ -222,3 +224,19 @@ vault:
         access: Access
         has_access: You have access
         empty: No entries in the catalogue.
+    health:
+        title: Password health
+        description: 'Weak, reused and old passwords of %scope%, computed now for the entries you can open. Nothing is stored.'
+        summary: '%examined% checked, %skipped% without access: %weak% weak, %reused% reused, %old% old, %breached% breached.'
+        weak: Weak
+        reused: 'Reused (group %group%)'
+        old: 'Old (%days% days)'
+        breached: Breached
+        status: Status
+        ok: OK
+        empty: No login entries to check.
+        reason:
+            min_length: too short
+            min_classes: too few character types
+            empty: no password
+        too_large: Too many entries for an on-demand report.

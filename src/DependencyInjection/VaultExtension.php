@@ -28,14 +28,19 @@ use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
+use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
 use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
+use Nowo\VaultBundle\Security\ConfigVaultPasswordPolicyResolver;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
 use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\RuntimeKeyVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
+use Nowo\VaultBundle\Service\VaultHealthReporter;
+use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
 use Nowo\VaultBundle\Security\VaultRevealRateLimiter;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
@@ -63,6 +68,9 @@ use function sprintf;
  */
 final class VaultExtension extends Extension implements PrependExtensionInterface
 {
+    /** Server-side evaluator of nowo-tech/password-strength-bundle, used by the health report when installed. */
+    public const STRENGTH_EVALUATOR = 'Nowo\\PasswordStrengthBundle\\Service\\PasswordStrengthEvaluator';
+
     /** Route keys registered only with `scopes.enabled` (1.16.0; see VaultRouteLoader::OPTIONAL_ROUTE_KEYS). */
     public const SCOPE_ROUTE_KEYS = ['scope_items', 'scope_item_new', 'scope_folder_create'];
 
@@ -125,7 +133,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.entity_manager', $emName);
         $container->setParameter('nowo_vault.grants.temporary', $config['grants']['temporary']);
         $container->setParameter('nowo_vault.grants.temporary.ui', (bool) $config['grants']['temporary']['ui']);
-        $this->registerScopes($config['scopes'], $config['catalogue'], $container);
+        $this->registerScopes($config['scopes'], $config['catalogue'], $config['health']['enabled'], $container);
+        $this->registerHealth($config['health'], $container);
         $this->registerReveal($config['reveal'], $container);
         $container->setParameter('nowo_vault.browser_extension.routes', $browserExtension['routes']);
         $container->setParameter('nowo_vault.browser_extension.cors_allowed_origins', $browserExtension['cors_allowed_origins']);
@@ -278,7 +287,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
      * @param array{enabled: bool, access_resolver: string|null} $scopes
      * @param array{enabled: bool, per_page: int} $catalogue
      */
-    private function registerScopes(array $scopes, array $catalogue, ContainerBuilder $container): void
+    private function registerScopes(array $scopes, array $catalogue, bool $health, ContainerBuilder $container): void
     {
         $resolverId = $scopes['access_resolver'] ?? null;
         if ($scopes['enabled'] && (!is_string($resolverId) || $resolverId === '')) {
@@ -301,9 +310,35 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             if ($catalogue['enabled']) {
                 $enabled[] = 'catalogue';
             }
+            if ($health) {
+                $enabled[] = 'health';
+            }
         }
         $container->setParameter('nowo_vault.enabled_optional_route_keys', $enabled);
         $container->setParameter('nowo_vault.catalogue.per_page', $catalogue['per_page']);
+    }
+
+    /**
+     * Health report (1.16.0): the reporter, the password policy resolver and the optional breach checker.
+     *
+     * @param array{enabled: bool, max_items: int, cache_ttl: int, cache_pool: string, breach_checker: string|null, policy_resolver: string|null, policy: array{min_length: int, min_classes: int, max_age_days: int, enforce_on_save: bool}} $health
+     */
+    private function registerHealth(array $health, ContainerBuilder $container): void
+    {
+        $policy = $health['policy'];
+        $container->setDefinition(ConfigVaultPasswordPolicyResolver::class, (new Definition(ConfigVaultPasswordPolicyResolver::class))
+            ->setArgument('$policy', (new Definition(VaultPasswordPolicy::class))->setArguments([$policy['min_length'], $policy['min_classes'], $policy['max_age_days'], $policy['enforce_on_save']])));
+        $resolverId = $health['policy_resolver'];
+        $container->setAlias(VaultPasswordPolicyResolverInterface::class, is_string($resolverId) && $resolverId !== '' ? $resolverId : ConfigVaultPasswordPolicyResolver::class);
+
+        $breachId = $health['breach_checker'];
+        $container->getDefinition(VaultHealthReporter::class)
+            ->setArgument('$breachChecker', is_string($breachId) && $breachId !== '' ? new Reference($breachId) : null)
+            ->setArgument('$strengthEvaluator', new Reference(self::STRENGTH_EVALUATOR, ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$cache', new Reference($health['cache_pool']))
+            ->setArgument('$cacheTtl', $health['cache_ttl'])
+            ->setArgument('$maxItems', $health['max_items']);
+        $container->setAlias(VaultHealthReporterInterface::class, VaultHealthReporter::class);
     }
 
     /**

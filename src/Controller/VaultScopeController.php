@@ -13,16 +13,19 @@ use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
 use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Form\VaultItemSearchType;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultFolderService;
+use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Service\VaultScopeItemLister;
 use Nowo\VaultBundle\Service\VaultTagService;
@@ -76,6 +79,8 @@ final class VaultScopeController extends AbstractController
         private readonly ?VaultPageFactory $pageFactory = null,
         private readonly ?VaultCatalogue $catalogue = null,
         private readonly int $cataloguePerPage = 50,
+        private readonly ?VaultHealthReporterInterface $healthReporter = null,
+        private readonly ?VaultPasswordPolicyResolverInterface $passwordPolicyResolver = null,
     ) {
     }
 
@@ -177,6 +182,35 @@ final class VaultScopeController extends AbstractController
     }
 
     /**
+     * Password health of the scope (1.16.0, `health.enabled`): members with `health` (and HEALTH_ACCESS_CHECK) see weak,
+     * reused, old and breached passwords of the items they may View, computed now in memory. 413 above
+     * `health.max_items`.
+     */
+    #[Route(path: '/tools/vault/scopes/{scope}/health', name: 'nowo_vault_health', requirements: ['scope' => VaultOwner::SCOPE_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'health'], methods: ['GET'])]
+    public function health(string $scope): Response
+    {
+        $user = $this->member($scope);
+
+        try {
+            $report = ($this->healthReporter ?? throw new LogicException('The scope health page needs the VaultHealthReporterInterface service.'))->forScope($user, $scope);
+        } catch (VaultAccessDeniedException) {
+            throw $this->denied();
+        } catch (VaultHealthTooLargeException) {
+            throw new HttpException(Response::HTTP_REQUEST_ENTITY_TOO_LARGE, $this->translator->trans('vault.health.too_large', [], 'NowoVaultBundle'));
+        }
+
+        $routes = $this->routes();
+        $pages  = $this->pages();
+
+        return $this->render($this->templates()['health'], $pages->context([
+            'page'   => $pages->health($routes, $scope, $report),
+            'scope'  => $scope,
+            'report' => $report,
+            'routes' => $routes,
+        ]));
+    }
+
+    /**
      * Creates an item in the scope (`create` permission). The scope comes from the route, never from the form.
      */
     #[Route(path: '/tools/vault/scopes/{scope}/items/new/{type}', name: 'nowo_vault_scope_item_new', requirements: ['scope' => VaultOwner::SCOPE_REQUIREMENT, 'type' => '[a-z_]+'], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'scope_item_new'], methods: ['GET', 'POST'])]
@@ -196,7 +230,11 @@ final class VaultScopeController extends AbstractController
         $folders      = $this->folderService->listForScope($scope);
         $data         = new VaultItemFormData($itemType);
         $data->folder = $this->scopeFolder($folders, $request->query->getString('folder'));
-        $form         = $this->createForm(VaultItemFormType::class, $data, ['folders' => $folders, 'scope_item' => true]);
+        $form         = $this->createForm(VaultItemFormType::class, $data, [
+            'folders'         => $folders,
+            'scope_item'      => true,
+            'password_policy' => $itemType === VaultItemType::Login ? $this->passwordPolicyResolver?->forOwner(VaultOwner::scope($scope)) : null,
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
