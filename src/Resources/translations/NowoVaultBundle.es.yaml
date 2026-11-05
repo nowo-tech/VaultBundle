@@ -250,3 +250,4 @@ vault:
             regex: 'no cumple el patrón exigido'
             pattern: 'no cumple el patrón exigido'
         too_large: Demasiadas entradas para un informe al momento.
+        throttled: 'Podrás calcular un nuevo informe en unos segundos.'

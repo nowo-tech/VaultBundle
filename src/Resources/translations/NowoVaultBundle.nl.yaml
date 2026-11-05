@@ -250,3 +250,4 @@ vault:
             regex: 'voldoet niet aan het vereiste patroon'
             pattern: 'voldoet niet aan het vereiste patroon'
         too_large: Te veel items voor een rapport op aanvraag.
+        throttled: 'Over een paar seconden kan een nieuw rapport worden berekend.'

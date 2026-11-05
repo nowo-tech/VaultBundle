@@ -107,6 +107,7 @@ Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time;
 | Stored fingerprints become an offline guessing target | Fingerprints use a per-run random 32-byte HMAC key, wiped after the run; nothing is persisted or returned |
 | Oracle by planting guesses | A scope report needs `health` (scope admin in Beacon), who already has View on every compared item |
 | A cache leaks values or fingerprints | Off by default; when on, only the report (flags, titles, group numbers) is cached, per viewer |
+| The health page is reloaded to burn CPU or the breach API (SEC-004 FQ-I2) | Each computed report decrypts every examined password (up to `health.max_items`). `health.min_interval_seconds` (10 s) limits computed reports per viewer and owner; breach answers are cached per item and secret change (`health.breach_cache_ttl`), never keyed by the value |
 | A breach lookup sends the password or its full hash | `VaultBreachCheckerInterface` is host code: use a k-anonymity range API (5-character SHA-1 prefix) and declare it in the privacy text. Failures count as unknown (`null`) |
 | The policy violation echoes the password | The message names the missing rules only; the invalid value is blanked |
 

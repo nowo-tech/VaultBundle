@@ -250,3 +250,4 @@ vault:
             regex: 'ne respecte pas le format exigé'
             pattern: 'ne respecte pas le format exigé'
         too_large: 'Trop d''entrées pour un rapport à la demande.'
+        throttled: 'Un nouveau rapport pourra être calculé dans quelques secondes.'

@@ -15,6 +15,7 @@ use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultHealthThrottledException;
 use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
@@ -204,6 +205,8 @@ final class VaultScopeController extends AbstractController
             $report = ($this->healthReporter ?? throw new LogicException('The scope health page needs the VaultHealthReporterInterface service.'))->forScope($user, $scope);
         } catch (VaultAccessDeniedException) {
             throw $this->denied();
+        } catch (VaultHealthThrottledException $exception) {
+            throw new HttpException(Response::HTTP_TOO_MANY_REQUESTS, $this->translator->trans('vault.health.throttled', [], 'NowoVaultBundle'), null, ['Retry-After' => (string) $exception->getRetryAfter()]);
         } catch (VaultHealthTooLargeException) {
             throw new HttpException(Response::HTTP_REQUEST_ENTITY_TOO_LARGE, $this->translator->trans('vault.health.too_large', [], 'NowoVaultBundle'));
         }

@@ -128,13 +128,15 @@ final class Vault116ConfigurationTest extends TestCase
     {
         $config = $this->process([]);
         self::assertSame([
-            'enabled'         => false,
-            'max_items'       => 2000,
-            'cache_ttl'       => 0,
-            'cache_pool'      => 'cache.app',
-            'breach_checker'  => null,
-            'policy_resolver' => null,
-            'policy'          => ['min_length' => 12, 'min_classes' => 3, 'max_age_days' => 365, 'enforce_on_save' => false],
+            'enabled'              => false,
+            'max_items'            => 2000,
+            'cache_ttl'            => 0,
+            'min_interval_seconds' => 10,
+            'breach_cache_ttl'     => 86400,
+            'cache_pool'           => 'cache.app',
+            'breach_checker'       => null,
+            'policy_resolver'      => null,
+            'policy'               => ['min_length' => 12, 'min_classes' => 3, 'max_age_days' => 365, 'enforce_on_save' => false],
         ], $config['health']);
         self::assertSame('/tools/vault/scopes/{scope}/health', $config['routes']['health']['path']);
 
@@ -155,6 +157,8 @@ final class Vault116ConfigurationTest extends TestCase
         self::assertSame('app.pool', (string) $reporter->getArgument('$cache'));
         self::assertSame(60, $reporter->getArgument('$cacheTtl'));
         self::assertSame(10, $reporter->getArgument('$maxItems'));
+        self::assertSame(10, $reporter->getArgument('$minIntervalSeconds'));
+        self::assertSame(86400, $reporter->getArgument('$breachCacheTtl'));
         $policy = $container->getDefinition(ConfigVaultPasswordPolicyResolver::class)->getArgument('$policy');
         self::assertInstanceOf(Definition::class, $policy);
         self::assertSame([16, 3, 365, true], $policy->getArguments());

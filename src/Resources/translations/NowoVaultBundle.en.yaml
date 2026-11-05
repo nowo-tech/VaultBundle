@@ -250,3 +250,4 @@ vault:
             regex: 'does not match the required pattern'
             pattern: 'does not match the required pattern'
         too_large: Too many entries for an on-demand report.
+        throttled: 'A new report can be computed in a few seconds.'

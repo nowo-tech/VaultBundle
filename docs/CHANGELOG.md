@@ -152,6 +152,10 @@ policies (1.16.0 contract, gaps 1 to 5). Requires a schema migration, see [UPGRA
 
 ### Fixed
 
+- **SEC-004 FQ-I2:** the health route had no throttle and every load decrypted every examined password and called the
+  breach checker once per password. New `health.min_interval_seconds` (10: one computed report per viewer and owner per
+  window, 429 + `Retry-After`, `VaultHealthThrottledException`) and `health.breach_cache_ttl` (86 400: breach answers
+  cached per item id and secret change, never keyed by the value).
 - **SEC-004 FQ-L2:** the browser extension `/logins` lookup returned the password without dispatching
   `ITEM_FIELD_REVEAL_CHECK`, so a host veto enforced on the web reveal was bypassed. It now dispatches the check for
   `password` (channel `extension`, purpose `autofill`); a vetoed password is sent as an empty string, flagged

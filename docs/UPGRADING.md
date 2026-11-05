@@ -251,6 +251,8 @@ nowo_vault:
         enabled: false                   # health route; needs scopes.enabled (the services work without it)
         max_items: 2000
         cache_ttl: 0                     # seconds; 0 = never cached
+        min_interval_seconds: 10         # one computed report per viewer and owner per window
+        breach_cache_ttl: 86400          # breach answers per item and secret change
         cache_pool: cache.app
         breach_checker: null             # service implementing VaultBreachCheckerInterface
         policy_resolver: null            # service implementing VaultPasswordPolicyResolverInterface

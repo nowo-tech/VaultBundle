@@ -321,7 +321,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
     /**
      * Health report (1.16.0): the reporter, the password policy resolver and the optional breach checker.
      *
-     * @param array{enabled: bool, max_items: int, cache_ttl: int, cache_pool: string, breach_checker: string|null, policy_resolver: string|null, policy: array{min_length: int, min_classes: int, max_age_days: int, enforce_on_save: bool}} $health
+     * @param array{enabled: bool, max_items: int, cache_ttl: int, min_interval_seconds: int, breach_cache_ttl: int, cache_pool: string, breach_checker: string|null, policy_resolver: string|null, policy: array{min_length: int, min_classes: int, max_age_days: int, enforce_on_save: bool}} $health
      */
     private function registerHealth(array $health, ContainerBuilder $container): void
     {
@@ -337,7 +337,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$strengthEvaluator', new Reference(self::STRENGTH_EVALUATOR, ContainerInterface::NULL_ON_INVALID_REFERENCE))
             ->setArgument('$cache', new Reference($health['cache_pool']))
             ->setArgument('$cacheTtl', $health['cache_ttl'])
-            ->setArgument('$maxItems', $health['max_items']);
+            ->setArgument('$maxItems', $health['max_items'])
+            ->setArgument('$minIntervalSeconds', $health['min_interval_seconds'])
+            ->setArgument('$breachCacheTtl', $health['breach_cache_ttl']);
         $container->setAlias(VaultHealthReporterInterface::class, VaultHealthReporter::class);
     }
 
