@@ -51,6 +51,7 @@ vault:
         grantee_placeholder: Selecione um utilizador ou equipa / grupo
         grantee_id: Id de utilizador ou equipa
         grantee_id_help: Introduza o id de utilizador (ex. UUID) ou o id de equipa/grupo configurado na sua aplicação.
+        not_configured: "A partilha não está disponível: a aplicação não configurou com que utilizadores ou equipas pode partilhar."
         permission: Permissão
         submit: Conceder acesso
         existing: Permissões atuais
@@ -81,6 +82,8 @@ vault:
         expiry: Data de validade
         cvv: CVV
         card_pin: PIN do cartão
+        secret_stored_placeholder: "Valor guardado oculto. Deixe vazio para o manter."
+        clear_secrets: "Limpar valores guardados"
         full_name: Nome completo
         email: E-mail
         phone: Telefone
@@ -100,6 +103,10 @@ vault:
         tags: Etiquetas
         tag_placeholder: ex. trabalho, pessoal
         tags_help: Escreva uma etiqueta e prima Enter. As etiquetas são reutilizadas entre os seus elementos.
+    reveal:
+        show: "Mostrar"
+        hide: "Ocultar"
+        error: "Não foi possível carregar o valor."
     action:
         open: Abrir
         save: Guardar

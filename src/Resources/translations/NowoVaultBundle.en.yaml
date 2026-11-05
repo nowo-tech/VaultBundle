@@ -51,6 +51,7 @@ vault:
         grantee_placeholder: Select a user or team / group
         grantee_id: User or team id
         grantee_id_help: Enter the user id (e.g. UUID) or team/group id configured in your application.
+        not_configured: "Sharing is not available: the application has not configured the users or teams you may share with."
         permission: Permission
         submit: Grant access
         existing: Current grants
@@ -81,6 +82,8 @@ vault:
         expiry: Expiration Date
         cvv: CVV
         card_pin: Card PIN
+        secret_stored_placeholder: "Stored value hidden. Leave empty to keep it."
+        clear_secrets: "Clear stored values"
         full_name: Full Name
         email: Email
         phone: Phone
@@ -100,6 +103,10 @@ vault:
         tags: Tags
         tag_placeholder: e.g. work, personal
         tags_help: Type a tag and press Enter. Tags are reused across your items.
+    reveal:
+        show: "Show"
+        hide: "Hide"
+        error: "The value could not be loaded."
     action:
         open: Open
         save: Save

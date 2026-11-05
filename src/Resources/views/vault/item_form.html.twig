@@ -4,7 +4,8 @@
   list; form = VaultItemFormType; submit vault.action.save; cancel = items list; form attributes class vault-form,
   data-vault-item-form = item type; formThemes = the tag input theme when nowo-tech/tag-input-bundle is installed;
   read-only items: formTag false, the page prints the form tag itself without the submit row).
-  Also: itemType, item, readOnly, viewMode, folders, routes, tagInputEnabled, passwordStrengthEnabled, activeFolder.
+  Also: itemType, item, readOnly, viewMode, folders, routes, tagInputEnabled, passwordStrengthEnabled, activeFolder,
+  revealFields (secret payload keys with a stored value: the reveal hook; the values themselves are never rendered).
   Data block filled: nowo_ui_form_body (per-item-type layout, then the REQ-TWIG-003 child loop for the remaining
   children; the type-specific fields of the other item types are skipped).
 #}
@@ -25,6 +26,18 @@
     {% set _input = nowo_ui_class('input', _b) %}
     {% if not page.formTag %}
         {{ form_start(form, {attr: {class: 'vault-form', 'data-vault-item-form': itemType.value, 'data-vault-readonly': '1'}}) }}
+    {% endif %}
+    {% if item is not null and revealFields|default([]) is not empty and routes.item_reveal is defined %}
+        {#
+          1.15.2: secret values are never in this HTML. Inputs with data-vault-secret-field get a Show button (vault.js)
+          that POSTs to the reveal route (field placeholder FIELD) with this per-item CSRF token.
+        #}
+        <div hidden data-vault-reveal
+             data-vault-reveal-url="{{ path(routes.item_reveal.name, {id: item.id, field: 'FIELD'}) }}"
+             data-vault-reveal-csrf="{{ csrf_token('vault_reveal_' ~ item.id) }}"
+             data-vault-reveal-show="{{ 'vault.reveal.show'|trans }}"
+             data-vault-reveal-hide="{{ 'vault.reveal.hide'|trans }}"
+             data-vault-reveal-error="{{ 'vault.reveal.error'|trans }}"></div>
     {% endif %}
     {% if _read_only and not viewMode|default(false) %}
         <div class="{{ nowo_ui_class('flash_info', _b) }}" role="status" data-testid="vault-read-only">{{ 'vault.read_only.notice'|trans }}</div>

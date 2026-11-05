@@ -63,6 +63,11 @@ services:
             $configStorage: '%nowo_vault.config_storage%'
             $allowUnauthenticated: '%nowo_vault.security.allow_unauthenticated%'
             $perPage: '%nowo_vault.pagination.per_page%'
+            $denyStatus: '%nowo_vault.security.deny_status%'
+
+    Nowo\VaultBundle\Service\VaultGrantListResolver:
+        arguments:
+            $allowUnlistedGrantees: '%nowo_vault.security.allow_unlisted_grantees%'
 
     Nowo\VaultBundle\Service\VaultBrowserExtensionLoginResolver:
         arguments:

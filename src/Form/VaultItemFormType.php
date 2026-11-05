@@ -13,6 +13,7 @@ use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -25,6 +26,11 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_combine;
+use function array_merge;
+use function array_merge_recursive;
+use function in_array;
+
 /**
  * Vault item create/edit form (login, card, identity, note fields).
  *
@@ -34,6 +40,17 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 final class VaultItemFormType extends AbstractType
 {
     use FormOptionsTrait;
+
+    /** Labels of the "clear stored values" choices, per secret payload key. */
+    private const SECRET_LABELS = [
+        'password'       => 'vault.form.password',
+        'note'           => 'vault.form.note',
+        'content'        => 'vault.form.secure_note',
+        'cardNumber'     => 'vault.form.card_number',
+        'cvv'            => 'vault.form.cvv',
+        'cardPin'        => 'vault.form.card_pin',
+        'documentNumber' => 'vault.form.document_number',
+    ];
 
     /**
      * Creates the form type with the runtime configuration provider and the translator.
@@ -50,8 +67,15 @@ final class VaultItemFormType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $optional = static fn (array $extra = []): array => array_merge(['required' => false, 'empty_data' => ''], $extra);
+        /** @var list<string> $storedSecrets */
+        $storedSecrets = $options['stored_secret_fields'];
+        // Secret fields are never filled from the stored payload (1.15.2): a stored value only shows as a placeholder and a
+        // data attribute the reveal script binds to; an empty submit keeps it (VaultItemFormData::keepStoredSecrets()).
+        $secret = static fn (string $payloadKey, array $extra = []): array => in_array($payloadKey, $storedSecrets, true)
+            ? array_merge_recursive($extra, ['attr' => ['placeholder' => 'vault.form.secret_stored_placeholder', 'data-vault-secret-field' => $payloadKey]])
+            : $extra;
 
-        $this->withBuilder($builder, function () use ($optional, $options): void {
+        $this->withBuilder($builder, function () use ($optional, $options, $secret): void {
             $this->addTextField('title', [
                 'constraints' => [new NotBlank()],
                 'label'       => 'vault.form.title',
@@ -69,21 +93,21 @@ final class VaultItemFormType extends AbstractType
                 'label'          => 'vault.form.websites',
                 'prototype_name' => '__website__',
             ]);
-            $this->addTextareaField('secureNote', $optional([
+            $this->addTextareaField('secureNote', $optional($secret('content', [
                 'label' => 'vault.form.secure_note',
                 'attr'  => ['rows' => 6],
-            ]));
+            ])));
             $this->addTextField('cardholderName', $optional(['label' => 'vault.form.cardholder']));
-            $this->addTextField('cardNumber', $optional(['label' => 'vault.form.card_number']));
+            $this->addTextField('cardNumber', $optional($secret('cardNumber', ['label' => 'vault.form.card_number', 'attr' => ['autocomplete' => 'off']])));
             $this->addTextField('expiry', $optional(['label' => 'vault.form.expiry']));
-            $this->addPasswordField('cvv', $optional([
+            $this->addPasswordField('cvv', $optional($secret('cvv', [
                 'label'        => 'vault.form.cvv',
-                'always_empty' => false,
-            ]));
-            $this->addPasswordField('cardPin', $optional([
+                'always_empty' => true,
+            ])));
+            $this->addPasswordField('cardPin', $optional($secret('cardPin', [ // ggignore: form field name, not a credential
                 'label'        => 'vault.form.card_pin',
-                'always_empty' => false,
-            ]));
+                'always_empty' => true,
+            ])));
             $this->addTextField('fullName', $optional(['label' => 'vault.form.full_name']));
             $this->addTextField('email', $optional(['label' => 'vault.form.email']));
             $this->addTextField('phone', $optional(['label' => 'vault.form.phone']));
@@ -93,17 +117,17 @@ final class VaultItemFormType extends AbstractType
             $this->addTextField('state', $optional(['label' => 'vault.form.state']));
             $this->addTextField('postalCode', $optional(['label' => 'vault.form.postal_code']));
             $this->addTextField('country', $optional(['label' => 'vault.form.country']));
-            $this->addTextField('documentNumber', $optional(['label' => 'vault.form.document_number']));
+            $this->addTextField('documentNumber', $optional($secret('documentNumber', ['label' => 'vault.form.document_number', 'attr' => ['autocomplete' => 'off']])));
             $this->addTextField('issuedBy', $optional(['label' => 'vault.form.issued_by']));
             $this->addTextField('issuedDate', $optional(['label' => 'vault.form.issued_date']));
             $this->addTextField('expiryDate', $optional(['label' => 'vault.form.expiry_date']));
-            $this->addTextareaField('note', $optional([
+            $this->addTextareaField('note', $optional($secret('note', [
                 'label' => 'vault.form.note',
                 'attr'  => ['rows' => 3],
-            ]));
+            ])));
 
             $this->addTagsField($optional);
-            $this->addItemPasswordField();
+            $this->addItemPasswordField($secret('password'));
 
             $this->addTypedField('folder', EntityType::class, [
                 'class'        => VaultFolder::class,
@@ -114,6 +138,19 @@ final class VaultItemFormType extends AbstractType
                 'label'        => 'vault.form.folder',
             ]);
         });
+
+        if ($options['allow_secret_clear'] && $storedSecrets !== []) {
+            // Unmapped: the stored secrets the user explicitly empties (an empty secret field otherwise keeps its value).
+            $builder->add('clearSecrets', ChoiceType::class, [
+                'mapped'       => false,
+                'required'     => false,
+                'multiple'     => true,
+                'expanded'     => true,
+                'label'        => 'vault.form.clear_secrets',
+                'choices'      => array_combine($storedSecrets, $storedSecrets),
+                'choice_label' => static fn (string $key): string => self::SECRET_LABELS[$key] ?? 'vault.form.' . $key,
+            ]);
+        }
 
         // REQ-TWIG-005: identity card scan, read by the controller from the request files as "attachment".
         $builder->add('attachment', FileType::class, [
@@ -180,7 +217,10 @@ final class VaultItemFormType extends AbstractType
         });
     }
 
-    private function addItemPasswordField(): void
+    /**
+     * @param array<string, mixed> $secretOptions placeholder / data attribute when a password is stored
+     */
+    private function addItemPasswordField(array $secretOptions): void
     {
         $passwordFieldConfig = $this->runtimeConfig->get()['password_field'];
         $level               = (string) ($passwordFieldConfig['level'] ?? 'medium');
@@ -194,7 +234,7 @@ final class VaultItemFormType extends AbstractType
                 'empty_data'          => '',
                 'label'               => 'vault.form.password',
                 'translation_domain'  => 'NowoVaultBundle',
-                'always_empty'        => false,
+                'always_empty'        => true,
                 'ui_framework'        => 'bootstrap5',
                 'level'               => $level,
                 'generator_mode'      => $passwordFieldConfig['generator_mode'] ?? 'input',
@@ -211,17 +251,17 @@ final class VaultItemFormType extends AbstractType
             }
 
             // @phpstan-ignore argument.type (optional PasswordStrengthBundle form type resolved at runtime)
-            $this->addTypedField('password', $passwordType, $options);
+            $this->addTypedField('password', $passwordType, array_merge($options, $secretOptions));
 
             return;
         }
 
-        $this->addPasswordField('password', [
+        $this->addPasswordField('password', array_merge([
             'required'     => false,
             'empty_data'   => '',
             'label'        => 'vault.form.password',
-            'always_empty' => false,
-        ]);
+            'always_empty' => true,
+        ], $secretOptions));
     }
 
     /**
@@ -233,7 +273,13 @@ final class VaultItemFormType extends AbstractType
             'data_class'         => VaultItemFormData::class,
             'translation_domain' => 'NowoVaultBundle',
             'folders'            => [],
+            // Secret payload keys holding a stored value (placeholder + reveal hook), see VaultItemFormData.
+            'stored_secret_fields' => [],
+            // Edit form only: offer the "clear stored values" choices.
+            'allow_secret_clear' => false,
         ]);
         $resolver->setAllowedTypes('folders', 'array');
+        $resolver->setAllowedTypes('stored_secret_fields', 'string[]');
+        $resolver->setAllowedTypes('allow_secret_clear', 'bool');
     }
 }

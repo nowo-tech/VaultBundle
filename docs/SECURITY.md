@@ -6,6 +6,7 @@
 - [Access control](#access-control)
 - [Browser extension API](#browser-extension-api)
 - [Secrets and CLI](#secrets-and-cli)
+- [Secret fields](#secret-fields)
 - [Logging](#logging)
 - [Accepted residuals (REQ-SEC-004)](#accepted-residuals-req-sec-004)
 - [Release checklist (12.4.1)](#release-checklist-1241)
@@ -20,6 +21,8 @@
 | Extension tokens | DB growth / leaked tokens | Short `token_ttl`, cron `nowo:vault:extension-tokens:purge`, HTTPS |
 | Manage routes | Unauthorized access | Symfony firewall + `VaultAccessCheckerInterface`. Keep `security.allow_unauthenticated: false` in production (demo-only AllowAll bypass). |
 | Item/folder ACL | IDOR | Creator ownership + `VaultGrant` + events |
+| Secret fields | Disclosure in HTML / caches | Never rendered; per-field reveal (CSRF, View, rate limit, `ITEM_REVEALED`); `no-store` on every bundle response |
+| Share form | Cross-tenant grants | Fail closed without a `GRANT_LIST_QUERY` listener |
 | Attachments | Oversized uploads | `max_attachment_bytes` limit |
 | Team grants | Wrong team access | Implement `VaultTeamMembershipResolverInterface` carefully |
 
@@ -45,6 +48,12 @@ Default: **creator-only**. Extend via:
 - Never commit `VAULT_ENCRYPTION_KEY` or production `.env`
 - Demo `.env.example` uses a placeholder key for local use only
 - `nowo:vault:reencrypt --old-key=…` / `--new-key=…` may expose key material on the process argv — **prefer `--old-key-file` / `--new-key-file`** (file wins when both argv and file options are set). Rotate shell history after any argv use.
+
+## Secret fields
+
+Since 1.15.2 no decrypted secret reaches the item HTML. Secret fields per type: login `password`, `note`; secure note `content`, `note`; card `cardNumber`, `cvv`, `cardPin`, `note`; contact `note`; identity documents `documentNumber`, `note`. They render empty (placeholder "stored value hidden"); an empty submit keeps the stored value, **Clear stored values** empties it. A value is returned only by `POST <item_reveal>` (`/tools/vault/items/{id}/reveal/{field}`): CSRF token `vault_reveal_<item id>` in `X-CSRF-Token`, View access on the item, a secret field of the item type (anything else 404), `security.secret_access_rate_limit` per user, `Cache-Control: no-store, private`, `X-Content-Type-Options: nosniff`. Each reveal dispatches `VaultEvents::ITEM_REVEALED` (ids, field names, channel; never the value); the browser extension `/logins` dispatches it once per returned credential (channel `extension`) and shares the same per-user budget (one bucket for both channels; one `/logins` call is one unit, whatever the number of credentials it returns). The bucket is keyed by user id, or by user identifier when the user object has no id. The limit is best effort: it needs a cache pool shared by all workers and persistent, and concurrent requests can slightly exceed it. Every bundle response carries `Cache-Control: no-store, private`, `Pragma: no-cache` and `X-Content-Type-Options: nosniff`.
+
+Sharing fails closed: without a `GRANT_LIST_QUERY` listener listing grantees nobody can be granted (`security.allow_unlisted_grantees: true` restores the unsafe free-text form). `security.deny_status: 404` hides whether an item or folder exists from users without access.
 
 ## Logging
 

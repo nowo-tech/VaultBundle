@@ -34,4 +34,11 @@ final class VaultEvents
      * Listeners may call VaultBrowserExtensionAuthEvent::setResult() to handle auth.
      */
     public const BROWSER_EXTENSION_AUTH = 'nowo_vault.browser_extension_auth';
+
+    /**
+     * Fired after decrypted secret values of an item were returned to a user: a field revealed in the manage UI or a
+     * login returned by the browser extension /logins lookup. {@see VaultItemRevealedEvent} carries ids, field names
+     * and the channel only, never a value.
+     */
+    public const ITEM_REVEALED = 'nowo_vault.item_revealed';
 }

@@ -63,6 +63,60 @@
 
 ## Unreleased
 
+Planned **1.15.2** (security patch). From **1.15.1**:
+
+```bash
+composer update nowo-tech/vault-bundle
+php bin/console assets:install
+php bin/console doctrine:migrations:diff   # one FK change, see "Schema" below
+php bin/console doctrine:migrations:migrate
+```
+
+**Secret fields are no longer rendered.** View and edit pages show passwords, CVV, card PIN, card number, document number, secure note content and notes as empty fields with a "stored value hidden" placeholder and a Show button, which calls the new `item_reveal` route (`POST /tools/vault/items/{id}/reveal/{field}`). Saving with a secret field left empty keeps the stored value; tick it under **Clear stored values** to empty it. If you override `item_form.html.twig`, keep the hidden `[data-vault-reveal]` element (or render your own with the reveal URL, the `vault_reveal_<item id>` CSRF token and the labels) and load `vault.js`; if you customised `nowo_vault.routes`, the new `item_reveal` key has the default path `/tools/vault/items/{id}/reveal/{field}`. Run `assets:install` for the new `vault.js`.
+
+**Sharing fails closed.** Without a `GRANT_LIST_QUERY` listener that lists grantees, the share form can no longer grant anyone (before, any user or team id typed in the form was accepted, across tenants). Add a listener that lists the users and teams each sharer may grant (see [examples/AccessControl.md](examples/AccessControl.md)). Only if you knowingly rely on the old free-form behaviour, restore it (unsafe):
+
+```yaml
+nowo_vault:
+    security:
+        allow_unlisted_grantees: true   # UNSAFE: any typed user / team id can be granted access
+```
+
+**New options (defaults keep 1.15.1 behaviour apart from the above):**
+
+```yaml
+nowo_vault:
+    security:
+        deny_status: 403                 # or 404: inaccessible items, folders, grants and fields answer "not found"
+        secret_access_rate_limit:        # ONE budget per user shared by the reveal route and extension /logins (1 unit per call)
+            enabled: true
+            max_requests: 60
+            window_seconds: 60
+            cache_pool: cache.app            # must be shared by all workers and persistent (not an array pool)
+```
+
+**Cache headers.** Every bundle response now has `Cache-Control: no-store, private`, `Pragma: no-cache` and `X-Content-Type-Options: nosniff`. Browsers no longer keep vault pages in the back/forward cache.
+
+**Audit.** Listen to `VaultEvents::ITEM_REVEALED` (`VaultItemRevealedEvent`) to record who revealed which field (channel `web`) and which credentials the browser extension received (channel `extension`). The event never carries a value.
+
+**Schema.** `vault_grants.created_by_id` becomes nullable with `ON DELETE SET NULL` (was `NOT NULL`, `ON DELETE CASCADE`): deleting a user no longer deletes the grants that user created. `VaultGrant::getCreatedBy()` may now return `null`; handle it if your code reads it. Reference DDL (default `table_prefix`, `<fk_name>` = the name Doctrine generated, `<user_table>` / `<USER_ID_TYPE>` = your user entity's table and id type):
+
+```sql
+-- MySQL / MariaDB
+ALTER TABLE vault_grants DROP FOREIGN KEY <fk_name>;
+ALTER TABLE vault_grants MODIFY created_by_id <USER_ID_TYPE> DEFAULT NULL;
+ALTER TABLE vault_grants ADD CONSTRAINT <fk_name> FOREIGN KEY (created_by_id) REFERENCES <user_table> (id) ON DELETE SET NULL;
+
+-- PostgreSQL
+ALTER TABLE vault_grants DROP CONSTRAINT <fk_name>;
+ALTER TABLE vault_grants ALTER created_by_id DROP NOT NULL;
+ALTER TABLE vault_grants ADD CONSTRAINT <fk_name> FOREIGN KEY (created_by_id) REFERENCES <user_table> (id) ON DELETE SET NULL NOT DEFERRABLE INITIALLY IMMEDIATE;
+
+-- SQLite: Doctrine rebuilds the table.
+```
+
+No data changes. Rolling back to 1.15.1 needs no data fix as long as no grant has `created_by_id IS NULL` (delete those rows first).
+
 ## To 1.15.1
 
 From **1.15.0**:

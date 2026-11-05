@@ -32,6 +32,11 @@ final class VaultGrantListQueryEvent extends Event
         private readonly VaultResourceType $resourceType,
         private readonly string $resourceId,
         private readonly VaultItem|VaultFolder|null $resource = null,
+        /**
+         * UNSAFE pre-1.15.2 behaviour (security.allow_unlisted_grantees): accept any grantee when no listener
+         * listed one. False (default) fails closed: without a listed grantee nobody can be granted access.
+         */
+        private readonly bool $allowUnlistedGrantees = false,
     ) {
     }
 
@@ -118,15 +123,24 @@ final class VaultGrantListQueryEvent extends Event
     }
 
     /**
-     * Whether the grantee may be selected (any grantee is allowed when no choices were provided).
+     * Whether the grantee may be selected: only a listed grantee; when no listener listed any, nobody (fail closed),
+     * unless security.allow_unlisted_grantees restores the unsafe "anyone" behaviour.
      */
     public function isGranteeAllowed(GranteeType $type, string $id): bool
     {
         if (!$this->hasGrantees()) {
-            return true;
+            return $this->allowUnlistedGrantees;
         }
 
         return isset($this->grantees[VaultGranteeChoice::buildKey($type, $id)]);
+    }
+
+    /**
+     * Whether the share form can grant anyone: a listener listed grantees, or unlisted grantees are allowed.
+     */
+    public function isSharingAvailable(): bool
+    {
+        return $this->hasGrantees() || $this->allowUnlistedGrantees;
     }
 
     /**

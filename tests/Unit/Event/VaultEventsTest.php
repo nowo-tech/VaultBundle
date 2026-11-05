@@ -148,12 +148,18 @@ final class VaultEventsTest extends TestCase
         $event  = new VaultGrantListQueryEvent($user, VaultResourceType::Folder, $folder->getId(), $folder);
 
         self::assertFalse($event->hasGrantees());
-        self::assertTrue($event->isGranteeAllowed(GranteeType::User, 'any'));
+        // 1.15.2: no listed grantee = nobody (fail closed); the unsafe switch restores "anyone".
+        self::assertFalse($event->isGranteeAllowed(GranteeType::User, 'any'));
+        self::assertFalse($event->isSharingAvailable());
+        $unsafe = new VaultGrantListQueryEvent($user, VaultResourceType::Folder, $folder->getId(), $folder, true);
+        self::assertTrue($unsafe->isGranteeAllowed(GranteeType::User, 'any'));
+        self::assertTrue($unsafe->isSharingAvailable());
 
         $event->addGrantee(new VaultGranteeChoice(GranteeType::User, 'u1', 'Alice'));
         $event->addGrantee(new VaultGranteeChoice(GranteeType::Team, 'g1', 'Ops group'));
 
         self::assertTrue($event->hasGrantees());
+        self::assertTrue($event->isSharingAvailable());
         self::assertTrue($event->isGranteeAllowed(GranteeType::User, 'u1'));
         self::assertFalse($event->isGranteeAllowed(GranteeType::User, 'u2'));
         self::assertSame('Ops group', $event->getLabelFor(GranteeType::Team, 'g1'));

@@ -20,7 +20,7 @@ use const PHP_VERSION_ID;
 
 /**
  * Test kernel variant: database-backed runtime config on, ROLE_USER as admin role, a dashboard route and a
- * two-item page size (pager), in its own cache directory (own container and SQLite file).
+ * two-item page size (pager), deny_status 404 and a secret-access budget of 2 requests, in its own cache directory (own container and SQLite file).
  */
 final class ConfigStorageKernel extends BaseKernel
 {
@@ -41,8 +41,9 @@ final class ConfigStorageKernel extends BaseKernel
         $loader->load($this->getProjectDir() . '/config/{packages}/*.{yaml,yml}', 'glob');
         $loader->load(static function (ContainerBuilder $container): void {
             $container->loadFromExtension('nowo_vault', [
-                'config_storage'  => ['enabled' => true],
-                'security'        => ['admin_roles' => ['ROLE_USER']],
+                'config_storage' => ['enabled' => true],
+                // 1.15.2: 404 denials and a small secret-access budget (VaultDenyStatusEndToEndTest).
+                'security'        => ['admin_roles' => ['ROLE_USER'], 'deny_status' => 404, 'allow_unlisted_grantees' => false, 'secret_access_rate_limit' => ['max_requests' => 2, 'cache_pool' => 'test.vault_secret_access_cache']],
                 'dashboard_route' => 'nowo_vault_index',
                 'pagination'      => ['per_page' => 2],
             ]);

@@ -116,7 +116,7 @@ No other findings. The browser extension rate limiter, Bearer tokens and CSRF ch
 - W-01 and W-02 are fixed: runtime config and read-only decisions are re-evaluated on every request. `ITEM_READ_ONLY_RESOLVE` listeners now run on every check, so keep them cheap.
 - Keep `services_resetter` / `kernel.reset` enabled when possible so the Doctrine identity map is cleared between requests (W-03). Under scenario B the bundle recovers from a closed EntityManager on its own, but clearing the identity map is the application's job.
 - Set FrankenPHP `max_requests` (or `FRANKENPHP_LOOP_MAX`) to recycle workers; this bounds identity-map growth when nothing clears it.
-- Use a cache pool shared by all workers (`cache.app` on a shared filesystem, Redis) for `config_storage.cache_pool` and `browser_extension.login_rate_limit.cache_pool`; a per-worker pool (e.g. `cache.adapter.array`) would split rate-limit counters between workers.
+- Use a cache pool shared by all workers (`cache.app` on a shared filesystem, Redis) for `config_storage.cache_pool`, `browser_extension.login_rate_limit.cache_pool` and `security.secret_access_rate_limit.cache_pool`; a per-worker pool (e.g. `cache.adapter.array`) would split rate-limit counters between workers.
 - Custom `VaultAccessCheckerInterface`, `VaultTeamMembershipResolverInterface` and `VaultBrowserExtensionAuthenticatorInterface` implementations must be stateless, or implement `ResetInterface`.
 - The demo (`demo/symfony8/Caddyfile`) already runs FrankenPHP in worker mode with `watch`.
 

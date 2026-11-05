@@ -7,7 +7,11 @@ namespace Nowo\VaultBundle\Dto;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Enum\VaultItemType;
 
+use function array_filter;
+use function array_values;
+use function in_array;
 use function is_array;
+use function is_string;
 
 /**
  * Form data object for creating and editing vault items of any type.
@@ -59,6 +63,95 @@ final class VaultItemFormData
     public function __construct(
         public VaultItemType $itemType = VaultItemType::Login,
     ) {
+    }
+
+    /**
+     * Payload keys of the secret fields of an item type (1.15.2): never rendered into the item HTML, revealed one field
+     * at a time, and kept when submitted empty.
+     *
+     * @return list<string>
+     */
+    public static function secretPayloadFields(VaultItemType $type): array
+    {
+        return match ($type) {
+            VaultItemType::Login      => ['password', 'note'],
+            VaultItemType::SecureNote => ['content', 'note'],
+            VaultItemType::CreditCard => ['cardNumber', 'cvv', 'cardPin', 'note'],
+            VaultItemType::Contact    => ['note'],
+            VaultItemType::IdCard,
+            VaultItemType::DriversLicense,
+            VaultItemType::Passport,
+            VaultItemType::Document => ['documentNumber', 'note'],
+        };
+    }
+
+    /**
+     * Secret payload keys of the type that hold a non-empty stored value.
+     *
+     * @param array<string, mixed> $stored decrypted payload
+     *
+     * @return list<string>
+     */
+    public static function storedSecretFields(VaultItemType $type, array $stored): array
+    {
+        return array_values(array_filter(
+            self::secretPayloadFields($type),
+            static fn (string $key): bool => is_string($stored[$key] ?? null) && $stored[$key] !== '',
+        ));
+    }
+
+    /**
+     * Empties every secret field of this item type, so a form built from this object renders no secret value.
+     */
+    public function clearSecrets(): void
+    {
+        $secret = self::secretPayloadFields($this->itemType);
+        // @igor-ignore - Form DTO built per request; not a shared worker service.
+        $this->note = '';
+        if (in_array('password', $secret, true)) {
+            // @igor-ignore - Form DTO built per request; not a shared worker service.
+            $this->password = '';
+        }
+        if (in_array('content', $secret, true)) {
+            // @igor-ignore - Form DTO built per request; not a shared worker service.
+            $this->secureNote = '';
+        }
+        if (in_array('cardNumber', $secret, true)) {
+            // @igor-ignore - Form DTO built per request; not a shared worker service.
+            $this->cardNumber = '';
+            // @igor-ignore - Form DTO built per request; not a shared worker service.
+            $this->cvv = '';
+            // @igor-ignore - Form DTO built per request; not a shared worker service.
+            $this->cardPin = '';
+        }
+        if (in_array('documentNumber', $secret, true)) {
+            // @igor-ignore - Form DTO built per request; not a shared worker service.
+            $this->documentNumber = '';
+        }
+    }
+
+    /**
+     * Restores the stored value of every secret field submitted empty, unless the user asked to clear it.
+     *
+     * @param array<string, mixed> $payload submitted payload ({@see toPayload()})
+     * @param array<string, mixed> $stored decrypted stored payload
+     * @param list<string> $cleared secret payload keys the user explicitly cleared
+     *
+     * @return array<string, mixed>
+     */
+    public static function keepStoredSecrets(VaultItemType $type, array $payload, array $stored, array $cleared): array
+    {
+        foreach (self::secretPayloadFields($type) as $key) {
+            if (in_array($key, $cleared, true) || ($payload[$key] ?? '') !== '') {
+                continue;
+            }
+
+            if (is_string($stored[$key] ?? null) && $stored[$key] !== '') {
+                $payload[$key] = $stored[$key];
+            }
+        }
+
+        return $payload;
     }
 
     /**

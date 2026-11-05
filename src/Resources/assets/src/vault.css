@@ -119,3 +119,6 @@
 .vault-grants .nowo-ui-table-wrap {
     margin: 0;
 }
+.vault-reveal-button {
+    margin-top: 0.25rem;
+}

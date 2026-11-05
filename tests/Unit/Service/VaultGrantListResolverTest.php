@@ -58,4 +58,13 @@ final class VaultGrantListResolverTest extends TestCase
         self::assertNull($event->getItem());
         self::assertSame('Sales group', $event->getLabelFor(GranteeType::Team, 'group-1'));
     }
+
+    public function testUnlistedGranteesFollowTheConfiguredSwitch(): void
+    {
+        $user = new TestUser('owner');
+        $item = new VaultItem(VaultItemType::Login, 'Demo', $user, 'cipher');
+
+        self::assertFalse((new VaultGrantListResolver(new EventDispatcher()))->resolveForItem($user, $item)->isGranteeAllowed(GranteeType::User, 'someone'));
+        self::assertTrue((new VaultGrantListResolver(new EventDispatcher(), true))->resolveForItem($user, $item)->isGranteeAllowed(GranteeType::User, 'someone'));
+    }
 }

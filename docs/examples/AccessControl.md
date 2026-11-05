@@ -21,6 +21,7 @@ When sharing an **item** or **folder**, dispatch `GRANT_LIST_QUERY` lets your ap
 - Use `GranteeType::User` for individual users and `GranteeType::Team` for teams **or groups of people** (same concept, same id space).
 - When at least one choice is added, the UI shows a grouped dropdown instead of a free-text id field.
 - On submit, only listed grantees are accepted (server-side whitelist).
+- **Without a listener nobody can be granted** (since 1.15.2, fail closed): the share page shows that sharing is not configured. `security.allow_unlisted_grantees: true` restores the pre-1.15.2 free-text behaviour, which accepts any typed id, including users of other tenants: unsafe, do not use it in multi-tenant hosts.
 
 ```php
 use Nowo\VaultBundle\Dto\VaultGranteeChoice;

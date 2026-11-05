@@ -34,6 +34,7 @@ use Nowo\VaultBundle\Security\RuntimeKeyVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
+use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Config\FileLocator;
@@ -99,6 +100,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.web_ui.layout_template', $config['web_ui']['layout_template']);
         $container->setParameter('nowo_vault.web_ui.templates', $config['web_ui']['templates']);
         $container->setParameter('nowo_vault.security.allow_unauthenticated', $config['security']['allow_unauthenticated']);
+        $container->setParameter('nowo_vault.security.deny_status', (int) $config['security']['deny_status']);
+        $container->setParameter('nowo_vault.security.allow_unlisted_grantees', (bool) $config['security']['allow_unlisted_grantees']);
         $container->setParameter('nowo_vault.items_table', $itemsTable);
         $container->setParameter('nowo_vault.folders_table', $foldersTable);
         $container->setParameter('nowo_vault.grants_table', $grantsTable);
@@ -121,6 +124,14 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$intervalSeconds', (int) $loginRateLimit['interval_seconds'])
             ->setArgument('$enabled', (bool) $loginRateLimit['enabled'])
             ->setArgument('$maxAttemptsPerIp', (int) $loginRateLimit['max_attempts_per_ip']));
+        $secretAccessRateLimit = $config['security']['secret_access_rate_limit'];
+        $container->setDefinition(VaultSecretAccessRateLimiter::class, (new Definition(VaultSecretAccessRateLimiter::class))
+            ->setAutowired(false)
+            ->setArgument('$cache', new Reference((string) $secretAccessRateLimit['cache_pool']))
+            ->setArgument('$maxRequests', (int) $secretAccessRateLimit['max_requests'])
+            ->setArgument('$windowSeconds', (int) $secretAccessRateLimit['window_seconds'])
+            ->setArgument('$enabled', (bool) $secretAccessRateLimit['enabled'])
+            ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE)));
         $container->setParameter('nowo_vault.database', $database);
         $container->setParameter('nowo_vault.config_storage', $configStorage);
         $container->setParameter('nowo_vault.config_storage.enabled', (bool) $configStorage['enabled']);
