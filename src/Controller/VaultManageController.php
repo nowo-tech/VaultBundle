@@ -18,10 +18,11 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
-use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultGrantListQueryEvent;
 use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
+use Nowo\VaultBundle\Exception\VaultDecryptionFailedException;
 use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
+use Nowo\VaultBundle\Exception\VaultRevealRefusedException;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
 use Nowo\VaultBundle\Form\VaultItemFormType;
@@ -35,6 +36,7 @@ use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
+use Nowo\VaultBundle\Service\VaultFieldRevealer;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultGrantListResolver;
 use Nowo\VaultBundle\Service\VaultGrantService;
@@ -49,6 +51,7 @@ use Nowo\VaultBundle\Ui\VaultPageFactory;
 use Nowo\VaultBundle\Ui\VaultPages;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -57,6 +60,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Profiler\Profiler;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -78,6 +82,7 @@ final class VaultManageController extends AbstractController
 {
     use VaultCsrfTrait;
     use VaultPagesTrait;
+    use VaultRevealResponsesTrait;
 
     /**
      * Stores the access, listing, persistence, crypto and configuration collaborators of the manage UI.
@@ -112,6 +117,11 @@ final class VaultManageController extends AbstractController
         private readonly ?ClockInterface $clock = null,
         /** grants.temporary.ui: offer an expiry choice in the share form (1.16.0). */
         private readonly bool $temporaryGrantsUi = false,
+        private readonly ?VaultFieldRevealer $fieldRevealer = null,
+        /** Disabled on the routes that return decrypted values, so no profile stores them (1.16.0). */
+        private readonly ?Profiler $profiler = null,
+        /** reveal.auto_hide_seconds (1.16.0). */
+        private readonly int $revealAutoHideSeconds = 30,
     ) {
     }
 
@@ -439,43 +449,57 @@ final class VaultManageController extends AbstractController
             return $this->redirectToItems($canOrganise ? $data->folder : null);
         }
 
-        return $this->renderItemPage($form, $item->getItemType(), $item, $readOnly, $viewMode, $folders, $item->getFolder()?->getId(), $storedSecrets);
+        $hasAttachment = is_string($payload['attachmentContent'] ?? null) && $payload['attachmentContent'] !== '';
+
+        return $this->renderItemPage($form, $item->getItemType(), $item, $readOnly, $viewMode, $folders, $item->getFolder()?->getId(), $storedSecrets, $hasAttachment);
     }
 
     /**
-     * Returns one decrypted secret field of an item as JSON (POST + CSRF, View access, rate limited): the only way a
-     * secret reaches the manage UI since 1.15.2. Dispatches {@see VaultEvents::ITEM_REVEALED} (no value).
+     * Returns one decrypted field of an item as JSON (POST + CSRF, View access, rate limited): the only way a secret
+     * reaches the manage UI since 1.15.2. Since 1.16.0 the body (or query) may carry `purpose=copy` (ITEM_COPIED instead
+     * of ITEM_REVEALED), the field veto ITEM_FIELD_REVEAL_CHECK applies, and the JSON is the ZK-ready envelope
+     * `{"item", "field", "purpose", "encoding": "plain", "value"}` (clients must switch on `encoding`).
      */
     #[Route(path: '/tools/vault/items/{id}/reveal/{field}', name: 'nowo_vault_item_reveal', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT, 'field' => '[a-zA-Z]{1,32}'], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_reveal'], methods: ['POST'])]
     public function revealItemField(Request $request, string $id, string $field): JsonResponse
     {
         $this->denyUnlessFeature('access');
         $this->denyUnlessValidCsrf('vault_reveal_' . $id, $request);
+        $this->profiler?->disable();
 
         $item = $this->findItemOr404($id);
         $this->denyUnlessItemAccess($item, VaultAccessAction::View);
 
-        // Unknown or non-secret field: the same answer as an item without access (nothing to probe).
-        if (!in_array($field, VaultItemFormData::secretPayloadFields($item->getItemType()), true)) {
-            throw $this->createNotFoundException('Vault item not found.');
-        }
-
         /** @var UserInterface $user */
-        $user   = $this->getUser();
-        $userId = UserIdResolver::getId($user);
-        if ($this->secretAccessRateLimiter instanceof VaultSecretAccessRateLimiter && !$this->secretAccessRateLimiter->consume($user)) {
-            return new JsonResponse(['error' => 'Too many requests.'], Response::HTTP_TOO_MANY_REQUESTS, [
-                'Retry-After' => (string) $this->secretAccessRateLimiter->getWindowSeconds(),
-            ]);
+        $user    = $this->getUser();
+        $purpose = $this->requestedPurpose($request);
+
+        try {
+            $value = ($this->fieldRevealer ?? new VaultFieldRevealer($this->cryptographer, $this->eventDispatcher ?? new EventDispatcher(), null, $this->secretAccessRateLimiter))->reveal($user, $item, $field, $purpose);
+        } catch (VaultRevealRefusedException $exception) {
+            return $this->revealRefused($exception);
+        } catch (VaultDecryptionFailedException $exception) {
+            return $this->sensitive(new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_SERVICE_UNAVAILABLE));
         }
 
-        $value = $this->cryptographer->decrypt($item->getCiphertext())[$field] ?? '';
-        $this->eventDispatcher?->dispatch(
-            new VaultItemRevealedEvent($userId, $item->getId(), $item->getItemType(), [$field], VaultItemRevealedEvent::CHANNEL_WEB),
-            VaultEvents::ITEM_REVEALED,
-        );
+        return $this->sensitive(new JsonResponse([
+            'item'     => $item->getId(),
+            'field'    => $field,
+            'purpose'  => $purpose,
+            'encoding' => 'plain',
+            'value'    => $value->get(),
+        ]));
+    }
 
-        return new JsonResponse(['field' => $field, 'value' => is_string($value) ? $value : '']);
+    /**
+     * `purpose` of a reveal request: `copy`, else `reveal` (form body, JSON body or query string).
+     */
+    private function requestedPurpose(Request $request): string
+    {
+        $decoded = json_decode($request->getContent(), true);
+        $purpose = $request->request->getString('purpose') ?: (is_array($decoded) && is_string($decoded['purpose'] ?? null) ? $decoded['purpose'] : $request->query->getString('purpose'));
+
+        return $purpose === VaultItemRevealedEvent::PURPOSE_COPY ? VaultItemRevealedEvent::PURPOSE_COPY : VaultItemRevealedEvent::PURPOSE_REVEAL;
     }
 
     /**
@@ -485,7 +509,7 @@ final class VaultManageController extends AbstractController
      * @param list<VaultFolder> $folders
      * @param list<string> $revealFields secret payload keys with a stored value (the reveal buttons)
      */
-    private function renderItemPage(FormInterface $form, VaultItemType $itemType, ?VaultItem $item, bool $readOnly, bool $viewMode, array $folders, ?string $activeFolder, array $revealFields = []): Response
+    private function renderItemPage(FormInterface $form, VaultItemType $itemType, ?VaultItem $item, bool $readOnly, bool $viewMode, array $folders, ?string $activeFolder, array $revealFields = [], bool $hasAttachment = false): Response
     {
         $routes = $this->routes();
         $pages  = $this->pages();
@@ -504,6 +528,9 @@ final class VaultManageController extends AbstractController
             'tagInputEnabled'         => $this->tagInputEnabled,
             'activeFolder'            => $activeFolder,
             'revealFields'            => $revealFields,
+            'revealAutoHideSeconds'   => $this->revealAutoHideSeconds,
+            // 1.16.0: a document item with a stored attachment gets a Download button (item_attachment route).
+            'hasAttachment' => $hasAttachment,
         ]));
     }
 

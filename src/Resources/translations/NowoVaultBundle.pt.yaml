@@ -119,6 +119,9 @@ vault:
         show: "Mostrar"
         hide: "Ocultar"
         error: "Não foi possível carregar o valor."
+        copy: Copiar
+        copied: Copiado
+        download_attachment: Transferir anexo
     action:
         open: Abrir
         save: Guardar
@@ -212,3 +215,10 @@ vault:
         items:
             title: Cofre partilhado
             description: 'Entradas de %scope%. O acesso depende da sua função e dos acessos que lhe foram concedidos.'
+    catalogue:
+        title: Catálogo
+        description: 'Entradas de %scope% a que pode pedir acesso. Só são mostrados nomes, tipos, etiquetas e a data da última alteração.'
+        updated_on: Última alteração
+        access: Acesso
+        has_access: Tem acesso
+        empty: Sem entradas no catálogo.

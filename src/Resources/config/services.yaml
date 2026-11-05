@@ -66,6 +66,8 @@ services:
             $perPage: '%nowo_vault.pagination.per_page%'
             $denyStatus: '%nowo_vault.security.deny_status%'
             $temporaryGrantsUi: '%nowo_vault.grants.temporary.ui%'
+            $profiler: '@?profiler'
+            $revealAutoHideSeconds: '%nowo_vault.reveal.auto_hide_seconds%'
 
     # 1.16.0 scope vaults (routes registered only with nowo_vault.scopes.enabled).
     Nowo\VaultBundle\Controller\VaultScopeController:
@@ -78,6 +80,24 @@ services:
             $tagInputEnabled: '%nowo_vault.tag_input_enabled%'
             $perPage: '%nowo_vault.pagination.per_page%'
             $denyStatus: '%nowo_vault.security.deny_status%'
+            $cataloguePerPage: '%nowo_vault.catalogue.per_page%'
+
+    Nowo\VaultBundle\Controller\VaultRevealController:
+        public: true
+        autoconfigure: false
+        tags: ['controller.service_arguments', 'container.service_subscriber']
+        arguments:
+            $allowUnauthenticated: '%nowo_vault.security.allow_unauthenticated%'
+            $denyStatus: '%nowo_vault.security.deny_status%'
+            $profiler: '@?profiler'
+
+    Nowo\VaultBundle\Service\VaultFieldRevealer:
+        arguments:
+            $revealableFields: '%nowo_vault.reveal.revealable_fields%'
+
+    Nowo\VaultBundle\Service\VaultCatalogue:
+        arguments:
+            $managerName: '%nowo_vault.entity_manager%'
 
     Nowo\VaultBundle\Service\VaultGrantService:
         arguments:

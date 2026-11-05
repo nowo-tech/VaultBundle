@@ -18,7 +18,8 @@ final class StaticTestClock implements ClockInterface
 
     public function now(): DateTimeImmutable
     {
-        return self::$now ??= new DateTimeImmutable('2026-11-05 12:00:00', new DateTimeZone('UTC'));
+        // The real time, to the second: PSR-6 pools compare expiry dates with the real clock.
+        return self::$now ??= (new DateTimeImmutable('@' . time()))->setTimezone(new DateTimeZone('UTC'));
     }
 
     /**

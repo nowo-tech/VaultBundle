@@ -26,8 +26,11 @@ use Psr\Clock\ClockInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
+use function array_fill_keys;
 use function array_filter;
 use function array_keys;
+use function array_map;
+use function array_unique;
 use function array_values;
 use function in_array;
 
@@ -146,6 +149,62 @@ final readonly class VaultAccessGuard
             $event = new VaultItemAccessCheckEvent($user, $item, VaultAccessAction::View, $permission instanceof VaultPermission);
             $this->eventDispatcher->dispatch($event, VaultEvents::ITEM_ACCESS_CHECK);
             $map[$item->getId()] = $event->isGranted() ? ($permission ?? VaultPermission::Read) : null;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Whether the user can View each scope item, from ids only (1.16.0, the catalogue's `viewerHasAccess`): the scope
+     * baseline, or an active grant on the item or on its folder (same scope). No entity is loaded and the
+     * ITEM_ACCESS_CHECK listeners are not consulted: it is a hint for the catalogue; every item route re-checks with
+     * {@see self::canAccessItem()}.
+     *
+     * @param array<string, string|null> $itemFolders item id => id of its folder when that folder belongs to the scope
+     *
+     * @return array<string, bool>
+     */
+    public function resolveScopeViewMap(UserInterface $user, string $scope, array $itemFolders): array
+    {
+        $map    = array_fill_keys(array_keys($itemFolders), false);
+        $access = $this->resolveScopeAccess($user, $scope);
+        if (!$access instanceof VaultScopeAccess || $itemFolders === []) {
+            return $map;
+        }
+
+        if ($access->baseline instanceof VaultPermission) {
+            return array_fill_keys(array_keys($itemFolders), true);
+        }
+
+        $userId = UserIdResolver::getId($user);
+        if ($userId === null) {
+            return $map;
+        }
+
+        $itemIds   = array_map(strval(...), array_keys($itemFolders));
+        $folderIds = array_values(array_unique(array_filter($itemFolders, static fn (?string $id): bool => $id !== null)));
+        $now       = $this->now();
+        $teamIds   = $this->teamMembershipResolver->getTeamIdsForUser($user);
+        $grants    = [];
+        if ($this->grantRepository instanceof VaultGrantExpiryRepositoryInterface) {
+            $grants = $this->grantRepository->findActiveForGrantees($itemIds, $folderIds, $userId, $teamIds, $now);
+        } else {
+            foreach ($itemIds as $itemId) {
+                $grants = [...$grants, ...$this->legacyGrants($userId, $teamIds, VaultResourceType::Item, $itemId)];
+            }
+            foreach ($folderIds as $folderId) {
+                $grants = [...$grants, ...$this->legacyGrants($userId, $teamIds, VaultResourceType::Folder, $folderId)];
+            }
+        }
+
+        $granted = [];
+        foreach ($grants as $grant) {
+            if ($grant->isActiveAt($now)) {
+                $granted[$grant->getResourceType()->value . ':' . $grant->getResourceId()] = true;
+            }
+        }
+        foreach ($itemFolders as $itemId => $folderId) {
+            $map[$itemId] = isset($granted['item:' . $itemId]) || ($folderId !== null && isset($granted['folder:' . $folderId]));
         }
 
         return $map;

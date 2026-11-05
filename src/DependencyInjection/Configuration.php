@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\DependencyInjection;
 
 use DateInterval;
 use Nowo\VaultBundle\Database\DatabaseDriver;
+use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Ui\VaultPages;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -15,9 +16,11 @@ use Throwable;
 use function array_diff;
 use function array_key_exists;
 use function array_keys;
+use function array_map;
 use function implode;
 use function is_array;
 use function is_string;
+use function preg_match;
 use function sprintf;
 use function trigger_deprecation;
 
@@ -267,6 +270,51 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+                ->arrayNode('catalogue')
+                    ->info('Metadata-only catalogue of a scope (1.16.0): id, title, type, scope tags and the date of the last change of every non-hidden item, for members with VaultScopeAccess::$catalogue. Needs scopes.enabled.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('enabled')->defaultFalse()->end()
+                        ->integerNode('per_page')->defaultValue(50)->min(1)->max(500)->end()
+                    ->end()
+                ->end()
+                ->arrayNode('reveal')
+                    ->info('On-demand reveal of secret fields (1.16.0 additions on top of the 1.15.2 item_reveal route).')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->integerNode('auto_hide_seconds')
+                            ->info('Seconds a revealed value stays in its input before vault.js clears it again (0 = until Hide).')
+                            ->defaultValue(30)
+                            ->min(0)
+                        ->end()
+                        ->arrayNode('revealable_fields')
+                            ->info('Payload fields the reveal route answers, per item type (e.g. login: [password, note, username]). Unset types use their secret fields. Null (default) = the secret fields of every type.')
+                            ->useAttributeAsKey('type')
+                            ->normalizeKeys(false)
+                            ->arrayPrototype()
+                                ->scalarPrototype()
+                                    ->validate()->ifTrue(static fn (mixed $v): bool => !is_string($v) || preg_match('/^[a-zA-Z]{1,32}$/', $v) !== 1)->thenInvalid('reveal.revealable_fields entries are payload keys such as "password".')->end()
+                                ->end()
+                            ->end()
+                            ->validate()
+                                ->ifTrue(static fn (array $v): bool => array_diff(array_keys($v), array_map(static fn (VaultItemType $t): string => $t->value, VaultItemType::cases())) !== [])
+                                ->thenInvalid('reveal.revealable_fields keys must be item types.')
+                            ->end()
+                            ->defaultValue([])
+                        ->end()
+                        ->arrayNode('rate_limit')
+                            ->info('Per-user limits of the web reveal, copy and attachment routes, on top of security.secret_access_rate_limit (429 + Retry-After, REVEAL_THROTTLED).')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->booleanNode('enabled')->defaultTrue()->end()
+                                ->integerNode('per_user_per_minute')->defaultValue(30)->min(1)->end()
+                                ->integerNode('per_user_per_hour')->defaultValue(300)->min(1)->end()
+                                ->integerNode('per_user_item_field_per_minute')->defaultValue(10)->min(1)->end()
+                                ->scalarNode('cache_pool')->defaultValue('cache.app')->cannotBeEmpty()->end()
+                            ->end()
+                        ->end()
+                    ->end()
+                ->end()
                 ->arrayNode('routes')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -415,6 +463,20 @@ final class Configuration implements ConfigurationInterface
                             ->children()
                                 ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/folders')->end()
                                 ->scalarNode('name')->defaultValue('nowo_vault_scope_folder_create')->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('catalogue')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/catalogue')->end()
+                                ->scalarNode('name')->defaultValue('nowo_vault_catalogue')->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('item_attachment')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/attachment')->end()
+                                ->scalarNode('name')->defaultValue('nowo_vault_item_attachment')->end()
                             ->end()
                         ->end()
                         ->arrayNode('password_generate')

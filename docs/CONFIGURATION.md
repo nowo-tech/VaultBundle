@@ -28,6 +28,8 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
   - [Purging expired tokens](#purging-expired-tokens)
 - [Scope vaults (`scopes`)](#scope-vaults-scopes)
 - [Temporary grants (`grants.temporary`)](#temporary-grants-grantstemporary)
+- [Catalogue (`catalogue`)](#catalogue-catalogue)
+- [Reveal (`reveal`)](#reveal-reveal)
 
 ## Required
 
@@ -142,7 +144,7 @@ The manage pages follow the UiKit page contract (REQ-UI-003): each page extends 
 | `web_ui.enabled` | `true` | Register the manage UI routes (home, items, shared, trash, item forms, sharing, runtime config). `false` keeps only the browser-extension API |
 | `web_ui.path_prefix` | `''` | Prefix prepended to every vault route path (manage UI and browser-extension API), e.g. `/admin` |
 | `web_ui.layout_template` | `null` | Layout the pages extend. `null` = `nowo_ui_kit.layouts.admin` (recommended). A 1.x layout without the UiKit canonical blocks is wrapped in a deprecated bridge |
-| `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`, `scope_items` (1.16.0). Unknown page ids are rejected |
+| `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`, `scope_items`, `catalogue` (1.16.0). Unknown page ids are rejected |
 
 ```yaml
 nowo_vault:
@@ -411,4 +413,30 @@ injected clock). Schedule the housekeeping command, which deletes expired rows a
 php bin/console nowo:vault:grants:purge-expired [--batch-size=500] [--limit=N] [--dry-run]
 # {"expired":3,"dry_run":false}
 ```
+
+## Catalogue (`catalogue`)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `catalogue.enabled` | `false` | Registers the `catalogue` route (`/tools/vault/scopes/{scope}/catalogue`). Needs `scopes.enabled` |
+| `catalogue.per_page` | `50` | Entries per catalogue page (1–500) |
+
+The catalogue shows, to scope members whose `VaultScopeAccess::$catalogue` is true (or whom a
+`CATALOGUE_ACCESS_CHECK` listener grants), the id, title, type, scope tag names and the **date** of the last change of
+every active item that is not *Hidden from the catalogue*. See [SECURITY](SECURITY.md#catalogue-leakage) for what this
+discloses.
+
+## Reveal (`reveal`)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `reveal.auto_hide_seconds` | `30` | Seconds a revealed value stays in its input (`vault.js`); `0` = until *Hide* |
+| `reveal.revealable_fields` | `{}` | Payload keys the reveal route answers, per item type (`login: [password, note, username]`). Types not listed answer their secret fields. Secret fields are never rendered whatever this option says |
+| `reveal.rate_limit.enabled` | `true` | Limits of the web reveal, copy and attachment routes (on top of `security.secret_access_rate_limit`) |
+| `reveal.rate_limit.per_user_per_minute` | `30` | |
+| `reveal.rate_limit.per_user_per_hour` | `300` | |
+| `reveal.rate_limit.per_user_item_field_per_minute` | `10` | |
+| `reveal.rate_limit.cache_pool` | `cache.app` | PSR-6 pool shared by all workers (not an array pool) |
+
+Over a limit the route answers 429 with `Retry-After`, logs a warning and dispatches `REVEAL_THROTTLED`.
 

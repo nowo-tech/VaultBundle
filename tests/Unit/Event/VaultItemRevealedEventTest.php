@@ -27,6 +27,7 @@ final class VaultItemRevealedEventTest extends TestCase
         // No property can hold a secret value: ids, type, field names and channel only.
         $properties = array_map(static fn (ReflectionProperty $p): string => $p->getName(), (new ReflectionClass($event))->getProperties());
         sort($properties);
-        self::assertSame(['channel', 'fields', 'itemId', 'itemType', 'userId'], $properties);
+        // 1.16.0 adds the purpose, the owner key and the time (still no value).
+        self::assertSame(['channel', 'fields', 'itemId', 'itemType', 'occurredAt', 'ownerKey', 'purpose', 'userId'], $properties);
     }
 }

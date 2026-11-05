@@ -119,6 +119,9 @@ vault:
         show: "Mostrar"
         hide: "Ocultar"
         error: "No se ha podido cargar el valor."
+        copy: Copiar
+        copied: Copiado
+        download_attachment: Descargar adjunto
     action:
         open: Abrir
         save: Guardar
@@ -212,3 +215,10 @@ vault:
         items:
             title: Bóveda compartida
             description: 'Entradas de %scope%. El acceso depende de tu rol en ella y de los permisos que te hayan concedido.'
+    catalogue:
+        title: Catálogo
+        description: 'Entradas de %scope% a las que puedes pedir acceso. Solo se muestran nombres, tipos, etiquetas y la fecha del último cambio.'
+        updated_on: Último cambio
+        access: Acceso
+        has_access: Tienes acceso
+        empty: No hay entradas en el catálogo.

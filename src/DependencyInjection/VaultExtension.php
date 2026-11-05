@@ -36,6 +36,7 @@ use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\RuntimeKeyVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
+use Nowo\VaultBundle\Security\VaultRevealRateLimiter;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
@@ -124,7 +125,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.entity_manager', $emName);
         $container->setParameter('nowo_vault.grants.temporary', $config['grants']['temporary']);
         $container->setParameter('nowo_vault.grants.temporary.ui', (bool) $config['grants']['temporary']['ui']);
-        $this->registerScopes($config['scopes'], $container);
+        $this->registerScopes($config['scopes'], $config['catalogue'], $container);
+        $this->registerReveal($config['reveal'], $container);
         $container->setParameter('nowo_vault.browser_extension.routes', $browserExtension['routes']);
         $container->setParameter('nowo_vault.browser_extension.cors_allowed_origins', $browserExtension['cors_allowed_origins']);
         $loginRateLimit = $browserExtension['login_rate_limit'];
@@ -274,8 +276,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
      * features. Fails at compile time when scopes are enabled without a resolver.
      *
      * @param array{enabled: bool, access_resolver: string|null} $scopes
+     * @param array{enabled: bool, per_page: int} $catalogue
      */
-    private function registerScopes(array $scopes, ContainerBuilder $container): void
+    private function registerScopes(array $scopes, array $catalogue, ContainerBuilder $container): void
     {
         $resolverId = $scopes['access_resolver'] ?? null;
         if ($scopes['enabled'] && (!is_string($resolverId) || $resolverId === '')) {
@@ -292,7 +295,35 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->addTag('kernel.reset', ['method' => 'reset']));
 
         $container->setParameter('nowo_vault.scopes.enabled', $scopes['enabled']);
-        $container->setParameter('nowo_vault.enabled_optional_route_keys', $scopes['enabled'] ? self::SCOPE_ROUTE_KEYS : []);
+        $enabled = ['item_attachment'];
+        if ($scopes['enabled']) {
+            $enabled = [...$enabled, ...self::SCOPE_ROUTE_KEYS];
+            if ($catalogue['enabled']) {
+                $enabled[] = 'catalogue';
+            }
+        }
+        $container->setParameter('nowo_vault.enabled_optional_route_keys', $enabled);
+        $container->setParameter('nowo_vault.catalogue.per_page', $catalogue['per_page']);
+    }
+
+    /**
+     * Reveal additions (1.16.0): the per-user reveal limiter, the revealable fields and the auto-hide delay.
+     *
+     * @param array{auto_hide_seconds: int, revealable_fields: array<string, list<string>>, rate_limit: array{enabled: bool, per_user_per_minute: int, per_user_per_hour: int, per_user_item_field_per_minute: int, cache_pool: string}} $reveal
+     */
+    private function registerReveal(array $reveal, ContainerBuilder $container): void
+    {
+        $limit = $reveal['rate_limit'];
+        $container->setDefinition(VaultRevealRateLimiter::class, (new Definition(VaultRevealRateLimiter::class))
+            ->setAutowired(false)
+            ->setArgument('$cache', new Reference($limit['cache_pool']))
+            ->setArgument('$perUserPerMinute', $limit['per_user_per_minute'])
+            ->setArgument('$perUserPerHour', $limit['per_user_per_hour'])
+            ->setArgument('$perUserItemFieldPerMinute', $limit['per_user_item_field_per_minute'])
+            ->setArgument('$enabled', $limit['enabled'])
+            ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE)));
+        $container->setParameter('nowo_vault.reveal.auto_hide_seconds', $reveal['auto_hide_seconds']);
+        $container->setParameter('nowo_vault.reveal.revealable_fields', $reveal['revealable_fields'] === [] ? null : $reveal['revealable_fields']);
     }
 
     /**

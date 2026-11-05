@@ -35,6 +35,34 @@ final class Vault116ConfigurationTest extends TestCase
         self::assertSame('/tools/vault/scopes/{scope}/folders', $config['routes']['scope_folder_create']['path']);
     }
 
+    public function testRevealAndCatalogueDefaultsAndValidation(): void
+    {
+        $config = $this->process([]);
+        self::assertSame(['enabled' => false, 'per_page' => 50], $config['catalogue']);
+        self::assertSame(30, $config['reveal']['auto_hide_seconds']);
+        self::assertSame([], $config['reveal']['revealable_fields']);
+        self::assertSame(['enabled' => true, 'per_user_per_minute' => 30, 'per_user_per_hour' => 300, 'per_user_item_field_per_minute' => 10, 'cache_pool' => 'cache.app'], $config['reveal']['rate_limit']);
+        self::assertSame('/tools/vault/items/{id}/attachment', $config['routes']['item_attachment']['path']);
+        self::assertSame('nowo_vault_catalogue', $config['routes']['catalogue']['name']);
+
+        $custom = $this->process(['reveal' => ['revealable_fields' => ['login' => ['password', 'username']]]]);
+        self::assertSame(['login' => ['password', 'username']], $custom['reveal']['revealable_fields']);
+        $container = $this->load(['reveal' => ['revealable_fields' => ['login' => ['password', 'username']]], 'scopes' => ['enabled' => true, 'access_resolver' => 'r'], 'catalogue' => ['enabled' => true, 'per_page' => 20]]);
+        self::assertSame(['login' => ['password', 'username']], $container->getParameter('nowo_vault.reveal.revealable_fields'));
+        self::assertContains('catalogue', $container->getParameter('nowo_vault.enabled_optional_route_keys'));
+        self::assertSame(20, $container->getParameter('nowo_vault.catalogue.per_page'));
+        self::assertNull($this->load([])->getParameter('nowo_vault.reveal.revealable_fields'));
+
+        foreach ([['reveal' => ['revealable_fields' => ['planet' => ['x']]]], ['reveal' => ['revealable_fields' => ['login' => ['pass word']]]]] as $invalid) {
+            try {
+                $this->process($invalid);
+                self::fail('Invalid revealable_fields accepted');
+            } catch (InvalidConfigurationException) {
+                self::addToAssertionCount(1);
+            }
+        }
+    }
+
     public function testExplicitDurationsAreAccepted(): void
     {
         $config = $this->process(['grants' => ['temporary' => ['min_ttl' => 'PT10M', 'max_ttl' => 'P7D', 'max_permission' => 'write']]]);
@@ -75,7 +103,7 @@ final class Vault116ConfigurationTest extends TestCase
         $container = $this->load([]);
 
         self::assertSame(NullVaultScopeAccessResolver::class, (string) $container->getAlias(VaultScopeAccessResolverInterface::class));
-        self::assertSame([], $container->getParameter('nowo_vault.enabled_optional_route_keys'));
+        self::assertSame(['item_attachment'], $container->getParameter('nowo_vault.enabled_optional_route_keys'));
         self::assertTrue($container->getDefinition(RequestScopedScopeAccessCache::class)->hasTag('kernel.reset'));
         self::assertFalse($container->getParameter('nowo_vault.grants.temporary.ui'));
     }
@@ -85,8 +113,8 @@ final class Vault116ConfigurationTest extends TestCase
         $container = $this->load(['scopes' => ['enabled' => true, 'access_resolver' => 'app.scope_resolver'], 'grants' => ['temporary' => ['ui' => true]]]);
 
         self::assertSame('app.scope_resolver', (string) $container->getAlias(VaultScopeAccessResolverInterface::class));
-        self::assertSame(VaultExtension::SCOPE_ROUTE_KEYS, $container->getParameter('nowo_vault.enabled_optional_route_keys'));
-        self::assertSame(VaultExtension::SCOPE_ROUTE_KEYS, VaultRouteLoader::OPTIONAL_ROUTE_KEYS);
+        self::assertSame(['item_attachment', ...VaultExtension::SCOPE_ROUTE_KEYS], $container->getParameter('nowo_vault.enabled_optional_route_keys'));
+        self::assertSame([...VaultExtension::SCOPE_ROUTE_KEYS, 'catalogue', 'item_attachment'], VaultRouteLoader::OPTIONAL_ROUTE_KEYS);
         self::assertTrue($container->getParameter('nowo_vault.grants.temporary.ui'));
         self::assertTrue($container->getParameter('nowo_vault.scopes.enabled'));
     }

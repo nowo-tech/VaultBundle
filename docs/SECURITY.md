@@ -8,6 +8,8 @@
 - [Secrets and CLI](#secrets-and-cli)
 - [Secret fields](#secret-fields)
 - [Scope vaults and temporary grants (1.16.0)](#scope-vaults-and-temporary-grants-1160)
+- [Reveal, copy and attachments (1.16.0)](#reveal-copy-and-attachments-1160)
+- [Catalogue leakage](#catalogue-leakage)
 - [Logging](#logging)
 - [Accepted residuals (REQ-SEC-004)](#accepted-residuals-req-sec-004)
 - [Release checklist (12.4.1)](#release-checklist-1241)
@@ -79,6 +81,37 @@ Sharing fails closed: without a `GRANT_LIST_QUERY` listener listing grantees nob
 
 Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time; **R3** team self-grants after a demotion.
 
+## Reveal, copy and attachments (1.16.0)
+
+| Threat | Control |
+| --- | --- |
+| Field probing, or a field a read-only grantee should not see | Per-type allow-list (`reveal.revealable_fields`, default the secret fields; anything else 404 like an inaccessible item) and the `ITEM_FIELD_REVEAL_CHECK` veto |
+| Cross-site POST, `<img>` or link prefetch triggers reveals | POST only, per-item CSRF token in a header, no GET route; no CORS on these routes |
+| A compromised session dumps every secret | `security.secret_access_rate_limit` plus `reveal.rate_limit` (per minute, per hour, per item and field), `REVEAL_THROTTLED`, an audit event per reveal |
+| Values in logs, events, exceptions, the profiler, flashes or caches | Events carry no value (reflection test); `VaultRevealedValue` dumps `***` and refuses serialization; `VaultDecryptionFailedException` has a generic message and no previous exception; `#[\SensitiveParameter]`; the profiler is disabled on these routes; `no-store` |
+| The value stays in the DOM or the back/forward cache | Auto-hide, wipe on `pagehide` / hidden tab / dialog close, Copy without the DOM, `no-store` |
+| The reveal succeeds although the audit write failed | A throwing audit listener refuses the reveal (503): no audit, no reveal |
+| A downloaded file is rendered in the page origin or carries user data in its name | Always `application/octet-stream`, `nosniff`, `Content-Disposition: attachment` with a sanitised basename, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` |
+| Decrypt during a key rotation | Fails closed with a generic 503 |
+
+## Catalogue leakage
+
+The catalogue is metadata only by construction (scalar queries: no item, no ciphertext is loaded), but what it shows
+is disclosed to every member with the `catalogue` flag:
+
+1. **Titles.** Users put hosts, account emails or even passwords in titles. The item form of a scope item warns about
+   it; the title stays searchable by design.
+2. **Existence and inventory.** Members learn which services the scope uses and how many credentials exist per type
+   (`item_type` reveals that a card, passport or ID document is stored). Use *Hide from the catalogue*
+   (`catalogue_hidden`) per item; keep identity documents in personal vaults.
+3. **Change timing.** The date (not the time) of the last change is shown.
+4. **Tags** can name environments ("prod", "root").
+5. **Enumeration.** Item ids are random UUIDs and every item route checks access; with `deny_status: 404` an id
+   confirms nothing.
+6. **No URL leak.** `websites` stays encrypted and never reaches the catalogue.
+
+Accepted residual **R5**: catalogue metadata is disclosed to scope members, by design.
+
 ## Logging
 
 The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service; no-op when none is registered). Every record carries `bundle: nowo_vault` and an `action` key; context holds identifiers and counters only.
@@ -91,12 +124,15 @@ The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service
 | Grant created / updated / revoked | info | `resource_type`, `resource_id`, `grantee_type`, `grantee_id`, `permission`; since 1.16.0 also `expires_at` and `actor_id` when set |
 | Grant refused (1.16.0) | notice | `code`, `actor_id`, `resource_type`, `resource_id` |
 | Expired grants purged (1.16.0) | info | `count`, `dry_run` |
+| Field revealed / copied / attachment downloaded (1.16.0) | info | `user_id`, `item_id`, `field`, `purpose`, `channel` |
+| Reveal throttled (1.16.0) | warning | `user_id`, `item_id`, `window` |
+| Reveal refused: audit listener failed (1.16.0) | error | `user_id`, `item_id`, exception **class** |
 | Item / folder purged | info | `item_id` / `folder_id` |
 | Runtime configuration updated / reset | notice | changed top-level **keys** and `encryption_key_change` (bool) — never the values |
 | `nowo:vault:reencrypt` started / finished / rejected / failed; key persisted to DB | info / error / notice | `dry_run`, `include_deleted`, counters, error message (no key material) |
 | `nowo:vault:extension-tokens:purge` | info | `count` |
 
-Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, notes, attachments, card data), item titles, Bearer tokens or their hashes, usernames typed in the extension, session ids. Route your Monolog handlers so these records do not reach third parties you would not trust with resource ids.
+Never logged: master keys (YAML, DB or CLI options), item payloads (passwords, notes, attachments, card data), item titles, Bearer tokens or their hashes, usernames typed in the extension, session ids; since 1.16.0 also revealed values and the file names of attachments (they may contain personal data). Route your Monolog handlers so these records do not reach third parties you would not trust with resource ids.
 
 ## Accepted residuals (REQ-SEC-004)
 

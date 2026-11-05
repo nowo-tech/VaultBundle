@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Controller;
 
+use LogicException;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
+use Nowo\VaultBundle\Dto\VaultCatalogueQuery;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -19,6 +21,7 @@ use Nowo\VaultBundle\Routing\VaultRouteLoader;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
+use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Service\VaultScopeItemLister;
@@ -71,6 +74,8 @@ final class VaultScopeController extends AbstractController
         private readonly int $perPage = 50,
         private readonly int $denyStatus = Response::HTTP_FORBIDDEN,
         private readonly ?VaultPageFactory $pageFactory = null,
+        private readonly ?VaultCatalogue $catalogue = null,
+        private readonly int $cataloguePerPage = 50,
     ) {
     }
 
@@ -128,6 +133,46 @@ final class VaultScopeController extends AbstractController
                 'action'        => $this->generateUrl($routes['scope_folder_create']['name'], ['scope' => $scope]),
                 'csrf_token_id' => 'vault_scope_folder_create_' . $scope,
             ])->createView() : null,
+        ]));
+    }
+
+    /**
+     * Metadata-only catalogue of the scope (1.16.0, `catalogue.enabled`): members with `catalogue` see which items exist
+     * (title, type, scope tags, date of the last change) and whether they already have access. Override the Twig block
+     * `vault_catalogue_row_actions` (it receives `entry` only) to offer *Request access*.
+     */
+    #[Route(path: '/tools/vault/scopes/{scope}/catalogue', name: 'nowo_vault_catalogue', requirements: ['scope' => VaultOwner::SCOPE_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'catalogue'], methods: ['GET'])]
+    public function catalogue(Request $request, string $scope): Response
+    {
+        $user  = $this->member($scope);
+        $type  = VaultItemType::tryFrom($request->query->getString('type'));
+        $tagId = $request->query->getString('tag') ?: null;
+        $q     = trim($request->query->getString('q'));
+        $page  = max(1, $request->query->getInt('page', 1));
+
+        try {
+            $result = $this->catalogueService()->page($user, $scope, new VaultCatalogueQuery($q !== '' ? $q : null, $type, $tagId, $page, $this->cataloguePerPage));
+        } catch (VaultAccessDeniedException) {
+            throw $this->denied();
+        }
+
+        $routes = $this->routes();
+        $pages  = $this->pages();
+        $search = $this->createForm(VaultItemSearchType::class, ['q' => $q], [
+            'action'  => $this->generateUrl($routes['catalogue']['name'], ['scope' => $scope]),
+            'filters' => ['tag' => $tagId, 'type' => $type?->value],
+        ])->createView();
+
+        return $this->render($this->templates()['catalogue'], $pages->context([
+            'page'        => $pages->catalogue($routes, $scope, $result, $search, $pages->pagination($routes['catalogue']['name'], $page, $result->perPage, $result->total, ['scope' => $scope, 'q' => $q, 'type' => $type?->value, 'tag' => $tagId])),
+            'scope'       => $scope,
+            'catalogue'   => $result,
+            'tags'        => $this->tagService->listForScope($scope),
+            'itemTypes'   => VaultItemType::cases(),
+            'activeType'  => $type?->value,
+            'activeTag'   => $tagId,
+            'searchQuery' => $q,
+            'routes'      => $routes,
         ]));
     }
 
@@ -227,6 +272,11 @@ final class VaultScopeController extends AbstractController
         }
 
         return $user;
+    }
+
+    private function catalogueService(): VaultCatalogue
+    {
+        return $this->catalogue ?? throw new LogicException('The scope catalogue needs the VaultCatalogue service.');
     }
 
     /**

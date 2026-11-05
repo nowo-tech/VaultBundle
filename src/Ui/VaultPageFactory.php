@@ -17,6 +17,7 @@ use Nowo\UiKitBundle\View\Pagination;
 use Nowo\UiKitBundle\View\SettingsPage;
 use Nowo\UiKitBundle\View\SettingsSection;
 use Nowo\UiKitBundle\View\Table;
+use Nowo\VaultBundle\Dto\VaultCataloguePage;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -386,6 +387,41 @@ final readonly class VaultPageFactory
             bundle: VaultPages::BUNDLE,
             layout: $this->pages->layout(),
             attributes: ['data-testid' => 'vault-scope-items'],
+            actionsLabel: VaultPages::label('vault.list.actions'),
+            filtersSubmit: new Action('filter', VaultPages::label('vault.action.search'), icon: 'filter'),
+            filtersClear: new Action('cancel', VaultPages::label('vault.search.clear')),
+        );
+    }
+
+    /**
+     * Scope catalogue (1.16.0): metadata only, no row action of the bundle (the host renders *Request access* in the
+     * `vault_catalogue_row_actions` block); filters: title search, type and tag chips.
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     */
+    public function catalogue(array $routes, string $scope, VaultCataloguePage $catalogue, FormView $searchForm, Pagination $pagination): ListPage
+    {
+        return new ListPage(
+            header: new PageHeader(
+                VaultPages::label('vault.catalogue.title'),
+                VaultPages::label('vault.catalogue.description', ['%scope%' => $scope]),
+                back: new BackLink($this->url($routes['scope_items']['name'], ['scope' => $scope]), VaultPages::label('vault.scope.items.title'), 'vault-back'),
+            ),
+            columns: [
+                new Column('title', VaultPages::label('vault.list.title'), required: true),
+                new Column('type', VaultPages::label('vault.list.type'), priority: 2),
+                new Column('tags', VaultPages::label('vault.form.tags'), priority: 3),
+                new Column('updatedOn', VaultPages::label('vault.catalogue.updated_on'), priority: 2),
+                new Column('access', VaultPages::label('vault.catalogue.access')),
+            ],
+            rows: $catalogue->entries,
+            filters: $searchForm,
+            pagination: $pagination,
+            empty: new EmptyState(null, VaultPages::label('vault.catalogue.empty')),
+            filtersClearHref: $this->url($routes['catalogue']['name'], ['scope' => $scope]),
+            bundle: VaultPages::BUNDLE,
+            layout: $this->pages->layout(),
+            attributes: ['data-testid' => 'vault-catalogue'],
             actionsLabel: VaultPages::label('vault.list.actions'),
             filtersSubmit: new Action('filter', VaultPages::label('vault.action.search'), icon: 'filter'),
             filtersClear: new Action('cancel', VaultPages::label('vault.search.clear')),

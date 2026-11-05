@@ -9,6 +9,8 @@
 - [Sharing](#sharing)
 - [Scope vaults](#scope-vaults)
 - [Temporary grants](#temporary-grants)
+- [Catalogue](#catalogue)
+- [Reveal, copy and attachments](#reveal-copy-and-attachments)
 - [Read-only access](#read-only-access)
 - [Events](#events)
 - [Lists and pagination](#lists-and-pagination)
@@ -102,6 +104,44 @@ grant never replaces or upgrades a permanent one. Access ends at `expiresAt` on 
 false when the grant was already gone. With `grants.temporary.ui: true` the share form offers an expiry, and the share
 page shows *until …* and an *Expired* badge until the purge.
 
+## Catalogue
+
+With `scopes.enabled` and `catalogue.enabled`, members with the `catalogue` flag browse
+`/tools/vault/scopes/{scope}/catalogue`: title, type, scope tags and the date of the last change of every item they
+could ask access to, and a *You have access* badge. Nothing from the payload (username, URL, password, note,
+attachment) is shown or loaded. Offer *Request access* by overriding the row block:
+
+```twig
+{# templates/bundles/NowoVaultBundle/vault/catalogue.html.twig #}
+{% extends '@!NowoVaultBundle/vault/catalogue.html.twig' %}
+
+{% block vault_catalogue_row_actions %}
+    {% if not entry.viewerHasAccess %}
+        <a href="{{ path('app_vault_access_request', {item: entry.id}) }}">{{ 'Request access'|trans }}</a>
+    {% endif %}
+{% endblock %}
+```
+
+The block receives `entry` (`VaultCatalogueEntry`) only. Your approval flow then calls `VaultGrantService::grantAs()`
+(see [Temporary grants](#temporary-grants)). Hosts that render their own catalogue call `VaultCatalogue::page()`.
+Scope admins can keep an item out of the catalogue with *Hide from the catalogue* (access does not change).
+
+## Reveal, copy and attachments
+
+Secret fields are never in the page (1.15.2). The item page offers, per stored secret field, **Show** (the value
+stays `reveal.auto_hide_seconds` in the input, then disappears) and **Copy** (written to the clipboard, never into the
+page), and for documents with a stored file a **Download attachment** button. All three are POST requests with the
+`vault_reveal_<item id>` CSRF token in `X-CSRF-Token`, checked for View access, vetoable per field
+(`ITEM_FIELD_REVEAL_CHECK`), rate limited, and audited **before** the value leaves (`ITEM_REVEALED`, `ITEM_COPIED`,
+`ITEM_ATTACHMENT_DOWNLOADED`; an audit listener that throws refuses the request with 503):
+
+```bash
+curl -X POST -H "X-CSRF-Token: $TOKEN" -d purpose=copy https://app.example/tools/vault/items/$ID/reveal/password
+# {"item":"<id>","field":"password","purpose":"copy","encoding":"plain","value":"…"}
+```
+
+Read `value` only when `encoding` is `plain`.
+
 ## Read-only access
 
 Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()` — see [examples/AccessControl.md](examples/AccessControl.md).
@@ -116,7 +156,11 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 | `ITEM_READ_ONLY_RESOLVE` | View-only mode |
 | `FOLDER_ACCESS_CHECK` | Folder ACL |
 | `GRANT_LIST_QUERY` | Limit users/teams (groups) in share UI for items and folders |
-| `ITEM_REVEALED` | A secret field was revealed (web) or a credential returned to the browser extension (1.15.2) |
+| `ITEM_REVEALED` | A secret field was revealed (web, purpose `reveal`) or a credential returned to the browser extension (purpose `autofill`) |
+| `ITEM_COPIED`, `ITEM_ATTACHMENT_DOWNLOADED` | A field was copied / an attachment downloaded (1.16.0; same `VaultItemRevealedEvent`) |
+| `ITEM_FIELD_REVEAL_CHECK` | Veto one field or the attachment before it leaves (1.16.0) |
+| `REVEAL_THROTTLED` | A reveal hit `reveal.rate_limit` (1.16.0; alert on scraping) |
+| `CATALOGUE_ACCESS_CHECK` | Grant or deny a scope catalogue (1.16.0) |
 | `GRANT_POLICY_CHECK` | Veto a grant in `grantAs()` with a reason code (1.16.0) |
 | `GRANT_CREATED`, `GRANT_UPDATED`, `GRANT_REVOKED`, `GRANT_EXPIRED` | Grant audit trail (`VaultGrantChangeEvent`: ids, permission, expiry, actor, reason; after the flush) |
 | `ITEM_CHANGED` | Item activity (`VaultItemChangeEvent`: created, updated, trashed, restored, purged, moved; `secretChanged`) |

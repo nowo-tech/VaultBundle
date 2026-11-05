@@ -119,6 +119,9 @@ vault:
         show: "Afficher"
         hide: "Masquer"
         error: "Impossible de charger la valeur."
+        copy: Copier
+        copied: Copié
+        download_attachment: Télécharger la pièce jointe
     action:
         open: Ouvrir
         save: Enregistrer
@@ -212,3 +215,10 @@ vault:
         items:
             title: Coffre partagé
             description: 'Entrées appartenant à %scope%. L''accès dépend de votre rôle et des accès qui vous ont été accordés.'
+    catalogue:
+        title: Catalogue
+        description: 'Entrées de %scope% auxquelles vous pouvez demander l''accès. Seuls les noms, types, étiquettes et la date de la dernière modification sont affichés.'
+        updated_on: Dernière modification
+        access: Accès
+        has_access: Vous avez accès
+        empty: Aucune entrée dans le catalogue.

@@ -41,6 +41,7 @@ final readonly class VaultPages
         'runtime_config' => '@NowoVaultBundle/vault/runtime_config.html.twig',
         // 1.16.0 scope vaults.
         'scope_items' => '@NowoVaultBundle/vault/scope_items.html.twig',
+        'catalogue'   => '@NowoVaultBundle/vault/catalogue.html.twig',
     ];
 
     /** A layout that defines this block renders the UiKit canonical blocks. */

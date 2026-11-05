@@ -46,8 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Scope-owned vaults, temporary grants (1.16.0 contract, gaps 1 and 2). Requires a schema migration, see
-[UPGRADING](UPGRADING.md#unreleased).
+Scope-owned vaults, temporary grants, metadata catalogue, reveal / copy / attachment download (1.16.0 contract, gaps 1
+to 4). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
 
 ### Added
 
@@ -86,6 +86,32 @@ Scope-owned vaults, temporary grants (1.16.0 contract, gaps 1 and 2). Requires a
   purged, moved; `secretChanged`).
 - **`vault_items.secret_changed_at`:** set on create and when a secret field (or the attachment) changes; title, tag,
   folder and rotation changes leave it alone.
+- **Metadata-only catalogue (gap 3):** `VaultCatalogue::page($viewer, $scope, VaultCatalogueQuery)` →
+  `VaultCataloguePage` of `VaultCatalogueEntry` (id, title, type, scope tag names, owner scope, `updatedOn` date only
+  at 00:00 UTC, `viewerHasAccess`). Scalar DQL only: no `VaultItem` (and no ciphertext) is hydrated; constant number of
+  queries per page. Members need `VaultScopeAccess::$catalogue`; `CATALOGUE_ACCESS_CHECK`
+  (`VaultCatalogueAccessCheckEvent`) can grant or deny. Hidden (`catalogue_hidden`) and trashed items are left out.
+  Search (2 to 100 characters, wildcards literal), type and tag filters. Route `catalogue`
+  (`/tools/vault/scopes/{scope}/catalogue`, with `scopes.enabled` and `catalogue.enabled`), template
+  `vault/catalogue.html.twig` with the host block `vault_catalogue_row_actions` (receives `entry` only) for *Request
+  access*.
+- **Reveal additions (gap 4, on top of the 1.15.2 `item_reveal` route):** `purpose=copy` (audited as `ITEM_COPIED`);
+  the JSON is the ZK-ready envelope `{"item","field","purpose","encoding":"plain","value"}`; `ITEM_FIELD_REVEAL_CHECK`
+  (`VaultFieldRevealCheckEvent`) vetoes a field (answered 404); a throwing audit listener refuses the reveal with 503
+  (no audit, no reveal); `reveal.revealable_fields` (per type; default the secret fields); `reveal.rate_limit` (30 per
+  user per minute, 300 per hour, 10 per user, item and field per minute; 429 + `Retry-After` + `REVEAL_THROTTLED`);
+  `reveal.auto_hide_seconds` (30). The reveal, copy and attachment responses carry `Referrer-Policy: no-referrer`,
+  `X-Robots-Tag: noindex, nofollow` and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox`,
+  and disable the profiler. `VaultFieldRevealer` service; `VaultRevealedValue` (dumps `***`, refuses serialization);
+  `VaultDecryptionFailedException` (generic message, no previous exception; 503).
+- **Attachment download:** `item_attachment` (`POST /tools/vault/items/{id}/attachment`, CSRF `vault_reveal_<id>`,
+  View, field veto `attachment`, rate limited, `ITEM_ATTACHMENT_DOWNLOADED`), always `application/octet-stream` with a
+  sanitised `Content-Disposition` file name (basename, no control characters or `"\/`, 100 characters,
+  `attachment.bin` fallback, RFC 5987 `filename*`). Before 1.16.0 an attachment could be uploaded but never retrieved.
+- **`vault.js`:** Copy button (clipboard, the value never enters the page), auto-hide of a revealed value, wipe when
+  the tab is hidden or a dialog closes, attachment download, refuses an `encoding` other than `plain`.
+- `VaultItemRevealedEvent` gains `getPurpose()` (`reveal`, `copy`, `autofill`, `attachment`), `getOwnerKey()` and
+  `getOccurredAt()`; the extension `/logins` events use purpose `autofill`.
 - `VaultAccessGuard::resolvePermissionMap($user, $items)` (constant number of queries per list) and
   `resolveScopeAccess()`; `VaultGrantExpiryRepositoryInterface` (implemented by the Doctrine grant repository).
 
@@ -98,6 +124,7 @@ Scope-owned vaults, temporary grants (1.16.0 contract, gaps 1 and 2). Requires a
   1.15 left orphan grants.
 - The share and revoke pages use `grantAs()` / `revokeAs()`; a refused grant shows a flash instead of saving.
 - Grant log entries also carry `expires_at` and `actor_id` when set; refusals are logged at `notice` with the code.
+- Every bundle response also gets `Expires: 0`.
 
 ### Deprecated
 

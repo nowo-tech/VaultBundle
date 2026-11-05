@@ -115,7 +115,8 @@ final class VaultSecretHardeningEndToEndTest extends WebTestCase
 
         $client->request('POST', $url . 'password', server: ['HTTP_X_CSRF_TOKEN' => $token]);
         self::assertResponseIsSuccessful();
-        self::assertSame(['field' => 'password', 'value' => $marker], json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR));
+        // 1.16.0: the ZK-ready envelope adds item, purpose and encoding around the 1.15.2 field / value.
+        self::assertSame(['item' => $item->getId(), 'field' => 'password', 'purpose' => 'reveal', 'encoding' => 'plain', 'value' => $marker], json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR));
         self::assertSame('no-store, private', $client->getResponse()->headers->get('Cache-Control'));
         self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
         self::assertStringStartsWith('application/json', (string) $client->getResponse()->headers->get('Content-Type'));

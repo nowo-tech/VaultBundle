@@ -119,6 +119,9 @@ vault:
         show: "Anzeigen"
         hide: "Verbergen"
         error: "Der Wert konnte nicht geladen werden."
+        copy: Kopieren
+        copied: Kopiert
+        download_attachment: Anhang herunterladen
     action:
         open: Öffnen
         save: Speichern
@@ -212,3 +215,10 @@ vault:
         items:
             title: Gemeinsamer Tresor
             description: 'Einträge von %scope%. Der Zugriff hängt von deiner Rolle dort und von den dir erteilten Freigaben ab.'
+    catalogue:
+        title: Katalog
+        description: 'Einträge von %scope%, für die du Zugriff anfragen kannst. Es werden nur Namen, Typen, Tags und das Datum der letzten Änderung angezeigt.'
+        updated_on: Letzte Änderung
+        access: Zugriff
+        has_access: Du hast Zugriff
+        empty: Keine Einträge im Katalog.

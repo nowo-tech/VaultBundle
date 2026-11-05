@@ -119,6 +119,9 @@ vault:
         show: "Tonen"
         hide: "Verbergen"
         error: "De waarde kon niet worden geladen."
+        copy: Kopiëren
+        copied: Gekopieerd
+        download_attachment: Bijlage downloaden
     action:
         open: Openen
         save: Opslaan
@@ -212,3 +215,10 @@ vault:
         items:
             title: Gedeelde kluis
             description: 'Items van %scope%. Toegang hangt af van je rol daarin en van de toegang die je is verleend.'
+    catalogue:
+        title: Catalogus
+        description: 'Items van %scope% waarvoor je toegang kunt aanvragen. Alleen namen, types, tags en de datum van de laatste wijziging worden getoond.'
+        updated_on: Laatste wijziging
+        access: Toegang
+        has_access: Je hebt toegang
+        empty: Geen items in de catalogus.

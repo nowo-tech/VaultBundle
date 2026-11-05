@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Event;
 
+use DateTimeImmutable;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Symfony\Contracts\EventDispatcher\Event;
 
@@ -19,6 +20,18 @@ final class VaultItemRevealedEvent extends Event
 
     public const CHANNEL_EXTENSION = 'extension';
 
+    /** Purpose of a web reveal (Show) (1.16.0). */
+    public const PURPOSE_REVEAL = 'reveal';
+
+    /** Purpose of a web copy to the clipboard (1.16.0, dispatched as ITEM_COPIED). */
+    public const PURPOSE_COPY = 'copy';
+
+    /** Purpose of a credential returned to the browser extension /logins (1.16.0). */
+    public const PURPOSE_AUTOFILL = 'autofill';
+
+    /** Purpose of an attachment download (1.16.0, dispatched as ITEM_ATTACHMENT_DOWNLOADED). */
+    public const PURPOSE_ATTACHMENT = 'attachment';
+
     /**
      * @param list<string> $fields payload field names returned (e.g. ["password"]), never their values
      */
@@ -28,6 +41,9 @@ final class VaultItemRevealedEvent extends Event
         private readonly VaultItemType $itemType,
         private readonly array $fields,
         private readonly string $channel,
+        private readonly ?string $purpose = null,
+        private readonly ?string $ownerKey = null,
+        private readonly ?DateTimeImmutable $occurredAt = null,
     ) {
     }
 
@@ -71,5 +87,30 @@ final class VaultItemRevealedEvent extends Event
     public function getChannel(): string
     {
         return $this->channel;
+    }
+
+    /**
+     * Why the value left the vault (1.16.0): `reveal`, `copy`, `autofill` or `attachment`. Null only for events built
+     * by 1.15.2 code: read it as `reveal` (web) / `autofill` (extension).
+     */
+    public function getPurpose(): string
+    {
+        return $this->purpose ?? ($this->channel === self::CHANNEL_EXTENSION ? self::PURPOSE_AUTOFILL : self::PURPOSE_REVEAL);
+    }
+
+    /**
+     * Owner key of the item (`user:<id>` / `scope:<key>`) (1.16.0), or null when not provided.
+     */
+    public function getOwnerKey(): ?string
+    {
+        return $this->ownerKey;
+    }
+
+    /**
+     * When the value left the vault (1.16.0), or null when not provided.
+     */
+    public function getOccurredAt(): ?DateTimeImmutable
+    {
+        return $this->occurredAt;
     }
 }

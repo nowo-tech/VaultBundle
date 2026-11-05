@@ -1,0 +1,72 @@
+{#
+  Scope catalogue (1.16.0, REQ-UI-003): UiKit list scaffold. Variable: page (View\ListPage from
+  VaultPageFactory::catalogue(): header vault.catalogue.title (intro = the scope key) with a back link to the scope
+  vault; filters = VaultItemSearchType (title search, the active type / tag as hidden fields); columns title, type,
+  tags, last change (date only), access; rows = list<VaultCatalogueEntry> (metadata only: never a payload field);
+  Pagination; EmptyState).
+  Also: scope, catalogue (VaultCataloguePage), tags (scope tags), itemTypes, activeType, activeTag, searchQuery, routes.
+  Data blocks filled: nowo_ui_list_filters (type and tag chips, then the default search region), nowo_ui_list_row.
+  Host block: vault_catalogue_row_actions, rendered in the access cell with `entry` (VaultCatalogueEntry) as its
+  only variable; override it to offer "Request access" (the bundle renders no request UI and no secret link).
+#}
+{% extends '@NowoUiKit/page/list.html.twig' %}
+{% trans_default_domain 'NowoVaultBundle' %}
+
+{% block nowo_ui_styles %}{{ parent() }}<link rel="stylesheet" href="{{ asset('vault.css', 'nowo_vault') }}">{% endblock %}
+
+{% block nowo_ui_list_filters %}
+    {% set _b = page.bundle %}
+    {% set _base = {scope: scope, q: searchQuery|default('')}|filter(v => v) %}
+    <section class="{{ nowo_ui_class('card', _b) }} vault-panel" data-testid="vault-catalogue-types"{{ nowo_ui_attrs('card', _b) }}>
+        <div class="{{ nowo_ui_class('card_body', _b) }}">
+            <ul class="vault-chips" aria-label="{{ 'vault.list.type'|trans }}">
+                <li class="vault-chip">
+                    <a class="{{ nowo_ui_class(activeType is null ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.catalogue.name, _base|merge(activeTag ? {tag: activeTag} : {})) }}"{% if activeType is null %} aria-current="page"{% endif %}>{{ 'vault.folder.all'|trans }}</a>
+                </li>
+                {% for type in itemTypes %}
+                    <li class="vault-chip">
+                        <a class="{{ nowo_ui_class(activeType == type.value ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.catalogue.name, _base|merge({type: type.value})|merge(activeTag ? {tag: activeTag} : {})) }}"{% if activeType == type.value %} aria-current="page"{% endif %}>{{ ('vault.type.' ~ type.value)|trans }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+            {% if tags is not empty %}
+                <ul class="vault-chips" aria-label="{{ 'vault.tags.filter'|trans }}" data-testid="vault-catalogue-tags">
+                    {% for tag in tags %}
+                        <li class="vault-chip">
+                            <a class="{{ nowo_ui_class(activeTag == tag.id ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.catalogue.name, _base|merge({tag: tag.id})|merge(activeType ? {type: activeType} : {})) }}"{% if activeTag == tag.id %} aria-current="page"{% endif %}>{{ tag.name }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+    </section>
+
+    {{ parent() }}
+{% endblock %}
+
+{% block nowo_ui_list_row %}
+    {% set _b = page.bundle %}
+    {% set _cell = nowo_ui_class('table_cell', _b) %}
+    <td class="{{ _cell }}" data-label="{{ 'vault.list.title'|trans }}" data-required="1" data-testid="vault-catalogue-title">
+        {% if row.viewerHasAccess %}
+            <a href="{{ path(routes.item_view.name, {id: row.id}) }}">{{ row.title }}</a>
+        {% else %}
+            {{ row.title }}
+        {% endif %}
+    </td>
+    <td class="{{ _cell }}" data-label="{{ 'vault.list.type'|trans }}" data-nowo-ui-priority="2">{{ ('vault.type.' ~ row.type.value)|trans }}</td>
+    <td class="{{ _cell }}{{ row.tags is empty ? ' ' ~ nowo_ui_class('table_cell_muted', _b) }}" data-label="{{ 'vault.form.tags'|trans }}" data-nowo-ui-priority="3">
+        {% for tag in row.tags %}
+            <span class="{{ nowo_ui_class('badge_neutral', _b) }}">{{ tag }}</span>
+        {% else %}
+            —
+        {% endfor %}
+    </td>
+    <td class="{{ _cell }}" data-label="{{ 'vault.catalogue.updated_on'|trans }}" data-nowo-ui-priority="2">{{ row.updatedOn|date('Y-m-d', 'UTC') }}</td>
+    <td class="{{ _cell }}" data-label="{{ 'vault.catalogue.access'|trans }}">
+        {% if row.viewerHasAccess %}
+            <span class="{{ nowo_ui_class('badge_success', _b) }}" data-testid="vault-catalogue-has-access">{{ 'vault.catalogue.has_access'|trans }}</span>
+        {% endif %}
+        {% with {entry: row} only %}{% block vault_catalogue_row_actions %}{% endblock %}{% endwith %}
+    </td>
+{% endblock %}

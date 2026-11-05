@@ -33,7 +33,7 @@ final class VaultItemSearchType extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        foreach (['folder', 'tag'] as $filter) {
+        foreach (['folder', 'tag', 'type'] as $filter) {
             $value = $options['filters'][$filter] ?? null;
             if (is_string($value) && $value !== '') {
                 $builder->add($filter, HiddenType::class, ['mapped' => false, 'data' => $value]);

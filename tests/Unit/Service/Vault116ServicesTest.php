@@ -11,6 +11,7 @@ use DomainException;
 use InvalidArgumentException;
 use LogicException;
 use Nowo\VaultBundle\Command\CheckDowngradeCommand;
+use Nowo\VaultBundle\Dto\VaultCatalogueQuery;
 use Nowo\VaultBundle\Dto\VaultShareFormData;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
@@ -29,8 +30,12 @@ use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultScopeItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
+use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccess;
+use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
+use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultGrantExpiryService;
 use Nowo\VaultBundle\Service\VaultGrantPurgeResult;
@@ -82,6 +87,22 @@ final class Vault116ServicesTest extends TestCase
 
         $this->expectException(VaultAccessDeniedException::class);
         (new VaultScopeItemLister($items, $guard))->list(new TestUser('1'), 'org-1');
+    }
+
+    public function testCatalogueNeedsAnOrmManager(): void
+    {
+        $registry = $this->createStub(ManagerRegistry::class);
+        $registry->method('getManager')->willReturn($this->createStub(ObjectManager::class));
+        $resolver = new class implements VaultScopeAccessResolverInterface {
+            public function resolve(UserInterface $user, string $scope): VaultScopeAccess
+            {
+                return new VaultScopeAccess(null, true);
+            }
+        };
+        $guard = new VaultAccessGuard(new InMemoryGrantRepository(), new NullVaultTeamMembershipResolver(), new EventDispatcher(), new RequestScopedScopeAccessCache($resolver));
+
+        $this->expectException(LogicException::class);
+        (new VaultCatalogue($registry, $guard, new EventDispatcher()))->page(new TestUser('1'), 'org-1', new VaultCatalogueQuery());
     }
 
     public function testScopeCreationWithoutGuardIsDenied(): void

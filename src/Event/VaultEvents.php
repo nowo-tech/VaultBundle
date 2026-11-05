@@ -71,4 +71,31 @@ final class VaultEvents
      * An item was created, updated, trashed, restored, purged or moved (1.16.0, {@see VaultItemChangeEvent}, ids only).
      */
     public const ITEM_CHANGED = 'nowo_vault.item_changed';
+
+    /**
+     * Vetoable access check of a scope catalogue (1.16.0, {@see VaultCatalogueAccessCheckEvent}).
+     */
+    public const CATALOGUE_ACCESS_CHECK = 'nowo_vault.catalogue_access_check';
+
+    /**
+     * Vetoable check before one field or the attachment leaves the vault (1.16.0, {@see VaultFieldRevealCheckEvent}).
+     */
+    public const ITEM_FIELD_REVEAL_CHECK = 'nowo_vault.item_field_reveal_check';
+
+    /**
+     * A field was copied to the clipboard (1.16.0, {@see VaultItemRevealedEvent}, purpose `copy`). A throwing
+     * listener refuses the copy (503).
+     */
+    public const ITEM_COPIED = 'nowo_vault.item_copied';
+
+    /**
+     * An attachment was downloaded (1.16.0, {@see VaultItemRevealedEvent}, purpose `attachment`). A throwing listener
+     * refuses the download (503).
+     */
+    public const ITEM_ATTACHMENT_DOWNLOADED = 'nowo_vault.item_attachment_downloaded';
+
+    /**
+     * A reveal, copy or download was refused by `reveal.rate_limit` (1.16.0, {@see VaultRevealThrottledEvent}).
+     */
+    public const REVEAL_THROTTLED = 'nowo_vault.reveal_throttled';
 }

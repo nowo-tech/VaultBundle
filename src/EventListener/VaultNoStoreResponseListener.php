@@ -37,6 +37,8 @@ final readonly class VaultNoStoreResponseListener
         $headers = $event->getResponse()->headers;
         $headers->set('Cache-Control', 'no-store, private');
         $headers->set('Pragma', 'no-cache');
+        // 1.16.0: HTTP/1.0 caches and proxies that ignore Cache-Control.
+        $headers->set('Expires', '0');
         // JSON (reveal, /logins, runtime config API) and pages must never be content-sniffed into another type.
         $headers->set('X-Content-Type-Options', 'nosniff');
     }

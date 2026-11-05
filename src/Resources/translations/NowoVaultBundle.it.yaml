@@ -119,6 +119,9 @@ vault:
         show: "Mostra"
         hide: "Nascondi"
         error: "Impossibile caricare il valore."
+        copy: Copia
+        copied: Copiato
+        download_attachment: Scarica allegato
     action:
         open: Apri
         save: Salva
@@ -212,3 +215,10 @@ vault:
         items:
             title: Cassaforte condivisa
             description: 'Voci di %scope%. L''accesso dipende dal tuo ruolo e dagli accessi che ti sono stati concessi.'
+    catalogue:
+        title: Catalogo
+        description: 'Voci di %scope% a cui puoi chiedere l''accesso. Sono mostrati solo nomi, tipi, tag e la data dell''ultima modifica.'
+        updated_on: Ultima modifica
+        access: Accesso
+        has_access: Hai accesso
+        empty: Nessuna voce nel catalogo.

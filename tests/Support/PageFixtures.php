@@ -6,6 +6,8 @@ namespace Nowo\VaultBundle\Tests\Support;
 
 use DateTimeImmutable;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\VaultBundle\Dto\VaultCatalogueEntry;
+use Nowo\VaultBundle\Dto\VaultCataloguePage;
 use Nowo\VaultBundle\Dto\VaultGranteeChoice;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Dto\VaultShareFormData;
@@ -270,6 +272,38 @@ final class PageFixtures
     }
 
     /**
+     * Scope catalogue (1.16.0): two entries (one already accessible), or an empty catalogue.
+     *
+     * @return array<string, mixed>
+     */
+    public static function catalogue(bool $empty = false, ?VaultPageFactory $factory = null): array
+    {
+        $factory ??= self::factory();
+        $routes  = self::routes();
+        $entries = $empty ? [] : [
+            new VaultCatalogueEntry('00000000-0000-4000-8000-000000000001', 'Stripe', VaultItemType::Login, ['prod'], 'org-1', new DateTimeImmutable('2026-11-04'), false),
+            new VaultCatalogueEntry('00000000-0000-4000-8000-000000000002', 'Company card', VaultItemType::CreditCard, [], 'org-1', new DateTimeImmutable('2026-10-30'), true),
+        ];
+        $page   = new VaultCataloguePage($entries, $empty ? 0 : 2, 1, 50);
+        $search = self::forms()->createNamed('', VaultItemSearchType::class, ['q' => ''], [
+            'action'  => '/nowo_vault_catalogue?scope=org-1',
+            'filters' => ['type' => $empty ? null : 'login'],
+        ])->createView();
+
+        return $factory->context([
+            'page'        => $factory->catalogue($routes, 'org-1', $page, $search, $factory->pagination('nowo_vault_catalogue', 1, 50, $page->total, ['scope' => 'org-1'])),
+            'scope'       => 'org-1',
+            'catalogue'   => $page,
+            'tags'        => $empty ? [] : [VaultTag::forScope('prod', 'org-1')],
+            'itemTypes'   => VaultItemType::cases(),
+            'activeType'  => $empty ? null : 'login',
+            'activeTag'   => null,
+            'searchQuery' => '',
+            'routes'      => $routes,
+        ]);
+    }
+
+    /**
      * Share page with the temporary-grant fields (1.16.0) and one active and one expired temporary grant.
      *
      * @return array<string, mixed>
@@ -346,7 +380,7 @@ final class PageFixtures
     public static function routes(): array
     {
         $routes = [];
-        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'item_reveal', 'runtime_config', 'scope_items', 'scope_item_new', 'scope_folder_create'] as $key) {
+        foreach (['index', 'items', 'shared', 'trash', 'item_new', 'item_edit', 'item_view', 'item_trash', 'item_restore', 'item_purge', 'folder_create', 'folder_trash', 'tag_delete', 'item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke', 'password_generate', 'item_reveal', 'runtime_config', 'scope_items', 'scope_item_new', 'scope_folder_create', 'catalogue', 'item_attachment'] as $key) {
             $routes[$key] = ['path' => '/' . $key, 'name' => 'nowo_vault_' . $key];
         }
 

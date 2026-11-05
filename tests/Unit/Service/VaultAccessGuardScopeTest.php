@@ -223,6 +223,54 @@ final class VaultAccessGuardScopeTest extends TestCase
         self::assertNull((new NullVaultScopeAccessResolver())->resolve($user, 'org-1'));
     }
 
+    public function testScopeViewMapFromIds(): void
+    {
+        $folder = VaultFolder::forScope('Ops', 'org-1', null);
+        $items  = ['i1' => null, 'i2' => $folder->getId(), 'i3' => null];
+        $this->grants->save(new VaultGrant(VaultResourceType::Item, 'i1', GranteeType::User, '2', VaultPermission::Read, null));
+        $this->grants->save(new VaultGrant(VaultResourceType::Folder, $folder->getId(), GranteeType::Team, 'ops', VaultPermission::Read, null));
+        $this->grants->save(new VaultGrant(VaultResourceType::Item, 'i3', GranteeType::User, '2', VaultPermission::Read, null, $this->clock->now()->modify('-1 minute')));
+        $user = new TestUser('2');
+
+        self::assertSame(['i1' => false, 'i2' => false, 'i3' => false], $this->guard()->resolveScopeViewMap($user, 'org-1', $items), 'Not a member.');
+
+        $this->members['2']['org-1'] = new VaultScopeAccess(null, true);
+        self::assertSame(['i1' => true, 'i2' => true, 'i3' => false], $this->guard(['2' => ['ops']])->resolveScopeViewMap($user, 'org-1', $items));
+        self::assertSame([], $this->guard()->resolveScopeViewMap($user, 'org-1', []));
+
+        $repo = $this->createMock(VaultGrantRepositoryInterface::class);
+        $repo->method('findByResource')->willReturnCallback(fn (VaultResourceType $type, string $id): array => $this->grants->findByResource($type, $id));
+        $legacy = new VaultAccessGuard($repo, new TestTeamMembershipResolver(['2' => ['ops']]), $this->dispatcher, new RequestScopedScopeAccessCache($this->resolver()), $this->clock);
+        self::assertSame(['i1' => true, 'i2' => true, 'i3' => false], $legacy->resolveScopeViewMap($user, 'org-1', $items));
+
+        $this->members['2']['org-1'] = new VaultScopeAccess(VaultPermission::Read, true);
+        self::assertSame(['i1' => true, 'i2' => true, 'i3' => true], $this->guard()->resolveScopeViewMap($user, 'org-1', $items));
+
+        $anonymous = new class implements UserInterface {
+            public function getUserIdentifier(): string
+            {
+                return 'anon';
+            }
+
+            public function getRoles(): array
+            {
+                return [];
+            }
+
+            public function eraseCredentials(): void
+            {
+            }
+        };
+        $resolver = new class implements VaultScopeAccessResolverInterface {
+            public function resolve(UserInterface $user, string $scope): VaultScopeAccess
+            {
+                return new VaultScopeAccess(null, true);
+            }
+        };
+        $guard = new VaultAccessGuard($this->grants, new TestTeamMembershipResolver([]), $this->dispatcher, new RequestScopedScopeAccessCache($resolver), $this->clock);
+        self::assertSame(['i1' => false], $guard->resolveScopeViewMap($anonymous, 'org-1', ['i1' => null]));
+    }
+
     public function testWithoutScopeCacheNobodyIsAMember(): void
     {
         $item  = VaultItem::forScope(VaultItemType::Login, 'Stripe', 'org-1', null, 'c');

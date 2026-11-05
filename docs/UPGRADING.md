@@ -188,8 +188,23 @@ then drop the new indexes and columns and restore `NOT NULL` on the three `creat
 - **New constructor arguments are appended and optional** (`VaultItem`, `VaultFolder`, `VaultTag`, `VaultGrant`,
   `VaultAccessGuard`, `VaultGrantService`, `VaultItemCreator`, `VaultItemUpdater`, `VaultTrashService`,
   `VaultSharedItemResolver`, `VaultFolderService`, `VaultRouteLoader`, `VaultManageController`).
-- **New route keys** (`scope_items`, `scope_item_new`, `scope_folder_create`) have defaults and are registered only
-  with `scopes.enabled`, so custom `nowo_vault.routes` maps keep working.
+- **New route keys** (`scope_items`, `scope_item_new`, `scope_folder_create`, `catalogue`, `item_attachment`) have
+  defaults, so custom `nowo_vault.routes` maps keep working. The scope keys are registered only with `scopes.enabled`
+  (and `catalogue` also with `catalogue.enabled`); `item_attachment` with the manage UI.
+- **The reveal JSON gains keys:** `item_reveal` now answers `{"item", "field", "purpose", "encoding": "plain",
+  "value"}` (1.15.2: `{"field", "value"}`). Clients must read `value` only when `encoding` is `plain` (a later
+  zero-knowledge mode answers `ciphertext`). The bundled `vault.js` does. A `websites` reveal returns a list.
+- **`VaultItemRevealedEvent`** has three more properties (`purpose`, `ownerKey`, `occurredAt`); the constructor
+  arguments are appended and optional. Copies dispatch `ITEM_COPIED` (not `ITEM_REVEALED`): add it to your audit
+  listener. Since an audit listener that throws now refuses the reveal (503), let it throw only when the audit write
+  really failed.
+- **Two reveal budgets:** `security.secret_access_rate_limit` (1.15.2, shared with `/logins`) still applies, and the
+  web reveal, copy and download routes also count against `reveal.rate_limit`. Use a shared, persistent cache pool
+  (`reveal.rate_limit.cache_pool`).
+- **Templates:** `item_form.html.twig` gains Copy buttons and an attachment download button (data attributes on the
+  hidden `[data-vault-reveal]` element: `data-vault-reveal-copy`, `-copied`, `-auto-hide`, `data-vault-attachment-url`).
+  Overrides keep working; copy them to offer the new buttons. New templates `scope_items` and `catalogue`.
+- **Headers:** every bundle response also carries `Expires: 0`.
 
 ### New options (all off by default)
 
@@ -204,6 +219,18 @@ nowo_vault:
             max_ttl: P30D
             max_permission: read         # read | write (admin is refused)
             ui: false                    # expiry choice in the share form
+    catalogue:
+        enabled: false                   # needs scopes.enabled
+        per_page: 50
+    reveal:
+        auto_hide_seconds: 30
+        revealable_fields: {}            # per type, e.g. { login: [password, note, username] }; default the secret fields
+        rate_limit:
+            enabled: true
+            per_user_per_minute: 30
+            per_user_per_hour: 300
+            per_user_item_field_per_minute: 10
+            cache_pool: cache.app
 ```
 
 Schedule `php bin/console nowo:vault:grants:purge-expired` (for example every 5 minutes) if you create temporary
