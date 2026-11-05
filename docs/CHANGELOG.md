@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.15.2] - 2026-11-05](#1152---2026-11-05)
 - [[1.15.1] - 2026-10-30](#1151---2026-10-30)
 - [[1.15.0] - 2026-10-30](#1150---2026-10-30)
 - [[1.14.0] - 2026-10-29](#1140---2026-10-29)
@@ -45,7 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Security hardening (planned 1.15.2): no decrypted secret in the item HTML, `no-store` on every bundle response, fail-closed sharing without a grantee listener, `security.deny_status`, audited and rate-limited secret access. See [UPGRADING](UPGRADING.md#unreleased).
+## [1.15.2] - 2026-11-05
+
+Security hardening: no decrypted secret in the item HTML, `no-store` on every bundle response, fail-closed sharing without a grantee listener, `security.deny_status`, audited and rate-limited secret access. See [UPGRADING](UPGRADING.md#to-1152).
 
 ### Security
 
@@ -58,6 +61,8 @@ Security hardening (planned 1.15.2): no decrypted secret in the item HTML, `no-s
 ### Changed
 
 - **`vault_grants.created_by_id`** is `ON DELETE SET NULL` (was `CASCADE`): deleting the user who granted access no longer deletes the grants they made. `VaultGrant::getCreatedBy()` returns `?object`. Needs a schema migration (UPGRADING).
+
+[1.15.2]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.15.2
 
 ## [1.15.1] - 2026-10-30
 
@@ -639,7 +644,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.15.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.15.2...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5

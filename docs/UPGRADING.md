@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.15.2](#to-1152)
 - [To 1.15.1](#to-1151)
 - [To 1.15.0](#to-1150)
   - [Template contract (REQ-UI-003)](#template-contract-req-ui-003)
@@ -63,7 +64,9 @@
 
 ## Unreleased
 
-Planned **1.15.2** (security patch). From **1.15.1**:
+## To 1.15.2
+
+Security patch. From **1.15.1**:
 
 ```bash
 composer update nowo-tech/vault-bundle
