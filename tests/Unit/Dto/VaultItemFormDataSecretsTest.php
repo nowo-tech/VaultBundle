@@ -62,8 +62,9 @@ final class VaultItemFormDataSecretsTest extends TestCase
         self::assertSame(self::MARK, $kept['password']);
         self::assertSame('', $kept['note']);
 
-        $replaced = VaultItemFormData::keepStoredSecrets(VaultItemType::Login, ['password' => 'new-value', 'note' => ''], $stored, []);
-        self::assertSame('new-value', $replaced['password']);
+        $typed    = 'typed-' . bin2hex(random_bytes(4));
+        $replaced = VaultItemFormData::keepStoredSecrets(VaultItemType::Login, ['password' => $typed, 'note' => ''], $stored, []);
+        self::assertSame($typed, $replaced['password']);
 
         $cleared = VaultItemFormData::keepStoredSecrets(VaultItemType::Login, ['password' => '', 'note' => ''], $stored, ['password']);
         self::assertSame('', $cleared['password']);

@@ -104,7 +104,7 @@ final class VaultItemFormType extends AbstractType
                 'label'        => 'vault.form.cvv',
                 'always_empty' => true,
             ])));
-            $this->addPasswordField('cardPin', $optional($secret('cardPin', [
+            $this->addPasswordField('cardPin', $optional($secret('cardPin', [ // ggignore: form field name, not a credential
                 'label'        => 'vault.form.card_pin',
                 'always_empty' => true,
             ])));
