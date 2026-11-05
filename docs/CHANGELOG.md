@@ -137,7 +137,8 @@ to 4). Requires a schema migration, see [UPGRADING](UPGRADING.md#unreleased).
 - **SEC-004 FQ-L2:** the browser extension `/logins` lookup returned the password without dispatching
   `ITEM_FIELD_REVEAL_CHECK`, so a host veto enforced on the web reveal was bypassed. It now dispatches the check for
   `password` (channel `extension`, purpose `autofill`); a vetoed password is sent as an empty string, flagged
-  `VaultBrowserExtensionLoginMatch::$passwordWithheld` and left out of the `ITEM_REVEALED` field list.
+  `VaultBrowserExtensionLoginMatch::$passwordWithheld` (and `"passwordWithheld": true` in the `/logins` JSON, FQ-I14)
+  and left out of the `ITEM_REVEALED` field list. See [BROWSER-EXTENSION](BROWSER-EXTENSION.md#logins-response).
 - **SEC-004 FQ-I5:** the `/logins` audit events (`ITEM_REVEALED`, purpose `autofill`) now carry the owner key.
 - **SEC-004 FQ-I7:** the catalogue date is computed in UTC (it could be one day off on hosts whose PHP timezone is not
   UTC).

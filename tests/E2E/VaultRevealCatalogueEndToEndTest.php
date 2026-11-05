@@ -173,11 +173,14 @@ final class VaultRevealCatalogueEndToEndTest extends WebTestCase
         self::assertSame('ops', $forBob[0]->username);
         self::assertSame(['username', 'websites'], $forBob[0]->revealedFields());
         self::assertStringNotContainsString($marker, json_encode($forBob[0]->toArray(), JSON_THROW_ON_ERROR));
+        // SEC-004 FQ-I14: the JSON tells the extension the password was withheld (absent when it was not).
+        self::assertTrue($forBob[0]->toArray()['passwordWithheld']);
         self::assertSame([['password', 'autofill', 'extension']], $checks);
 
         $forAlice = $resolver->resolveForDomain($this->managed($alice), 'mail.example');
         self::assertSame($marker, $forAlice[0]->password);
         self::assertFalse($forAlice[0]->passwordWithheld);
+        self::assertArrayNotHasKey('passwordWithheld', $forAlice[0]->toArray());
         self::assertSame(['username', 'password', 'websites'], $forAlice[0]->revealedFields());
         // SEC-004 FQ-I5: the autofill audit event gets the owner key.
         self::assertSame('user:' . $alice->getId(), $forAlice[0]->ownerKey);

@@ -57,6 +57,23 @@ Session CSRF tokens **do not** apply to this API. Protect login with `browser_ex
 
 Routes and paths are configurable under `nowo_vault.browser_extension.routes`.
 
+### `/logins` response
+
+```json
+{
+  "domain": "mail.example",
+  "logins": [
+    {"id": "<uuid>", "title": "Mail", "username": "ops", "password": "…", "websites": ["https://mail.example"], "matchScore": 100},
+    {"id": "<uuid>", "title": "Shared", "username": "ops", "password": "", "websites": ["https://mail.example"], "matchScore": 90, "passwordWithheld": true}
+  ]
+}
+```
+
+Since 1.16.0 every returned password passes the host's `ITEM_FIELD_REVEAL_CHECK` (channel `extension`, purpose
+`autofill`). A vetoed password is sent as `""` with `"passwordWithheld": true` (the key is absent otherwise): clients
+should show the entry as "password withheld" and not fill an empty password. Each returned login dispatches
+`ITEM_REVEALED` (purpose `autofill`, with the owner key); the field list omits `password` when it was withheld.
+
 ## CORS
 
 By default (`cors_allowed_origins: []`), any `chrome-extension://` and `moz-extension://` origin receives CORS headers. When the list is not empty, only the listed origins do (add your extension's `chrome-extension://<id>` / `moz-extension://<uuid>`).
