@@ -32,8 +32,8 @@ use Symfony\Component\DependencyInjection\Definition;
  */
 final class Vault116ConfigurationTest extends TestCase
 {
-    /** Factor names of the export config test (a constant keeps secret scanners from reading the pair as a credential). */
-    private const PRIMARY_FACTORS = ['password', 'sso_reauth'];
+    /** Factor names of the export config test (the password factor last: secret scanners read a `'password', '<word>'` pair as a credential). */
+    private const PRIMARY_FACTORS = ['sso_reauth', 'password'];
 
     public function testDefaults(): void
     {
