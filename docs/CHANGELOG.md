@@ -46,6 +46,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Scope-owned vaults, temporary grants (1.16.0 contract, gaps 1 and 2). Requires a schema migration, see
+[UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **Scope-owned vaults (gap 1):** items, folders and tags can be owned by a host scope (`owner_scope`, e.g.
+  `project-<uuid>`) instead of a user. New `VaultOwner` value object (`user()` / `scope()`, `key()`, `equals()`),
+  `VaultItem::forScope()`, `VaultFolder::forScope()`, `VaultTag::forScope()`, `getOwner()`, `getOwnerScope()`,
+  `getCreatedBy()` (audit only, `ON DELETE SET NULL`). The host decides membership through
+  `VaultScopeAccessResolverInterface::resolve($user, $scope)` → `VaultScopeAccess` (baseline permission, `catalogue`,
+  `health`, `create`) or `null` for a non-member; the answer is memoized per request only
+  (`RequestScopedScopeAccessCache`, `kernel.reset`). Config `scopes.enabled` / `scopes.access_resolver` (compile error
+  when enabled without a resolver). Effective permission = owner (personal) or the scope baseline, plus active grants on
+  the item and on its folder when the folder has the same owner; a non-member is denied everything, grants included.
+- **Scope pages** (registered only with `scopes.enabled`): `scope_items` (`GET /tools/vault/scopes/{scope}`),
+  `scope_item_new` (`/tools/vault/scopes/{scope}/items/new/{type}`), `scope_folder_create` (`POST …/folders`). The scope
+  key comes from the route (`[a-z0-9][a-z0-9_-]{0,127}`), is re-validated on every request and answers the deny status
+  for a non-member. Services for hosts that render their own pages: `VaultScopeItemLister`,
+  `VaultItemCreator::createInScope()`, `VaultFolderService::createInScope()`, scope tags in `VaultTagService`. New
+  template `vault/scope_items.html.twig`; the item form shows a catalogue warning on the title of scope items and a
+  *Hide from the catalogue* choice for scope admins.
+- **Temporary grants (gap 2):** `vault_grants.expires_at`; a grant is active while `now < expiresAt`, checked on every
+  read path (guard, repository queries, *Shared with me*, extension `/logins`, field reveal) against the injected clock,
+  with no purge lag. `VaultGrantService::grantAs($actor, …, ?$expiresAt)` re-checks Share at the call, refuses self
+  grants, unlisted grantees (fail closed), non-member user grantees of scope resources, expiries outside
+  `grants.temporary.min_ttl` / `max_ttl` and permissions above `grants.temporary.max_permission` (`read` by default,
+  `admin` refused by the config tree), then dispatches the vetoable `GRANT_POLICY_CHECK`; a temporary grant never
+  replaces or upgrades a permanent one (`unchanged` / `would_replace_permanent`). Race-safe writes (unique-violation
+  retry, conditional `UPDATE` / `DELETE` with affected-row checks). `revokeAs($actor, $grant)`. Optional expiry choice in
+  the share form (`grants.temporary.ui`), expiry and *Expired* badge on the share page.
+- **`nowo:vault:grants:purge-expired`** (`--batch-size`, `--limit`, `--dry-run`; prints `{"expired":n,"dry_run":b}`):
+  deletes expired grants with a conditional delete and emits `GRANT_EXPIRED` once per row (concurrent purgers and
+  extensions are safe). `VaultGrantExpiryService`.
+- **`nowo:vault:schema:check-downgrade`:** read-only counts of the rows that block a rollback to 1.15.x.
+- **Events (ids only, after the flush):** `GRANT_POLICY_CHECK` (`VaultGrantPolicyCheckEvent`, vetoable with a code),
+  `GRANT_CREATED`, `GRANT_UPDATED` (previous permission / expiry), `GRANT_REVOKED` (reason `manual`, `resource_purged`),
+  `GRANT_EXPIRED` (`VaultGrantChangeEvent`), `ITEM_CHANGED` (`VaultItemChangeEvent`: created, updated, trashed, restored,
+  purged, moved; `secretChanged`).
+- **`vault_items.secret_changed_at`:** set on create and when a secret field (or the attachment) changes; title, tag,
+  folder and rotation changes leave it alone.
+- `VaultAccessGuard::resolvePermissionMap($user, $items)` (constant number of queries per list) and
+  `resolveScopeAccess()`; `VaultGrantExpiryRepositoryInterface` (implemented by the Doctrine grant repository).
+
+### Changed
+
+- The guard loads the user's and teams' active grants on an item and its folder in **one** query (the redundant third
+  lookup is gone with the Doctrine repository); folder grants apply when the folder has the item's owner (SEC-004 M1,
+  generalised to scopes).
+- Purging an item or folder deletes its grants in the same transaction (`GRANT_REVOKED`, reason `resource_purged`);
+  1.15 left orphan grants.
+- The share and revoke pages use `grantAs()` / `revokeAs()`; a refused grant shows a flash instead of saving.
+- Grant log entries also carry `expires_at` and `actor_id` when set; refusals are logged at `notice` with the code.
+
+### Deprecated
+
+- `VaultItem::getCreator()`, `VaultFolder::getCreator()`, `VaultTag::getCreator()` (use `getOwner()`; they throw
+  `VaultOwnerException` for scope rows).
+- `VaultGrantService::grant()` and `revoke()` (use `grantAs()` / `revokeAs()`).
+
+### Fixed
+
+- Key rotation (`nowo:vault:reencrypt`) touched `updated_at` of every item, which reordered every list; it now uses
+  `VaultItem::replaceCiphertextForRotation()`.
+
 ## [1.15.2] - 2026-11-05
 
 Security hardening: no decrypted secret in the item HTML, `no-store` on every bundle response, fail-closed sharing without a grantee listener, `security.deny_status`, audited and rate-limited secret access. See [UPGRADING](UPGRADING.md#to-1152).

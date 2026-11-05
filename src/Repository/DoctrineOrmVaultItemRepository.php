@@ -20,7 +20,7 @@ use function max;
 /**
  * Doctrine ORM repository of vault items.
  */
-final readonly class DoctrineOrmVaultItemRepository implements VaultItemRepositoryInterface, VaultItemFolderCounterInterface, VaultItemPaginatorInterface
+final readonly class DoctrineOrmVaultItemRepository implements VaultItemRepositoryInterface, VaultItemFolderCounterInterface, VaultItemPaginatorInterface, VaultScopeItemRepositoryInterface
 {
     use ResolvesEntityManagerTrait;
 
@@ -237,7 +237,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
     }
 
     /**
-     * Returns the active items with the given ids that were not created by the viewer.
+     * Returns the active items with the given ids that are not the viewer's personal items (scope items included).
      */
     public function findByIdsForViewer(array $ids, object $viewer): array
     {
@@ -250,7 +250,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.id IN (:ids)')
-            ->andWhere('i.creator != :viewer')
+            ->andWhere('i.creator IS NULL OR i.creator != :viewer')
             ->andWhere('i.deletedAt IS NULL')
             ->setParameter('ids', $ids)
             ->setParameter('viewer', $viewer)
@@ -273,7 +273,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->select('i')
             ->from(VaultItem::class, 'i')
             ->where('i.id IN (:ids)')
-            ->andWhere('i.creator != :viewer')
+            ->andWhere('i.creator IS NULL OR i.creator != :viewer')
             ->andWhere('i.itemType = :itemType')
             ->andWhere('i.deletedAt IS NULL')
             ->setParameter('ids', $ids)
@@ -455,5 +455,77 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         $items = iterator_to_array($paginator, false);
 
         return ['items' => $items, 'total' => count($paginator)];
+    }
+
+    /**
+     * One page of the scope's active items and the total (1.16.0).
+     */
+    public function paginateByScope(
+        string $scope,
+        ?array $onlyIds,
+        ?string $folderId,
+        ?string $tagId,
+        ?string $search,
+        int $offset,
+        int $limit,
+    ): array {
+        if ($onlyIds === []) {
+            return ['items' => [], 'total' => 0];
+        }
+
+        $qb = $this->em()->createQueryBuilder()
+            ->select('i')
+            ->from(VaultItem::class, 'i')
+            ->leftJoin('i.tags', 't')->addSelect('t')
+            ->where('i.ownerScope = :scope')
+            ->andWhere('i.deletedAt IS NULL')
+            ->setParameter('scope', $scope)
+            ->orderBy('i.updatedAt', SortDirection::Descending);
+
+        if ($onlyIds !== null) {
+            $qb->andWhere('i.id IN (:onlyIds)')->setParameter('onlyIds', $onlyIds);
+        }
+        if ($folderId !== null && $folderId !== '') {
+            $qb->andWhere('i.folder = :folderId')->setParameter('folderId', $folderId);
+        }
+        if ($tagId !== null && $tagId !== '') {
+            $qb->innerJoin('i.tags', 'ft')->andWhere('ft.id = :tagId')->setParameter('tagId', $tagId);
+        }
+        if ($search !== null && $search !== '') {
+            $qb->andWhere('LOWER(i.title) LIKE :q')->setParameter('q', '%' . mb_strtolower($search) . '%');
+        }
+
+        $qb->addOrderBy('i.id', SortDirection::Ascending)
+            ->setFirstResult(max(0, $offset))
+            ->setMaxResults(max(1, $limit));
+
+        $paginator = new Paginator($qb->getQuery(), fetchJoinCollection: true);
+
+        /** @var list<VaultItem> $items */
+        $items = iterator_to_array($paginator, false);
+
+        return ['items' => $items, 'total' => count($paginator)];
+    }
+
+    /**
+     * The scope's active items (optionally of one type), folders fetch-joined (1.16.0).
+     */
+    public function findActiveByScope(string $scope, ?VaultItemType $type = null): array
+    {
+        $qb = $this->em()->createQueryBuilder()
+            ->select('i', 'f')
+            ->from(VaultItem::class, 'i')
+            ->leftJoin('i.folder', 'f')
+            ->where('i.ownerScope = :scope')
+            ->andWhere('i.deletedAt IS NULL')
+            ->setParameter('scope', $scope)
+            ->orderBy('i.updatedAt', SortDirection::Descending)
+            ->addOrderBy('i.id', SortDirection::Ascending);
+        if ($type instanceof VaultItemType) {
+            $qb->andWhere('i.itemType = :type')->setParameter('type', $type);
+        }
+
+        /* @var list<VaultItem> */
+        return $qb->getQuery()->getResult();
     }
 }

@@ -56,6 +56,15 @@ vault:
         submit: Zugriff gewähren
         existing: Aktuelle Berechtigungen
         manage: Freigabe verwalten
+        until: 'bis %date%'
+        expired: Abgelaufen
+        expires_in: Zugriff endet
+        expires_never: Nie (dauerhaft)
+        expires_1h: In 1 Stunde
+        expires_1d: In 1 Tag
+        expires_1w: In 1 Woche
+        expires_custom: An einem Datum
+        expires_at: Enddatum
     access:
         title: Zugriff
         intro: Teilen Sie diese Ressource mit anderen Benutzern oder Teams (Gruppen). Jede Berechtigung legt fest, wer lesen, schreiben oder verwalten darf.
@@ -103,6 +112,9 @@ vault:
         tags: Schlagwörter
         tag_placeholder: z. B. Arbeit, privat
         tags_help: Tag eingeben und Enter drücken. Tags werden über Ihre Elemente hinweg wiederverwendet.
+        title_scope_help: 'Der Name ist für alle Mitglieder im Katalog sichtbar. Keine Passwörter, URLs oder Kontonamen eintragen.'
+        catalogue_hidden: Im Katalog ausblenden
+        catalogue_hidden_help: 'Mitglieder ohne Zugriff sehen nicht, dass dieser Eintrag existiert. Der Zugriff selbst ändert sich nicht.'
     reveal:
         show: "Anzeigen"
         hide: "Verbergen"
@@ -179,6 +191,7 @@ vault:
             key_invalid: "Der Verschlüsselungsschlüssel muss ein base64-kodierter 32-Byte-libsodium-Schlüssel sein. Es wurde nichts gespeichert."
             key_storage_unavailable: "Der Verschlüsselungsschlüssel kann nicht in der Datenbank gespeichert werden: Installieren Sie nowo-tech/doctrine-encrypt-bundle (Verschlüsselung at rest) oder konfigurieren Sie nowo_vault.encryption_key über YAML/env."
             max_attachment_invalid: max_attachment_bytes muss null oder größer sein.
+        grant_refused: Der Zugriff konnte nicht erteilt werden.
     runtime_config:
         title: Laufzeitkonfiguration
         intro: Datenbankeinstellungen für Vault-Verschlüsselungsschlüssel, Anhangsgrößenlimit und Passwortstärke.
@@ -195,3 +208,7 @@ vault:
         generate_key: VAULT_ENCRYPTION_KEY generieren
         max_attachment_bytes: Max. Anhangsgröße (Bytes)
         password_level: Passwortstärke
+    scope:
+        items:
+            title: Gemeinsamer Tresor
+            description: 'Einträge von %scope%. Der Zugriff hängt von deiner Rolle dort und von den dir erteilten Freigaben ab.'

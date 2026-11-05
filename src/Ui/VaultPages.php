@@ -39,6 +39,8 @@ final readonly class VaultPages
         'shared'         => '@NowoVaultBundle/vault/shared.html.twig',
         'share'          => '@NowoVaultBundle/vault/share.html.twig',
         'runtime_config' => '@NowoVaultBundle/vault/runtime_config.html.twig',
+        // 1.16.0 scope vaults.
+        'scope_items' => '@NowoVaultBundle/vault/scope_items.html.twig',
     ];
 
     /** A layout that defines this block renders the UiKit canonical blocks. */

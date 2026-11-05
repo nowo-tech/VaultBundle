@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Service;
 
+use DateTimeImmutable;
 use Nowo\VaultBundle\Entity\VaultFolder;
+use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultPermission;
@@ -14,16 +16,24 @@ use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultFolderAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemReadOnlyEvent;
+use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
+use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
+use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Support\UserIdResolver;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
+use function array_filter;
+use function array_keys;
+use function array_values;
 use function in_array;
 
 /**
- * Checks vault item/folder access: creator ownership, grants, read-only events, and extensible ACL.
+ * Checks vault item/folder access: ownership (personal owner or scope membership, 1.16.0), active grants (expiry
+ * enforced on every read against the injected clock), read-only events, and extensible ACL.
  */
 final readonly class VaultAccessGuard
 {
@@ -34,6 +44,8 @@ final readonly class VaultAccessGuard
         private VaultGrantRepositoryInterface $grantRepository,
         private VaultTeamMembershipResolverInterface $teamMembershipResolver,
         private EventDispatcherInterface $eventDispatcher,
+        private ?RequestScopedScopeAccessCache $scopeAccess = null,
+        private ?ClockInterface $clock = null,
     ) {
     }
 
@@ -42,7 +54,12 @@ final readonly class VaultAccessGuard
      */
     public function canAccessItem(UserInterface $user, VaultItem $item, VaultAccessAction $action): bool
     {
-        $granted = $this->baseItemGrant($user, $item, $action);
+        $permission = $this->effectiveItemPermission($user, $item);
+        if ($permission === false) {
+            // Scope membership gate (1.16.0): a non-member has no access, grants and listeners included.
+            return false;
+        }
+        $granted = $this->actionAllowed($permission, $action);
 
         $event = new VaultItemAccessCheckEvent($user, $item, $action, $granted);
         $this->eventDispatcher->dispatch($event, VaultEvents::ITEM_ACCESS_CHECK);
@@ -61,7 +78,11 @@ final readonly class VaultAccessGuard
      */
     public function canAccessFolder(UserInterface $user, VaultFolder $folder, VaultAccessAction $action): bool
     {
-        $granted = $this->baseFolderGrant($user, $folder, $action);
+        $permission = $this->effectiveFolderPermission($user, $folder);
+        if ($permission === false) {
+            return false;
+        }
+        $granted = $this->actionAllowed($permission, $action);
 
         $event = new VaultFolderAccessCheckEvent($user, $folder, $action, $granted);
         $this->eventDispatcher->dispatch($event, VaultEvents::FOLDER_ACCESS_CHECK);
@@ -101,80 +122,204 @@ final readonly class VaultAccessGuard
         return $map;
     }
 
-    private function baseItemGrant(UserInterface $user, VaultItem $item, VaultAccessAction $action): bool
+    /**
+     * Effective permission of the user on each item before the access-check events (1.16.0, SC-004): a constant
+     * number of queries for the whole list (one grant query; scope membership memoized per request). The ITEM_ACCESS_CHECK
+     * event is then applied for View: a listener veto maps the item to null, a listener grant to at least Read.
+     *
+     * @param list<VaultItem> $items
+     *
+     * @return array<string, VaultPermission|null> item id => effective permission (null = no access)
+     */
+    public function resolvePermissionMap(UserInterface $user, array $items): array
     {
-        if (UserIdResolver::isSameUser($item->getCreator(), $user)) {
-            return true;
+        $grants = $this->loadGrants($user, $items);
+        $map    = [];
+        foreach ($items as $item) {
+            $permission = $this->effectiveItemPermission($user, $item, $grants);
+            if ($permission === false) {
+                $map[$item->getId()] = null;
+
+                continue;
+            }
+
+            $event = new VaultItemAccessCheckEvent($user, $item, VaultAccessAction::View, $permission instanceof VaultPermission);
+            $this->eventDispatcher->dispatch($event, VaultEvents::ITEM_ACCESS_CHECK);
+            $map[$item->getId()] = $event->isGranted() ? ($permission ?? VaultPermission::Read) : null;
         }
 
-        // Folder grants cover only items the folder's creator created: otherwise a Write grantee could move someone
-        // else's item into a folder they own and grant themselves Admin on it through the folder (SEC-004 M1).
-        $folder     = $item->getFolder();
-        $permission = $this->resolveGrantPermission(
-            VaultResourceType::Item,
-            $item->getId(),
-            $user,
-            $folder instanceof VaultFolder && UserIdResolver::isSameUser($folder->getCreator(), $item->getCreator()) ? $folder->getId() : null,
-        );
-
-        return $this->actionAllowed($permission, $action);
+        return $map;
     }
 
-    private function baseFolderGrant(UserInterface $user, VaultFolder $folder, VaultAccessAction $action): bool
+    /**
+     * The user's standing in a scope for this request (null: not a member, or scopes are off).
+     */
+    public function resolveScopeAccess(UserInterface $user, string $scope): ?VaultScopeAccess
     {
-        if (UserIdResolver::isSameUser($folder->getCreator(), $user)) {
-            return true;
+        return $this->scopeAccess?->resolve($user, $scope);
+    }
+
+    /**
+     * Effective permission on a folder: owner Admin, scope baseline (false for a non-member), active folder grants.
+     */
+    private function effectiveFolderPermission(UserInterface $user, VaultFolder $folder): VaultPermission|false|null
+    {
+        $owner = $folder->getOwner();
+        if (!$owner->isScope()) {
+            if ($owner->isUser($user)) {
+                return VaultPermission::Admin;
+            }
+            $permission = null;
+        } else {
+            $access = $this->resolveScopeAccess($user, (string) $owner->getScope());
+            if (!$access instanceof VaultScopeAccess) {
+                // Membership gate: grants never cross it.
+                return false;
+            }
+            $permission = $access->baseline;
         }
 
-        $permission = $this->resolveGrantPermission(
-            VaultResourceType::Folder,
-            $folder->getId(),
-            $user,
-            null,
-        );
+        foreach ($this->activeGrants($user, VaultResourceType::Folder, $folder->getId()) as $grant) {
+            $permission = $this->maxPermission($permission, $grant->getPermission());
+        }
 
-        return $this->actionAllowed($permission, $action);
+        return $permission;
     }
 
-    private function resolveGrantPermission(
-        VaultResourceType $type,
-        string $resourceId,
-        UserInterface $user,
-        ?string $folderId,
-    ): ?VaultPermission {
+    /**
+     * Effective permission on one item (§3.2 of the 1.16.0 contract): the personal owner is Admin; a scope item
+     * starts from the member's baseline (a non-member is denied, grants included: `false`); then the maximum of the
+     * active grants on the item and, when the folder has the same owner as the item (SEC-004 M1), on its folder.
+     *
+     * @param list<VaultGrant>|null $grants preloaded active grants of the user (and teams) on the items and their folders; null = load for this item
+     *
+     * @return false|VaultPermission|null false = membership gate denied
+     */
+    private function effectiveItemPermission(UserInterface $user, VaultItem $item, ?array $grants = null): VaultPermission|false|null
+    {
+        $owner = $item->getOwner();
+        if (!$owner->isScope()) {
+            if ($owner->isUser($user)) {
+                return VaultPermission::Admin;
+            }
+            $permission = null;
+        } else {
+            $access = $this->resolveScopeAccess($user, (string) $owner->getScope());
+            if (!$access instanceof VaultScopeAccess) {
+                return false;
+            }
+            $permission = $access->baseline;
+        }
+
+        // Folder grants cover only items with the folder's owner: otherwise a Write grantee could move someone else's
+        // item into a folder they own and grant themselves Admin on it through the folder (SEC-004 M1).
+        $folder   = $item->getFolder();
+        $folderId = $folder instanceof VaultFolder && $folder->getOwner()->equals($owner) ? $folder->getId() : null;
+
+        foreach ($grants ?? $this->loadGrants($user, [$item]) as $grant) {
+            $type = $grant->getResourceType();
+            $id   = $grant->getResourceId();
+            if (($type === VaultResourceType::Item && $id === $item->getId()) || ($folderId !== null && $type === VaultResourceType::Folder && $id === $folderId)) {
+                $permission = $this->maxPermission($permission, $grant->getPermission());
+            }
+        }
+
+        return $permission;
+    }
+
+    /**
+     * Active grants of the user (directly or through a team) on the items and their folders: one query with the
+     * 1.16.0 Doctrine repository, else the {@see VaultGrantRepositoryInterface} lookups of earlier releases. Either way
+     * every grant is re-checked with {@see VaultGrant::isActiveAt()} against the injected clock.
+     *
+     * @param list<VaultItem> $items
+     *
+     * @return list<VaultGrant>
+     */
+    private function loadGrants(UserInterface $user, array $items): array
+    {
+        $userId = UserIdResolver::getId($user);
+        if ($userId === null || $items === []) {
+            return [];
+        }
+
+        $itemIds   = [];
+        $folderIds = [];
+        foreach ($items as $item) {
+            $itemIds[] = $item->getId();
+            if ($item->getFolder() instanceof VaultFolder) {
+                $folderIds[$item->getFolder()->getId()] = true;
+            }
+        }
+
+        $now     = $this->now();
+        $teamIds = $this->teamMembershipResolver->getTeamIdsForUser($user);
+        if ($this->grantRepository instanceof VaultGrantExpiryRepositoryInterface) {
+            $grants = $this->grantRepository->findActiveForGrantees($itemIds, array_keys($folderIds), $userId, $teamIds, $now);
+        } else {
+            $grants = [];
+            foreach ($itemIds as $itemId) {
+                $grants = [...$grants, ...$this->legacyGrants($userId, $teamIds, VaultResourceType::Item, $itemId)];
+            }
+            foreach (array_keys($folderIds) as $folderId) {
+                $grants = [...$grants, ...$this->legacyGrants($userId, $teamIds, VaultResourceType::Folder, (string) $folderId)];
+            }
+        }
+
+        return array_values(array_filter($grants, static fn (VaultGrant $grant): bool => $grant->isActiveAt($now)));
+    }
+
+    /**
+     * Active grants of the user (or teams) on one resource.
+     *
+     * @return list<VaultGrant>
+     */
+    private function activeGrants(UserInterface $user, VaultResourceType $type, string $resourceId): array
+    {
         $userId = UserIdResolver::getId($user);
         if ($userId === null) {
-            return null;
+            return [];
         }
 
-        $best = null;
+        $now     = $this->now();
+        $teamIds = $this->teamMembershipResolver->getTeamIdsForUser($user);
+        $grants  = $this->grantRepository instanceof VaultGrantExpiryRepositoryInterface
+            ? $this->grantRepository->findActiveForGrantees($type === VaultResourceType::Item ? [$resourceId] : [], $type === VaultResourceType::Folder ? [$resourceId] : [], $userId, $teamIds, $now)
+            : $this->legacyGrants($userId, $teamIds, $type, $resourceId);
+
+        return array_values(array_filter($grants, static fn (VaultGrant $grant): bool => $grant->isActiveAt($now)));
+    }
+
+    /**
+     * Pre-1.16 lookups for a custom {@see VaultGrantRepositoryInterface}: the resource's grants matching the user or a
+     * team, plus the user's grants on the resource.
+     *
+     * @param list<string> $teamIds
+     *
+     * @return list<VaultGrant>
+     */
+    private function legacyGrants(string $userId, array $teamIds, VaultResourceType $type, string $resourceId): array
+    {
+        $matches = [];
         foreach ($this->grantRepository->findByResource($type, $resourceId) as $grant) {
-            if ($grant->getGranteeType() === GranteeType::User && $grant->getGranteeId() === $userId) {
-                $best = $this->maxPermission($best, $grant->getPermission());
-            }
-            if ($grant->getGranteeType() === GranteeType::Team && in_array($grant->getGranteeId(), $this->teamMembershipResolver->getTeamIdsForUser($user), true)) {
-                $best = $this->maxPermission($best, $grant->getPermission());
-            }
-        }
-
-        if ($folderId !== null) {
-            foreach ($this->grantRepository->findByResource(VaultResourceType::Folder, $folderId) as $grant) {
-                if ($grant->getGranteeType() === GranteeType::User && $grant->getGranteeId() === $userId) {
-                    $best = $this->maxPermission($best, $grant->getPermission());
-                }
-                if ($grant->getGranteeType() === GranteeType::Team && in_array($grant->getGranteeId(), $this->teamMembershipResolver->getTeamIdsForUser($user), true)) {
-                    $best = $this->maxPermission($best, $grant->getPermission());
-                }
+            if (($grant->getGranteeType() === GranteeType::User && $grant->getGranteeId() === $userId)
+                || ($grant->getGranteeType() === GranteeType::Team && in_array($grant->getGranteeId(), $teamIds, true))) {
+                $matches[] = $grant;
             }
         }
 
         foreach ($this->grantRepository->findByGrantee(GranteeType::User, $userId) as $grant) {
             if ($grant->getResourceType() === $type && $grant->getResourceId() === $resourceId) {
-                $best = $this->maxPermission($best, $grant->getPermission());
+                $matches[] = $grant;
             }
         }
 
-        return $best;
+        return $matches;
+    }
+
+    private function now(): DateTimeImmutable
+    {
+        return $this->clock?->now() ?? new DateTimeImmutable();
     }
 
     private function maxPermission(?VaultPermission $current, VaultPermission $candidate): VaultPermission

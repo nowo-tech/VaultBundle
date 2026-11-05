@@ -84,6 +84,74 @@ Alternatively, on **`ITEM_ACCESS_CHECK`**, call `$event->markReadOnly()` to enfo
 
 `VaultAccessGuard::isItemReadOnly()` and `resolveReadOnlyMap()` expose the flag for custom UI.
 
+## Scope vaults
+
+Since 1.16.0 a host scope can own vault items (`scopes.enabled: true`). The bundle asks your resolver, on every
+request, who belongs to a scope and with which baseline permission:
+
+```php
+namespace App\Vault;
+
+use App\Entity\User;
+use App\Repository\ProjectMemberRepository;
+use Nowo\VaultBundle\Enum\VaultPermission;
+use Nowo\VaultBundle\Security\VaultScopeAccess;
+use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
+
+final readonly class ProjectScopeAccessResolver implements VaultScopeAccessResolverInterface
+{
+    public function __construct(private ProjectMemberRepository $members)
+    {
+    }
+
+    public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
+    {
+        if (!$user instanceof User || !str_starts_with($scope, 'project-')) {
+            return null;                                   // never emit user-* keys: personal vaults are not scopes
+        }
+
+        $role = $this->members->roleOf($user, substr($scope, 8));
+
+        return match ($role) {
+            null      => null,                             // not a member: nothing, grants included
+            'viewer'  => new VaultScopeAccess(VaultPermission::Read, catalogue: true),
+            'editor'  => new VaultScopeAccess(VaultPermission::Write, catalogue: true, create: true),
+            'manager' => new VaultScopeAccess(VaultPermission::Admin, catalogue: true, health: true, create: true),
+            default   => new VaultScopeAccess(null),       // member: explicit grants only
+        };
+    }
+}
+```
+
+```yaml
+nowo_vault:
+    scopes: { enabled: true, access_resolver: App\Vault\ProjectScopeAccessResolver }
+    security: { deny_status: 404 }
+```
+
+Keep the resolver cheap (it runs once per user and scope per request) and never cache its answer across requests.
+Namespace team ids per tenant if you grant teams (`org-<uuid>:group-<uuid>`).
+
+### Approving an access request
+
+```php
+$result = $grantService->grantAs($approver, VaultResourceType::Item, $itemId, GranteeType::User, $requesterId, VaultPermission::Read, $clock->now()->modify('+7 days'));
+```
+
+`grantAs()` re-checks that `$approver` may Share the item now and that the requester belongs to the scope, and caps
+temporary grants (`grants.temporary`). Veto special cases with a `GRANT_POLICY_CHECK` listener:
+
+```php
+#[AsEventListener(event: VaultEvents::GRANT_POLICY_CHECK)]
+public function onPolicy(VaultGrantPolicyCheckEvent $event): void
+{
+    if ($event->getGranteeType() === GranteeType::Team && $this->isOwnTeam($event->getActor(), $event->getGranteeId())) {
+        $event->deny('own_team');
+    }
+}
+```
+
 ## Grants API
 
 ```php

@@ -56,6 +56,15 @@ vault:
         submit: Conceder acceso
         existing: Permisos actuales
         manage: Gestionar compartición
+        until: 'hasta el %date%'
+        expired: Caducado
+        expires_in: El acceso termina
+        expires_never: Nunca (permanente)
+        expires_1h: En 1 hora
+        expires_1d: En 1 día
+        expires_1w: En 1 semana
+        expires_custom: En una fecha
+        expires_at: Fecha de fin
     access:
         title: Acceso
         intro: Comparte este recurso con otros usuarios o equipos (grupos). Cada permiso define quién puede leer, escribir o administrarlo.
@@ -103,6 +112,9 @@ vault:
         tags: Etiquetas
         tag_placeholder: p. ej. trabajo, personal
         tags_help: Escribe una etiqueta y pulsa Enter. Las etiquetas se reutilizan entre tus elementos.
+        title_scope_help: 'El nombre es visible para todos los miembros en el catálogo. No incluyas contraseñas, URL ni nombres de cuenta.'
+        catalogue_hidden: Ocultar del catálogo
+        catalogue_hidden_help: Los miembros sin acceso no verán que esta entrada existe. El acceso no cambia.
     reveal:
         show: "Mostrar"
         hide: "Ocultar"
@@ -179,6 +191,7 @@ vault:
             key_invalid: "La clave de cifrado debe ser una clave libsodium de 32 bytes codificada en base64. No se ha guardado nada."
             key_storage_unavailable: "La clave de cifrado no se puede guardar en la base de datos: instala nowo-tech/doctrine-encrypt-bundle para cifrarla en reposo, o configura nowo_vault.encryption_key vía YAML/env."
             max_attachment_invalid: max_attachment_bytes debe ser cero o mayor.
+        grant_refused: No se ha podido conceder el acceso.
     runtime_config:
         title: Configuración en tiempo de ejecución
         intro: Ajustes en base de datos para clave de cifrado, límite de adjuntos y nivel de contraseña.
@@ -195,3 +208,7 @@ vault:
         generate_key: Generar VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Tamaño máximo de adjuntos (bytes)
         password_level: Nivel de fortaleza de contraseña
+    scope:
+        items:
+            title: Bóveda compartida
+            description: 'Entradas de %scope%. El acceso depende de tu rol en ella y de los permisos que te hayan concedido.'

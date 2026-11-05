@@ -23,17 +23,21 @@ use Nowo\VaultBundle\Repository\DoctrineOrmVaultSettingsRepository;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultTagRepository;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
+use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
 use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
+use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
+use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\RuntimeKeyVaultPayloadCryptographer;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
+use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Psr\Clock\ClockInterface;
@@ -58,6 +62,9 @@ use function sprintf;
  */
 final class VaultExtension extends Extension implements PrependExtensionInterface
 {
+    /** Route keys registered only with `scopes.enabled` (1.16.0; see VaultRouteLoader::OPTIONAL_ROUTE_KEYS). */
+    public const SCOPE_ROUTE_KEYS = ['scope_items', 'scope_item_new', 'scope_folder_create'];
+
     /**
      * Processes the `nowo_vault` configuration and registers the bundle services and parameters.
      */
@@ -114,6 +121,10 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.browser_extension.token_ttl', (int) $browserExtension['token_ttl']);
         $container->setParameter('nowo_vault.browser_extension.max_login_items', (int) $browserExtension['max_login_items']);
         $container->setParameter('nowo_vault.pagination.per_page', (int) $config['pagination']['per_page']);
+        $container->setParameter('nowo_vault.entity_manager', $emName);
+        $container->setParameter('nowo_vault.grants.temporary', $config['grants']['temporary']);
+        $container->setParameter('nowo_vault.grants.temporary.ui', (bool) $config['grants']['temporary']['ui']);
+        $this->registerScopes($config['scopes'], $container);
         $container->setParameter('nowo_vault.browser_extension.routes', $browserExtension['routes']);
         $container->setParameter('nowo_vault.browser_extension.cors_allowed_origins', $browserExtension['cors_allowed_origins']);
         $loginRateLimit = $browserExtension['login_rate_limit'];
@@ -165,9 +176,12 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $container->setAlias($interface, $repoClass);
         }
 
-        // Token expiry queries read the host clock when one is registered (REQ-DI-001).
+        // Token and grant expiry queries read the host clock when one is registered (REQ-DI-001).
         $container->getDefinition(DoctrineOrmVaultExtensionTokenRepository::class)
             ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE));
+        $container->getDefinition(DoctrineOrmVaultGrantRepository::class)
+            ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE));
+        $container->setAlias(VaultGrantExpiryRepositoryInterface::class, DoctrineOrmVaultGrantRepository::class);
 
         $container->setDefinition(VaultMetadataListener::class, (new Definition(VaultMetadataListener::class))
             ->setArgument('$itemsTableName', $itemsTable)
@@ -253,6 +267,32 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$allowedOrigins', $browserExtension['cors_allowed_origins'])
             ->setArgument('$kernelEnvironment', '%kernel.environment%'));
 
+    }
+
+    /**
+     * Scope vaults (1.16.0): the host resolver behind the request-scoped cache, and the route keys of disabled
+     * features. Fails at compile time when scopes are enabled without a resolver.
+     *
+     * @param array{enabled: bool, access_resolver: string|null} $scopes
+     */
+    private function registerScopes(array $scopes, ContainerBuilder $container): void
+    {
+        $resolverId = $scopes['access_resolver'] ?? null;
+        if ($scopes['enabled'] && (!is_string($resolverId) || $resolverId === '')) {
+            throw new LogicException('nowo_vault.scopes.enabled requires nowo_vault.scopes.access_resolver (a service implementing VaultScopeAccessResolverInterface).');
+        }
+
+        if (!$scopes['enabled']) {
+            $resolverId = NullVaultScopeAccessResolver::class;
+            $container->setDefinition(NullVaultScopeAccessResolver::class, new Definition(NullVaultScopeAccessResolver::class));
+        }
+        $container->setAlias(VaultScopeAccessResolverInterface::class, $resolverId);
+        $container->setDefinition(RequestScopedScopeAccessCache::class, (new Definition(RequestScopedScopeAccessCache::class))
+            ->setArgument('$resolver', new Reference(VaultScopeAccessResolverInterface::class))
+            ->addTag('kernel.reset', ['method' => 'reset']));
+
+        $container->setParameter('nowo_vault.scopes.enabled', $scopes['enabled']);
+        $container->setParameter('nowo_vault.enabled_optional_route_keys', $scopes['enabled'] ? self::SCOPE_ROUTE_KEYS : []);
     }
 
     /**

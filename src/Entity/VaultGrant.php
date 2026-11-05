@@ -18,6 +18,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[ORM\Entity]
 #[ORM\Table(name: 'vault_grants')]
 #[ORM\UniqueConstraint(name: 'vault_grants_unique', columns: ['resource_type', 'resource_id', 'grantee_type', 'grantee_id'])]
+#[ORM\Index(name: 'vault_grants_expires_idx', columns: ['expires_at'])]
+#[ORM\Index(name: 'vault_grants_grantee_idx', columns: ['grantee_type', 'grantee_id'])]
 class VaultGrant
 {
     #[ORM\Id]
@@ -46,6 +48,9 @@ class VaultGrant
         // 1.15.2: SET NULL (was CASCADE), so deleting the grantor no longer deletes the grants they made.
         #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
         private ?object $createdBy,
+        /** Null = permanent; a temporary grant is active while now < expiresAt (1.16.0). */
+        #[ORM\Column(name: 'expires_at', type: 'datetime_immutable', nullable: true)]
+        private ?DateTimeImmutable $expiresAt = null,
     ) {
         $this->id        = Uuid::generate()->toString();
         $this->createdAt = new DateTimeImmutable();
@@ -108,6 +113,41 @@ class VaultGrant
         $this->permission = $permission;
 
         return $this;
+    }
+
+    /**
+     * Returns when the grant stops working, or null for a permanent grant (1.16.0).
+     */
+    public function getExpiresAt(): ?DateTimeImmutable
+    {
+        return $this->expiresAt;
+    }
+
+    /**
+     * Sets the expiry (null = permanent) (1.16.0).
+     */
+    public function setExpiresAt(?DateTimeImmutable $expiresAt): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->expiresAt = $expiresAt;
+
+        return $this;
+    }
+
+    /**
+     * Whether the grant has an expiry (1.16.0).
+     */
+    public function isTemporary(): bool
+    {
+        return $this->expiresAt instanceof DateTimeImmutable;
+    }
+
+    /**
+     * Whether the grant works at the given instant: permanent, or `$now < expiresAt` (strict) (1.16.0).
+     */
+    public function isActiveAt(DateTimeImmutable $now): bool
+    {
+        return !$this->expiresAt instanceof DateTimeImmutable || $now < $this->expiresAt;
     }
 
     /**

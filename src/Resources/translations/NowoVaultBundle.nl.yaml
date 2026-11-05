@@ -56,6 +56,15 @@ vault:
         submit: Toegang verlenen
         existing: Huidige machtigingen
         manage: Delen beheren
+        until: 'tot %date%'
+        expired: Verlopen
+        expires_in: Toegang eindigt
+        expires_never: Nooit (permanent)
+        expires_1h: Over 1 uur
+        expires_1d: Over 1 dag
+        expires_1w: Over 1 week
+        expires_custom: Op een datum
+        expires_at: Einddatum
     access:
         title: Toegang
         intro: Deel deze resource met andere gebruikers of teams (groepen). Elke machtiging bepaalt wie kan lezen, schrijven of beheren.
@@ -103,6 +112,9 @@ vault:
         tags: Labels
         tag_placeholder: bijv. werk, privé
         tags_help: Typ een tag en druk op Enter. Tags worden hergebruikt tussen uw items.
+        title_scope_help: 'De naam is zichtbaar voor elk lid in de catalogus. Zet er geen wachtwoorden, URL''s of accountnamen in.'
+        catalogue_hidden: Verbergen in de catalogus
+        catalogue_hidden_help: Leden zonder toegang zien niet dat dit item bestaat. De toegang zelf verandert niet.
     reveal:
         show: "Tonen"
         hide: "Verbergen"
@@ -179,6 +191,7 @@ vault:
             key_invalid: "De encryptiesleutel moet een base64-gecodeerde libsodium-sleutel van 32 bytes zijn. Er is niets opgeslagen."
             key_storage_unavailable: "De encryptiesleutel kan niet in de database worden opgeslagen: installeer nowo-tech/doctrine-encrypt-bundle zodat hij at rest versleuteld is, of configureer nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes moet nul of groter zijn.
+        grant_refused: De toegang kon niet worden verleend.
     runtime_config:
         title: Runtimeconfiguratie
         intro: Database-instellingen voor vault-encryptiesleutel, bijlagenlimiet en wachtwoordsterkte.
@@ -195,3 +208,7 @@ vault:
         generate_key: VAULT_ENCRYPTION_KEY genereren
         max_attachment_bytes: Max. bijlengrootte (bytes)
         password_level: Wachtwoordsterkte
+    scope:
+        items:
+            title: Gedeelde kluis
+            description: 'Items van %scope%. Toegang hangt af van je rol daarin en van de toegang die je is verleend.'

@@ -26,6 +26,8 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
   - [Updating from your application](#updating-from-your-application)
 - [Browser extension](#browser-extension)
   - [Purging expired tokens](#purging-expired-tokens)
+- [Scope vaults (`scopes`)](#scope-vaults-scopes)
+- [Temporary grants (`grants.temporary`)](#temporary-grants-grantstemporary)
 
 ## Required
 
@@ -106,6 +108,8 @@ All routes are configurable under `nowo_vault.routes` and `nowo_vault.browser_ex
 
 Each controller action declares its route with a Symfony `#[Route]` attribute (REQ-SF-004): HTTP methods, requirements, the default path / name and the configuration key (`options: {nowo_vault_route: <key>}`). The `nowo_vault` loader reads those attributes and applies the configured `path` / `name`, so the attribute defaults equal the configuration defaults and existing overrides keep working. Do **not** import `vendor/nowo-tech/vault-bundle/src/Controller/` as an `attribute` resource: that would register the routes a second time with the default paths, ignoring your configuration.
 
+Since 1.16.0 the scope routes `scope_items` (`/tools/vault/scopes/{scope}`), `scope_item_new` (`/tools/vault/scopes/{scope}/items/new/{type}`) and `scope_folder_create` (`POST /tools/vault/scopes/{scope}/folders`) exist only with `scopes.enabled: true` (see [Scope vaults](#scope-vaults-scopes)).
+
 Since 1.15.2 the `item_reveal` route (`POST /tools/vault/items/{id}/reveal/{field}`) returns one secret field as JSON; the item pages never contain stored secrets (see [SECURITY](SECURITY.md#secret-fields)). Every bundle response is sent with `Cache-Control: no-store, private` and `Pragma: no-cache`.
 
 ## Pagination
@@ -122,7 +126,7 @@ nowo_vault:
 
 ## Clock and logger
 
-Services that compare times (extension token expiry and last-use touch) use the `Psr\Clock\ClockInterface` service when the host registers one (FrameworkBundle does with `symfony/clock`), so tests can freeze time; without it they use the system clock. Doctrine entities still stamp `createdAt` / `updatedAt` / `deletedAt` with the system time (entities cannot receive services, REQ-ORM-001); `VaultExtensionToken::isExpired()` / `touch()` accept an optional `$now`.
+Services that compare times (extension token expiry and last-use touch; since 1.16.0 grant expiry on every read, the expired-grant purge and `secret_changed_at`) use the `Psr\Clock\ClockInterface` service when the host registers one (FrameworkBundle does with `symfony/clock`), so tests can freeze time; without it they use the system clock. Doctrine entities still stamp `createdAt` / `updatedAt` / `deletedAt` with the system time (entities cannot receive services, REQ-ORM-001); `VaultExtensionToken::isExpired()` / `touch()` accept an optional `$now`.
 
 Sensitive operations log through the injected `logger` service (`Psr\Log\LoggerInterface`, default Monolog channel `app` when MonologBundle is installed; nothing is logged without a logger). See [SECURITY.md](SECURITY.md#logging) for what is and is not logged.
 
@@ -138,7 +142,7 @@ The manage pages follow the UiKit page contract (REQ-UI-003): each page extends 
 | `web_ui.enabled` | `true` | Register the manage UI routes (home, items, shared, trash, item forms, sharing, runtime config). `false` keeps only the browser-extension API |
 | `web_ui.path_prefix` | `''` | Prefix prepended to every vault route path (manage UI and browser-extension API), e.g. `/admin` |
 | `web_ui.layout_template` | `null` | Layout the pages extend. `null` = `nowo_ui_kit.layouts.admin` (recommended). A 1.x layout without the UiKit canonical blocks is wrapped in a deprecated bridge |
-| `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`. Unknown page ids are rejected |
+| `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`, `scope_items` (1.16.0). Unknown page ids are rejected |
 
 ```yaml
 nowo_vault:
@@ -366,3 +370,45 @@ Example cron:
 ```cron
 0 * * * * cd /var/www/app && php bin/console nowo:vault:extension-tokens:purge --no-interaction
 ```
+
+## Scope vaults (`scopes`)
+
+Since 1.16.0 items, folders and tags can be owned by a **scope** of your application (a project, an organization)
+instead of a user. YAML only (never editable from the runtime-config screen).
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `scopes.enabled` | `false` | Registers the scope routes and allows scope rows |
+| `scopes.access_resolver` | `null` | Service id implementing `Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface`. **Required** when enabled (the container fails to compile otherwise) |
+
+```yaml
+nowo_vault:
+    scopes:
+        enabled: true
+        access_resolver: App\Vault\ProjectScopeAccessResolver
+```
+
+The resolver returns, for a user and a scope key, `null` (not a member: no access to anything in the scope, grants
+included) or a `VaultScopeAccess` (`baseline` permission on every scope item or `null` for explicit grants only,
+`catalogue`, `health`, `create`). It is called at most once per (user, scope) per request and never cached across
+requests, so a user who leaves a scope loses access on the next request. Scope keys match
+`^[a-z0-9][a-z0-9_-]{0,127}$`; a malformed key never reaches the resolver. See
+[examples/AccessControl.md](examples/AccessControl.md#scope-vaults).
+
+## Temporary grants (`grants.temporary`)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `grants.temporary.min_ttl` | `PT5M` | Shortest lifetime accepted by `VaultGrantService::grantAs()` (ISO 8601 duration) |
+| `grants.temporary.max_ttl` | `P30D` | Longest lifetime |
+| `grants.temporary.max_permission` | `read` | `read` or `write`. `admin` is refused by the config tree: it includes Share, so a temporary grantee could mint grants that outlive its own |
+| `grants.temporary.ui` | `false` | Adds an expiry choice (never, 1 hour, 1 day, 1 week, a date) to the share form |
+
+A temporary grant stops working at `expiresAt` on every read (strict: active while `now < expiresAt`, using the
+injected clock). Schedule the housekeeping command, which deletes expired rows and emits `GRANT_EXPIRED` once per row:
+
+```bash
+php bin/console nowo:vault:grants:purge-expired [--batch-size=500] [--limit=N] [--dry-run]
+# {"expired":3,"dry_run":false}
+```
+

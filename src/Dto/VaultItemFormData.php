@@ -18,9 +18,11 @@ use function is_string;
  */
 final class VaultItemFormData
 {
-    public string $title        = '';
-    public ?VaultFolder $folder = null;
-    public string $note         = '';
+    public string $title = '';
+    /** Scope items only (1.16.0): kept out of the catalogue. */
+    public bool $catalogueHidden = false;
+    public ?VaultFolder $folder  = null;
+    public string $note          = '';
     /** @var list<string> */
     public array $tags = [];
 

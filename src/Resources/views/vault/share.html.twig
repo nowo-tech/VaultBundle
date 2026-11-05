@@ -3,7 +3,8 @@
   vault.share.title (intro = item title / folder name) with a back link; form = VaultShareType (grantee picker or
   grantee type + id, permission); submit vault.share.submit; cancel = back). Also: grantsTable (View\Table from
   VaultPageFactory::grantsTable(): grantee type, grantee, permission; row action Remove access = POST + CSRF FormView
-  behind a Confirm), grants, granteeLabels (type:id => label), sharingAvailable (false: no grantee can be granted).
+  behind a Confirm), grants, granteeLabels (type:id => label), sharingAvailable (false: no grantee can be granted),
+  expiredGrants (1.16.0: grant id => expired, not yet purged).
   Data blocks filled: nowo_ui_form_body (intro, the REQ-TWIG-003 child loop, the grantee id help),
   nowo_ui_form_aside (current grants through the UiKit `table` partial, or the empty message).
 #}
@@ -45,7 +46,16 @@
                                 <code class="{{ nowo_ui_class('code', bundle) }}">{{ row.granteeId }}</code>
                             {% endif %}
                         </td>
-                        <td class="{{ _cell }}" data-label="{{ 'vault.share.permission'|trans({}, 'NowoVaultBundle') }}">{{ ('vault.permission.' ~ row.permission.value)|trans({}, 'NowoVaultBundle') }}</td>
+                        <td class="{{ _cell }}" data-label="{{ 'vault.share.permission'|trans({}, 'NowoVaultBundle') }}">
+                            {{ ('vault.permission.' ~ row.permission.value)|trans({}, 'NowoVaultBundle') }}
+                            {% if row.expiresAt %}
+                                {# 1.16.0: temporary grant; expired ones give no access already and stay listed until the purge. #}
+                                <span class="{{ nowo_ui_class('muted', bundle) }}" data-testid="vault-grant-expiry">{{ 'vault.share.until'|trans({'%date%': row.expiresAt|date('Y-m-d H:i')}, 'NowoVaultBundle') }}</span>
+                                {% if expiredGrants[row.id]|default(false) %}
+                                    <span class="{{ nowo_ui_class('badge_neutral', bundle) }}" data-testid="vault-grant-expired">{{ 'vault.share.expired'|trans({}, 'NowoVaultBundle') }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
                     {% endblock %}
                 {% endembed %}
             {% endif %}

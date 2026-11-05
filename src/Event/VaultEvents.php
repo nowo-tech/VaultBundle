@@ -41,4 +41,34 @@ final class VaultEvents
      * and the channel only, never a value.
      */
     public const ITEM_REVEALED = 'nowo_vault.item_revealed';
+
+    /**
+     * Vetoable last check of VaultGrantService::grantAs() (1.16.0): {@see VaultGrantPolicyCheckEvent::deny()}.
+     */
+    public const GRANT_POLICY_CHECK = 'nowo_vault.grant_policy_check';
+
+    /**
+     * A grant was created (1.16.0, {@see VaultGrantChangeEvent}; after the flush).
+     */
+    public const GRANT_CREATED = 'nowo_vault.grant_created';
+
+    /**
+     * A grant got a new permission or expiry (1.16.0, {@see VaultGrantChangeEvent} with the previous values).
+     */
+    public const GRANT_UPDATED = 'nowo_vault.grant_updated';
+
+    /**
+     * A grant was revoked (1.16.0, {@see VaultGrantChangeEvent}, reason manual | erasure | resource_purged).
+     */
+    public const GRANT_REVOKED = 'nowo_vault.grant_revoked';
+
+    /**
+     * An expired grant was purged (1.16.0, {@see VaultGrantChangeEvent}, actor null). Access had already ended.
+     */
+    public const GRANT_EXPIRED = 'nowo_vault.grant_expired';
+
+    /**
+     * An item was created, updated, trashed, restored, purged or moved (1.16.0, {@see VaultItemChangeEvent}, ids only).
+     */
+    public const ITEM_CHANGED = 'nowo_vault.item_changed';
 }

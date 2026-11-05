@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\DependencyInjection;
 
+use DateInterval;
 use Nowo\VaultBundle\Database\DatabaseDriver;
 use Nowo\VaultBundle\Ui\VaultPages;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
+use Throwable;
 
 use function array_diff;
 use function array_key_exists;
 use function array_keys;
 use function implode;
 use function is_array;
+use function is_string;
 use function sprintf;
 use function trigger_deprecation;
 
@@ -219,6 +222,51 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+                ->arrayNode('scopes')
+                    ->info('Scope-owned vaults (1.16.0): items, folders and tags owned by a host scope (project, organization) instead of a user.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('enabled')
+                            ->info('Register the scope routes and allow scope rows. Requires access_resolver.')
+                            ->defaultFalse()
+                        ->end()
+                        ->scalarNode('access_resolver')
+                            ->info('Service id implementing VaultScopeAccessResolverInterface (who belongs to a scope, with which baseline permission). Required when enabled.')
+                            ->defaultNull()
+                        ->end()
+                    ->end()
+                ->end()
+                ->arrayNode('grants')
+                    ->info('Sharing grants (1.16.0).')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->arrayNode('temporary')
+                            ->info('Temporary grants (VaultGrantService::grantAs() with an expiresAt). Access ends at expiresAt on every read; nowo:vault:grants:purge-expired deletes the rows and emits GRANT_EXPIRED.')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->scalarNode('min_ttl')
+                                    ->info('Shortest accepted lifetime (ISO 8601 duration).')
+                                    ->defaultValue('PT5M')
+                                    ->validate()->ifTrue(static fn (mixed $v): bool => !self::isDuration($v))->thenInvalid('grants.temporary.min_ttl must be an ISO 8601 duration such as PT5M.')->end()
+                                ->end()
+                                ->scalarNode('max_ttl')
+                                    ->info('Longest accepted lifetime (ISO 8601 duration).')
+                                    ->defaultValue('P30D')
+                                    ->validate()->ifTrue(static fn (mixed $v): bool => !self::isDuration($v))->thenInvalid('grants.temporary.max_ttl must be an ISO 8601 duration such as P30D.')->end()
+                                ->end()
+                                ->enumNode('max_permission')
+                                    ->info('Highest permission of a temporary grant. admin is refused: it includes Share, so a temporary grantee could mint grants that outlive its own.')
+                                    ->values(['read', 'write'])
+                                    ->defaultValue('read')
+                                ->end()
+                                ->booleanNode('ui')
+                                    ->info('Offer an expiry choice (1 hour, 1 day, 1 week, custom up to max_ttl) in the share form.')
+                                    ->defaultFalse()
+                                ->end()
+                            ->end()
+                        ->end()
+                    ->end()
+                ->end()
                 ->arrayNode('routes')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -348,6 +396,27 @@ final class Configuration implements ConfigurationInterface
                                 ->scalarNode('name')->defaultValue('nowo_vault_item_reveal')->end()
                             ->end()
                         ->end()
+                        ->arrayNode('scope_items')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}')->end()
+                                ->scalarNode('name')->defaultValue('nowo_vault_scope_items')->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('scope_item_new')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/items/new/{type}')->end()
+                                ->scalarNode('name')->defaultValue('nowo_vault_scope_item_new')->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('scope_folder_create')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/folders')->end()
+                                ->scalarNode('name')->defaultValue('nowo_vault_scope_folder_create')->end()
+                            ->end()
+                        ->end()
                         ->arrayNode('password_generate')
                             ->addDefaultsIfNotSet()
                             ->children()
@@ -470,6 +539,24 @@ final class Configuration implements ConfigurationInterface
             ->end();
 
         return $treeBuilder;
+    }
+
+    /**
+     * Whether the value is a valid ISO 8601 duration (DateInterval).
+     */
+    private static function isDuration(mixed $value): bool
+    {
+        if (!is_string($value) || $value === '') {
+            return false;
+        }
+
+        try {
+            new DateInterval($value);
+        } catch (Throwable) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

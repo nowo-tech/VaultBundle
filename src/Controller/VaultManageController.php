@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Controller;
 
+use DateTimeImmutable;
 use InvalidArgumentException;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Dto\PasswordGeneratorOptions;
@@ -20,6 +21,7 @@ use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultGrantListQueryEvent;
 use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
+use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
 use Nowo\VaultBundle\Form\VaultItemFormType;
@@ -45,6 +47,7 @@ use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Ui\VaultPageFactory;
 use Nowo\VaultBundle\Ui\VaultPages;
+use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
@@ -106,6 +109,9 @@ final class VaultManageController extends AbstractController
         private readonly int $denyStatus = Response::HTTP_FORBIDDEN,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly ?VaultSecretAccessRateLimiter $secretAccessRateLimiter = null,
+        private readonly ?ClockInterface $clock = null,
+        /** grants.temporary.ui: offer an expiry choice in the share form (1.16.0). */
+        private readonly bool $temporaryGrantsUi = false,
     ) {
     }
 
@@ -375,12 +381,18 @@ final class VaultManageController extends AbstractController
             }
         }
 
-        $folders      = $this->folderService->listForCreator($user);
+        // 1.16.0: the folder and tag choices are the item owner's (the user's, or the scope's).
+        $scope        = $item->getOwnerScope();
+        $folders      = $scope !== null ? $this->folderService->listForScope($scope) : $this->folderService->listForCreator($user);
         $payload      = $this->cryptographer->decrypt($item->getCiphertext());
         $data         = VaultItemFormData::fromPayload($item->getItemType(), $payload);
         $data->title  = $item->getTitle();
         $data->folder = $item->getFolder();
         $data->tags   = $item->getTagNames();
+        // Rename-free organisation (folder, tags, catalogue visibility) belongs to the owner: the personal owner, or a
+        // scope member with admin on the item (a write grantee changes the content only; SEC-004 M1, L1, L2).
+        $canOrganise           = $scope !== null ? $this->accessGuard->canAccessItem($user, $item, VaultAccessAction::Share) : $item->getOwner()->isUser($user);
+        $data->catalogueHidden = $item->isCatalogueHidden();
         // 1.15.2: no decrypted secret reaches the page HTML; each one is revealed on demand (revealItemField()).
         $data->clearSecrets();
         $storedSecrets = VaultItemFormData::storedSecretFields($item->getItemType(), $payload);
@@ -389,6 +401,7 @@ final class VaultManageController extends AbstractController
             'folders'              => $folders,
             'stored_secret_fields' => $storedSecrets,
             'allow_secret_clear'   => !$viewMode && !$readOnly,
+            'scope_item'           => $scope !== null && $canOrganise,
         ]);
 
         if (!$viewMode && $request instanceof Request) {
@@ -408,16 +421,22 @@ final class VaultManageController extends AbstractController
                 is_array($cleared) ? array_values(array_filter($cleared, is_string(...))) : [],
             );
             $payload = $this->mergeAttachmentIntoPayload($newPayload, $item->getItemType(), $request, $payload);
-            // Folder and tags are the creator's organisation: a grantee with Write may change the content only (a folder
+            // Folder and tags are the owner's organisation: a grantee with Write may change the content only (a folder
             // move was a privilege escalation path, SEC-004 M1; the editor's folders / tags replaced the owner's, L1/L2).
-            $isCreator = UserIdResolver::isSameUser($item->getCreator(), $user);
-            $this->itemUpdater->update($item, $data->title, $payload, $isCreator ? $data->folder : $item->getFolder());
-            if ($isCreator) {
+            $this->itemUpdater->update($item, $data->title, $payload, $canOrganise ? $data->folder : $item->getFolder(), $user);
+            if ($canOrganise) {
+                if ($scope !== null) {
+                    $item->setCatalogueHidden($data->catalogueHidden);
+                }
                 $this->tagService->syncItemTags($item, $user, $data->tags);
             }
             $this->addFlash('success', $this->translator->trans('vault.flash.item_updated', [], 'NowoVaultBundle'));
 
-            return $this->redirectToItems($isCreator ? $data->folder : null);
+            if ($scope !== null && isset($this->routes()['scope_items'])) {
+                return $this->redirectToRoute($this->routes()['scope_items']['name'], ['scope' => $scope]);
+            }
+
+            return $this->redirectToItems($canOrganise ? $data->folder : null);
         }
 
         return $this->renderItemPage($form, $item->getItemType(), $item, $readOnly, $viewMode, $folders, $item->getFolder()?->getId(), $storedSecrets);
@@ -499,13 +518,15 @@ final class VaultManageController extends AbstractController
 
         $item = $this->findItemOr404($id, allowTrashed: true);
         $this->denyUnlessItemAccess($item, VaultAccessAction::Share);
+        /** @var UserInterface $user */
+        $user = $this->getUser();
 
         $grant = $this->grantService->findById($grantId);
         if (!$grant instanceof VaultGrant || $grant->getResourceType() !== VaultResourceType::Item || $grant->getResourceId() !== $item->getId()) {
             throw $this->createNotFoundException('Grant not found.');
         }
 
-        $this->grantService->revoke($grant);
+        $this->revokeGrant($user, $grant);
         $this->addFlash('success', $this->translator->trans('vault.flash.grant_revoked', [], 'NowoVaultBundle'));
 
         return $this->redirectToRoute($this->routes()['item_share']['name'], ['id' => $item->getId()]);
@@ -522,13 +543,15 @@ final class VaultManageController extends AbstractController
 
         $folder = $this->findFolderOr404($id, allowTrashed: true);
         $this->denyUnlessFolderAccess($folder, VaultAccessAction::Share);
+        /** @var UserInterface $user */
+        $user = $this->getUser();
 
         $grant = $this->grantService->findById($grantId);
         if (!$grant instanceof VaultGrant || $grant->getResourceType() !== VaultResourceType::Folder || $grant->getResourceId() !== $folder->getId()) {
             throw $this->createNotFoundException('Grant not found.');
         }
 
-        $this->grantService->revoke($grant);
+        $this->revokeGrant($user, $grant);
         $this->addFlash('success', $this->translator->trans('vault.flash.grant_revoked', [], 'NowoVaultBundle'));
 
         return $this->redirectToRoute($this->routes()['items']['name'], ['folder' => $folder->getId()]);
@@ -545,7 +568,7 @@ final class VaultManageController extends AbstractController
 
         $item = $this->findItemOr404($id);
         $this->denyUnlessItemAccess($item, VaultAccessAction::Delete);
-        $this->trashService->moveItemToTrash($item);
+        $this->trashService->moveItemToTrash($item, $this->getUser());
         $this->addFlash('success', $this->translator->trans('vault.flash.item_trashed', [], 'NowoVaultBundle'));
 
         return $this->redirectToRoute($this->routes()['items']['name']);
@@ -562,7 +585,7 @@ final class VaultManageController extends AbstractController
 
         $item = $this->findItemOr404($id, allowTrashed: true);
         $this->denyUnlessItemAccess($item, VaultAccessAction::Restore);
-        $this->trashService->restoreItem($item);
+        $this->trashService->restoreItem($item, $this->getUser());
         $this->addFlash('success', $this->translator->trans('vault.flash.item_restored', [], 'NowoVaultBundle'));
 
         return $this->redirectToRoute($this->routes()['trash']['name']);
@@ -579,7 +602,7 @@ final class VaultManageController extends AbstractController
 
         $item = $this->findItemOr404($id, allowTrashed: true);
         $this->denyUnlessItemAccess($item, VaultAccessAction::Purge);
-        $this->trashService->purgeItem($item);
+        $this->trashService->purgeItem($item, $this->getUser());
         $this->addFlash('success', $this->translator->trans('vault.flash.item_purged', [], 'NowoVaultBundle'));
 
         return $this->redirectToRoute($this->routes()['trash']['name']);
@@ -902,7 +925,7 @@ final class VaultManageController extends AbstractController
             return null;
         }
 
-        if (!UserIdResolver::isSameUser($user, $folder->getCreator())) {
+        if (!$folder->getOwner()->isUser($user)) {
             return null;
         }
 
@@ -916,6 +939,7 @@ final class VaultManageController extends AbstractController
     {
         return $this->createForm(VaultShareType::class, $data ?? new VaultShareFormData(), [
             'grantee_choices' => $grantList->getGrantees(),
+            'temporary_ui'    => $this->temporaryGrantsUi,
         ]);
     }
 
@@ -935,17 +959,46 @@ final class VaultManageController extends AbstractController
             return false;
         }
 
-        $this->grantService->grant(
-            $resourceType,
-            $resourceId,
-            $data->granteeType,
-            $data->granteeId,
-            $data->permission,
-            $user,
-        );
+        try {
+            // 1.16.0: grantAs() re-checks Share, the grantee list, scope membership and the temporary-grant rules.
+            $this->grantService->grantAs(
+                $user,
+                $resourceType,
+                $resourceId,
+                $data->granteeType,
+                $data->granteeId,
+                $data->permission,
+                $this->temporaryGrantsUi ? $data->resolveExpiresAt($this->now()) : null,
+            );
+        } catch (VaultGrantRefusedException $exception) {
+            $key = match ($exception->getReason()) {
+                VaultGrantRefusedException::SELF_GRANT, VaultGrantRefusedException::GRANTEE_NOT_ALLOWED, VaultGrantRefusedException::GRANTEE_NOT_IN_SCOPE => 'vault.flash.grantee_not_allowed',
+                default                                                                                                                                   => 'vault.flash.grant_refused',
+            };
+            $this->addFlash('error', $this->translator->trans($key, [], 'NowoVaultBundle'));
+
+            return false;
+        }
         $this->addFlash('success', $this->translator->trans('vault.flash.share_created', [], 'NowoVaultBundle'));
 
         return true;
+    }
+
+    /**
+     * Revokes a grant on behalf of the user (1.16.0: Share re-checked, conditional delete, GRANT_REVOKED).
+     */
+    private function revokeGrant(UserInterface $user, VaultGrant $grant): void
+    {
+        try {
+            $this->grantService->revokeAs($user, $grant);
+        } catch (VaultGrantRefusedException) {
+            throw $this->resourceDenied('Vault item not found.');
+        }
+    }
+
+    private function now(): DateTimeImmutable
+    {
+        return $this->clock?->now() ?? new DateTimeImmutable();
     }
 
     /**
@@ -963,13 +1016,20 @@ final class VaultManageController extends AbstractController
         string $backRoute,
         array $backParams,
     ): Response {
-        $pages = $this->pages();
-        $view  = $form->createView();
+        $pages         = $this->pages();
+        $view          = $form->createView();
+        $now           = $this->now();
+        $expiredGrants = [];
+        foreach ($grants as $grant) {
+            $expiredGrants[$grant->getId()] = !$grant->isActiveAt($now);
+        }
 
         return $this->renderForm($form, $this->templates()['share'], $pages->context([
-            'page'          => $pages->share($view, $resourceLabel, $backRoute, $backParams),
-            'grantsTable'   => $pages->grantsTable($grants, $this->revokeGrantForms($grants, $resourceId, $grantRevokeRoute), $resourceId, $grantRevokeRoute),
-            'grants'        => $grants,
+            'page'        => $pages->share($view, $resourceLabel, $backRoute, $backParams),
+            'grantsTable' => $pages->grantsTable($grants, $this->revokeGrantForms($grants, $resourceId, $grantRevokeRoute), $resourceId, $grantRevokeRoute),
+            'grants'      => $grants,
+            // 1.16.0: grant id => true for an expired, not yet purged grant (it already gives no access).
+            'expiredGrants' => $expiredGrants,
             'resourceLabel' => $resourceLabel,
             'granteeLabels' => $grantList->getLabelMap(),
             // 1.15.2: false when no listener lists grantees and unlisted grantees are not allowed (sharing unavailable).

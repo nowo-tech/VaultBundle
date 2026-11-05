@@ -7,6 +7,7 @@
 - [Browser extension API](#browser-extension-api)
 - [Secrets and CLI](#secrets-and-cli)
 - [Secret fields](#secret-fields)
+- [Scope vaults and temporary grants (1.16.0)](#scope-vaults-and-temporary-grants-1160)
 - [Logging](#logging)
 - [Accepted residuals (REQ-SEC-004)](#accepted-residuals-req-sec-004)
 - [Release checklist (12.4.1)](#release-checklist-1241)
@@ -20,7 +21,9 @@
 | Extension login | Brute force | `browser_extension.login_rate_limit` (cache-backed, enabled by default) |
 | Extension tokens | DB growth / leaked tokens | Short `token_ttl`, cron `nowo:vault:extension-tokens:purge`, HTTPS |
 | Manage routes | Unauthorized access | Symfony firewall + `VaultAccessCheckerInterface`. Keep `security.allow_unauthenticated: false` in production (demo-only AllowAll bypass). |
-| Item/folder ACL | IDOR | Creator ownership + `VaultGrant` + events |
+| Item/folder ACL | IDOR | Owner (user or scope membership) + active `VaultGrant` + events |
+| Scope membership | A user who left a scope keeps access | Membership resolved on every request (`VaultScopeAccessResolverInterface`, memoized per request only); a non-member is denied everything, grants included |
+| Temporary grants | Access after expiry, escalation | Expiry checked on every read against the clock (no purge lag); temporary grants capped at `write`; never replace a permanent grant |
 | Secret fields | Disclosure in HTML / caches | Never rendered; per-field reveal (CSRF, View, rate limit, `ITEM_REVEALED`); `no-store` on every bundle response |
 | Share form | Cross-tenant grants | Fail closed without a `GRANT_LIST_QUERY` listener |
 | Attachments | Oversized uploads | `max_attachment_bytes` limit |
@@ -55,6 +58,27 @@ Since 1.15.2 no decrypted secret reaches the item HTML. Secret fields per type: 
 
 Sharing fails closed: without a `GRANT_LIST_QUERY` listener listing grantees nobody can be granted (`security.allow_unlisted_grantees: true` restores the unsafe free-text form). `security.deny_status: 404` hides whether an item or folder exists from users without access.
 
+## Scope vaults and temporary grants (1.16.0)
+
+| Area | Threat | Control |
+| --- | --- | --- |
+| Grants: escalation | A temporary grantee mints permanent grants that outlive its expiry | Temporary grants are capped at `write` by the config tree (`grants.temporary.max_permission`); Share needs `admin` |
+| Grants: escalation | A `write` grantee moves an item into its own folder to inherit folder grants (GHSA-vq49-95v8-97mg) | Folder grants apply only when the folder has the item's owner; folder / tag changes need the personal owner or scope admin |
+| Grants: escalation | Self-grant, or a temporary grant that downgrades or replaces a permanent one | `self_grant`; a covered temporary grant is `unchanged`, an upgrade is refused (`would_replace_permanent`) |
+| Grants: escalation | A host approval acts with a stale approver | `grantAs()` re-checks Share at the call |
+| Grants: escalation (residual R3) | A demoted scope admin keeps what they granted to their own team | Accepted. Veto in `GRANT_POLICY_CHECK`; the baseline still drops with the role |
+| Grants: expiry | An expired grant works until the purge | Filtered in every query **and** re-checked with `VaultGrant::isActiveAt()` against `ClockInterface`; the purge only deletes rows and emits `GRANT_EXPIRED` |
+| Grants: expiry | Clock skew between web nodes and the database | `now` comes from PHP (`ClockInterface`), never from the database; run NTP. Active while `now < expiresAt` |
+| Grants: races | Double revoke, revoke vs purge, extend vs purge | Conditional `DELETE … WHERE id` (and `expires_at <= now` for the purge) with an affected-rows check: one event per deletion; an extended grant survives |
+| Grants: races (residual R1) | A revoke lands while a request is between the access check and the response | Accepted: the window is one request |
+| Grants: cross-tenant | Any typed grantee id is accepted | Fail closed without a `GRANT_LIST_QUERY` listener (1.15.2); a user grantee of a scope resource must be a scope member (`grantee_not_in_scope`) |
+| Grants: cross-tenant | A user who left an organization keeps item grants | The membership gate runs before grants on every request |
+| Grants: cross-tenant | Team ids collide across organizations | Host obligation: namespace team ids (e.g. `org-<uuid>:group-<uuid>`); the bundle compares them opaquely |
+| Scopes | A forged `{scope}` in the URL | Route requirement `[a-z0-9][a-z0-9_-]{0,127}` + `resolve()` on every request; the scope key is never read from form data; a non-member gets the deny status |
+| Ownership | Scope rows deleted with their creator | `creator_id` is NULL on scope rows; `created_by_id` is `ON DELETE SET NULL` (audit only, never used for access) |
+
+Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time; **R3** team self-grants after a demotion.
+
 ## Logging
 
 The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service; no-op when none is registered). Every record carries `bundle: nowo_vault` and an `action` key; context holds identifiers and counters only.
@@ -64,7 +88,9 @@ The bundle logs through the injected `Psr\Log\LoggerInterface` (`logger` service
 | Extension login rejected (bad credentials / account or Vault role denied) | notice | `reason` only — **never** the submitted username or password |
 | Extension token issued / all tokens of a user revoked | info | `user_id`, `count` |
 | `/logins` lookup truncated by `max_login_items` | warning | `user_id`, `available`, `scanned` |
-| Grant created / updated / revoked | info | `resource_type`, `resource_id`, `grantee_type`, `grantee_id`, `permission` |
+| Grant created / updated / revoked | info | `resource_type`, `resource_id`, `grantee_type`, `grantee_id`, `permission`; since 1.16.0 also `expires_at` and `actor_id` when set |
+| Grant refused (1.16.0) | notice | `code`, `actor_id`, `resource_type`, `resource_id` |
+| Expired grants purged (1.16.0) | info | `count`, `dry_run` |
 | Item / folder purged | info | `item_id` / `folder_id` |
 | Runtime configuration updated / reset | notice | changed top-level **keys** and `encryption_key_change` (bool) — never the values |
 | `nowo:vault:reencrypt` started / finished / rejected / failed; key persisted to DB | info / error / notice | `dry_run`, `include_deleted`, counters, error message (no key material) |

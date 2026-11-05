@@ -1,0 +1,101 @@
+{#
+  Scope vault (1.16.0, REQ-UI-003): UiKit list scaffold. Variable: page (View\ListPage from
+  VaultPageFactory::scopeItems(): header vault.scope.items.title (intro = the scope key) with one create action per item
+  type when the member may create; filters = VaultItemSearchType; columns type, title, tags, folder; row actions View /
+  Edit (write) / Access + Trash (admin, POST + CSRF FormView behind a Confirm); Pagination; EmptyState).
+  Also: scope, access (VaultScopeAccess), items, permissions (item id => VaultPermission|null), folders, tags,
+  folderForm (VaultFolderCreateType, null without create), activeFolder, activeTag, searchQuery, routes.
+  Data blocks filled: nowo_ui_list_filters (folders and tags panels, then the default search region),
+  nowo_ui_list_row (cells).
+#}
+{% extends '@NowoUiKit/page/list.html.twig' %}
+{% trans_default_domain 'NowoVaultBundle' %}
+
+{% block nowo_ui_styles %}{{ parent() }}<link rel="stylesheet" href="{{ asset('vault.css', 'nowo_vault') }}">{% endblock %}
+
+{% block nowo_ui_list_filters %}
+    {% set _b = page.bundle %}
+    {% set _active_folder = activeFolder|default(null) %}
+    {% set _active_tag = activeTag|default(null) %}
+    <section class="{{ nowo_ui_class('card', _b) }} vault-panel" data-testid="vault-folders"{{ nowo_ui_attrs('card', _b) }}>
+        <header class="{{ nowo_ui_class('card_header', _b) }}">
+            <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'vault.nav.folders'|trans }}</h2>
+            {% if folderForm %}
+                <button type="button" class="{{ nowo_ui_class('btn_secondary', _b) }}" data-vault-folder-toggle aria-controls="vault-folder-form" aria-expanded="false">{{ 'vault.folder.add'|trans }}</button>
+            {% endif %}
+        </header>
+        <div class="{{ nowo_ui_class('card_body', _b) }}">
+            {% if folderForm %}
+                {{ form_start(folderForm, {attr: {id: 'vault-folder-form', class: 'vault-folder-form', 'data-vault-folder-form': true, hidden: true}}) }}
+                    {% for child in folderForm %}
+                        {% if not child.rendered %}
+                            {{ form_row(child, 'hidden' in child.vars.block_prefixes ? {} : {attr: child.vars.attr|merge({class: nowo_ui_class('input', _b)})}) }}
+                        {% endif %}
+                    {% endfor %}
+                    <button type="submit" class="{{ nowo_ui_class('btn_primary', _b) }}">{{ 'vault.action.save'|trans }}</button>
+                {{ form_end(folderForm) }}
+            {% endif %}
+            <ul class="vault-chips" aria-label="{{ 'vault.nav.folders'|trans }}">
+                <li class="vault-chip">
+                    <a class="{{ nowo_ui_class(_active_folder is null ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.scope_items.name, {scope: scope}) }}"{% if _active_folder is null %} aria-current="page"{% endif %}>{{ 'vault.folder.all'|trans }}</a>
+                </li>
+                {% for folder in folders %}
+                    <li class="vault-chip" data-testid="vault-folder">
+                        <a class="{{ nowo_ui_class(_active_folder == folder.id ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.scope_items.name, {scope: scope, folder: folder.id}) }}"{% if _active_folder == folder.id %} aria-current="page"{% endif %}>{{ folder.name }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </section>
+
+    {% if tags is not empty %}
+        <section class="{{ nowo_ui_class('card', _b) }} vault-panel" data-testid="vault-tags"{{ nowo_ui_attrs('card', _b) }}>
+            <header class="{{ nowo_ui_class('card_header', _b) }}">
+                <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ 'vault.tags.filter'|trans }}</h2>
+            </header>
+            <div class="{{ nowo_ui_class('card_body', _b) }}">
+                <ul class="vault-chips" aria-label="{{ 'vault.tags.filter'|trans }}">
+                    <li class="vault-chip">
+                        <a class="{{ nowo_ui_class(_active_tag is null ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.scope_items.name, {scope: scope}) }}"{% if _active_tag is null %} aria-current="page"{% endif %}>{{ 'vault.tags.all'|trans }}</a>
+                    </li>
+                    {% for tag in tags %}
+                        <li class="vault-chip" data-testid="vault-tag">
+                            <a class="{{ nowo_ui_class(_active_tag == tag.id ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.scope_items.name, {scope: scope, tag: tag.id}) }}"{% if _active_tag == tag.id %} aria-current="page"{% endif %}>{{ tag.name }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+    {% endif %}
+
+    {{ parent() }}
+{% endblock %}
+
+{% block nowo_ui_list_row %}
+    {% set _b = page.bundle %}
+    {% set _cell = nowo_ui_class('table_cell', _b) %}
+    {% set _permission = permissions[row.id]|default(null) %}
+    <td class="{{ _cell }}" data-label="{{ 'vault.list.type'|trans }}" data-nowo-ui-priority="2">{{ ('vault.type.' ~ row.itemType.value)|trans }}</td>
+    <td class="{{ _cell }}" data-label="{{ 'vault.list.title'|trans }}" data-required="1">
+        <a href="{{ path(routes.item_view.name, {id: row.id}) }}">{{ row.title }}</a>
+        {% if _permission is not null and not _permission.allowsWrite %}
+            <span class="{{ nowo_ui_class('badge_info', _b) }}">{{ 'vault.badge.read_only'|trans }}</span>
+        {% endif %}
+    </td>
+    <td class="{{ _cell }}{{ row.tags is empty ? ' ' ~ nowo_ui_class('table_cell_muted', _b) }}" data-label="{{ 'vault.form.tags'|trans }}" data-nowo-ui-priority="3">
+        {% for tag in row.tags %}
+            <a class="{{ nowo_ui_class('badge_neutral', _b) }}" href="{{ path(routes.scope_items.name, {scope: scope, tag: tag.id}) }}">{{ tag.name }}</a>
+        {% else %}
+            —
+        {% endfor %}
+    </td>
+    <td class="{{ _cell }}" data-label="{{ 'vault.list.folder'|trans }}" data-nowo-ui-priority="2">
+        {% if row.folder %}
+            <a href="{{ path(routes.scope_items.name, {scope: scope, folder: row.folder.id}) }}">{{ row.folder.name }}</a>
+        {% else %}
+            <span class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.form.no_folder'|trans }}</span>
+        {% endif %}
+    </td>
+{% endblock %}
+
+{% block nowo_ui_scripts %}{{ parent() }}<script type="module" src="{{ asset('vault.js', 'nowo_vault') }}"></script>{% endblock %}

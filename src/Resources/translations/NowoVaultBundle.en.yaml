@@ -56,6 +56,15 @@ vault:
         submit: Grant access
         existing: Current grants
         manage: Manage sharing
+        until: 'until %date%'
+        expired: Expired
+        expires_in: Access ends
+        expires_never: Never (permanent)
+        expires_1h: In 1 hour
+        expires_1d: In 1 day
+        expires_1w: In 1 week
+        expires_custom: On a date
+        expires_at: End date
     access:
         title: Access
         intro: Share this resource with other users or teams (groups). Each grant defines who can read, write, or administer it.
@@ -103,6 +112,9 @@ vault:
         tags: Tags
         tag_placeholder: e.g. work, personal
         tags_help: Type a tag and press Enter. Tags are reused across your items.
+        title_scope_help: 'The name is visible to every member in the catalogue. Do not put passwords, URLs or account names in it.'
+        catalogue_hidden: Hide from the catalogue
+        catalogue_hidden_help: Members without access will not see that this entry exists. Access itself does not change.
     reveal:
         show: "Show"
         hide: "Hide"
@@ -179,6 +191,7 @@ vault:
             key_invalid: "The encryption key must be a base64-encoded 32-byte libsodium key. Nothing was saved."
             key_storage_unavailable: "The encryption key cannot be stored in the database: install nowo-tech/doctrine-encrypt-bundle so it is encrypted at rest, or configure nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes must be zero or greater.
+        grant_refused: Access could not be granted.
     runtime_config:
         title: Runtime configuration
         intro: Database settings for vault encryption key, attachment size limit, and password strength level.
@@ -195,3 +208,7 @@ vault:
         generate_key: Generate VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Max attachment size (bytes)
         password_level: Password strength level
+    scope:
+        items:
+            title: Shared vault
+            description: 'Entries owned by %scope%. Access depends on your role in it and on the access granted to you.'

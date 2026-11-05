@@ -6,14 +6,19 @@ namespace Nowo\VaultBundle\Entity;
 
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
+use Nowo\VaultBundle\Exception\VaultOwnerException;
 use Nowo\VaultBundle\ValueObject\Uuid;
+use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * Doctrine entity for a vault folder owned by its creator (soft-deletable, optionally nested).
+ *
+ * Since 1.16.0 a folder is owned by a user (`creator_id`) or by a host scope (`owner_scope`), exactly one of them.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'vault_folders')]
+#[ORM\Index(name: 'vault_folders_owner_scope_idx', columns: ['owner_scope', 'deleted_at'])]
 #[ORM\HasLifecycleCallbacks]
 class VaultFolder
 {
@@ -30,19 +35,49 @@ class VaultFolder
     #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
     private DateTimeImmutable $updatedAt;
 
+    /** Host scope key of a scope folder, null for a personal folder (1.16.0). */
+    #[ORM\Column(name: 'owner_scope', type: 'string', length: 128, nullable: true)]
+    private ?string $ownerScope;
+
+    /** Who created the folder (audit only); null once that user was deleted (1.16.0). */
+    #[ORM\ManyToOne(targetEntity: UserInterface::class)]
+    #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
+    private ?object $createdBy;
+
     /**
-     * Creates a folder for the given creator, optionally under a parent folder.
+     * Creates a folder for the given creator, optionally under a parent folder. A scope folder passes `$creator = null`
+     * and `$ownerScope` (use {@see self::forScope()}).
+     *
+     * @throws VaultOwnerException when the owner is ambiguous or the scope key is invalid
      */
-    public function __construct(#[ORM\Column(type: 'string', length: 255)]
-        private string $name, #[ORM\ManyToOne(targetEntity: UserInterface::class)]
-        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-        private object $creator, #[ORM\ManyToOne(targetEntity: self::class)]
+    public function __construct(
+        #[ORM\Column(type: 'string', length: 255)]
+        private string $name,
+        /** Personal owner; null for a scope folder (1.16.0). */
+        #[ORM\ManyToOne(targetEntity: UserInterface::class)]
+        #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
+        private ?object $creator,
+        #[ORM\ManyToOne(targetEntity: self::class)]
         #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-        private ?self $parent = null)
+        private ?self $parent = null,
+        ?string $ownerScope = null,
+        ?object $createdBy = null,
+    ) {
+        $this->ownerScope = VaultOwner::fromColumns($creator, $ownerScope)->getScope();
+        $this->createdBy  = $createdBy ?? $creator;
+        $this->id         = Uuid::generate()->toString();
+        $this->createdAt  = new DateTimeImmutable();
+        $this->updatedAt  = new DateTimeImmutable();
+    }
+
+    /**
+     * Creates a scope-owned folder (1.16.0).
+     *
+     * @throws VaultOwnerException when the scope key is invalid
+     */
+    public static function forScope(string $name, string $scope, ?object $createdBy, ?self $parent = null): self
     {
-        $this->id        = Uuid::generate()->toString();
-        $this->createdAt = new DateTimeImmutable();
-        $this->updatedAt = new DateTimeImmutable();
+        return new self($name, null, $parent, $scope, $createdBy);
     }
 
     /**
@@ -75,11 +110,43 @@ class VaultFolder
     }
 
     /**
-     * Returns the user that created (owns) the folder.
+     * Returns the user that owns the personal folder.
+     *
+     * @deprecated since 1.16.0, use getOwner() (or getCreatedBy() for the audit creator)
+     *
+     * @throws VaultOwnerException for a scope folder
      */
     public function getCreator(): object
     {
+        if ($this->creator === null) {
+            throw new VaultOwnerException('A scope folder has no personal owner; use getOwner().');
+        }
+
         return $this->creator;
+    }
+
+    /**
+     * The owner: a user or a scope (1.16.0).
+     */
+    public function getOwner(): VaultOwner
+    {
+        return VaultOwner::fromColumns($this->creator, $this->ownerScope);
+    }
+
+    /**
+     * The owning scope key, or null for a personal folder (1.16.0).
+     */
+    public function getOwnerScope(): ?string
+    {
+        return $this->ownerScope;
+    }
+
+    /**
+     * Who created the folder (audit only), or null (1.16.0).
+     */
+    public function getCreatedBy(): ?object
+    {
+        return $this->createdBy;
     }
 
     /**

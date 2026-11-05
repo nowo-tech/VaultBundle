@@ -56,6 +56,15 @@ vault:
         submit: Conceder acesso
         existing: Permissões atuais
         manage: Gerir partilha
+        until: 'até %date%'
+        expired: Expirado
+        expires_in: O acesso termina
+        expires_never: Nunca (permanente)
+        expires_1h: Dentro de 1 hora
+        expires_1d: Dentro de 1 dia
+        expires_1w: Dentro de 1 semana
+        expires_custom: Numa data
+        expires_at: Data de fim
     access:
         title: Acesso
         intro: Partilhe este recurso com outros utilizadores ou equipas (grupos). Cada permissão define quem pode ler, escrever ou administrar.
@@ -103,6 +112,9 @@ vault:
         tags: Etiquetas
         tag_placeholder: ex. trabalho, pessoal
         tags_help: Escreva uma etiqueta e prima Enter. As etiquetas são reutilizadas entre os seus elementos.
+        title_scope_help: 'O nome é visível para todos os membros no catálogo. Não inclua palavras-passe, URL nem nomes de conta.'
+        catalogue_hidden: Ocultar do catálogo
+        catalogue_hidden_help: Os membros sem acesso não verão que esta entrada existe. O acesso não muda.
     reveal:
         show: "Mostrar"
         hide: "Ocultar"
@@ -179,6 +191,7 @@ vault:
             key_invalid: "A chave de encriptação deve ser uma chave libsodium de 32 bytes codificada em base64. Nada foi guardado."
             key_storage_unavailable: "A chave de encriptação não pode ser guardada na base de dados: instale nowo-tech/doctrine-encrypt-bundle para a encriptar em repouso, ou configure nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes deve ser zero ou superior.
+        grant_refused: Não foi possível conceder o acesso.
     runtime_config:
         title: Configuração em tempo de execução
         intro: Definições na base de dados para chave de encriptação, limite de anexos e nível de palavra-passe.
@@ -195,3 +208,7 @@ vault:
         generate_key: Gerar VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Tamanho máximo de anexos (bytes)
         password_level: Nível de robustez da palavra-passe
+    scope:
+        items:
+            title: Cofre partilhado
+            description: 'Entradas de %scope%. O acesso depende da sua função e dos acessos que lhe foram concedidos.'

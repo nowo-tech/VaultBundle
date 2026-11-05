@@ -34,6 +34,7 @@ services:
             $webUiEnabled: '%nowo_vault.web_ui.enabled%'
             $browserExtensionEnabled: '%nowo_vault.browser_extension.enabled%'
             $browserExtensionRoutes: '%nowo_vault.browser_extension.routes%'
+            $enabledOptionalRouteKeys: '%nowo_vault.enabled_optional_route_keys%'
         tags:
             - { name: routing.loader }
 
@@ -64,6 +65,32 @@ services:
             $allowUnauthenticated: '%nowo_vault.security.allow_unauthenticated%'
             $perPage: '%nowo_vault.pagination.per_page%'
             $denyStatus: '%nowo_vault.security.deny_status%'
+            $temporaryGrantsUi: '%nowo_vault.grants.temporary.ui%'
+
+    # 1.16.0 scope vaults (routes registered only with nowo_vault.scopes.enabled).
+    Nowo\VaultBundle\Controller\VaultScopeController:
+        public: true
+        autoconfigure: false
+        tags: ['controller.service_arguments', 'container.service_subscriber']
+        arguments:
+            $runtimeConfig: '@Nowo\VaultBundle\Config\VaultRuntimeConfigProvider'
+            $passwordStrengthEnabled: '%nowo_vault.password_strength_enabled%'
+            $tagInputEnabled: '%nowo_vault.tag_input_enabled%'
+            $perPage: '%nowo_vault.pagination.per_page%'
+            $denyStatus: '%nowo_vault.security.deny_status%'
+
+    Nowo\VaultBundle\Service\VaultGrantService:
+        arguments:
+            $temporary: '%nowo_vault.grants.temporary%'
+
+    Nowo\VaultBundle\Support\VaultUserLocator:
+        arguments:
+            $userClass: '%nowo_vault.user_class%'
+            $managerName: '%nowo_vault.entity_manager%'
+
+    Nowo\VaultBundle\Command\CheckDowngradeCommand:
+        arguments:
+            $managerName: '%nowo_vault.entity_manager%'
 
     Nowo\VaultBundle\Service\VaultGrantListResolver:
         arguments:

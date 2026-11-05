@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Service;
 
+use LogicException;
 use Nowo\VaultBundle\Entity\VaultFolder;
+use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultOwnerException;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
+use Nowo\VaultBundle\Repository\VaultScopeFolderRepositoryInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccess;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * Creates, renames and looks up vault folders.
@@ -17,7 +23,46 @@ final readonly class VaultFolderService
      */
     public function __construct(
         private VaultFolderRepositoryInterface $folderRepository,
+        private ?VaultAccessGuard $accessGuard = null,
     ) {
+    }
+
+    /**
+     * Creates a folder owned by a scope (1.16.0). The actor needs `create` in the scope; a parent folder must belong
+     * to the same scope.
+     *
+     * @throws VaultAccessDeniedException when the actor may not create in the scope
+     * @throws VaultOwnerException when the parent belongs to another owner
+     */
+    public function createInScope(UserInterface $actor, string $name, string $scope, ?VaultFolder $parent = null): VaultFolder
+    {
+        $access = $this->accessGuard?->resolveScopeAccess($actor, $scope);
+        if (!$access instanceof VaultScopeAccess || !$access->create) {
+            throw new VaultAccessDeniedException();
+        }
+
+        if ($parent instanceof VaultFolder && $parent->getOwnerScope() !== $scope) {
+            throw new VaultOwnerException('The parent folder belongs to another owner.');
+        }
+
+        $folder = VaultFolder::forScope($name, $scope, $actor, $parent);
+        $this->folderRepository->save($folder);
+
+        return $folder;
+    }
+
+    /**
+     * Returns the scope's active folders (1.16.0).
+     *
+     * @return list<VaultFolder>
+     */
+    public function listForScope(string $scope): array
+    {
+        if (!$this->folderRepository instanceof VaultScopeFolderRepositoryInterface) {
+            throw new LogicException('Scope folders need a folder repository implementing VaultScopeFolderRepositoryInterface.');
+        }
+
+        return $this->folderRepository->findByScope($scope);
     }
 
     /**

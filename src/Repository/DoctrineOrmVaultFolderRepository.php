@@ -12,7 +12,7 @@ use SortDirection;
 /**
  * Doctrine ORM implementation of the vault folder repository.
  */
-final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepositoryInterface
+final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepositoryInterface, VaultScopeFolderRepositoryInterface
 {
     use ResolvesEntityManagerTrait;
 
@@ -85,6 +85,23 @@ final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepo
             ->andWhere('f.deletedAt IS NOT NULL')
             ->setParameter('creator', $creator)
             ->orderBy('f.deletedAt', SortDirection::Descending)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The scope's active folders, by name (1.16.0).
+     */
+    public function findByScope(string $scope): array
+    {
+        /* @var list<VaultFolder> */
+        return $this->em()->createQueryBuilder()
+            ->select('f')
+            ->from(VaultFolder::class, 'f')
+            ->where('f.ownerScope = :scope')
+            ->andWhere('f.deletedAt IS NULL')
+            ->setParameter('scope', $scope)
+            ->orderBy('f.name', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
     }

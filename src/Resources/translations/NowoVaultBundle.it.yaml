@@ -56,6 +56,15 @@ vault:
         submit: Concedi accesso
         existing: Permessi attuali
         manage: Gestisci condivisione
+        until: 'fino al %date%'
+        expired: Scaduto
+        expires_in: 'L''accesso termina'
+        expires_never: Mai (permanente)
+        expires_1h: Tra 1 ora
+        expires_1d: Tra 1 giorno
+        expires_1w: Tra 1 settimana
+        expires_custom: In una data
+        expires_at: Data di fine
     access:
         title: Accesso
         intro: Condividi questa risorsa con altri utenti o team (gruppi). Ogni permesso definisce chi può leggerla, modificarla o amministrarla.
@@ -103,6 +112,9 @@ vault:
         tags: Tag
         tag_placeholder: es. lavoro, personale
         tags_help: Digita un tag e premi Invio. I tag vengono riutilizzati tra i tuoi elementi.
+        title_scope_help: 'Il nome è visibile a tutti i membri nel catalogo. Non inserire password, URL o nomi di account.'
+        catalogue_hidden: Nascondi dal catalogo
+        catalogue_hidden_help: 'I membri senza accesso non vedranno che questa voce esiste. L''accesso non cambia.'
     reveal:
         show: "Mostra"
         hide: "Nascondi"
@@ -179,6 +191,7 @@ vault:
             key_invalid: "La chiave di crittografia deve essere una chiave libsodium di 32 byte codificata in base64. Non è stato salvato nulla."
             key_storage_unavailable: "La chiave di crittografia non può essere memorizzata nel database: installa nowo-tech/doctrine-encrypt-bundle per crittografarla a riposo, oppure configura nowo_vault.encryption_key tramite YAML/env."
             max_attachment_invalid: max_attachment_bytes deve essere zero o maggiore.
+        grant_refused: 'Non è stato possibile concedere l''accesso.'
     runtime_config:
         title: Configurazione runtime
         intro: Impostazioni database per chiave di crittografia, limite allegati e livello password.
@@ -195,3 +208,7 @@ vault:
         generate_key: Genera VAULT_ENCRYPTION_KEY
         max_attachment_bytes: Dimensione massima allegati (byte)
         password_level: Livello robustezza password
+    scope:
+        items:
+            title: Cassaforte condivisa
+            description: 'Voci di %scope%. L''accesso dipende dal tuo ruolo e dagli accessi che ti sono stati concessi.'

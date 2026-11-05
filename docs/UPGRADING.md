@@ -3,6 +3,9 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Schema](#schema)
+  - [BC notes](#bc-notes)
+  - [New options (all off by default)](#new-options-all-off-by-default)
 - [To 1.15.2](#to-1152)
 - [To 1.15.1](#to-1151)
 - [To 1.15.0](#to-1150)
@@ -63,6 +66,148 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+Planned as **1.16.0** (minor). From **1.15.2**:
+
+```bash
+composer update nowo-tech/vault-bundle
+php bin/console assets:install
+php bin/console doctrine:migrations:diff   # required: new columns, nullable owner FKs (see "Schema" below)
+# add the two backfill UPDATEs below to the generated migration, then:
+php bin/console doctrine:migrations:migrate
+```
+
+Every adopter must migrate, even without using the new features. With every new option left at its default, the
+behaviour is 1.15.2's apart from the BC notes below.
+
+### Schema
+
+New columns (all additive) and nullable owner FKs, so that an item, folder or tag can be owned by a host **scope**
+instead of a user:
+
+| Table | Change |
+| --- | --- |
+| `vault_items` | `creator_id` nullable (still `ON DELETE CASCADE`); new `owner_scope` VARCHAR(128) NULL, `created_by_id` FK user NULL `ON DELETE SET NULL`, `secret_changed_at` DATETIME NULL, `catalogue_hidden` BOOLEAN NOT NULL DEFAULT false; indexes `vault_items_owner_scope_idx (owner_scope, deleted_at, updated_at)`, `vault_items_created_by_idx (created_by_id)` |
+| `vault_folders` | `creator_id` nullable; new `owner_scope`, `created_by_id` (`SET NULL`); index `vault_folders_owner_scope_idx (owner_scope, deleted_at)` |
+| `vault_tags` | `creator_id` nullable; new `owner_scope`; unique `vault_tags_scope_name_unique (owner_scope, name)` next to `(creator_id, name)` |
+| `vault_grants` | new `expires_at` DATETIME NULL; indexes `vault_grants_expires_idx (expires_at)`, `vault_grants_grantee_idx (grantee_type, grantee_id)` (`created_by_id` already became `SET NULL` in 1.15.2) |
+
+Reference DDL (default `table_prefix: vault_`; `<USER_ID_TYPE>` / `<user_table>` = your user entity's id type and
+table, `<fk_…>` = the names Doctrine generated). The generated diff is the source of truth; it must contain this and
+nothing else:
+
+```sql
+-- MySQL 8+ / MariaDB
+ALTER TABLE vault_items
+  MODIFY creator_id <USER_ID_TYPE> DEFAULT NULL,
+  ADD owner_scope VARCHAR(128) DEFAULT NULL,
+  ADD created_by_id <USER_ID_TYPE> DEFAULT NULL,
+  ADD secret_changed_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)',
+  ADD catalogue_hidden TINYINT(1) DEFAULT 0 NOT NULL;
+ALTER TABLE vault_items ADD CONSTRAINT <fk_items_created_by> FOREIGN KEY (created_by_id) REFERENCES <user_table> (id) ON DELETE SET NULL;
+CREATE INDEX vault_items_owner_scope_idx ON vault_items (owner_scope, deleted_at, updated_at);
+CREATE INDEX vault_items_created_by_idx ON vault_items (created_by_id);
+ALTER TABLE vault_folders
+  MODIFY creator_id <USER_ID_TYPE> DEFAULT NULL,
+  ADD owner_scope VARCHAR(128) DEFAULT NULL,
+  ADD created_by_id <USER_ID_TYPE> DEFAULT NULL;
+ALTER TABLE vault_folders ADD CONSTRAINT <fk_folders_created_by> FOREIGN KEY (created_by_id) REFERENCES <user_table> (id) ON DELETE SET NULL;
+CREATE INDEX vault_folders_owner_scope_idx ON vault_folders (owner_scope, deleted_at);
+ALTER TABLE vault_tags
+  MODIFY creator_id <USER_ID_TYPE> DEFAULT NULL,
+  ADD owner_scope VARCHAR(128) DEFAULT NULL;
+CREATE UNIQUE INDEX vault_tags_scope_name_unique ON vault_tags (owner_scope, name);
+ALTER TABLE vault_grants ADD expires_at DATETIME DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)';
+CREATE INDEX vault_grants_expires_idx ON vault_grants (expires_at);
+CREATE INDEX vault_grants_grantee_idx ON vault_grants (grantee_type, grantee_id);
+
+-- PostgreSQL
+ALTER TABLE vault_items ALTER creator_id DROP NOT NULL;
+ALTER TABLE vault_items ADD owner_scope VARCHAR(128) DEFAULT NULL;
+ALTER TABLE vault_items ADD created_by_id <USER_ID_TYPE> DEFAULT NULL;
+ALTER TABLE vault_items ADD secret_changed_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL;
+ALTER TABLE vault_items ADD catalogue_hidden BOOLEAN DEFAULT false NOT NULL;
+ALTER TABLE vault_items ADD CONSTRAINT <fk_items_created_by> FOREIGN KEY (created_by_id) REFERENCES <user_table> (id) ON DELETE SET NULL NOT DEFERRABLE INITIALLY IMMEDIATE;
+CREATE INDEX vault_items_owner_scope_idx ON vault_items (owner_scope, deleted_at, updated_at);
+CREATE INDEX vault_items_created_by_idx ON vault_items (created_by_id);
+ALTER TABLE vault_folders ALTER creator_id DROP NOT NULL;
+ALTER TABLE vault_folders ADD owner_scope VARCHAR(128) DEFAULT NULL;
+ALTER TABLE vault_folders ADD created_by_id <USER_ID_TYPE> DEFAULT NULL;
+ALTER TABLE vault_folders ADD CONSTRAINT <fk_folders_created_by> FOREIGN KEY (created_by_id) REFERENCES <user_table> (id) ON DELETE SET NULL NOT DEFERRABLE INITIALLY IMMEDIATE;
+CREATE INDEX vault_folders_owner_scope_idx ON vault_folders (owner_scope, deleted_at);
+ALTER TABLE vault_tags ALTER creator_id DROP NOT NULL;
+ALTER TABLE vault_tags ADD owner_scope VARCHAR(128) DEFAULT NULL;
+CREATE UNIQUE INDEX vault_tags_scope_name_unique ON vault_tags (owner_scope, name);
+ALTER TABLE vault_grants ADD expires_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL;
+CREATE INDEX vault_grants_expires_idx ON vault_grants (expires_at);
+CREATE INDEX vault_grants_grantee_idx ON vault_grants (grantee_type, grantee_id);
+
+-- SQLite: nullability and FK actions cannot be altered in place; Doctrine rebuilds the tables.
+
+-- Backfill (same migration, after the DDL; Doctrine cannot generate it)
+UPDATE vault_items   SET created_by_id = creator_id, secret_changed_at = updated_at;
+UPDATE vault_folders SET created_by_id = creator_id;
+```
+
+On MySQL / MariaDB mark the migration **non-transactional** (`isTransactional(): false`): DDL auto-commits. No row
+changes owner: every existing row stays personal (`owner_scope IS NULL`, `creator_id` set).
+
+**Rollback to 1.15.x** is possible only while no scope row and no temporary grant exists. Check first (read-only, exit
+code 1 when a rollback would lose data):
+
+```bash
+php bin/console nowo:vault:schema:check-downgrade
+# {"safe":true,"scope_items":0,"scope_folders":0,"scope_tags":0,"temporary_grants":0}
+```
+
+then drop the new indexes and columns and restore `NOT NULL` on the three `creator_id` columns.
+
+### BC notes
+
+- **`VaultItem::getCreator()`, `VaultFolder::getCreator()`, `VaultTag::getCreator()` are deprecated.** They still
+  return the owner of personal rows and throw `VaultOwnerException` for scope rows (which exist only once you enable
+  `scopes`). Use `getOwner()` (`VaultOwner`: `isScope()`, `getUser()`, `getScope()`, `key()`, `isUser($user)`) or
+  `getCreatedBy()` (audit creator, nullable). Listeners that call `getCreator()` on any item must switch before
+  enabling scopes.
+- **`VaultGrantService::grant()` and `revoke()` are deprecated** (they still work, create permanent grants only and
+  never re-check the actor). Use `grantAs($actor, …, ?$expiresAt)` (returns `VaultGrantResult`: `Created`, `Updated`,
+  `Unchanged`; throws `VaultGrantRefusedException` with a reason code) and `revokeAs($actor, $grant)` (false when the
+  grant was already gone). Both old methods now also emit `GRANT_CREATED` / `GRANT_UPDATED` / `GRANT_REVOKED`. The
+  built-in share pages use the new methods.
+- **Grant reads skip expired grants.** `VaultGrantRepositoryInterface` is unchanged; the Doctrine repository's
+  `findByGrantee()`, `findGrantedResourceIds()` and `countByResources()` now return active grants only, and every
+  access decision re-checks `VaultGrant::isActiveAt()` against the clock (custom repositories keep working). No grant
+  expires unless one is created with `expiresAt`. `findByResource()` / `findOne()` / `findById()` still return expired,
+  not yet purged rows (the share page shows them as expired).
+- **The access guard no longer runs its redundant third grant lookup** with the Doctrine repository: one query loads
+  the user's and teams' grants on the item and its folder. A custom `VaultGrantRepositoryInterface` keeps the 1.15
+  lookups.
+- **Purging an item or folder deletes its grants** in the same transaction (no orphan grants), with
+  `GRANT_REVOKED` (reason `resource_purged`).
+- **Key rotation (`nowo:vault:reencrypt`) no longer touches `updated_at`** (it used to reorder every list).
+- **New constructor arguments are appended and optional** (`VaultItem`, `VaultFolder`, `VaultTag`, `VaultGrant`,
+  `VaultAccessGuard`, `VaultGrantService`, `VaultItemCreator`, `VaultItemUpdater`, `VaultTrashService`,
+  `VaultSharedItemResolver`, `VaultFolderService`, `VaultRouteLoader`, `VaultManageController`).
+- **New route keys** (`scope_items`, `scope_item_new`, `scope_folder_create`) have defaults and are registered only
+  with `scopes.enabled`, so custom `nowo_vault.routes` maps keep working.
+
+### New options (all off by default)
+
+```yaml
+nowo_vault:
+    scopes:
+        enabled: false
+        access_resolver: null            # service implementing VaultScopeAccessResolverInterface (required when enabled)
+    grants:
+        temporary:
+            min_ttl: PT5M
+            max_ttl: P30D
+            max_permission: read         # read | write (admin is refused)
+            ui: false                    # expiry choice in the share form
+```
+
+Schedule `php bin/console nowo:vault:grants:purge-expired` (for example every 5 minutes) if you create temporary
+grants: access already ends at `expiresAt`, the command deletes the rows and emits `GRANT_EXPIRED`.
 
 ## To 1.15.2
 

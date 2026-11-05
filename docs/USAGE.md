@@ -7,6 +7,8 @@
 - [Tags](#tags)
 - [Folders](#folders)
 - [Sharing](#sharing)
+- [Scope vaults](#scope-vaults)
+- [Temporary grants](#temporary-grants)
 - [Read-only access](#read-only-access)
 - [Events](#events)
 - [Lists and pagination](#lists-and-pagination)
@@ -58,6 +60,48 @@ Listen to `VaultEvents::GRANT_LIST_QUERY` to limit which users and teams appear 
 
 Team membership is resolved via `VaultTeamMembershipResolverInterface` (configure `nowo_vault.team_membership_resolver`).
 
+## Scope vaults
+
+Since 1.16.0 a host scope (a project, an organization) can own items, folders and tags (`scopes.enabled`, see
+[CONFIGURATION](CONFIGURATION.md#scope-vaults-scopes)). Link your project and organization pages to
+`nowo_vault_scope_items` with the scope key (`path('nowo_vault_scope_items', {scope: 'project-' ~ project.id})`).
+
+- **Who sees what:** the host resolver gives each member a baseline (`read`, `write`, `admin`, or none) plus the
+  `catalogue`, `health` and `create` flags. A member without a baseline sees only the items explicitly granted to them;
+  a non-member sees nothing, even with a direct grant.
+- **Create:** members with `create` add items (`scope_item_new`) and folders (`scope_folder_create`). The scope comes
+  from the route, never from the form; a folder or tag of another owner is refused.
+- **Organise:** folder, tags and *Hide from the catalogue* need admin on the item (the scope baseline or a grant);
+  `write` members edit the content only.
+- **Existing item routes** (view, edit, share, reveal, trash, restore, purge) serve scope items too.
+- **Moving items between owners** (personal ↔ scope, scope ↔ scope) is not offered.
+- Hosts that render their own pages call `VaultScopeItemLister::list()`, `VaultItemCreator::createInScope()`,
+  `VaultFolderService::createInScope()` and `VaultTagService::syncItemTags()` (scope tags), which apply the same checks.
+
+## Temporary grants
+
+`VaultGrantService::grantAs($actor, $resourceType, $resourceId, $granteeType, $granteeId, $permission, $expiresAt)`
+is the entry point for the UI and for host flows such as an access-request approval:
+
+```php
+use Nowo\VaultBundle\Enum\{GranteeType, VaultPermission, VaultResourceType};
+use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
+
+try {
+    $result = $grants->grantAs($approver, VaultResourceType::Item, $itemId, GranteeType::User, $requesterId, VaultPermission::Read, $clock->now()->modify('+1 day'));
+    // VaultGrantResult::Created | Updated | Unchanged (already covered by a permanent grant)
+} catch (VaultGrantRefusedException $e) {
+    // $e->getReason(): actor_cannot_share, self_grant, grantee_not_allowed, grantee_not_in_scope,
+    // expiry_out_of_range, temporary_permission_too_high, would_replace_permanent, policy_denied (or your code)
+}
+```
+
+It re-checks that the actor may Share the resource **now**, so a stale approval cannot grant anything. A temporary
+grant never replaces or upgrades a permanent one. Access ends at `expiresAt` on every read; schedule
+`nowo:vault:grants:purge-expired` for the `GRANT_EXPIRED` event. `revokeAs($actor, $grant)` re-checks Share and returns
+false when the grant was already gone. With `grants.temporary.ui: true` the share form offers an expiry, and the share
+page shows *until …* and an *Expired* badge until the purge.
+
 ## Read-only access
 
 Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()` — see [examples/AccessControl.md](examples/AccessControl.md).
@@ -72,6 +116,10 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 | `ITEM_READ_ONLY_RESOLVE` | View-only mode |
 | `FOLDER_ACCESS_CHECK` | Folder ACL |
 | `GRANT_LIST_QUERY` | Limit users/teams (groups) in share UI for items and folders |
+| `ITEM_REVEALED` | A secret field was revealed (web) or a credential returned to the browser extension (1.15.2) |
+| `GRANT_POLICY_CHECK` | Veto a grant in `grantAs()` with a reason code (1.16.0) |
+| `GRANT_CREATED`, `GRANT_UPDATED`, `GRANT_REVOKED`, `GRANT_EXPIRED` | Grant audit trail (`VaultGrantChangeEvent`: ids, permission, expiry, actor, reason; after the flush) |
+| `ITEM_CHANGED` | Item activity (`VaultItemChangeEvent`: created, updated, trashed, restored, purged, moved; `secretChanged`) |
 
 ## Lists and pagination
 

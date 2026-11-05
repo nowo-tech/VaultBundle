@@ -12,7 +12,7 @@ use SortDirection;
 /**
  * Doctrine ORM implementation of the vault tag repository.
  */
-final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepositoryInterface
+final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepositoryInterface, VaultScopeTagRepositoryInterface
 {
     use ResolvesEntityManagerTrait;
 
@@ -84,5 +84,39 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
     {
         $this->em()->remove($tag);
         $this->em()->flush();
+    }
+
+    /**
+     * The scope's tags, by name (1.16.0).
+     */
+    public function findByScope(string $scope): array
+    {
+        /* @var list<VaultTag> */
+        return $this->em()->createQueryBuilder()
+            ->select('t')
+            ->from(VaultTag::class, 't')
+            ->where('t.ownerScope = :scope')
+            ->setParameter('scope', $scope)
+            ->orderBy('t.name', SortDirection::Ascending)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The scope tag with this name, or null (1.16.0).
+     */
+    public function findOneByScopeAndName(string $scope, string $name): ?VaultTag
+    {
+        /* @var VaultTag|null */
+        return $this->em()->createQueryBuilder()
+            ->select('t')
+            ->from(VaultTag::class, 't')
+            ->where('t.ownerScope = :scope')
+            ->andWhere('t.name = :name')
+            ->setParameter('scope', $scope)
+            ->setParameter('name', $name)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }

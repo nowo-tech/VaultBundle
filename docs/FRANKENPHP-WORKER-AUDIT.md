@@ -38,7 +38,7 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 |------|--------|-------|
 | Mutable state in shared services | ✅ (resolved) | `VaultRuntimeConfigProvider` only keeps the validated YAML baseline (immutable); `VaultAccessGuard::$readOnlyCache` and `VaultRouteLoader::$loaded` removed; `RuntimeKeyVaultPayloadCryptographer` rebuilds its delegate whenever the resolved key changes (checked on every call) |
 | Static properties / `static` locals | ✅ | Only pure static helpers (`UserIdResolver`, `VaultLoginDomainMatcher`, `*Integration::isAvailable()`, `VaultRuntimeConfigSchema::filter()`); no static properties |
-| `ResetInterface` / `kernel.reset` coverage | ✅ N/A | No bundle service needs a reset any more (state removed instead of reset) |
+| `ResetInterface` / `kernel.reset` coverage | ✅ | One request-scoped memo since 1.16.0: `Security\RequestScopedScopeAccessCache` (scope membership per user and scope) implements `ResetInterface` and is tagged `kernel.reset`, so membership is re-evaluated on every request |
 | Request / user / locale captured in services | ✅ | User, request and token are passed as method arguments; nothing is captured in constructors |
 | Superglobals, `$_ENV`, `putenv`, `ini_set`, `setlocale`, timezone | ✅ | None used; config is compiled into container parameters |
 | Doctrine / EntityManager | ✅ (resolved, bundle side) | Repositories resolve the manager from `ManagerRegistry` per call and reset it when closed; settings row read with `HINT_REFRESH`. Identity-map clearing between requests stays the application's job |
@@ -55,7 +55,8 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 |---------|--------|---------------|------------|------------|
 | `Config\VaultRuntimeConfigProvider` | yes | `?array $validatedYamlBaseline` (YAML only, immutable); DB-merged config read from the shared pool on every call | ✅ | ✅ |
 | `Security\RuntimeKeyVaultPayloadCryptographer` | yes (alias of `VaultPayloadCryptographerInterface`) | `$delegate`, `$activeKeyBase64` (rebuilt when the resolved key changes, checked on every call) | ✅ | ✅ |
-| `Service\VaultAccessGuard` | yes | none (cache removed) | ✅ | ✅ |
+| `Service\VaultAccessGuard` | yes | none (cache removed); scope membership goes through the request-scoped cache below | ✅ | ✅ |
+| `Security\RequestScopedScopeAccessCache` (1.16.0) | yes | `array $memo` (user, scope) → `VaultScopeAccess`/null, **reset per request** (`kernel.reset`) | ✅ | ✅ |
 | `Routing\VaultRouteLoader` | yes (`routing.loader`) | none (`$loaded` flag removed) | ✅ | ✅ |
 | `Config\VaultRuntimeConfigWriter`, `Security\VaultRuntimeConfigResolver`, `Security\ConfigurableVaultAccessChecker`, `Security\AllowAllVaultAccessChecker`, `Security\NullVaultTeamMembershipResolver` | yes | none (`readonly`); read config through the provider | ✅ | ✅ |
 | `BrowserExtension\VaultBrowserExtensionLoginRateLimiter` | yes | none; counters live in the PSR-6 cache pool | ✅ | ✅ |
