@@ -178,6 +178,41 @@ policies, personal-data exporter / eraser and the decrypted personal export (1.1
 - Key rotation (`nowo:vault:reencrypt`) touched `updated_at` of every item, which reordered every list; it now uses
   `VaultItem::replaceCiphertextForRotation()`.
 
+### Accepted deviations from contract vault-next v1.0
+
+Accepted by the owner on 2026-11-05. The contract is the 1.16.0 design for symfony-beacon; where the code differs:
+
+- **Reveal (gap 4):** the 1.15.2 route `/tools/vault/items/{id}/reveal/{field}` is kept, and `VaultItemRevealedEvent`
+  is extended (`purpose`, `ownerKey`, `occurredAt`) instead of a new `VaultItemRevealEvent` class.
+  `reveal.secret_fields` is not configurable (it would reopen the 1.15.2 HTML leak); `reveal.revealable_fields` defaults
+  to the secret fields. There is no `browser_extension.logins_rate_limit` (the 1.15.2 shared secret-access budget covers
+  `/logins`) and no `grants.require_grantee_list` (1.15.2 already fails closed).
+- **Routes:** the new routes (scope pages, catalogue, health, attachment, export) are optional route keys enabled by
+  the extension, so a loader built without the list keeps the 1.15 route set. The attachment download lives in
+  `VaultRevealController`.
+- **Tests:** two 1.15.2 assertions changed on purpose (the exact reveal JSON, now the envelope, and the
+  `VaultItemRevealedEvent` property list).
+- **Health (gap 5):** the scope page has no link to the health report (hosts link to the `health` route, as for the
+  catalogue); unknown weak-reason codes are shown as is.
+- **Personal data (gap 6):** to include a received grant's title only when the user can View the resource now, the
+  exporter loads those resources and asks the access guard (it outputs the title only; every other section uses scalar
+  queries). The eraser emits `GRANT_REVOKED` (reason `erasure`) through `VaultGrantService::dispatchChange()` after a
+  conditional delete per row (no `revokeForSystem()` method) and writes with DQL / DBAL only (it never flushes the
+  host's unit of work). The exporter and eraser services are private (inject them).
+- **Decrypted export (gap 7):**
+  - besides the host's `consume()`, the bundle keeps its own list of used proof ids in `export.cache_pool`, so a proof
+    is single use even with a host that ignores `consume()`;
+  - extra refusal reason codes: `primary_factor_missing`, `reauth_replayed`, `invalid_request`, `decrypt_failed`,
+    `audit_failed`;
+  - the GET page also redirects to the re-authentication when any proof check fails, and showing it does not consume
+    the proof;
+  - the stream detaches the entities of each batch instead of calling `EntityManager::clear()` (the host's user and
+    pending entities stay managed);
+  - the CSP is the shared sensitive set `default-src 'none'; frame-ancestors 'none'; sandbox` (stricter than the
+    contract's); `Cache-Control: max-age=0, no-store, private` comes from the bundle response listener;
+  - refusals answer an empty body with the status code (403, 413, 429, 503);
+  - CSV joins `websites` with newlines and tags with `, `; `export.cooldown_seconds: 0` disables the cooldown.
+
 ## [1.15.2] - 2026-11-05
 
 Security hardening: no decrypted secret in the item HTML, `no-store` on every bundle response, fail-closed sharing without a grantee listener, `security.deny_status`, audited and rate-limited secret access. See [UPGRADING](UPGRADING.md#to-1152).
