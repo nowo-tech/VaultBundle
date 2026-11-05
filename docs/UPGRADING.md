@@ -5,6 +5,7 @@
 - [Unreleased](#unreleased)
   - [Schema](#schema)
   - [BC notes](#bc-notes)
+  - [Configuration examples](#configuration-examples)
   - [New options (all off by default)](#new-options-all-off-by-default)
 - [To 1.15.2](#to-1152)
 - [To 1.15.1](#to-1151)
@@ -190,6 +191,19 @@ then drop the new indexes and columns and restore `NOT NULL` on the three `creat
   `VaultSharedItemResolver`, `VaultFolderService`, `VaultRouteLoader`, `VaultManageController`).
 - **New route keys** (`scope_items`, `scope_item_new`, `scope_folder_create`) have defaults and are registered only
   with `scopes.enabled`, so custom `nowo_vault.routes` maps keep working.
+
+### Configuration examples
+
+The contract draft's Beacon example used `grants.require_grantee_list` and `reveal.mode`; neither exists (the config
+tree refuses them and the container fails to compile). Remove them: the fail-closed grantee list is the 1.15.2 default
+(`security.allow_unlisted_grantees: false`, keep it), and on-demand reveal is unconditional since 1.15.2.
+
+```yaml
+nowo_vault:
+    scopes: { enabled: true, access_resolver: App\Vault\Scope\ScopeAccessResolver }
+    security: { deny_status: 404, allow_unlisted_grantees: false }
+    grants: { temporary: { max_ttl: 'P30D', max_permission: read } }
+```
 
 ### New options (all off by default)
 
