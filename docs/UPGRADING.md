@@ -102,11 +102,6 @@ composer update nowo-tech/vault-bundle
   `AccessDeniedException` at `persist()` instead of a Doctrine error at `flush()`.
 - `VaultPersonalDataExporter`, `VaultPersonalDataEraser` and `VaultGrantService` take the new
   `VaultUserLocatorInterface` (the `VaultUserLocator` class implements it, so existing wiring keeps working).
-- **Usable ids, in both mappings (LQ-V-I2, LQ-V-P2-I4).** A user is a vault user only with a usable `getId()`: a
-  positive int, or a string of at most 128 bytes, valid UTF-8, without leading / trailing whitespace and without
-  control, format (zero-width, bidi), separator (any space) or other default-ignorable characters. This also applies
-  with the default `relation` mapping: an entity whose string id is longer, padded or contains such characters is now
-  refused (403 / `AccessDeniedException`) instead of being used. Ints, UUIDs and ULIDs are not affected.
 - `VaultFieldRevealer` refuses non-vault users but has no ownership or grant check of its own: if your code calls it,
   check `VaultAccessGuard::canAccessItem($user, $item, VaultAccessAction::View)` first (LQ-V-P2-I5).
 
@@ -123,7 +118,11 @@ With an existing database, switching from `relation` to `id` changes the user co
 `creator_id`, `created_by_id` and `user_id` keeping their values (ids are stored as strings), that it adds the
 `<table>_<column>_idx` indexes and, on MySQL / MariaDB, `CHARACTER SET utf8mb4 COLLATE utf8mb4_bin` on those columns
 and on `vault_grants.grantee_id` (SQL Server: `COLLATE Latin1_General_100_BIN2`), then migrate. Ids are compared byte
-for byte; unusable ids (see the BC notes) are refused. The bundle reads the database platform when it builds its
+for byte: with `user_mapping: id` an id is usable only when it is a positive int, or a string of at most 128 bytes,
+valid UTF-8, without leading / trailing whitespace and without control, format (zero-width, bidi), separator (any space)
+or other default-ignorable characters; other users are refused, never trimmed, normalised or truncated (the default
+`relation` mapping keeps the 1.16 rules). On a schema whose `grantee_id` still folds case, sharing with a case variant
+of an existing grantee is refused (`grantee_not_allowed`) instead of failing. The bundle reads the database platform when it builds its
 metadata in id mapping: set `doctrine.dbal.server_version` when the database is not reachable at `cache:warmup`
 (otherwise the warmup fails with a `LogicException` rather than caching metadata without the collation). Alias
 `Nowo\VaultBundle\Support\VaultUserLocatorInterface` to your own user directory when `user_class` is no Doctrine

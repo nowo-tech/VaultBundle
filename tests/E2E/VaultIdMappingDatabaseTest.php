@@ -18,6 +18,7 @@ use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
+use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
@@ -37,7 +38,6 @@ use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
-use Throwable;
 
 use function array_map;
 use function array_values;
@@ -206,14 +206,15 @@ final class VaultIdMappingDatabaseTest extends WebTestCase
         $this->em()->clear();
         self::assertNotNull($repository->findOne(VaultResourceType::Item, $item->getId(), GranteeType::User, 'UserA'), 'UserA keeps the grant.');
 
-        // Upsert for usera never updates UserA's grant: a separate grant (binary column) or a refused insert (folded
-        // unique index), UserA's Read unchanged either way.
+        // Upsert for usera never updates UserA's grant: a separate grant (binary column) or a refusal (the folded unique
+        // index holds the key: VaultGrantRefusedException, not a 500, LQ-V-P3-I1), UserA's Read unchanged either way.
         try {
             $result = $grants->grantAs($owner, VaultResourceType::Item, $item->getId(), GranteeType::User, 'usera', VaultPermission::Write);
             self::assertFalse($folded, 'The folded unique index refuses a second grantee row.');
             self::assertSame(VaultGrantResult::Created, $result);
-        } catch (Throwable $exception) {
+        } catch (VaultGrantRefusedException $exception) {
             self::assertTrue($folded, $exception->getMessage());
+            self::assertSame(VaultGrantRefusedException::GRANTEE_NOT_ALLOWED, $exception->getReason());
         }
         $permissions = [];
         foreach ($this->em()->getConnection()->fetchAllAssociative('SELECT grantee_id, permission FROM vault_grants') as $row) {

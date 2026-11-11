@@ -256,7 +256,13 @@ final readonly class VaultGrantService
             // A concurrent request inserted the same grantee first: retry once as the update path.
             $existing = $this->grantRepository->findOne($resourceType, $resourceId, $granteeType, $granteeId);
             if (!$existing instanceof VaultGrant) {
-                throw $exception;
+                // No exact row behind the violation: on a schema whose grantee_id still folds case (no binary collation,
+                // id mapping), another grantee's row holds the unique key. Refuse instead of a 500 (LQ-V-P3-I1).
+                $this->logger()->warning('Vault grant refused: unique key held by another grantee (check the grantee_id collation).', [
+                    'bundle'    => 'nowo_vault',
+                    'exception' => $exception::class,
+                ]);
+                $this->refuse(VaultGrantRefusedException::GRANTEE_NOT_ALLOWED, $actorId, $resourceType, $resourceId);
             }
 
             return $this->update($existing, $permission, $expiresAt, $createdBy, $actorId);

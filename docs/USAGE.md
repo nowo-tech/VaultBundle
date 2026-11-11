@@ -432,7 +432,7 @@ With `user_mapping: id`:
   not reachable at `cache:warmup` (the listener needs the platform);
 - an id is `(string) getId()` as is: at most 128 bytes, valid UTF-8, no leading or trailing whitespace and no control,
   zero-width / format, space or other default-ignorable character (such users are refused, never trimmed, normalised
-  or truncated; this rule applies with the relation mapping too); `5` and `"5"` are the same user, `"05"` and
+  or truncated; the relation mapping keeps the 1.16 rules); `5` and `"5"` are the same user, `"05"` and
   `"UserA"` / `"usera"` are not. Normalise ids in your own user model if you need case-insensitive identities;
 - the entities return a `VaultUserId` (`getId()`) for `getCreator()`, `getCreatedBy()` and `VaultExtensionToken::getUser()`;
   prefer the id accessors (`getCreatorId()`, `getCreatedById()`, `getUserId()`) in your code;

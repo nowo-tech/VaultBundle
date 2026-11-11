@@ -92,9 +92,12 @@ Target **1.17.0** (minor): strict DDD / hexagonal hosts can use the vault (archi
   compare byte-exact), so `usera` never matches `UserA`, neither as an owner nor as a grantee. Whatever the column
   collation, the grant reads behind access decisions (`findActiveForGrantees()`, `findByGrantee()`, `findOne()`,
   "shared with me"), the decrypted personal export (per item), the GDPR export and erasure (grants received
-  included) and the token revocation keep only the rows whose stored id is identical (`===`). Ids longer than 128
-  bytes, with leading / trailing whitespace, or with control, format (zero-width, bidi), separator or other
-  default-ignorable characters, and invalid UTF-8 are refused (never trimmed, normalised or truncated). The id columns
+  included) and the token revocation keep only the rows whose stored id is identical (`===`). In id mapping, ids
+  longer than 128 bytes, with leading / trailing whitespace, or with control, format (zero-width, bidi), separator or
+  other default-ignorable characters, and invalid UTF-8 are refused (never trimmed, normalised or truncated); the
+  default relation mapping keeps the 1.16 id rules. On a schema whose `grantee_id` still folds case, a grant upsert
+  that hits another grantee's unique key is refused (`VaultGrantRefusedException`, `grantee_not_allowed`) instead of
+  a 500. The id columns
   are indexed (`<table>_<column>_idx`). In id mapping the bundle needs the database platform when it builds its
   metadata: set `doctrine.dbal.server_version` if the database is not reachable at `cache:warmup` (it now fails loudly
   instead of caching metadata without the collation). CI runs these checks on MySQL 8.0, MariaDB 11.4 and

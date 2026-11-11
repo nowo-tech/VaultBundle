@@ -496,7 +496,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setDefinition(VaultUserClassPolicy::class, (new Definition(VaultUserClassPolicy::class))
             ->setAutowired(false)
             ->setArgument('$userClass', $config['user_class'])
-            ->setArgument('$acceptedUserClasses', $config['accepted_user_classes']));
+            ->setArgument('$acceptedUserClasses', $config['accepted_user_classes'])
+            ->setArgument('$userMapping', $config['user_mapping']));
 
         $container->setDefinition(DoctrineVaultUserReferenceResolver::class, (new Definition(DoctrineVaultUserReferenceResolver::class))
             ->setAutowired(false)

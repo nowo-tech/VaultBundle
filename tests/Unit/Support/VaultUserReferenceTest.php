@@ -45,6 +45,17 @@ final class VaultUserReferenceTest extends TestCase
         self::assertNull((new VaultUserClassPolicy(stdClass::class))->idOf(new stdClass()), 'No getId().');
     }
 
+    public function testStrictIdRulesApplyWithTheIdMappingOnly(): void
+    {
+        $relation = new VaultUserClassPolicy(TestUser::class);
+        $id       = new VaultUserClassPolicy(TestUser::class, [], VaultUserMapping::ID);
+
+        self::assertSame('John Smith', $relation->idOf(new VaultUserId('John Smith')), 'Relation mapping: as in 1.16.');
+        self::assertNull($id->idOf(new VaultUserId('John Smith')), 'Id mapping: refused.');
+        self::assertNull($id->idOf(new VaultUserId("Us\u{200B}erA")));
+        self::assertSame('UserA', $id->idOf(new VaultUserId('UserA')));
+    }
+
     public function testUsableIds(): void
     {
         $stringable = new class implements Stringable {
@@ -64,26 +75,42 @@ final class VaultUserReferenceTest extends TestCase
         self::assertFalse(VaultUserClassPolicy::isUsableId('-1'));
         self::assertTrue(VaultUserClassPolicy::isUsableId('12'));
         self::assertTrue(VaultUserClassPolicy::isUsableId('0b5f2c1e-uuid'));
-        self::assertFalse(VaultUserClassPolicy::isUsableId(' UserA'), 'LQ-V-I2: never trimmed.');
-        self::assertFalse(VaultUserClassPolicy::isUsableId('UserA '));
-        self::assertFalse(VaultUserClassPolicy::isUsableId(str_repeat('a', 129)), 'LQ-V-I2: never truncated.');
-        self::assertTrue(VaultUserClassPolicy::isUsableId(str_repeat('a', 128)));
-        self::assertFalse(VaultUserClassPolicy::isUsableId("Us\u{200B}erA"), 'LQ-V-P2-M1: zero-width space.');
-        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{FEFF}A"), 'BOM / zero-width no-break space.');
-        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{00A0}A"), 'No-break space.');
-        self::assertFalse(VaultUserClassPolicy::isUsableId('User A'), 'Any separator.');
-        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{202E}A"), 'Bidi override.');
-        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{034F}A"), 'Combining grapheme joiner.');
-        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{FE0F}A"), 'Variation selector.');
-        self::assertFalse(VaultUserClassPolicy::isUsableId("User\x01A"), 'Control character.');
-        self::assertFalse(VaultUserClassPolicy::isUsableId("User\xC3A"), 'Invalid UTF-8.');
-        self::assertTrue(VaultUserClassPolicy::isUsableId('josé@example.com'), 'Visible non-ASCII ids stay valid.');
+        self::assertTrue(VaultUserClassPolicy::isUsableId('josé@example.com'));
+
+        // Relation mapping: the 1.16 rules only (LQ-V-P3-L1, owner decision).
+        foreach ([' UserA', 'UserA ', 'John Smith', str_repeat('a', 129), "Us\u{200B}erA", "User\xC3A"] as $id) {
+            self::assertTrue(VaultUserClassPolicy::isUsableId($id), 'Relation mapping keeps ' . $id);
+        }
+
+        // Id mapping: byte-for-byte ids, never trimmed, normalised or truncated (LQ-V-I2, LQ-V-P2-M1).
+        self::assertTrue(VaultUserClassPolicy::isUsableId(str_repeat('a', 128), true));
+        self::assertTrue(VaultUserClassPolicy::isUsableId('josé@example.com', true), 'Visible non-ASCII ids stay valid.');
+        self::assertTrue(VaultUserClassPolicy::isUsableId(5, true));
+        self::assertFalse(VaultUserClassPolicy::isUsableId(' ', true));
+        self::assertFalse(VaultUserClassPolicy::isUsableId('0', true));
+        $refused = [
+            'leading space'             => ' UserA',
+            'trailing space'            => 'UserA ',
+            '129 bytes'                 => str_repeat('a', 129),
+            'zero-width space'          => "Us\u{200B}erA",
+            'zero-width no-break space' => "User\u{FEFF}A",
+            'no-break space'            => "User\u{00A0}A",
+            'space'                     => 'John Smith',
+            'bidi override'             => "User\u{202E}A",
+            'combining grapheme joiner' => "User\u{034F}A",
+            'variation selector'        => "User\u{FE0F}A",
+            'control character'         => "User\x01A",
+            'invalid UTF-8'             => "User\xC3A",
+        ];
+        foreach ($refused as $label => $id) {
+            self::assertFalse(VaultUserClassPolicy::isUsableId($id, true), $label);
+        }
         self::assertTrue(VaultUserClassPolicy::isUsableId($stringable));
     }
 
     public function testIdMappingReturnsTheStringIdOfAcceptedUsers(): void
     {
-        $resolver = new DoctrineVaultUserReferenceResolver(TestUser::class, new VaultUserClassPolicy(TestUser::class, [AppSecurityUser::class]), VaultUserMapping::ID);
+        $resolver = new DoctrineVaultUserReferenceResolver(TestUser::class, new VaultUserClassPolicy(TestUser::class, [AppSecurityUser::class], VaultUserMapping::ID), VaultUserMapping::ID);
 
         self::assertTrue($resolver->mapsById());
         self::assertSame('user-1', $resolver->reference(new TestUser()));

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Unit\Service;
 
 use Closure;
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use LogicException;
@@ -241,7 +240,7 @@ final class GrantRulesTest extends TestCase
         self::assertSame([VaultEvents::GRANT_UPDATED], $this->events);
     }
 
-    public function testUniqueViolationWithoutARowIsRethrown(): void
+    public function testUniqueViolationWithoutAnExactRowIsARefusal(): void
     {
         $repository = new class extends InMemoryGrantRepository {
             public function findOne(VaultResourceType $resourceType, string $resourceId, GranteeType $granteeType, string $granteeId): ?VaultGrant
@@ -252,8 +251,13 @@ final class GrantRulesTest extends TestCase
         $repository->raceInsert = new VaultGrant(VaultResourceType::Item, 'x', GranteeType::User, '9', VaultPermission::Read, $this->owner);
         $this->grants           = $repository;
 
-        $this->expectException(UniqueConstraintViolationException::class);
-        $this->grantAs($this->service(), VaultPermission::Read);
+        // LQ-V-P3-I1: e.g. a folded grantee_id collation; a refusal, never a 500.
+        try {
+            $this->grantAs($this->service(), VaultPermission::Read);
+            self::fail('Expected a refusal.');
+        } catch (VaultGrantRefusedException $exception) {
+            self::assertSame(VaultGrantRefusedException::GRANTEE_NOT_ALLOWED, $exception->getReason());
+        }
     }
 
     public function testUpdateOfAPurgedRowIsRetriedAsInsert(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Support;
 
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
+use Nowo\VaultBundle\Doctrine\VaultUserMapping;
 use Nowo\VaultBundle\ValueObject\VaultUserId;
 use Stringable;
 
@@ -41,10 +42,12 @@ final readonly class VaultUserClassPolicy
     /**
      * @param string $userClass `nowo_vault.user_class`
      * @param list<string> $acceptedUserClasses `nowo_vault.accepted_user_classes`
+     * @param string $userMapping `nowo_vault.user_mapping`: the strict id rules apply with `id` only
      */
     public function __construct(
         private string $userClass,
         array $acceptedUserClasses = [],
+        private string $userMapping = VaultUserMapping::RELATION,
     ) {
         $classes = [];
         foreach ($acceptedUserClasses as $class) {
@@ -92,19 +95,20 @@ final readonly class VaultUserClassPolicy
 
         $id = $user->getId();
 
-        return self::isUsableId($id) ? $id : null;
+        return self::isUsableId($id, $this->userMapping === VaultUserMapping::ID) ? $id : null;
     }
 
     /**
-     * Whether an id value can identify a user: a positive int, or a non-empty string / Stringable of at most
-     * {@see VaultMetadataListener::USER_ID_LENGTH} bytes, without leading or trailing whitespace (1.17.0, LQ-V-I2: the
-     * id is stored and compared byte for byte, never normalised), that is not a numeric value ≤ 0.
+     * Whether an id value can identify a user: a positive int, or a string / Stringable that is not blank and not a
+     * numeric value ≤ 0 (the relation mapping, unchanged).
      *
-     * Since 1.17.0 (LQ-V-P2-M1) a string id must also be valid UTF-8 without control, format (zero-width: U+200B,
-     * U+200D, U+FEFF, bidi marks…), separator (any space) or other default-ignorable characters: collations ignore
-     * those, so `Us\u{200B}erA` could match `UserA` in SQL. Such users are refused, never normalised.
+     * `$strict` (the id mapping, 1.17.0; the id is stored and compared byte for byte, never normalised) also requires
+     * at most {@see VaultMetadataListener::USER_ID_LENGTH} bytes and no leading or trailing whitespace (LQ-V-I2), and
+     * valid UTF-8 without control, format (zero-width: U+200B, U+200D, U+FEFF, bidi marks…), separator (any space) or
+     * other default-ignorable characters (LQ-V-P2-M1): collations ignore those, so `Us\u{200B}erA` could match `UserA`
+     * in SQL. Such users are refused, never normalised.
      */
-    public static function isUsableId(mixed $id): bool
+    public static function isUsableId(mixed $id, bool $strict = false): bool
     {
         if (is_int($id)) {
             return $id > 0;
@@ -113,11 +117,11 @@ final readonly class VaultUserClassPolicy
             return false;
         }
         $value = (string) $id;
+        if ($strict && (trim($value) !== $value || strlen($value) > VaultMetadataListener::USER_ID_LENGTH || preg_match(self::INVISIBLE, $value) !== 0)) {
+            return false;
+        }
+        $value = trim($value);
 
-        return $value !== ''
-            && trim($value) === $value
-            && strlen($value) <= VaultMetadataListener::USER_ID_LENGTH
-            && preg_match(self::INVISIBLE, $value) === 0
-            && (!is_numeric($value) || (float) $value > 0);
+        return $value !== '' && (!is_numeric($value) || (float) $value > 0);
     }
 }
