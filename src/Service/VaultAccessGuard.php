@@ -22,6 +22,7 @@ use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Support\UserIdResolver;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -49,6 +50,7 @@ final readonly class VaultAccessGuard
         private EventDispatcherInterface $eventDispatcher,
         private ?RequestScopedScopeAccessCache $scopeAccess = null,
         private ?ClockInterface $clock = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -57,6 +59,10 @@ final readonly class VaultAccessGuard
      */
     public function canAccessItem(UserInterface $user, VaultItem $item, VaultAccessAction $action): bool
     {
+        if ($this->isForeignUser($user)) {
+            return false;
+        }
+
         $permission = $this->effectiveItemPermission($user, $item);
         if ($permission === false) {
             // Scope membership gate (1.16.0): a non-member has no access, grants and listeners included.
@@ -81,6 +87,10 @@ final readonly class VaultAccessGuard
      */
     public function canAccessFolder(UserInterface $user, VaultFolder $folder, VaultAccessAction $action): bool
     {
+        if ($this->isForeignUser($user)) {
+            return false;
+        }
+
         $permission = $this->effectiveFolderPermission($user, $folder);
         if ($permission === false) {
             return false;
@@ -136,6 +146,10 @@ final readonly class VaultAccessGuard
      */
     public function resolvePermissionMap(UserInterface $user, array $items): array
     {
+        if ($this->isForeignUser($user)) {
+            return array_fill_keys(array_map(static fn (VaultItem $item): string => $item->getId(), $items), null);
+        }
+
         $grants = $this->loadGrants($user, $items);
         $map    = [];
         foreach ($items as $item) {
@@ -215,7 +229,21 @@ final readonly class VaultAccessGuard
      */
     public function resolveScopeAccess(UserInterface $user, string $scope): ?VaultScopeAccess
     {
+        if ($this->isForeignUser($user)) {
+            return null;
+        }
+
         return $this->scopeAccess?->resolve($user, $scope);
+    }
+
+    /**
+     * 1.17.0 (LQ-V-L1): a user the vault does not accept (neither `user_class` nor listed in `accepted_user_classes`)
+     * owns nothing, holds no grant and is in no scope, whatever its id: Admin#5 never matches Customer#5, also for
+     * host code that calls the guard directly.
+     */
+    private function isForeignUser(UserInterface $user): bool
+    {
+        return $this->users instanceof VaultUserReferenceResolverInterface && !$this->users->isAccepted($user);
     }
 
     /**

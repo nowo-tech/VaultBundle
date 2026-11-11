@@ -12,6 +12,7 @@ use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultFieldRevealCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
 use Nowo\VaultBundle\Event\VaultRevealThrottledEvent;
+use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultDecryptionFailedException;
 use Nowo\VaultBundle\Exception\VaultRevealRefusedException;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
@@ -19,6 +20,7 @@ use Nowo\VaultBundle\Security\VaultRevealRateLimiter;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultRevealedValue;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -53,6 +55,7 @@ final readonly class VaultFieldRevealer
         private ?ClockInterface $clock = null,
         private ?LoggerInterface $logger = null,
         private ?array $revealableFields = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -124,6 +127,11 @@ final readonly class VaultFieldRevealer
      */
     private function authorise(UserInterface $user, VaultItem $item, string $field, string $purpose): void
     {
+        // 1.17.0 (LQ-V-L1): a user the vault does not accept never gets a decrypted value, whoever calls the service.
+        if ($this->users instanceof VaultUserReferenceResolverInterface && !$this->users->isAccepted($user)) {
+            throw new VaultAccessDeniedException('Not a vault user.');
+        }
+
         $check = new VaultFieldRevealCheckEvent($user, $item, $field, $purpose, VaultItemRevealedEvent::CHANNEL_WEB);
         $this->eventDispatcher->dispatch($check, VaultEvents::ITEM_FIELD_REVEAL_CHECK);
         if (!$check->isGranted()) {

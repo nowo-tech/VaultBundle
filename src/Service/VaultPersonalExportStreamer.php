@@ -17,7 +17,9 @@ use Psr\Log\NullLogger;
 use Throwable;
 
 use function array_column;
+use function array_filter;
 use function array_map;
+use function array_values;
 use function flush;
 use function implode;
 use function in_array;
@@ -180,7 +182,8 @@ final readonly class VaultPersonalExportStreamer
             $items = $em->createQuery('SELECT i, f, t FROM ' . VaultItem::class . ' i LEFT JOIN i.folder f LEFT JOIN i.tags t WHERE i.id IN (:ids) ORDER BY i.createdAt ASC, i.id ASC')
                 ->setParameter('ids', $ids)
                 ->getResult();
-            yield $items;
+            // 1.17.0 (LQ-V-M1): never decrypt a row the user does not own, whatever the column collation matched.
+            yield array_values(array_filter($items, static fn (VaultItem $item): bool => $item->getOwner()->isUser($user)));
 
             foreach ($items as $item) {
                 foreach ($item->getTags() as $tag) {

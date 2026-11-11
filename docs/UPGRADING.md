@@ -84,7 +84,9 @@ composer update nowo-tech/vault-bundle
 **BC notes**
 
 - A signed-in user that is not a `user_class` instance (nor listed in `accepted_user_classes`) is now refused on the
-  vault pages (403), by the repositories and services (`AccessDeniedException`) and by the browser extension login.
+  vault pages (403), by the repositories (`AccessDeniedException`), by `VaultAccessGuard` (no ownership, grant or
+  scope membership), `VaultFieldRevealer` (`VaultAccessDeniedException`), `grantAs()` and by the browser extension
+  login.
   Such users could not create vault rows before (Doctrine refused them) and, with a colliding id, could be matched
   with another user's personal vault. If your security user is a wrapper or a read model carrying the `user_class` id,
   list its class:
@@ -111,7 +113,10 @@ nowo_vault:
 
 With an existing database, switching from `relation` to `id` changes the user columns from foreign keys to
 `VARCHAR(128)`: generate the migration (`doctrine:migrations:diff`), check that it drops the foreign keys and converts
-`creator_id`, `created_by_id` and `user_id` keeping their values (ids are stored as strings), then migrate. Alias
+`creator_id`, `created_by_id` and `user_id` keeping their values (ids are stored as strings), that it adds the
+`<table>_<column>_idx` indexes and, on MySQL / MariaDB, `CHARACTER SET utf8mb4 COLLATE utf8mb4_bin` on those columns
+(SQL Server: `COLLATE Latin1_General_100_BIN2`), then migrate. Ids are compared byte for byte; ids longer than 128 bytes
+or with leading / trailing whitespace are refused. Alias
 `Nowo\VaultBundle\Support\VaultUserLocatorInterface` to your own user directory when `user_class` is no Doctrine
 entity (browser extension tokens and scope grantee checks load users through it).
 

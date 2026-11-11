@@ -108,7 +108,8 @@ final readonly class VaultBrowserExtensionAuthService
             $userId = $entity->getUserId();
             $user   = $userId !== null ? $this->userLocator?->find($userId) : null;
         }
-        if (!$user instanceof UserInterface) {
+        // LQ-V-I3: whatever the locator returns must still be a vault user.
+        if (!$user instanceof UserInterface || $this->users?->isAccepted($user) === false) {
             return null;
         }
 

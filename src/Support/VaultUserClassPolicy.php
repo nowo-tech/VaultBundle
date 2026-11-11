@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Support;
 
+use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\ValueObject\VaultUserId;
 use Stringable;
 
@@ -12,6 +13,7 @@ use function is_numeric;
 use function is_string;
 use function ltrim;
 use function method_exists;
+use function strlen;
 use function trim;
 
 /**
@@ -86,8 +88,9 @@ final readonly class VaultUserClassPolicy
     }
 
     /**
-     * Whether an id value can identify a user: a positive int, or a non-empty string / Stringable that is not a
-     * numeric value ≤ 0.
+     * Whether an id value can identify a user: a positive int, or a non-empty string / Stringable of at most
+     * {@see VaultMetadataListener::USER_ID_LENGTH} bytes, without leading or trailing whitespace (1.17.0, LQ-V-I2: the
+     * id is stored and compared byte for byte, never normalised), that is not a numeric value ≤ 0.
      */
     public static function isUsableId(mixed $id): bool
     {
@@ -97,8 +100,11 @@ final readonly class VaultUserClassPolicy
         if (!is_string($id) && !$id instanceof Stringable) {
             return false;
         }
-        $value = trim((string) $id);
+        $value = (string) $id;
 
-        return $value !== '' && (!is_numeric($value) || (float) $value > 0);
+        return $value !== ''
+            && trim($value) === $value
+            && strlen($value) <= VaultMetadataListener::USER_ID_LENGTH
+            && (!is_numeric($value) || (float) $value > 0);
     }
 }

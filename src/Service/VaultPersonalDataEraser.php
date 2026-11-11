@@ -30,7 +30,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-use function array_column;
+use function array_chunk;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
@@ -83,24 +83,29 @@ final readonly class VaultPersonalDataEraser
         // 1.17.0: with the id mapping the user columns hold the id itself.
         $who = $this->users?->mapsById() === true ? $userId : ($this->userLocator?->find($userId) ?? $userId);
 
+        // 1.17.0 (LQ-V-M1): every step works on the ids of the user's rows. With the id mapping those ids are kept only
+        // when the stored user id equals $userId byte for byte, whatever the column collation.
+        $personalItems   = $this->ownedIds($em, VaultItem::class, 'creator', $who, $userId, ' AND r.ownerScope IS NULL');
+        $personalFolders = $this->ownedIds($em, VaultFolder::class, 'creator', $who, $userId, ' AND r.ownerScope IS NULL');
+
         $received = $this->deleteGrants($em, 'g.granteeType = :granteeType AND g.granteeId = :granteeId', ['granteeType' => GranteeType::User, 'granteeId' => $userId], $batchSize);
         $personal = $this->deleteGrants(
             $em,
-            '(g.resourceType = :item AND g.resourceId IN (SELECT pi.id FROM ' . VaultItem::class . ' pi WHERE pi.creator = :user AND pi.ownerScope IS NULL))'
-            . ' OR (g.resourceType = :folder AND g.resourceId IN (SELECT pf.id FROM ' . VaultFolder::class . ' pf WHERE pf.creator = :user AND pf.ownerScope IS NULL))',
-            ['item' => VaultResourceType::Item, 'folder' => VaultResourceType::Folder, 'user' => $who],
+            '(g.resourceType = :item AND g.resourceId IN (:itemIds)) OR (g.resourceType = :folder AND g.resourceId IN (:folderIds))',
+            // An empty IN list is invalid SQL: '' is never a resource id.
+            ['item' => VaultResourceType::Item, 'folder' => VaultResourceType::Folder, 'itemIds' => $personalItems !== [] ? $personalItems : [''], 'folderIds' => $personalFolders !== [] ? $personalFolders : ['']],
             $batchSize,
             'user:' . $userId,
         );
-        $grantsCreated = $this->execute($em, 'UPDATE ' . VaultGrant::class . ' g SET g.createdBy = NULL WHERE g.createdBy = :user', ['user' => $who]);
+        $grantsCreated = $this->updateByIds($em, VaultGrant::class, 'createdBy', $this->ownedIds($em, VaultGrant::class, 'createdBy', $who, $userId), $batchSize);
 
-        [$itemTags, $items] = $this->deleteItems($em, $who, $batchSize);
-        $folders            = $this->deleteFolders($em, $who, $batchSize);
-        [$tagLinks, $tags]  = $this->deleteTags($em, $who, $batchSize);
+        [$itemTags, $items] = $this->deleteItems($em, $personalItems, $batchSize);
+        $folders            = $this->deleteFolders($em, $personalFolders, $batchSize);
+        [$tagLinks, $tags]  = $this->deleteTags($em, $this->ownedIds($em, VaultTag::class, 'creator', $who, $userId, ' AND r.ownerScope IS NULL'), $batchSize);
 
-        $scopeItems   = $this->execute($em, 'UPDATE ' . VaultItem::class . ' i SET i.createdBy = NULL WHERE i.createdBy = :user', ['user' => $who]);
-        $scopeFolders = $this->execute($em, 'UPDATE ' . VaultFolder::class . ' f SET f.createdBy = NULL WHERE f.createdBy = :user', ['user' => $who]);
-        $tokens       = $this->execute($em, 'DELETE FROM ' . VaultExtensionToken::class . ' t WHERE t.user = :user', ['user' => $who]);
+        $scopeItems   = $this->updateByIds($em, VaultItem::class, 'createdBy', $this->ownedIds($em, VaultItem::class, 'createdBy', $who, $userId), $batchSize);
+        $scopeFolders = $this->updateByIds($em, VaultFolder::class, 'createdBy', $this->ownedIds($em, VaultFolder::class, 'createdBy', $who, $userId), $batchSize);
+        $tokens       = $this->deleteByIds($em, VaultExtensionToken::class, $this->ownedIds($em, VaultExtensionToken::class, 'user', $who, $userId), $batchSize);
 
         $result = new VaultErasureResult($received, $personal, $grantsCreated, $itemTags + $tagLinks, $items, $folders, $tags, $scopeItems, $scopeFolders, $tokens);
         $this->eventDispatcher?->dispatch(new VaultPersonalDataErasedEvent($userId, $result->toArray(), $this->now()), VaultEvents::PERSONAL_DATA_ERASED);
@@ -160,21 +165,17 @@ final readonly class VaultPersonalDataEraser
     /**
      * Tag links, then the personal items (trash included), per batch.
      *
-     * @return array{0: int, 1: int} tag links, items
+     * @param list<string> $itemIds the user's personal items
+     * @param int<1, max> $batchSize
+     *
+     * @return array{0: int, 1: int}
      */
-    private function deleteItems(EntityManagerInterface $em, object|string $who, int $batchSize): array
+    private function deleteItems(EntityManagerInterface $em, array $itemIds, int $batchSize): array
     {
         [$joinTable, $itemColumn] = $this->tagJoinTable($em);
         $links                    = 0;
         $items                    = 0;
-        while (true) {
-            /** @var list<string> $ids */
-            $ids = array_column($em->createQuery('SELECT i.id AS id FROM ' . VaultItem::class . ' i WHERE i.creator = :user AND i.ownerScope IS NULL ORDER BY i.id ASC')
-                ->setParameter('user', $who)->setMaxResults($batchSize)->getArrayResult(), 'id');
-            if ($ids === []) {
-                return [$links, $items];
-            }
-
+        foreach (array_chunk($itemIds, $batchSize) as $ids) {
             [$l, $i] = $em->wrapInTransaction(static fn (EntityManagerInterface $em): array => [
                 (int) $em->getConnection()->executeStatement('DELETE FROM ' . $joinTable . ' WHERE ' . $itemColumn . ' IN (?)', [$ids], [ArrayParameterType::STRING]),
                 (int) $em->createQuery('DELETE FROM ' . VaultItem::class . ' i WHERE i.id IN (:ids)')->setParameter('ids', $ids)->execute(),
@@ -182,19 +183,26 @@ final readonly class VaultPersonalDataEraser
             $links += $l;
             $items += $i;
         }
+
+        return [$links, $items];
     }
 
     /**
      * Personal folders, deepest first (a parent is deleted after its children), per batch.
+     *
+     * @param list<string> $folderIds the user's personal folders
+     * @param int<1, max> $batchSize
      */
-    private function deleteFolders(EntityManagerInterface $em, object|string $who, int $batchSize): int
+    private function deleteFolders(EntityManagerInterface $em, array $folderIds, int $batchSize): int
     {
-        /** @var list<array{id: string, parentId: string|null}> $rows */
-        $rows = $em->createQuery('SELECT f.id AS id, IDENTITY(f.parent) AS parentId FROM ' . VaultFolder::class . ' f WHERE f.creator = :user AND f.ownerScope IS NULL')
-            ->setParameter('user', $who)->getArrayResult();
         $parents = [];
-        foreach ($rows as $row) {
-            $parents[$row['id']] = is_string($row['parentId']) ? $row['parentId'] : null;
+        foreach (array_chunk($folderIds, $batchSize) as $chunk) {
+            /** @var list<array{id: string, parentId: string|null}> $rows */
+            $rows = $em->createQuery('SELECT f.id AS id, IDENTITY(f.parent) AS parentId FROM ' . VaultFolder::class . ' f WHERE f.id IN (:ids)')
+                ->setParameter('ids', $chunk)->getArrayResult();
+            foreach ($rows as $row) {
+                $parents[$row['id']] = is_string($row['parentId']) ? $row['parentId'] : null;
+            }
         }
         $depth = [];
         foreach (array_keys($parents) as $id) {
@@ -221,21 +229,17 @@ final readonly class VaultPersonalDataEraser
     /**
      * Personal tags (and any link left to them), per batch.
      *
-     * @return array{0: int, 1: int} tag links, tags
+     * @param list<string> $tagIds the user's personal tags
+     * @param int<1, max> $batchSize
+     *
+     * @return array{0: int, 1: int}
      */
-    private function deleteTags(EntityManagerInterface $em, object|string $who, int $batchSize): array
+    private function deleteTags(EntityManagerInterface $em, array $tagIds, int $batchSize): array
     {
         [$joinTable, , $tagColumn] = $this->tagJoinTable($em);
         $links                     = 0;
         $tags                      = 0;
-        while (true) {
-            /** @var list<string> $ids */
-            $ids = array_column($em->createQuery('SELECT t.id AS id FROM ' . VaultTag::class . ' t WHERE t.creator = :user AND t.ownerScope IS NULL ORDER BY t.id ASC')
-                ->setParameter('user', $who)->setMaxResults($batchSize)->getArrayResult(), 'id');
-            if ($ids === []) {
-                return [$links, $tags];
-            }
-
+        foreach (array_chunk($tagIds, $batchSize) as $ids) {
             [$l, $t] = $em->wrapInTransaction(static fn (EntityManagerInterface $em): array => [
                 (int) $em->getConnection()->executeStatement('DELETE FROM ' . $joinTable . ' WHERE ' . $tagColumn . ' IN (?)', [$ids], [ArrayParameterType::STRING]),
                 (int) $em->createQuery('DELETE FROM ' . VaultTag::class . ' t WHERE t.id IN (:ids)')->setParameter('ids', $ids)->execute(),
@@ -243,6 +247,8 @@ final readonly class VaultPersonalDataEraser
             $links += $l;
             $tags += $t;
         }
+
+        return [$links, $tags];
     }
 
     /**
@@ -262,16 +268,63 @@ final readonly class VaultPersonalDataEraser
     }
 
     /**
-     * @param array<string, mixed> $parameters
+     * Ids of the rows whose user column `$field` holds the user (1.17.0). With the id mapping the stored id is compared
+     * with `===` too, so a case- or accent-insensitive column collation never adds another user's rows (LQ-V-M1).
+     *
+     * @param class-string $class
+     *
+     * @return list<string>
      */
-    private function execute(EntityManagerInterface $em, string $dql, array $parameters): int
+    private function ownedIds(EntityManagerInterface $em, string $class, string $field, object|string $who, string $userId, string $extraWhere = ''): array
     {
-        $query = $em->createQuery($dql);
-        foreach ($parameters as $name => $value) {
-            $query->setParameter($name, $value);
+        $strict = $this->users?->mapsById() === true;
+        /** @var list<array{id: string, owner?: mixed}> $rows */
+        $rows = $em->createQuery('SELECT r.id AS id' . ($strict ? ', r.' . $field . ' AS owner' : '') . ' FROM ' . $class . ' r WHERE r.' . $field . ' = :user' . $extraWhere . ' ORDER BY r.id ASC')
+            ->setParameter('user', $who)
+            ->getArrayResult();
+
+        $ids = [];
+        foreach ($rows as $row) {
+            if (!$strict || ($row['owner'] ?? null) === $userId) {
+                $ids[] = (string) $row['id'];
+            }
         }
 
-        return (int) $em->wrapInTransaction(static fn (): int => (int) $query->execute());
+        return $ids;
+    }
+
+    /**
+     * Sets the user column to NULL on the given rows, one transaction per batch.
+     *
+     * @param class-string $class
+     * @param list<string> $ids
+     * @param int<1, max> $batchSize
+     */
+    private function updateByIds(EntityManagerInterface $em, string $class, string $field, array $ids, int $batchSize): int
+    {
+        $total = 0;
+        foreach (array_chunk($ids, $batchSize) as $chunk) {
+            $total += (int) $em->wrapInTransaction(static fn (EntityManagerInterface $em): int => (int) $em->createQuery('UPDATE ' . $class . ' r SET r.' . $field . ' = NULL WHERE r.id IN (:ids)')->setParameter('ids', $chunk)->execute());
+        }
+
+        return $total;
+    }
+
+    /**
+     * Deletes the given rows, one transaction per batch.
+     *
+     * @param class-string $class
+     * @param list<string> $ids
+     * @param int<1, max> $batchSize
+     */
+    private function deleteByIds(EntityManagerInterface $em, string $class, array $ids, int $batchSize): int
+    {
+        $total = 0;
+        foreach (array_chunk($ids, $batchSize) as $chunk) {
+            $total += (int) $em->wrapInTransaction(static fn (EntityManagerInterface $em): int => (int) $em->createQuery('DELETE FROM ' . $class . ' r WHERE r.id IN (:ids)')->setParameter('ids', $chunk)->execute());
+        }
+
+        return $total;
     }
 
     private function now(): DateTimeImmutable

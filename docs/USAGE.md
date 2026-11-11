@@ -419,7 +419,13 @@ final readonly class VaultUserLocator implements VaultUserLocatorInterface
 
 With `user_mapping: id`:
 
-- the user columns are `VARCHAR(128)` holding the id (no foreign key, no join to your users table, no metadata remap);
+- the user columns are `VARCHAR(128)` holding the id (no foreign key, no join to your users table: the bundle's
+  metadata listener replaces the relation with a plain column), indexed, and compared byte for byte: on MySQL /
+  MariaDB they use `utf8mb4_bin` and on SQL Server `Latin1_General_100_BIN2` (PostgreSQL, SQLite and Oracle already
+  compare byte-exact). Keep that collation in your migrations: the per-item checks, the decrypted export, the GDPR
+  export / erasure and the token revocation stay exact without it, but lists and counts rely on it;
+- an id is `(string) getId()` as is: at most 128 bytes, no leading or trailing whitespace (such users are refused,
+  never trimmed or truncated); `5` and `"5"` are the same user, `"05"` and `"UserA"` / `"usera"` are not;
 - the entities return a `VaultUserId` (`getId()`) for `getCreator()`, `getCreatedBy()` and `VaultExtensionToken::getUser()`;
   prefer the id accessors (`getCreatorId()`, `getCreatedById()`, `getUserId()`) in your code;
 - deleting a user deletes nothing in the vault: call `VaultPersonalDataEraser::erase($userId)` from your "user
@@ -430,8 +436,8 @@ With `user_mapping: id`:
 **In both paths:**
 
 - only `user_class` instances, `VaultUserId`s and `accepted_user_classes` instances (with a usable `getId()`) are vault
-  users; any other signed-in user is refused on the pages (403), by the services and by the browser extension login,
-  so an `Admin#5` never matches a `Customer#5`;
+  users; any other signed-in user is refused on the vault pages (403), by the repositories, the access guard (`VaultAccessGuard`: no ownership, grant or scope membership), the field revealer, grants (`grantAs()`), the personal export and the browser extension login, also when your own code calls those services, so an
+  `Admin#5` never matches a `Customer#5`;
 - react to vault activity through the id-only events (`ITEM_CHANGED`, `GRANT_*`, `ITEM_REVEALED`,
   `PERSONAL_DATA_ERASED`; see [Events](#events)) and decide access through the ports (`VaultAccessCheckerInterface`,
   `VaultScopeAccessResolverInterface`, `VaultTeamMembershipResolverInterface`, `VaultPasswordPolicyResolverInterface`,

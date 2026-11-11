@@ -20,6 +20,8 @@ use stdClass;
 use Stringable;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
+use function str_repeat;
+
 /**
  * 1.17.0: accepted user classes and the default user reference resolver in both user mappings.
  */
@@ -62,6 +64,10 @@ final class VaultUserReferenceTest extends TestCase
         self::assertFalse(VaultUserClassPolicy::isUsableId('-1'));
         self::assertTrue(VaultUserClassPolicy::isUsableId('12'));
         self::assertTrue(VaultUserClassPolicy::isUsableId('0b5f2c1e-uuid'));
+        self::assertFalse(VaultUserClassPolicy::isUsableId(' UserA'), 'LQ-V-I2: never trimmed.');
+        self::assertFalse(VaultUserClassPolicy::isUsableId('UserA '));
+        self::assertFalse(VaultUserClassPolicy::isUsableId(str_repeat('a', 129)), 'LQ-V-I2: never truncated.');
+        self::assertTrue(VaultUserClassPolicy::isUsableId(str_repeat('a', 128)));
         self::assertTrue(VaultUserClassPolicy::isUsableId($stringable));
     }
 

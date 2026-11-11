@@ -25,6 +25,7 @@ use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_map;
+use function preg_replace;
 
 use const DATE_ATOM;
 
@@ -68,13 +69,13 @@ final readonly class VaultPersonalDataExporter
 
         return [
             'user_id'             => $userId,
-            'items'               => $this->items($em, $who),
-            'folders'             => $this->rows($em, 'SELECT f.id AS id, f.name AS name, f.createdAt AS created_at, f.updatedAt AS updated_at, f.deletedAt AS deleted_at FROM ' . VaultFolder::class . ' f WHERE f.creator = :user AND f.ownerScope IS NULL ORDER BY f.createdAt ASC, f.id ASC', ['user' => $who]),
-            'tags'                => $this->rows($em, 'SELECT t.id AS id, t.name AS name, t.createdAt AS created_at FROM ' . VaultTag::class . ' t WHERE t.creator = :user AND t.ownerScope IS NULL ORDER BY t.name ASC', ['user' => $who]),
+            'items'               => $this->items($em, $who, $userId),
+            'folders'             => $this->rows($em, 'SELECT f.id AS id, f.name AS name, f.createdAt AS created_at, f.updatedAt AS updated_at, f.deletedAt AS deleted_at FROM ' . VaultFolder::class . ' f WHERE f.creator = :user AND f.ownerScope IS NULL ORDER BY f.createdAt ASC, f.id ASC', ['user' => $who], 'f.creator', $userId),
+            'tags'                => $this->rows($em, 'SELECT t.id AS id, t.name AS name, t.createdAt AS created_at FROM ' . VaultTag::class . ' t WHERE t.creator = :user AND t.ownerScope IS NULL ORDER BY t.name ASC', ['user' => $who], 't.creator', $userId),
             'grants_received'     => $this->grantsReceived($em, $userId, $user),
-            'grants_given'        => $this->rows($em, 'SELECT g.resourceType AS resource_type, g.resourceId AS resource_id, g.granteeType AS grantee_type, g.granteeId AS grantee_id, g.permission AS permission, g.expiresAt AS expires_at, g.createdAt AS created_at FROM ' . VaultGrant::class . ' g WHERE g.createdBy = :user ORDER BY g.createdAt ASC, g.id ASC', ['user' => $who]),
-            'scope_items_created' => $this->rows($em, 'SELECT i.id AS id, i.ownerScope AS owner_scope, i.createdAt AS created_at FROM ' . VaultItem::class . ' i WHERE i.createdBy = :user AND i.ownerScope IS NOT NULL ORDER BY i.createdAt ASC, i.id ASC', ['user' => $who]),
-            'extension_tokens'    => $this->rows($em, 'SELECT t.createdAt AS created_at, t.expiresAt AS expires_at, t.lastUsedAt AS last_used_at FROM ' . VaultExtensionToken::class . ' t WHERE t.user = :user ORDER BY t.createdAt ASC', ['user' => $who]),
+            'grants_given'        => $this->rows($em, 'SELECT g.resourceType AS resource_type, g.resourceId AS resource_id, g.granteeType AS grantee_type, g.granteeId AS grantee_id, g.permission AS permission, g.expiresAt AS expires_at, g.createdAt AS created_at FROM ' . VaultGrant::class . ' g WHERE g.createdBy = :user ORDER BY g.createdAt ASC, g.id ASC', ['user' => $who], 'g.createdBy', $userId),
+            'scope_items_created' => $this->rows($em, 'SELECT i.id AS id, i.ownerScope AS owner_scope, i.createdAt AS created_at FROM ' . VaultItem::class . ' i WHERE i.createdBy = :user AND i.ownerScope IS NOT NULL ORDER BY i.createdAt ASC, i.id ASC', ['user' => $who], 'i.createdBy', $userId),
+            'extension_tokens'    => $this->rows($em, 'SELECT t.createdAt AS created_at, t.expiresAt AS expires_at, t.lastUsedAt AS last_used_at FROM ' . VaultExtensionToken::class . ' t WHERE t.user = :user ORDER BY t.createdAt ASC', ['user' => $who], 't.user', $userId),
         ];
     }
 
@@ -83,11 +84,11 @@ final readonly class VaultPersonalDataExporter
      *
      * @return list<array<string, mixed>>
      */
-    private function items(EntityManagerInterface $em, object|string $who): array
+    private function items(EntityManagerInterface $em, object|string $who, string $userId): array
     {
-        $items = $this->rows($em, 'SELECT i.id AS id, i.itemType AS type, i.title AS title, f.name AS folder, i.createdAt AS created_at, i.updatedAt AS updated_at, i.secretChangedAt AS secret_changed_at, i.deletedAt AS deleted_at FROM ' . VaultItem::class . ' i LEFT JOIN i.folder f WHERE i.creator = :user AND i.ownerScope IS NULL ORDER BY i.createdAt ASC, i.id ASC', ['user' => $who]);
+        $items = $this->rows($em, 'SELECT i.id AS id, i.itemType AS type, i.title AS title, f.name AS folder, i.createdAt AS created_at, i.updatedAt AS updated_at, i.secretChangedAt AS secret_changed_at, i.deletedAt AS deleted_at FROM ' . VaultItem::class . ' i LEFT JOIN i.folder f WHERE i.creator = :user AND i.ownerScope IS NULL ORDER BY i.createdAt ASC, i.id ASC', ['user' => $who], 'i.creator', $userId);
         $tags  = [];
-        foreach ($this->rows($em, 'SELECT i.id AS item_id, t.name AS name FROM ' . VaultItem::class . ' i JOIN i.tags t WHERE i.creator = :user AND i.ownerScope IS NULL ORDER BY t.name ASC', ['user' => $who]) as $row) {
+        foreach ($this->rows($em, 'SELECT i.id AS item_id, t.name AS name FROM ' . VaultItem::class . ' i JOIN i.tags t WHERE i.creator = :user AND i.ownerScope IS NULL ORDER BY t.name ASC', ['user' => $who], 'i.creator', $userId) as $row) {
             $tags[(string) $row['item_id']][] = (string) $row['name'];
         }
 
@@ -151,8 +152,15 @@ final readonly class VaultPersonalDataExporter
      *
      * @return list<array<string, mixed>>
      */
-    private function rows(EntityManagerInterface $em, string $dql, array $parameters): array
+    private function rows(EntityManagerInterface $em, string $dql, array $parameters, ?string $ownerField = null, ?string $userId = null): array
     {
+        // 1.17.0 (LQ-V-M1): with the id mapping, also read the stored user id and keep the rows where it equals the
+        // requested id byte for byte, whatever the column collation.
+        $strict = $ownerField !== null && $userId !== null && $this->users?->mapsById() === true;
+        if ($strict) {
+            $dql = preg_replace('/ FROM /', ', ' . $ownerField . ' AS vault_owner FROM ', $dql, 1) ?? $dql;
+        }
+
         $query = $em->createQuery($dql);
         foreach ($parameters as $name => $value) {
             $query->setParameter($name, $value);
@@ -162,6 +170,12 @@ final readonly class VaultPersonalDataExporter
         $rows = $query->getArrayResult();
         $out  = [];
         foreach ($rows as $row) {
+            if ($strict) {
+                if (($row['vault_owner'] ?? null) !== $userId) {
+                    continue;
+                }
+                unset($row['vault_owner']);
+            }
             $out[] = array_map($this->normalise(...), $row);
         }
 

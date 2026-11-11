@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\E2E;
 
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthResult;
@@ -16,9 +17,15 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
+use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultBrowserExtensionAuthEvent;
 use Nowo\VaultBundle\Event\VaultEvents;
+use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
+use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
+use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService;
+use Nowo\VaultBundle\Service\VaultFieldRevealer;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Service\VaultItemCreator;
@@ -37,6 +44,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 use function array_map;
+use function preg_replace;
 use function sort;
 
 /**
@@ -139,6 +147,33 @@ final class VaultIdMappingEndToEndTest extends WebTestCase
         $this->creator()->create(VaultItemType::SecureNote, 'Spoofed', new OtherDomainUser(DddUserDirectory::ALICE, 'admin@example.com'), ['note' => 'x']);
     }
 
+    public function testServicesRefuseAUserOfAnotherIdentityDomainOnLoadedItems(): void
+    {
+        $this->bootClient();
+        $alice  = DddUserDirectory::users()[0];
+        $item   = $this->creator()->create(VaultItemType::Login, 'Alice bank', $alice, ['password' => 'MARKER-alice-secret']);
+        $folder = $this->service(VaultFolderService::class)->create('Alice folder', $alice);
+        $admin  = new OtherDomainUser(DddUserDirectory::ALICE, 'admin@example.com');
+        $guard  = $this->service(VaultAccessGuard::class);
+
+        self::assertTrue($guard->canAccessItem($alice, $item, VaultAccessAction::View));
+        self::assertFalse($guard->canAccessItem($admin, $item, VaultAccessAction::View));
+        self::assertFalse($guard->canAccessItem($admin, $item, VaultAccessAction::Delete));
+        self::assertFalse($guard->canAccessFolder($admin, $folder, VaultAccessAction::View));
+        self::assertSame([$item->getId() => null], $guard->resolvePermissionMap($admin, [$item]));
+        self::assertNull($guard->resolveScopeAccess($admin, 'org-1'));
+        self::assertSame([$item->getId() => false], $guard->resolveScopeViewMap($admin, 'org-1', [$item->getId() => null]));
+
+        try {
+            $this->service(VaultGrantService::class)->grantAs($admin, VaultResourceType::Item, $item->getId(), GranteeType::User, DddUserDirectory::BOB, VaultPermission::Read);
+            self::fail('A foreign user must not share the item.');
+        } catch (VaultGrantRefusedException|VaultAccessDeniedException) {
+        }
+
+        $this->expectException(VaultAccessDeniedException::class);
+        $this->service(VaultFieldRevealer::class)->reveal($admin, $item, 'password');
+    }
+
     public function testFoldersTagsGrantsExportAndErasureByUserId(): void
     {
         $this->bootClient();
@@ -209,6 +244,33 @@ final class VaultIdMappingEndToEndTest extends WebTestCase
 
         self::assertSame(1, $auth->revokeAllFor($alice));
         self::assertNull($auth->resolveUser($issued['token']));
+    }
+
+    public function testGdprExportKeepsOnlyExactIdsUnderACaseInsensitiveColumn(): void
+    {
+        // LQ-V-M1: a host whose token column folds case (SQLite NOCASE here, a *_ci collation on MySQL): SQL returns both
+        // users' tokens, the export and the token list keep only the exact id.
+        $this->bootClient();
+        $connection = $this->em()->getConnection();
+        $create     = $connection->fetchOne("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vault_extension_tokens'");
+        self::assertIsString($create);
+        $connection->executeStatement('ALTER TABLE vault_extension_tokens RENAME TO vault_extension_tokens_old');
+        $connection->executeStatement((string) preg_replace('/\buser_id VARCHAR\(128\) NOT NULL/', 'user_id VARCHAR(128) NOT NULL COLLATE NOCASE', $create, 1));
+        $connection->executeStatement('DROP TABLE vault_extension_tokens_old');
+
+        $upper  = new DddUser('UserA', 'upper@example.com');
+        $lower  = new DddUser('usera', 'lower@example.com');
+        $tokens = $this->service(VaultExtensionTokenRepositoryInterface::class);
+        $tokens->save(new VaultExtensionToken('upper-hash', new DateTimeImmutable('+1 hour'), $upper));
+        $tokens->save(new VaultExtensionToken('lower-hash', new DateTimeImmutable('+1 hour'), $lower));
+        $this->em()->clear();
+        self::assertSame(2, (int) $connection->fetchOne("SELECT COUNT(*) FROM vault_extension_tokens WHERE user_id = 'usera'"), 'The column folds case.');
+
+        self::assertSame(['lower-hash'], array_map(static fn (VaultExtensionToken $t): string => $t->getTokenHash(), $tokens->findByUser($lower)));
+        $exporter = self::getContainer()->get('test.personal_data_exporter');
+        self::assertInstanceOf(VaultPersonalDataExporter::class, $exporter);
+        self::assertCount(1, $exporter->export('usera')['extension_tokens']);
+        self::assertCount(1, $exporter->export('UserA')['extension_tokens']);
     }
 
     private function bootClient(): KernelBrowser

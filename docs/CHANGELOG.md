@@ -74,12 +74,24 @@ Target **1.17.0** (minor): strict DDD / hexagonal hosts can use the vault (archi
 
 ### Security
 
-- **Users of another identity domain fail closed.** A signed-in user that is neither a `user_class` instance nor
-  listed in `accepted_user_classes` (with a usable `getId()`) is refused on the vault pages (403) and by the
-  repositories, the services and the browser extension login. Ownership is compared by id, so before 1.17.0 a user of
-  another class with a colliding id (an `Admin#5` next to a `Customer#5` in the same entity manager) could be treated
-  as the owner of the other user's personal vault. Standard hosts (the security user is the `user_class` entity) are
-  not affected.
+- **Cross-class owner confusion (pre-existing, affects 1.0.0 to 1.16.x; a security advisory follows this release).**
+  Ownership is compared by id, so before 1.17.0 a signed-in user of another class with a colliding id (an `Admin#5`
+  next to a `Customer#5` in the same entity manager) was treated as the owner of the other user's personal vault: list,
+  reveal, edit, delete, share and export. Now a signed-in user that is neither a `user_class` instance nor listed in
+  `accepted_user_classes` (with a usable `getId()`) fails closed: refused on the vault pages (403), by the
+  repositories, the access guard (`VaultAccessGuard`: no ownership, grant or scope membership), the field revealer
+  (`VaultAccessDeniedException`), grants (`grantAs()`), the personal export and the browser extension login, also when
+  host code calls those services directly. Standard hosts whose only security user is the `user_class` entity are not
+  affected.
+
+- **Id mapping compares ids byte for byte (LQ-V-M1).** The user id columns get a binary collation where the platform
+  defaults to a case- or accent-insensitive one (`utf8mb4_bin` on MySQL / MariaDB, `Latin1_General_100_BIN2` on SQL
+  Server; PostgreSQL, SQLite and Oracle already compare byte-exact), so `usera` never matches `UserA`. The decrypted
+  personal export (per item), the GDPR export and erasure and the token revocation also keep only the rows whose
+  stored id is identical (`===`), whatever the column collation. Ids longer than 128 bytes or with leading / trailing
+  whitespace are refused (never truncated or trimmed). The id columns are indexed (`<table>_<column>_idx`). CI runs
+  these checks on MySQL 8.0, MariaDB 11.4 and PostgreSQL 17.
+- In id mapping, a user returned by the `VaultUserLocatorInterface` for an extension token must be a vault user too.
 
 ### Changed
 

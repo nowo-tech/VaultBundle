@@ -49,9 +49,12 @@ final class IdMappingKernel extends BaseKernel
         foreach (['framework', 'translation', 'twig'] as $file) {
             $loader->load($this->getProjectDir() . '/config/packages/' . $file . '.yaml');
         }
-        $loader->load(static function (ContainerBuilder $container): void {
+        // Environment "database" (LQ-V-M1 tests): the MySQL / MariaDB / PostgreSQL server of VAULT_TEST_DATABASE_URL
+        // instead of a SQLite file.
+        $url = $this->environment === 'database' ? '%env(VAULT_TEST_DATABASE_URL)%' : 'sqlite:///%kernel.cache_dir%/ddd.db';
+        $loader->load(static function (ContainerBuilder $container) use ($url): void {
             $container->loadFromExtension('doctrine', [
-                'dbal' => ['url' => 'sqlite:///%kernel.cache_dir%/ddd.db'],
+                'dbal' => ['url' => $url],
                 'orm'  => ['naming_strategy' => 'doctrine.orm.naming_strategy.underscore_number_aware'] + (PHP_VERSION_ID >= 80400 ? ['enable_native_lazy_objects' => true] : []),
             ]);
             $container->loadFromExtension('security', [
