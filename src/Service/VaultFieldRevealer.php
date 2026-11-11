@@ -8,10 +8,12 @@ use DateTimeImmutable;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultFieldRevealCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
 use Nowo\VaultBundle\Event\VaultRevealThrottledEvent;
+use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultDecryptionFailedException;
 use Nowo\VaultBundle\Exception\VaultRevealRefusedException;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
@@ -19,6 +21,7 @@ use Nowo\VaultBundle\Security\VaultRevealRateLimiter;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultRevealedValue;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -39,6 +42,10 @@ use function is_string;
  * limits apply (`security.secret_access_rate_limit`, `reveal.rate_limit`), the payload is decrypted, and the audit event
  * (ITEM_REVEALED, ITEM_COPIED or ITEM_ATTACHMENT_DOWNLOADED) is dispatched **before** the value is returned: a
  * listener that throws refuses the reveal (no audit, no reveal). Nothing it logs, dispatches or throws holds a value.
+ *
+ * It refuses users the vault does not accept (1.17.0), but it does **not** check ownership or grants of its own: every
+ * caller must first check {@see VaultAccessGuard::canAccessItem()} with {@see VaultAccessAction::View} for that user and
+ * item, as the bundle's reveal route, copy and browser extension do (LQ-V-P2-I5).
  */
 final readonly class VaultFieldRevealer
 {
@@ -53,6 +60,7 @@ final readonly class VaultFieldRevealer
         private ?ClockInterface $clock = null,
         private ?LoggerInterface $logger = null,
         private ?array $revealableFields = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -124,6 +132,11 @@ final readonly class VaultFieldRevealer
      */
     private function authorise(UserInterface $user, VaultItem $item, string $field, string $purpose): void
     {
+        // 1.17.0 (LQ-V-L1): a user the vault does not accept never gets a decrypted value, whoever calls the service.
+        if ($this->users instanceof VaultUserReferenceResolverInterface && !$this->users->isAccepted($user)) {
+            throw new VaultAccessDeniedException('Not a vault user.');
+        }
+
         $check = new VaultFieldRevealCheckEvent($user, $item, $field, $purpose, VaultItemRevealedEvent::CHANNEL_WEB);
         $this->eventDispatcher->dispatch($check, VaultEvents::ITEM_FIELD_REVEAL_CHECK);
         if (!$check->isGranted()) {

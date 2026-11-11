@@ -47,6 +47,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target **1.17.0** (minor): strict DDD / hexagonal hosts can use the vault (architecture bar rule 2). The standard path
+(Doctrine relations to `user_class`) is the default and does not change; no schema change for it.
+
+### Added
+
+- **`user_mapping: relation|id`** (default `relation`). With `id`, the vault rows store the host user id in a string
+  column (`creator_id`, `created_by_id`, `user_id`, length 128): no relation and no foreign key to the host users
+  table, `user_class` need not be a Doctrine entity (plain PHP security users, XML-mapped users in another entity
+  manager, UUID / ULID / int ids). The entities then return a `VaultUserId` value object (`getId()`) for the creator,
+  the audit creator and the token user, so ownership checks, owner keys and events work the same in both mappings.
+- **`accepted_user_classes`** (default `[]`): security-user classes other than `user_class` that map to a vault user by
+  `getId()` (a security user that is no Doctrine entity, a wrapper, a read model). With the relation mapping they are
+  stored as `getReference(user_class, id)`; previously such a user could not create anything (Doctrine refused the
+  object). A user id given as a string to an entity constructor also becomes that reference.
+- Ports `VaultUserReferenceResolverInterface` (default `DoctrineVaultUserReferenceResolver`) and
+  `VaultUserLocatorInterface` (default `VaultUserLocator`, now reading through the entity manager that maps
+  `user_class`). With the id mapping, browser extension tokens resolve their user through the locator: alias it when
+  your users are no Doctrine entities.
+- Id accessors next to the user accessors (rule 1): `VaultItem::getCreatorId()` / `getCreatedById()`,
+  `VaultFolder::getCreatorId()` / `getCreatedById()`, `VaultTag::getCreatorId()`, `VaultGrant::getCreatedById()`,
+  `VaultExtensionToken::getUserId()`.
+- Tests on both host kinds: the standard attribute host (relation), a relation host with a non-entity security user
+  (`accepted_user_classes`) and a strict DDD host (id mapping, plain-PHP users with UUID ids, no host entity mapped,
+  locator aliased by the host): pages, folders, tags, grants, export, erasure and extension tokens.
+
+### Security
+
+- **Cross-class owner confusion (pre-existing, affects 1.0.0 to 1.16.x; a security advisory follows this release).**
+  Ownership was compared by the string form of `getId()` only, ignoring the user's class. So before 1.17.0 a signed-in
+  user of another class with a colliding id (an `Admin#5` next to a `Customer#5`, typically in the same entity manager,
+  which is what lets the lists enumerate the other user's items; the per-item checks matched any user object with that
+  `getId()` on the vault firewall) was treated as the owner of the other user's personal vault: list, open, reveal,
+  edit, delete, share and, since 1.16.0, export. Now a signed-in user that is neither a `user_class` instance nor
+  listed in `accepted_user_classes` (with a usable `getId()`) fails closed: refused on the vault pages (403), by the
+  repositories, the access guard (`VaultAccessGuard`: no ownership, grant or scope membership), the field revealer
+  (`VaultAccessDeniedException`), grants (`grantAs()`), the personal export and the browser extension login, also when
+  host code calls those services directly. Standard hosts whose only security user is the `user_class` entity are not
+  affected.
+
+- **Id mapping compares ids byte for byte (LQ-V-M1, LQ-V-P2-M1).** The user id columns and the grant grantee id
+  (users and teams) get a binary collation where the platform defaults to a case- or accent-insensitive one
+  (`utf8mb4_bin` on MySQL / MariaDB, `Latin1_General_100_BIN2` on SQL Server; PostgreSQL, SQLite and Oracle already
+  compare byte-exact), so `usera` never matches `UserA`, neither as an owner nor as a grantee. Whatever the column
+  collation, the grant reads behind access decisions (`findActiveForGrantees()`, `findByGrantee()`, `findOne()`,
+  "shared with me"), the decrypted personal export (per item), the GDPR export and erasure (grants received
+  included) and the token revocation keep only the rows whose stored id is identical (`===`). In id mapping, ids
+  longer than 128 bytes, with leading / trailing whitespace, or with control, format (zero-width, bidi), separator or
+  other default-ignorable characters, and invalid UTF-8 are refused (never trimmed, normalised or truncated); the
+  default relation mapping keeps the 1.16 id rules. On a schema whose `grantee_id` still folds case, a grant upsert
+  that hits another grantee's unique key is refused (`VaultGrantRefusedException`, `grantee_not_allowed`) instead of
+  a 500. The id columns
+  are indexed (`<table>_<column>_idx`). In id mapping the bundle needs the database platform when it builds its
+  metadata: set `doctrine.dbal.server_version` if the database is not reachable at `cache:warmup` (it now fails loudly
+  instead of caching metadata without the collation). CI runs these checks on MySQL 8.0, MariaDB 11.4 and
+  PostgreSQL 17.
+- In id mapping, a user returned by the `VaultUserLocatorInterface` for an extension token must be a vault user too.
+- `VaultFieldRevealer` refuses non-vault users but does not check ownership or grants: callers check
+  `VaultAccessGuard::canAccessItem(…, View)` first, as the bundle's routes do (documented).
+
+### Changed
+
+- New vault rows normalise their user columns at `prePersist` (`VaultUserColumnsListener`): a `user_class` instance
+  is left as is; an accepted user becomes a reference (relation) or its id (id mapping); any other user is refused.
+- `DoctrineOrmVaultExtensionTokenRepository::findByUser()` compares the token's user column directly (no join to the
+  users table).
+
 ## [1.16.0] - 2026-11-05
 
 Scope-owned vaults, temporary grants, metadata catalogue, reveal / copy / attachment download, password health and

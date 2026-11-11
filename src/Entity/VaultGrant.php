@@ -10,6 +10,7 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\ValueObject\Uuid;
+use Nowo\VaultBundle\ValueObject\VaultUserId;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -47,7 +48,7 @@ class VaultGrant
         #[ORM\ManyToOne(targetEntity: UserInterface::class)]
         // 1.15.2: SET NULL (was CASCADE), so deleting the grantor no longer deletes the grants they made.
         #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
-        private ?object $createdBy,
+        private object|string|null $createdBy,
         /** Null = permanent; a temporary grant is active while now < expiresAt (1.16.0). */
         #[ORM\Column(name: 'expires_at', type: 'datetime_immutable', nullable: true)]
         private ?DateTimeImmutable $expiresAt = null,
@@ -155,7 +156,15 @@ class VaultGrant
      */
     public function getCreatedBy(): ?object
     {
-        return $this->createdBy;
+        return VaultUserId::wrap($this->createdBy);
+    }
+
+    /**
+     * The id of who created the grant (audit only), or null (1.17.0). Works with both user mappings.
+     */
+    public function getCreatedById(): ?string
+    {
+        return VaultUserId::idOf($this->createdBy);
     }
 
     /**

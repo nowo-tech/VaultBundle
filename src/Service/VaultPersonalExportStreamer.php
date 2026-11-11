@@ -11,12 +11,15 @@ use LogicException;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Exception\VaultDecryptionFailedException;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Throwable;
 
 use function array_column;
+use function array_filter;
 use function array_map;
+use function array_values;
 use function flush;
 use function implode;
 use function in_array;
@@ -75,6 +78,7 @@ final readonly class VaultPersonalExportStreamer
         private ?string $managerName = null,
         /** export.csv_raw_values: keep CSV cells exact (no formula neutralisation; SEC-004 FQ-L3). */
         private bool $csvRawValues = false,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -89,7 +93,7 @@ final readonly class VaultPersonalExportStreamer
     {
         /** @var array{count: int|string, bytes: int|string|null} $row */
         $row = $this->em()->createQuery('SELECT COUNT(i.id) AS count, SUM(LENGTH(i.ciphertext)) AS bytes FROM ' . VaultItem::class . ' i WHERE i.creator = :user AND i.ownerScope IS NULL AND i.deletedAt IS NULL')
-            ->setParameter('user', $user)
+            ->setParameter('user', $this->users?->reference($user) ?? $user)
             ->getSingleResult();
 
         return ['count' => (int) $row['count'], 'bytes' => (int) $row['bytes'] + (int) $row['count'] * self::ITEM_OVERHEAD];
@@ -166,7 +170,7 @@ final readonly class VaultPersonalExportStreamer
         while (true) {
             /** @var list<string> $ids */
             $ids = array_column($em->createQuery('SELECT i.id AS id FROM ' . VaultItem::class . ' i WHERE i.creator = :user AND i.ownerScope IS NULL AND i.deletedAt IS NULL ORDER BY i.createdAt ASC, i.id ASC')
-                ->setParameter('user', $user)
+                ->setParameter('user', $this->users?->reference($user) ?? $user)
                 ->setFirstResult($offset)
                 ->setMaxResults(self::BATCH_SIZE)
                 ->getArrayResult(), 'id');
@@ -178,7 +182,8 @@ final readonly class VaultPersonalExportStreamer
             $items = $em->createQuery('SELECT i, f, t FROM ' . VaultItem::class . ' i LEFT JOIN i.folder f LEFT JOIN i.tags t WHERE i.id IN (:ids) ORDER BY i.createdAt ASC, i.id ASC')
                 ->setParameter('ids', $ids)
                 ->getResult();
-            yield $items;
+            // 1.17.0 (LQ-V-M1): never decrypt a row the user does not own, whatever the column collation matched.
+            yield array_values(array_filter($items, static fn (VaultItem $item): bool => $item->getOwner()->isUser($user)));
 
             foreach ($items as $item) {
                 foreach ($item->getTags() as $tag) {

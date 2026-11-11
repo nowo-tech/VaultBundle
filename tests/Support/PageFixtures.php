@@ -30,6 +30,7 @@ use Nowo\VaultBundle\Form\VaultPersonalExportType;
 use Nowo\VaultBundle\Form\VaultRuntimeConfigType;
 use Nowo\VaultBundle\Form\VaultShareType;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
+use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\Kernel;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Ui\VaultPageFactory;
@@ -167,9 +168,10 @@ final class PageFixtures
     public static function itemForm(VaultItemType $type = VaultItemType::Login, bool $existing = false, bool $readOnly = false, bool $viewMode = false, ?VaultPageFactory $factory = null): array
     {
         $factory ??= self::factory();
-        $routes  = self::routes();
-        $user    = new TestUser();
-        $folder  = self::managed(new VaultFolder('Work', $user));
+        $routes = self::routes();
+        $user   = new TestUser();
+        // Persisted in the test kernel: owned by a user_class instance (1.17.0 refuses other users at persist).
+        $folder  = self::managed(new VaultFolder('Work', new User()));
         $folders = $existing ? [$folder] : [];
         $item    = $existing ? new VaultItem($type, 'Sample ' . $type->value, $user, 'cipher', $folder) : null;
         $data    = new VaultItemFormData($type);

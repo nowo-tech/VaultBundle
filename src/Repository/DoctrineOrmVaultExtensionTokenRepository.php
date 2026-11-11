@@ -9,14 +9,19 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Support\UserIdResolver;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
+
+use function array_filter;
+use function array_values;
 
 /**
  * Doctrine ORM repository of browser extension tokens.
  */
 final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultExtensionTokenRepositoryInterface
 {
+    use BindsVaultUserTrait;
     use ResolvesEntityManagerTrait;
 
     /**
@@ -27,6 +32,7 @@ final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultEx
         private ?ManagerRegistry $registry = null,
         private ?string $managerName = null,
         private ?ClockInterface $clock = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -75,15 +81,17 @@ final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultEx
             return [];
         }
 
-        /* @var list<VaultExtensionToken> */
-        return $this->em()->createQueryBuilder()
+        /** @var list<VaultExtensionToken> $tokens */
+        $tokens = $this->em()->createQueryBuilder()
             ->select('t')
             ->from(VaultExtensionToken::class, 't')
-            ->innerJoin('t.user', 'u')
-            ->where('u = :user')
-            ->setParameter('user', $user)
+            ->where('t.user = :user')
+            ->setParameter('user', $this->userParameter($user))
             ->getQuery()
             ->getResult();
+
+        // 1.17.0 (LQ-V-M1): only the user's own tokens, compared byte for byte, whatever the column collation.
+        return array_values(array_filter($tokens, static fn (VaultExtensionToken $token): bool => $token->getUserId() === $userId));
     }
 
     /**

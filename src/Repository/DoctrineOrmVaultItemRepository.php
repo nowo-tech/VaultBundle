@@ -10,6 +10,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use SortDirection;
 
 use function array_fill_keys;
@@ -22,6 +23,7 @@ use function max;
  */
 final readonly class DoctrineOrmVaultItemRepository implements VaultItemRepositoryInterface, VaultItemFolderCounterInterface, VaultItemPaginatorInterface, VaultScopeItemRepositoryInterface
 {
+    use BindsVaultUserTrait;
     use ResolvesEntityManagerTrait;
 
     /**
@@ -31,6 +33,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
         private EntityManagerInterface $entityManager,
         private ?ManagerRegistry $registry = null,
         private ?string $managerName = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -71,7 +74,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             // The items page loops item.tags: fetch-join (no LIMIT here) instead of one lazy load per item.
             ->leftJoin('i.tags', 't')->addSelect('t')
             ->where('i.creator = :creator')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->orderBy('i.updatedAt', SortDirection::Descending);
 
         if (!$includeDeleted) {
@@ -94,7 +97,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->leftJoin('i.tags', 't')->addSelect('t')
             ->where('i.creator = :creator')
             ->andWhere('i.itemType = :itemType')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->setParameter('itemType', $itemType)
             ->orderBy('i.updatedAt', SortDirection::Descending);
 
@@ -117,7 +120,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             // The items page loops item.tags: fetch-join (no LIMIT here) instead of one lazy load per item.
             ->leftJoin('i.tags', 't')->addSelect('t')
             ->where('i.creator = :creator')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->orderBy('i.updatedAt', SortDirection::Descending);
 
         if ($folderId === null) {
@@ -145,7 +148,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
             ->andWhere('i.deletedAt IS NOT NULL')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->orderBy('i.deletedAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();
@@ -160,7 +163,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->select('COUNT(i.id)')
             ->from(VaultItem::class, 'i')
             ->where('i.creator = :creator')
-            ->setParameter('creator', $creator);
+            ->setParameter('creator', $this->userParameter($creator));
 
         if (!$includeDeleted) {
             $qb->andWhere('i.deletedAt IS NULL');
@@ -181,7 +184,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->where('i.creator = :creator')
             ->andWhere('i.deletedAt IS NULL')
             ->andWhere('LOWER(i.title) LIKE :q')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->setParameter('q', '%' . mb_strtolower($query) . '%')
             ->setMaxResults($limit)
             ->orderBy('i.title', SortDirection::Ascending)
@@ -201,7 +204,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->where('i.creator = :creator')
             ->andWhere('i.deletedAt IS NULL')
             ->andWhere('t.id = :tagId')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->setParameter('tagId', $tagId)
             ->orderBy('i.updatedAt', SortDirection::Descending);
 
@@ -228,7 +231,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->where('i.creator = :creator')
             ->andWhere('i.deletedAt IS NULL')
             ->andWhere('LOWER(i.title) LIKE :q OR LOWER(t.name) LIKE :q')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->setParameter('q', $needle)
             ->setMaxResults($limit)
             ->orderBy('i.title', SortDirection::Ascending)
@@ -253,7 +256,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->andWhere('i.creator IS NULL OR i.creator != :viewer')
             ->andWhere('i.deletedAt IS NULL')
             ->setParameter('ids', $ids)
-            ->setParameter('viewer', $viewer)
+            ->setParameter('viewer', $this->userParameter($viewer))
             ->orderBy('i.title', SortDirection::Ascending)
             ->getQuery()
             ->getResult();
@@ -277,7 +280,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->andWhere('i.itemType = :itemType')
             ->andWhere('i.deletedAt IS NULL')
             ->setParameter('ids', $ids)
-            ->setParameter('viewer', $viewer)
+            ->setParameter('viewer', $this->userParameter($viewer))
             ->setParameter('itemType', $itemType)
             ->orderBy('i.title', SortDirection::Ascending)
             ->getQuery()
@@ -427,7 +430,7 @@ final readonly class DoctrineOrmVaultItemRepository implements VaultItemReposito
             ->from(VaultItem::class, 'i')
             ->leftJoin('i.tags', 't')->addSelect('t')
             ->where('i.creator = :creator')
-            ->setParameter('creator', $creator);
+            ->setParameter('creator', $this->userParameter($creator));
 
         if ($trashOnly) {
             $qb->andWhere('i.deletedAt IS NOT NULL')->orderBy('i.deletedAt', SortDirection::Descending);

@@ -25,7 +25,7 @@ use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Support\UserIdResolver;
-use Nowo\VaultBundle\Support\VaultUserLocator;
+use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -59,7 +59,7 @@ final readonly class VaultGrantService
         private ?VaultItemRepositoryInterface $itemRepository = null,
         private ?VaultFolderRepositoryInterface $folderRepository = null,
         private ?VaultGrantListResolver $grantListResolver = null,
-        private ?VaultUserLocator $userLocator = null,
+        private ?VaultUserLocatorInterface $userLocator = null,
         private array $temporary = [],
     ) {
     }
@@ -256,7 +256,13 @@ final readonly class VaultGrantService
             // A concurrent request inserted the same grantee first: retry once as the update path.
             $existing = $this->grantRepository->findOne($resourceType, $resourceId, $granteeType, $granteeId);
             if (!$existing instanceof VaultGrant) {
-                throw $exception;
+                // No exact row behind the violation: on a schema whose grantee_id still folds case (no binary collation,
+                // id mapping), another grantee's row holds the unique key. Refuse instead of a 500 (LQ-V-P3-I1).
+                $this->logger()->warning('Vault grant refused: unique key held by another grantee (check the grantee_id collation).', [
+                    'bundle'    => 'nowo_vault',
+                    'exception' => $exception::class,
+                ]);
+                $this->refuse(VaultGrantRefusedException::GRANTEE_NOT_ALLOWED, $actorId, $resourceType, $resourceId);
             }
 
             return $this->update($existing, $permission, $expiresAt, $createdBy, $actorId);

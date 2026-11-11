@@ -12,7 +12,7 @@ use function is_string;
  * Defines which nowo_vault keys may be stored in the database when config_storage is enabled.
  *
  * Bootstrap keys (YAML/env only — required before the settings table can be read):
- * - user_class, encryption_key (env fallback), table_prefix, database, config_storage
+ * - user_class, accepted_user_classes, user_mapping, encryption_key (env fallback), table_prefix, database, config_storage
  * - security.access_checker (service id)
  * - routes, templates, security roles, route_prefix, dashboard_route, firewall
  *

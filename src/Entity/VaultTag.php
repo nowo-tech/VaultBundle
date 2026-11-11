@@ -11,6 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
 use Nowo\VaultBundle\ValueObject\Uuid;
 use Nowo\VaultBundle\ValueObject\VaultOwner;
+use Nowo\VaultBundle\ValueObject\VaultUserId;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -51,10 +52,10 @@ class VaultTag
         /** Personal owner; null for a scope tag (1.16.0). */
         #[ORM\ManyToOne(targetEntity: UserInterface::class)]
         #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
-        private ?object $creator,
+        private object|string|null $creator,
         ?string $ownerScope = null,
     ) {
-        $this->ownerScope = VaultOwner::fromColumns($creator, $ownerScope)->getScope();
+        $this->ownerScope = VaultOwner::fromColumns(VaultUserId::wrap($creator), $ownerScope)->getScope();
         $this->id         = Uuid::generate()->toString();
         $this->createdAt  = new DateTimeImmutable();
         $this->items      = new ArrayCollection();
@@ -99,7 +100,15 @@ class VaultTag
             throw new VaultOwnerException('A scope tag has no personal owner; use getOwner().');
         }
 
-        return $this->creator;
+        return VaultUserId::wrap($this->creator);
+    }
+
+    /**
+     * The id of the personal owner, or null for a scope tag (1.17.0). Works with both user mappings.
+     */
+    public function getCreatorId(): ?string
+    {
+        return VaultUserId::idOf($this->creator);
     }
 
     /**
@@ -107,7 +116,7 @@ class VaultTag
      */
     public function getOwner(): VaultOwner
     {
-        return VaultOwner::fromColumns($this->creator, $this->ownerScope);
+        return VaultOwner::fromColumns(VaultUserId::wrap($this->creator), $this->ownerScope);
     }
 
     /**
