@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.17.0] - 2026-11-11](#1170---2026-11-11)
 - [[1.16.0] - 2026-11-05](#1160---2026-11-05)
 - [[1.15.2] - 2026-11-05](#1152---2026-11-05)
 - [[1.15.1] - 2026-10-30](#1151---2026-10-30)
@@ -47,8 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Target **1.17.0** (minor): strict DDD / hexagonal hosts can use the vault (architecture bar rule 2). The standard path
-(Doctrine relations to `user_class`) is the default and does not change; no schema change for it.
+## [1.17.0] - 2026-11-11
+
+DDD host path: user ids instead of entity relations and accepted user classes; owner and grantee ids compared exactly (binary collation); fixes cross-class owner confusion (security). See [UPGRADING](https://github.com/nowo-tech/VaultBundle/blob/v1.17.0/docs/UPGRADING.md#to-1170).
+
 
 ### Added
 
@@ -112,6 +115,8 @@ Target **1.17.0** (minor): strict DDD / hexagonal hosts can use the vault (archi
   is left as is; an accepted user becomes a reference (relation) or its id (id mapping); any other user is refused.
 - `DoctrineOrmVaultExtensionTokenRepository::findByUser()` compares the token's user column directly (no join to the
   users table).
+
+[1.17.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.17.0
 
 ## [1.16.0] - 2026-11-05
 
@@ -916,7 +921,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.16.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.17.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
