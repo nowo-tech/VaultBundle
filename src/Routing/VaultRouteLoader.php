@@ -46,6 +46,13 @@ final class VaultRouteLoader extends Loader
     public const OPTIONAL_ROUTE_KEYS = ['scope_items', 'scope_item_new', 'scope_folder_create', 'catalogue', 'health', 'item_attachment', 'personal_export', 'personal_export_download'];
 
     /**
+     * Share UI routes (1.18.0): not registered with `sharing.enabled: false`, so they answer 404.
+     *
+     * @var list<string>
+     */
+    public const SHARING_ROUTE_KEYS = ['item_share', 'item_grant_revoke', 'folder_share', 'folder_grant_revoke'];
+
+    /**
      * Stores the runtime configuration source and the feature flags that decide which controllers are routed.
      *
      * @param array<string, array{path: string, name: string}> $browserExtensionRoutes
@@ -58,6 +65,8 @@ final class VaultRouteLoader extends Loader
         private readonly bool $webUiEnabled = true,
         /** @var list<string> opt-in route keys of enabled features ({@see self::OPTIONAL_ROUTE_KEYS}) */
         private readonly array $enabledOptionalRouteKeys = [],
+        /** `sharing.enabled` (1.18.0): false leaves out {@see self::SHARING_ROUTE_KEYS}. */
+        private readonly bool $sharingEnabled = true,
     ) {
     }
 
@@ -117,7 +126,11 @@ final class VaultRouteLoader extends Loader
                 $key      = (string) ($declared->options[self::ROUTE_KEY_OPTION] ?? '');
                 // Unconfigured keys are skipped, as the pre-attribute loader did for optional routes (the manage keys
                 // always exist: the runtime config provider refills them from the YAML defaults).
-                if (!isset($configuredRoutes[$key]) || (in_array($key, self::OPTIONAL_ROUTE_KEYS, true) && !in_array($key, $this->enabledOptionalRouteKeys, true))) {
+                if (
+                    !isset($configuredRoutes[$key])
+                    || (in_array($key, self::OPTIONAL_ROUTE_KEYS, true) && !in_array($key, $this->enabledOptionalRouteKeys, true))
+                    || (!$this->sharingEnabled && in_array($key, self::SHARING_ROUTE_KEYS, true))
+                ) {
                     continue;
                 }
 

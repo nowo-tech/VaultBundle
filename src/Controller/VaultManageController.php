@@ -128,6 +128,8 @@ final class VaultManageController extends AbstractController
         private readonly ?VaultPasswordPolicyResolverInterface $passwordPolicyResolver = null,
         /** Scope folder choices of the item page (SEC-004 FQ-L4). */
         private readonly ?VaultScopeItemLister $scopeItemLister = null,
+        /** `sharing.enabled` (1.18.0): false answers 404 on the share and revoke actions. */
+        private readonly bool $sharingEnabled = true,
     ) {
     }
 
@@ -148,6 +150,16 @@ final class VaultManageController extends AbstractController
             'itemTypes'      => VaultItemType::cases(),
             'generatorForm'  => $this->createForm(VaultPasswordGeneratorType::class)->createView(),
         ]));
+    }
+
+    /**
+     * `sharing.enabled: false` (1.18.0): the share and revoke actions answer 404 even when a host route reaches them.
+     */
+    private function denyUnlessSharingEnabled(): void
+    {
+        if (!$this->sharingEnabled) {
+            throw $this->createNotFoundException('Sharing is disabled.');
+        }
     }
 
     /**
@@ -430,8 +442,10 @@ final class VaultManageController extends AbstractController
             'folders'              => $folders,
             'stored_secret_fields' => $storedSecrets,
             'allow_secret_clear'   => !$viewMode && !$readOnly,
-            'scope_item'           => $scope !== null && $canOrganise,
-            'password_policy'      => $item->getItemType() === VaultItemType::Login ? $this->passwordPolicyResolver?->forOwner($item->getOwner()) : null,
+            // 1.18.0 (A3): no strength meter where the password cannot be changed (view page, read-only grant).
+            'strength_meter'  => !$viewMode && !$readOnly,
+            'scope_item'      => $scope !== null && $canOrganise,
+            'password_policy' => $item->getItemType() === VaultItemType::Login ? $this->passwordPolicyResolver?->forOwner($item->getOwner()) : null,
         ]);
 
         if (!$viewMode && $request instanceof Request) {
@@ -544,7 +558,7 @@ final class VaultManageController extends AbstractController
             'viewMode'                => $viewMode,
             'folders'                 => $folders,
             'routes'                  => $routes,
-            'passwordStrengthEnabled' => $this->passwordStrengthEnabled,
+            'passwordStrengthEnabled' => $this->passwordStrengthEnabled && !$readOnly && !$viewMode,
             'tagInputEnabled'         => $this->tagInputEnabled,
             'activeFolder'            => $activeFolder,
             'revealFields'            => $revealFields,
@@ -560,6 +574,7 @@ final class VaultManageController extends AbstractController
     #[Route(path: '/tools/vault/items/{id}/grants/{grantId}/revoke', name: 'nowo_vault_item_grant_revoke', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT, 'grantId' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_grant_revoke'], methods: ['POST'])]
     public function revokeItemGrant(Request $request, string $id, string $grantId): RedirectResponse
     {
+        $this->denyUnlessSharingEnabled();
         $this->denyUnlessFeature('access');
         $this->denyUnlessValidCsrf('vault_revoke_grant_' . $grantId, $request);
 
@@ -585,6 +600,7 @@ final class VaultManageController extends AbstractController
     #[Route(path: '/tools/vault/folders/{id}/grants/{grantId}/revoke', name: 'nowo_vault_folder_grant_revoke', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT, 'grantId' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'folder_grant_revoke'], methods: ['POST'])]
     public function revokeFolderGrant(Request $request, string $id, string $grantId): RedirectResponse
     {
+        $this->denyUnlessSharingEnabled();
         $this->denyUnlessFeature('access');
         $this->denyUnlessValidCsrf('vault_revoke_grant_' . $grantId, $request);
 
@@ -685,6 +701,7 @@ final class VaultManageController extends AbstractController
     #[Route(path: '/tools/vault/items/{id}/share', name: 'nowo_vault_item_share', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'item_share'], methods: ['GET', 'POST'])]
     public function shareItem(Request $request, string $id): Response
     {
+        $this->denyUnlessSharingEnabled();
         $this->denyUnlessFeature('access');
 
         $item = $this->findItemOr404($id);
@@ -721,6 +738,7 @@ final class VaultManageController extends AbstractController
     #[Route(path: '/tools/vault/folders/{id}/share', name: 'nowo_vault_folder_share', requirements: ['id' => VaultRouteLoader::UUID_REQUIREMENT], options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'folder_share'], methods: ['GET', 'POST'])]
     public function shareFolder(Request $request, string $id): Response
     {
+        $this->denyUnlessSharingEnabled();
         $this->denyUnlessFeature('access');
 
         $folder = $this->findFolderOr404($id);

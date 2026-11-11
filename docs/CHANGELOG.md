@@ -49,6 +49,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: **1.18.0** (minor). Closes the seven gaps the Symfony Beacon app found while adopting the personal vault
+(A1–A7). Every option that changes what users see is off by default; the defaults keep the 1.17 behaviour except for
+the fixes listed under *Fixed* and *Changed*. See [UPGRADING](UPGRADING.md#to-1180).
+
+### Added
+
+- **Host note slot (A1).** `web_ui.host_note_template` (default `null`): a Twig template included under the page
+  header of the vault home and of the items list (with `page` and `routes`), inside the new `vault_host_note` block. A
+  host can add a line such as a *Share a secret* link without overriding `web_ui.templates.home` / `.items`.
+- **`sharing.enabled` (A5, default `true`).** With `false`, every share UI is left out (item and folder *Share*
+  actions, the *Shared* card on the home page, the *Shared* badge) and the share and revoke routes
+  (`item_share`, `item_grant_revoke`, `folder_share`, `folder_grant_revoke`) are not registered, so they answer 404.
+  The controller actions also answer 404 when a host route reaches them. Grants created through `VaultGrantService`
+  keep working, and the *Shared with me* list stays.
+- **`web_ui.destructive_actions_in_menu` (A4, default `false`).** Draws *Move to trash* of the item rows (items,
+  shared and scope lists) as the last item of a UiKit kebab menu (danger style), after the inline View / Share / Edit
+  actions that follow `nowo_ui_kit.row_actions_display`. The confirm dialog and the POST + CSRF form are unchanged. The
+  bundle registers its `row_actions` partial for `NowoVaultBundle` only when the option is on (a host value for that
+  partial wins).
+- **`database.conditional_mapping` (A7, default `false`).** With `true`, `VaultSettings` (`{table_prefix}_settings`)
+  is mapped only with `config_storage.enabled` and `VaultExtensionToken` (`{table_prefix}_extension_tokens`) only with
+  `browser_extension.enabled`: the schema tool, `doctrine:schema:validate` and `doctrine:migrations:diff` no longer see
+  them. The tables of a disabled feature are hidden from the schema tools of the vault connection (DBAL schema asset
+  filter), so an existing table is never dropped automatically. The personal data exporter / eraser and
+  `nowo:vault:extension-tokens:purge` skip the unmapped token entity.
+- `VaultItemFormType` option `strength_meter` (default `true`).
+- Translation key `vault.action.share` in every catalogue.
+
+### Changed
+
+- **Show / Copy are UiKit icon buttons (A2).** The reveal buttons of the item page are `btn_secondary` + `btn_icon`
+  buttons with the kind icons `view` / `hide` / `copy` (they follow `nowo_ui_kit.icon_set` and `action_icons`), a
+  visually hidden label, `aria-label` and a tooltip; Hide swaps the eye icon. They sit in a row under the input
+  (`.vault-secret-actions`), so on a 390 px phone the password input keeps its width; the PasswordStrength generate
+  button wraps under the input below that width too. Pages without the new `<template data-vault-reveal-template>`
+  elements (an overridden `item_form` template) keep the 1.16 text buttons.
+- **Share label (A5).** The row action reads *Share* in every language (es *Compartir*, de *Teilen*, fr *Partager*,
+  it *Condividi*, nl *Delen*, pt *Partilhar*) instead of *Access* / *Acceso* / *Zugriff* / *Accès* / *Accesso* /
+  *Toegang* / *Acesso*. It uses the new key `vault.action.share`; `vault.action.access` is kept with the same values.
+- **"Vault" translated (A6).** es *Bóveda*, de *Tresor*, fr *Coffre-fort*, it *Cassaforte*, nl *Kluis*, pt *Cofre*
+  in the titles, navigation and descriptions (`vault.title`, `vault.nav.vault`, `vault.home.*`, runtime settings
+  texts; fr *coffre* became *coffre-fort* in the scope and export texts). Configuration keys, table names and console
+  commands quoted in the texts are unchanged.
+
+### Fixed
+
+- **Strength rules on a stored password (A3).** The view page (and an item opened with a read grant) renders a plain
+  password field without the PasswordStrength meter. On the edit page the rules are hidden while the input is empty
+  (the stored value is never in the page) and evaluated on the value in the input: typed, or revealed with Show (the
+  reveal script fires `input` so the meter re-evaluates it in the browser; the value is sent nowhere new).
+- **Developer text on the *Shared* page (A6).** `vault.shared.hint` no longer mentions `VaultGrantService` and
+  `ITEM_LIST_QUERY`; it is user-facing copy in every catalogue.
+
 ## [1.17.1] - 2026-11-11
 
 Target: **1.17.1** (patch).

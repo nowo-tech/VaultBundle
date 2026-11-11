@@ -88,7 +88,7 @@ final class LegacyLayoutBridgeTest extends TestCase
         $pages = new VaultPages('canonical.html.twig', $twig);
 
         self::assertSame('canonical.html.twig', $pages->layout());
-        self::assertSame(['nowo_vault_legacy_layout' => null, 'nowo_vault_legacy_blocks' => []], $pages->context([]));
+        self::assertSame(['nowo_vault_legacy_layout' => null, 'nowo_vault_legacy_blocks' => [], 'nowo_vault_host_note_template' => null, 'nowo_vault_sharing_enabled' => true], $pages->context([]));
 
         $html = $twig->render('@NowoVaultBundle/vault/trash.html.twig', PageFixtures::trash(false, PageFixtures::factory($pages)));
         self::assertStringContainsString('<div data-host-canonical><title>Trash</title>', $html);
@@ -120,7 +120,7 @@ final class LegacyLayoutBridgeTest extends TestCase
 
         $noTwig = new VaultPages('legacy/plain.html.twig');
         self::assertSame('legacy/plain.html.twig', $noTwig->layout());
-        self::assertSame(['nowo_vault_legacy_layout' => null, 'nowo_vault_legacy_blocks' => []], $noTwig->context([]));
+        self::assertSame(['nowo_vault_legacy_layout' => null, 'nowo_vault_legacy_blocks' => [], 'nowo_vault_host_note_template' => null, 'nowo_vault_sharing_enabled' => true], $noTwig->context([]));
 
         self::assertNull((new VaultPages(''))->layout());
         self::assertNull((new VaultPages())->layout());

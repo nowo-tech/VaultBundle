@@ -86,6 +86,40 @@ final class VaultPageFactoryTest extends TestCase
         self::assertSame('/nowo_vault_items', $noFolder->filtersClearHref);
     }
 
+    public function testDisabledSharingDropsEveryShareActionAndTheMenuOptionMarksTrash(): void
+    {
+        $user    = new TestUser();
+        $item    = new VaultItem(VaultItemType::Login, 'Own', $user, 'c');
+        $folder  = new VaultFolder('Work', $user);
+        $factory = PageFixtures::factory(new VaultPages(sharingEnabled: false, destructiveActionsInMenu: true));
+        $routes  = PageFixtures::routes();
+
+        $items   = $factory->items($routes, [$item], [], [$item->getId() => new FormView()], new FormView(), null, null, null);
+        $actions = $items->rowActions($item, 0);
+        self::assertSame(['view', 'edit', 'delete'], $this->kinds($actions));
+        self::assertTrue($actions[2]->attributes[VaultPages::ROW_MENU_ATTRIBUTE]);
+        self::assertTrue($actions[2]->isPost());
+        self::assertNotNull($actions[2]->confirm);
+        self::assertSame('vault.action.trash', $this->labelKey($actions[2]->label));
+
+        $shared = $factory->shared($routes, [$item], [], [$item->getId() => new FormView()], $factory->pagination('nowo_vault_shared', 1, 10, 1), null);
+        self::assertSame(['view', 'edit', 'delete'], $this->kinds($shared->rowActions($item, 0)));
+
+        self::assertSame(['delete'], $this->kinds($factory->folderActions($routes, [$folder], [], [])[$folder->getId()]));
+
+        $scope = $factory->scopeItems($routes, 'project-1', [$item], [$item->getId() => VaultPermission::Admin], [$item->getId() => new FormView()], new FormView(), null, false, null);
+        self::assertSame(['view', 'edit', 'delete'], $this->kinds($scope->rowActions($item, 0)));
+
+        // Defaults (1.17 behaviour): Share is there, labelled "Share"; Trash stays an inline button.
+        $default = $this->factory->items($routes, [$item], [], [$item->getId() => new FormView()], new FormView(), null, null, null)->rowActions($item, 0);
+        self::assertSame('vault.action.share', $this->labelKey($default[1]->label));
+        self::assertSame([], $default[3]->attributes);
+        $defaultScope = $this->factory->scopeItems($routes, 'project-1', [$item], [$item->getId() => VaultPermission::Admin], [$item->getId() => new FormView()], new FormView(), null, false, null);
+        self::assertSame(['view', 'edit', 'share', 'delete'], $this->kinds($defaultScope->rowActions($item, 0)));
+        self::assertTrue((new VaultPages())->sharingEnabled());
+        self::assertFalse((new VaultPages())->destructiveActionsInMenu());
+    }
+
     public function testFolderAndTagActionsArePostsBehindAConfirm(): void
     {
         $user    = new TestUser();
@@ -159,7 +193,7 @@ final class VaultPageFactoryTest extends TestCase
         self::assertSame('vault.runtime_config.last_update', $this->labelKey($sections[0]->intro));
         self::assertNull($this->factory->runtimeConfig(new FormView(), null, null)->sections[0]->intro);
 
-        self::assertSame(['page' => 1, 'nowo_vault_legacy_layout' => null, 'nowo_vault_legacy_blocks' => []], $this->factory->context(['page' => 1]));
+        self::assertSame(['page' => 1, 'nowo_vault_legacy_layout' => null, 'nowo_vault_legacy_blocks' => [], 'nowo_vault_host_note_template' => null, 'nowo_vault_sharing_enabled' => true], $this->factory->context(['page' => 1]));
     }
 
     /**

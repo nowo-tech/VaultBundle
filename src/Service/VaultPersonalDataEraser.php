@@ -107,7 +107,8 @@ final readonly class VaultPersonalDataEraser
 
         $scopeItems   = $this->updateByIds($em, VaultItem::class, 'createdBy', $this->ownedIds($em, VaultItem::class, 'createdBy', $who, $userId), $batchSize);
         $scopeFolders = $this->updateByIds($em, VaultFolder::class, 'createdBy', $this->ownedIds($em, VaultFolder::class, 'createdBy', $who, $userId), $batchSize);
-        $tokens       = $this->deleteByIds($em, VaultExtensionToken::class, $this->ownedIds($em, VaultExtensionToken::class, 'user', $who, $userId), $batchSize);
+        // 1.18.0: with database.conditional_mapping and the browser extension off, the token entity is not mapped.
+        $tokens = $em->getMetadataFactory()->isTransient(VaultExtensionToken::class) ? 0 : $this->deleteByIds($em, VaultExtensionToken::class, $this->ownedIds($em, VaultExtensionToken::class, 'user', $who, $userId), $batchSize);
 
         $result = new VaultErasureResult($received, $personal, $grantsCreated, $itemTags + $tagLinks, $items, $folders, $tags, $scopeItems, $scopeFolders, $tokens);
         $this->eventDispatcher?->dispatch(new VaultPersonalDataErasedEvent($userId, $result->toArray(), $this->now()), VaultEvents::PERSONAL_DATA_ERASED);

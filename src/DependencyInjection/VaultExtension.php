@@ -16,6 +16,8 @@ use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPas
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\Doctrine\VaultUserColumnsListener;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
+use Nowo\VaultBundle\Entity\VaultExtensionToken;
+use Nowo\VaultBundle\Entity\VaultSettings;
 use Nowo\VaultBundle\EventListener\VaultRequestBoundaryListener;
 use Nowo\VaultBundle\EventListener\VaultUserGateListener;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
@@ -56,6 +58,7 @@ use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
 use Nowo\VaultBundle\Support\DoctrineVaultUserReferenceResolver;
 use Nowo\VaultBundle\Support\VaultUserClassPolicy;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
+use Nowo\VaultBundle\Ui\VaultPages;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
@@ -138,6 +141,24 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.item_tags_table', $itemTagsTable);
         $container->setParameter('nowo_vault.settings_table', $settingsTable);
         $container->setParameter('nowo_vault.extension_tokens_table', $extensionTokensTable);
+        $container->setParameter('nowo_vault.web_ui.host_note_template', $config['web_ui']['host_note_template']);
+        $container->setParameter('nowo_vault.web_ui.destructive_actions_in_menu', (bool) $config['web_ui']['destructive_actions_in_menu']);
+        $container->setParameter('nowo_vault.sharing.enabled', (bool) $config['sharing']['enabled']);
+        // 1.18.0 database.conditional_mapping: the entities / tables of disabled features (ConditionalMappingPass).
+        $unmappedClasses = [];
+        $unmappedTables  = [];
+        if ((bool) $database['conditional_mapping']) {
+            if (!(bool) $configStorage['enabled']) {
+                $unmappedClasses[] = VaultSettings::class;
+                $unmappedTables[]  = $settingsTable;
+            }
+            if (!(bool) $config['browser_extension']['enabled']) {
+                $unmappedClasses[] = VaultExtensionToken::class;
+                $unmappedTables[]  = $extensionTokensTable;
+            }
+        }
+        $container->setParameter('nowo_vault.unmapped_entity_classes', $unmappedClasses);
+        $container->setParameter('nowo_vault.unmapped_tables', $unmappedTables);
         $browserExtension = $config['browser_extension'];
         $container->setParameter('nowo_vault.browser_extension.enabled', (bool) $browserExtension['enabled']);
         $container->setParameter('nowo_vault.browser_extension.token_ttl', (int) $browserExtension['token_ttl']);
@@ -563,6 +584,30 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         }
 
         $this->prependUiKitDefaults($container);
+        if ($container->hasExtension('nowo_ui_kit') && $this->destructiveActionsInMenu($container)) {
+            // 1.18.0 web_ui.destructive_actions_in_menu: the vault row_actions partial (delegates to the host / kit
+            // partial; draws the actions marked with VaultPages::ROW_MENU_ATTRIBUTE in a kebab menu). A host value for
+            // this bundle partial wins.
+            $container->prependExtensionConfig('nowo_ui_kit', [
+                'theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => ['row_actions' => VaultPages::ROW_ACTIONS_PARTIAL]]]],
+            ]);
+        }
+    }
+
+    /**
+     * Whether the raw nowo_vault config turns on web_ui.destructive_actions_in_menu (read before processing, like
+     * {@see self::prependUiKitDefaults()}; the last value wins).
+     */
+    private function destructiveActionsInMenu(ContainerBuilder $container): bool
+    {
+        $enabled = false;
+        foreach ($container->getExtensionConfig(Configuration::ALIAS) as $cfg) {
+            if (is_array($cfg['web_ui'] ?? null) && array_key_exists('destructive_actions_in_menu', $cfg['web_ui'])) {
+                $enabled = (bool) $cfg['web_ui']['destructive_actions_in_menu'];
+            }
+        }
+
+        return $enabled;
     }
 
     /**

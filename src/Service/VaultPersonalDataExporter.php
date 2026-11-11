@@ -75,7 +75,8 @@ final readonly class VaultPersonalDataExporter
             'grants_received'     => $this->grantsReceived($em, $userId, $user),
             'grants_given'        => $this->rows($em, 'SELECT g.resourceType AS resource_type, g.resourceId AS resource_id, g.granteeType AS grantee_type, g.granteeId AS grantee_id, g.permission AS permission, g.expiresAt AS expires_at, g.createdAt AS created_at FROM ' . VaultGrant::class . ' g WHERE g.createdBy = :user ORDER BY g.createdAt ASC, g.id ASC', ['user' => $who], 'g.createdBy', $userId),
             'scope_items_created' => $this->rows($em, 'SELECT i.id AS id, i.ownerScope AS owner_scope, i.createdAt AS created_at FROM ' . VaultItem::class . ' i WHERE i.createdBy = :user AND i.ownerScope IS NOT NULL ORDER BY i.createdAt ASC, i.id ASC', ['user' => $who], 'i.createdBy', $userId),
-            'extension_tokens'    => $this->rows($em, 'SELECT t.createdAt AS created_at, t.expiresAt AS expires_at, t.lastUsedAt AS last_used_at FROM ' . VaultExtensionToken::class . ' t WHERE t.user = :user ORDER BY t.createdAt ASC', ['user' => $who], 't.user', $userId),
+            // 1.18.0: no token rows when the entity is not mapped (database.conditional_mapping, browser extension off).
+            'extension_tokens' => $em->getMetadataFactory()->isTransient(VaultExtensionToken::class) ? [] : $this->rows($em, 'SELECT t.createdAt AS created_at, t.expiresAt AS expires_at, t.lastUsedAt AS last_used_at FROM ' . VaultExtensionToken::class . ' t WHERE t.user = :user ORDER BY t.createdAt ASC', ['user' => $who], 't.user', $userId),
         ];
     }
 

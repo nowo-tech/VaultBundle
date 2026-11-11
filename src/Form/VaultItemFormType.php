@@ -132,7 +132,7 @@ final class VaultItemFormType extends AbstractType
             $this->addTagsField($optional);
             // 1.16.0: the owner's password policy, when it is enforced on save (an empty value keeps the stored one).
             $policy = $options['password_policy'];
-            $this->addItemPasswordField(array_merge_recursive($secret('password'), $policy instanceof VaultPasswordPolicy && $policy->enforceOnSave ? ['constraints' => [new VaultPasswordPolicyConstraint($policy)]] : []));
+            $this->addItemPasswordField(array_merge_recursive($secret('password'), $policy instanceof VaultPasswordPolicy && $policy->enforceOnSave ? ['constraints' => [new VaultPasswordPolicyConstraint($policy)]] : []), (bool) $options['strength_meter']);
 
             $this->addTypedField('folder', EntityType::class, [
                 'class'        => VaultFolder::class,
@@ -233,13 +233,15 @@ final class VaultItemFormType extends AbstractType
 
     /**
      * @param array<string, mixed> $secretOptions placeholder / data attribute when a password is stored
+     * @param bool $strengthMeter false (1.18.0: view page, read-only grant) = a plain password field without the
+     *                            PasswordStrength meter, which would list every rule as unmet for a value it cannot see
      */
-    private function addItemPasswordField(array $secretOptions): void
+    private function addItemPasswordField(array $secretOptions, bool $strengthMeter = true): void
     {
         $passwordFieldConfig = $this->runtimeConfig->get()['password_field'];
         $level               = (string) ($passwordFieldConfig['level'] ?? 'medium');
 
-        if (PasswordStrengthIntegration::isAvailable()) {
+        if ($strengthMeter && PasswordStrengthIntegration::isAvailable()) {
             $passwordType   = PasswordStrengthIntegration::PASSWORD_STRENGTH_TYPE;
             $validatorClass = PasswordStrengthIntegration::PASSWORD_STRENGTH_VALIDATOR;
 
@@ -300,7 +302,10 @@ final class VaultItemFormType extends AbstractType
             'scope_item' => false,
             // 1.16.0: VaultPasswordPolicy of the item owner (validated when enforceOnSave).
             'password_policy' => null,
+            // 1.18.0: PasswordStrength meter on the password field (when installed); false on the view page.
+            'strength_meter' => true,
         ]);
+        $resolver->setAllowedTypes('strength_meter', 'bool');
         $resolver->setAllowedTypes('password_policy', ['null', VaultPasswordPolicy::class]);
         $resolver->setAllowedTypes('scope_item', 'bool');
         $resolver->setAllowedTypes('folders', 'array');

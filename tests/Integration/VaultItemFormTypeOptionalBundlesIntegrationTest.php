@@ -15,6 +15,7 @@ use Nowo\VaultBundle\Tests\App\Kernel as AppKernel;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 
@@ -96,16 +97,30 @@ final class VaultItemFormTypeOptionalBundlesIntegrationTest extends KernelTestCa
         self::assertSame('medium', $constraint->level);
     }
 
+    public function testTheViewPageGetsAPlainPasswordFieldWithoutTheStrengthMeter(): void
+    {
+        // 1.18.0 (A3): strength_meter false (view page, read-only grant) = no PasswordStrength widget, whose rules would
+        // all read as unmet for a stored value that is never on the page.
+        $password = $this->createItemForm(['strength_meter' => false, 'stored_secret_fields' => ['password']])->get('password')->getConfig();
+
+        self::assertSame(PasswordType::class, $password->getType()->getInnerType()::class);
+        self::assertTrue($password->getOption('always_empty'));
+        self::assertSame('password', $password->getOption('attr')['data-vault-secret-field'] ?? null);
+    }
+
     protected static function getKernelClass(): string
     {
         return AppKernel::class;
     }
 
-    private function createItemForm(): FormInterface
+    /**
+     * @param array<string, mixed> $options
+     */
+    private function createItemForm(array $options = []): FormInterface
     {
         $formFactory = self::getContainer()->get('form.factory');
         self::assertInstanceOf(FormFactoryInterface::class, $formFactory);
 
-        return $formFactory->create(VaultItemFormType::class, new VaultItemFormData(), ['csrf_protection' => false]);
+        return $formFactory->create(VaultItemFormType::class, new VaultItemFormData(), ['csrf_protection' => false] + $options);
     }
 }

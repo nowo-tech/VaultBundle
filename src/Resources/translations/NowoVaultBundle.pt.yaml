@@ -1,10 +1,10 @@
 vault:
-    title: Vault
+    title: Cofre
     home:
         intro: Armazenamento seguro para credenciais, cartões, documentos e notas. Escolha uma secção para começar.
         items:
             title: Os meus elementos
-            description: Navegue, pesquise e organize as entradas do seu vault.
+            description: Navegue, pesquise e organize as entradas do seu cofre.
         shared:
             description: Elementos partilhados consigo ou com as suas equipas.
         trash:
@@ -13,12 +13,12 @@ vault:
             title: Criar nova entrada
             description: Escolha o tipo de segredo a guardar.
         generator:
-            description: Gere uma palavra-passe forte sem sair do vault.
+            description: Gere uma palavra-passe forte sem sair do cofre.
         runtime_config:
             title: Configuração em tempo de execução (base de dados)
             description: 'Gira chave de encriptação, limite de anexos e nível de palavra-passe em vault_settings.'
     nav:
-        vault: Vault
+        vault: Cofre
         shared: Elementos partilhados
         trash: Lixo
         folders: Pastas
@@ -131,7 +131,8 @@ vault:
         search: Pesquisar
         view: Ver
         edit: Editar
-        access: Acesso
+        access: Partilhar
+        share: Partilhar
         delete_tag: Eliminar etiqueta
         open_settings: Abrir definições
         trash: Mover para o lixo
@@ -161,7 +162,7 @@ vault:
         folder: Pasta
         actions: Ações
     shared:
-        hint: Elementos partilhados consigo ou com as suas equipas aparecem aqui. Estenda o acesso via VaultGrantService e eventos ITEM_LIST_QUERY.
+        hint: Aqui aparecem as entradas que outras pessoas ou as suas equipas partilharam consigo.
     confirm:
         trash_title: 'Mover "%name%" para a lixeira?'
         trash_folder_title: 'Mover a pasta "%name%" para a lixeira?'
@@ -190,8 +191,8 @@ vault:
             saved: Definições guardadas na base de dados.
             key_stored: Definições guardadas na base de dados. Chave de encriptação armazenada.
             key_generated: Chave de encriptação gerada e guardada na base de dados (encriptada em repouso).
-            key_exists: Já existe uma chave de encriptação do vault armazenada na base de dados.
-            key_exists_yaml: "Já existe uma chave de encriptação do vault configurada em YAML/env (nowo_vault.encryption_key). Para a alterar, volte a encriptar os itens com bin/console nowo:vault:reencrypt --persist-new-key."
+            key_exists: Já existe uma chave de encriptação do cofre armazenada na base de dados.
+            key_exists_yaml: "Já existe uma chave de encriptação do cofre configurada em YAML/env (nowo_vault.encryption_key). Para a alterar, volte a encriptar os itens com bin/console nowo:vault:reencrypt --persist-new-key."
             key_invalid: "A chave de encriptação deve ser uma chave libsodium de 32 bytes codificada em base64. Nada foi guardado."
             key_storage_unavailable: "A chave de encriptação não pode ser guardada na base de dados: instale nowo-tech/doctrine-encrypt-bundle para a encriptar em repouso, ou configure nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes deve ser zero ou superior.
@@ -201,7 +202,7 @@ vault:
         intro: Definições na base de dados para chave de encriptação, limite de anexos e nível de palavra-passe.
         section: Definições na base de dados
         last_update: 'Última atualização: %datetime%'
-        encryption_key: Chave de encriptação do vault
+        encryption_key: Chave de encriptação do cofre
         encryption_key_stored_help: Armazenada em vault_settings.encryption_key (encriptada em repouso). Este valor não pode ser alterado neste ecrã.
         encryption_key_yaml_help: "Configurada em YAML/env (nowo_vault.encryption_key). Não pode ser substituída neste ecrã; use bin/console nowo:vault:reencrypt --persist-new-key para a rodar."
         encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle não está instalado, pelo que uma chave guardada em vault_settings não estaria encriptada em repouso. Configure nowo_vault.encryption_key via YAML/env."

@@ -13,8 +13,8 @@ use function trigger_deprecation;
 /**
  * Page plumbing of the UiKit page contract (REQ-UI-003): the page templates (`web_ui.templates.<page>` overrides
  * them), the layout the manage pages extend (`web_ui.layout_template`, null = `nowo_ui_kit.layouts.admin`) and the
- * deprecated bridge around a 1.x layout (no UiKit canonical blocks). Configuration only: no request state, safe in
- * worker mode.
+ * deprecated bridge around a 1.x layout (no UiKit canonical blocks), the share UI switch and the host note template
+ * (1.18.0). Configuration only: no request state, safe in worker mode.
  */
 final readonly class VaultPages
 {
@@ -29,6 +29,15 @@ final readonly class VaultPages
 
     /** Form theme of the item form when nowo-tech/tag-input-bundle is installed (tag container markup). */
     public const ITEM_FORM_THEME = '@NowoVaultBundle/Form/vault_item_form_theme.html.twig';
+
+    /**
+     * Attribute of a row action drawn inside the row's kebab menu (1.18.0, `web_ui.destructive_actions_in_menu`) by the
+     * bundle's `row_actions` partial ({@see self::ROW_ACTIONS_PARTIAL}).
+     */
+    public const ROW_MENU_ATTRIBUTE = 'data-vault-row-menu';
+
+    /** UiKit `row_actions` partial of the vault pages (`nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.row_actions`). */
+    public const ROW_ACTIONS_PARTIAL = '@NowoVaultBundle/ui/_row_actions.html.twig';
 
     /** Page ids accepted by `web_ui.templates` (page id => default template). */
     public const TEMPLATES = [
@@ -55,7 +64,29 @@ final readonly class VaultPages
     public function __construct(
         private ?string $layoutTemplate = null,
         private ?Environment $twig = null,
+        /** 1.18.0 `sharing.enabled`: false hides every Share action and page link. */
+        private bool $sharingEnabled = true,
+        /** 1.18.0 `web_ui.host_note_template`: included under the header of the home and items pages. */
+        private ?string $hostNoteTemplate = null,
+        /** 1.18.0 `web_ui.destructive_actions_in_menu`: Move to trash goes to the end of the row's kebab menu. */
+        private bool $destructiveActionsInMenu = false,
     ) {
+    }
+
+    /**
+     * Whether destructive row actions are drawn inside the row's kebab menu (`web_ui.destructive_actions_in_menu`).
+     */
+    public function destructiveActionsInMenu(): bool
+    {
+        return $this->destructiveActionsInMenu;
+    }
+
+    /**
+     * Whether the share UI is on (`sharing.enabled`, 1.18.0).
+     */
+    public function sharingEnabled(): bool
+    {
+        return $this->sharingEnabled;
     }
 
     /**
@@ -96,6 +127,9 @@ final readonly class VaultPages
         return $vars + [
             'nowo_vault_legacy_layout' => $legacy,
             'nowo_vault_legacy_blocks' => $this->hostBlocks($legacy),
+            // 1.18.0: the host note slot (vault_host_note block) and the share UI switch of the templates.
+            'nowo_vault_host_note_template' => $this->hostNoteTemplate !== '' ? $this->hostNoteTemplate : null,
+            'nowo_vault_sharing_enabled'    => $this->sharingEnabled,
         ];
     }
 

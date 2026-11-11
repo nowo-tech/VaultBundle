@@ -166,7 +166,7 @@ final readonly class VaultPageFactory
             $count = $itemCounts[$id] ?? 0;
 
             $actions[$id] = [
-                new Action('share', VaultPages::label('vault.share.manage'), $this->url($routes['folder_share']['name'], ['id' => $id]), icon: 'share', display: 'icon'),
+                ...($this->pages->sharingEnabled() ? [new Action('share', VaultPages::label('vault.share.manage'), $this->url($routes['folder_share']['name'], ['id' => $id]), icon: 'share', display: 'icon')] : []),
                 new Action(
                     'delete',
                     VaultPages::label('vault.action.trash'),
@@ -597,7 +597,7 @@ final readonly class VaultPageFactory
     }
 
     /**
-     * Row actions of an item: View, then Access / Edit / Trash when the user may change it.
+     * Row actions of an item: View, then Share (with `sharing.enabled`) / Edit / Trash when the user may change it.
      *
      * @param array<string, array{path: string, name: string}> $routes
      * @param array<string, bool> $readOnlyMap
@@ -613,27 +613,44 @@ final readonly class VaultPageFactory
             return $actions;
         }
 
-        $actions[] = new Action('share', VaultPages::label('vault.action.access'), $this->url($routes['item_share']['name'], ['id' => $id]), icon: 'share');
+        if ($this->pages->sharingEnabled()) {
+            $actions[] = new Action('share', VaultPages::label('vault.action.share'), $this->url($routes['item_share']['name'], ['id' => $id]), icon: 'share');
+        }
         $actions[] = Action::edit($this->url($routes['item_edit']['name'], ['id' => $id]), VaultPages::label('vault.action.edit'));
         if (isset($trashForms[$id])) {
-            $actions[] = Action::delete(
-                $this->url($routes['item_trash']['name'], ['id' => $id]),
-                confirm: new Confirm(
-                    VaultPages::label('vault.confirm.trash_title', ['%name%' => $item->getTitle()]),
-                    VaultPages::label('vault.confirm.trash'),
-                    VaultPages::label('vault.action.trash'),
-                    cancelLabel: VaultPages::label('vault.action.cancel'),
-                ),
-                label: VaultPages::label('vault.action.trash'),
-                form: $trashForms[$id],
-            );
+            $actions[] = $this->trashAction($routes, $item, $trashForms[$id]);
         }
 
         return $actions;
     }
 
     /**
-     * Row actions of a scope item: View for any access, Edit with write, Access (share) and Trash with admin.
+     * Move to trash of an item row: POST + CSRF behind a Confirm. With `web_ui.destructive_actions_in_menu` (1.18.0) it
+     * carries {@see VaultPages::ROW_MENU_ATTRIBUTE}: the bundle's `row_actions` partial draws it as the last item of the
+     * row's kebab menu (danger style, same confirm dialog) instead of an inline danger button.
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     */
+    private function trashAction(array $routes, VaultItem $item, FormView $form): Action
+    {
+        return new Action(
+            'delete',
+            VaultPages::label('vault.action.trash'),
+            $this->url($routes['item_trash']['name'], ['id' => $item->getId()]),
+            method: 'POST',
+            confirm: new Confirm(
+                VaultPages::label('vault.confirm.trash_title', ['%name%' => $item->getTitle()]),
+                VaultPages::label('vault.confirm.trash'),
+                VaultPages::label('vault.action.trash'),
+                cancelLabel: VaultPages::label('vault.action.cancel'),
+            ),
+            attributes: $this->pages->destructiveActionsInMenu() ? [VaultPages::ROW_MENU_ATTRIBUTE => true] : [],
+            form: $form,
+        );
+    }
+
+    /**
+     * Row actions of a scope item: View for any access, Edit with write, Share (with `sharing.enabled`) and Trash with admin.
      *
      * @param array<string, array{path: string, name: string}> $routes
      * @param array<string, FormView> $trashForms
@@ -648,19 +665,11 @@ final readonly class VaultPageFactory
             $actions[] = Action::edit($this->url($routes['item_edit']['name'], ['id' => $id]), VaultPages::label('vault.action.edit'));
         }
         if ($permission?->allowsAdmin() === true) {
-            $actions[] = new Action('share', VaultPages::label('vault.action.access'), $this->url($routes['item_share']['name'], ['id' => $id]), icon: 'share');
+            if ($this->pages->sharingEnabled()) {
+                $actions[] = new Action('share', VaultPages::label('vault.action.share'), $this->url($routes['item_share']['name'], ['id' => $id]), icon: 'share');
+            }
             if (isset($trashForms[$id])) {
-                $actions[] = Action::delete(
-                    $this->url($routes['item_trash']['name'], ['id' => $id]),
-                    confirm: new Confirm(
-                        VaultPages::label('vault.confirm.trash_title', ['%name%' => $item->getTitle()]),
-                        VaultPages::label('vault.confirm.trash'),
-                        VaultPages::label('vault.action.trash'),
-                        cancelLabel: VaultPages::label('vault.action.cancel'),
-                    ),
-                    label: VaultPages::label('vault.action.trash'),
-                    form: $trashForms[$id],
-                );
+                $actions[] = $this->trashAction($routes, $item, $trashForms[$id]);
             }
         }
 

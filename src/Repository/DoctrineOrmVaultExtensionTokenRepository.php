@@ -99,6 +99,11 @@ final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultEx
      */
     public function removeExpired(): int
     {
+        // 1.18.0: nothing to purge when the token entity is not mapped (database.conditional_mapping, extension off).
+        if ($this->em()->getMetadataFactory()->isTransient(VaultExtensionToken::class)) {
+            return 0;
+        }
+
         return $this->em()->createQueryBuilder()
             ->delete(VaultExtensionToken::class, 't')
             ->where('t.expiresAt <= :now')

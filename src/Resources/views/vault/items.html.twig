@@ -2,17 +2,28 @@
   My items (REQ-UI-003): UiKit list scaffold. Variable: page (View\ListPage from VaultPageFactory::items(): header
   vault.home.items.title with one create action per item type (kept in the active folder) and a back link; filters =
   VaultItemSearchType (GET q + the active folder / tag as hidden fields); columns type, title, tags, folder; rows =
-  list<VaultItem>; row actions View / Access / Edit / Trash (POST + CSRF FormView behind a Confirm; read-only items:
+  list<VaultItem>; row actions View / Share / Edit / Trash (POST + CSRF FormView behind a Confirm; read-only items:
   View only); Pagination (nowo_vault.pagination.per_page, none while searching); EmptyState vault.empty.items).
   Also: routes, folders, tags, folderForm (VaultFolderCreateType), folderActions (folder id => Share / Trash actions),
   tagActions (tag id => Delete action), activeFolder, activeTag, searchQuery, readOnlyMap, grantCounts.
   Data blocks filled: nowo_ui_list_filters (folders and tags panels, then the default search region),
-  nowo_ui_list_row (cells).
+  nowo_ui_list_row (cells). 1.18.0: block vault_host_note under the page header (web_ui.host_note_template); the
+  Shared badge and the Share actions are left out with sharing.enabled false.
 #}
 {% extends '@NowoUiKit/page/list.html.twig' %}
 {% trans_default_domain 'NowoVaultBundle' %}
 
 {% block nowo_ui_styles %}{{ parent() }}<link rel="stylesheet" href="{{ asset('vault.css', 'nowo_vault') }}">{% endblock %}
+
+{#- 1.18.0 host slot: one host line under the page header (web_ui.host_note_template, or override vault_host_note) -#}
+{% block nowo_ui_page_header %}
+    {{ parent() }}
+    {% block vault_host_note %}
+        {% if nowo_vault_host_note_template|default(null) %}
+            <div class="vault-host-note" data-testid="vault-host-note">{{ include(nowo_vault_host_note_template, {page: page, routes: routes|default({})}) }}</div>
+        {% endif %}
+    {% endblock %}
+{% endblock %}
 
 {% block nowo_ui_list_filters %}
     {% set _b = page.bundle %}
@@ -86,7 +97,7 @@
         {% if readOnlyMap[row.id]|default(false) %}
             <span class="{{ nowo_ui_class('badge_info', _b) }}">{{ 'vault.badge.read_only'|trans }}</span>
         {% endif %}
-        {% if grantCounts[row.id]|default(0) > 0 %}
+        {% if (nowo_vault_sharing_enabled ?? true) and grantCounts[row.id]|default(0) > 0 %}
             <span class="{{ nowo_ui_class('badge_success', _b) }}">{{ 'vault.access.shared_badge'|trans }}</span>
         {% endif %}
     </td>
