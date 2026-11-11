@@ -58,6 +58,7 @@ use Nowo\VaultBundle\Support\VaultUserClassPolicy;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
@@ -323,7 +324,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         // 1.17.1 (REQ-RUNTIME-002): kernel.reset alone is not enough with FRANKENPHP_RESET_KERNEL=false; the bundle
         // clears the memo itself at the main request, terminate, console and Messenger worker boundaries.
         $container->setDefinition(VaultRequestBoundaryListener::class, (new Definition(VaultRequestBoundaryListener::class))
-            ->setArgument('$scopeAccess', new Reference(RequestScopedScopeAccessCache::class))
+            ->setArgument('$memos', new IteratorArgument([new Reference(RequestScopedScopeAccessCache::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE)]))
             ->addTag('kernel.event_listener', ['event' => 'kernel.request', 'method' => 'onKernelRequest', 'priority' => 2048])
             ->addTag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => 'onBoundary', 'priority' => -2048])
             ->addTag('kernel.event_listener', ['event' => 'console.terminate', 'method' => 'onBoundary', 'priority' => -2048])

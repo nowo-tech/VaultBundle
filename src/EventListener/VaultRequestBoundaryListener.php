@@ -28,10 +28,14 @@ final readonly class VaultRequestBoundaryListener
     public const WORKER_MESSAGE_FAILED = 'Symfony\Component\Messenger\Event\WorkerMessageFailedEvent';
 
     /**
-     * Creates the listener around the memo it clears.
+     * Creates the listener around the memos it clears. The bundle wires them as references ignored while uninitialised
+     * (like Symfony's own services resetter): a memo nobody built in this process is skipped, so a boundary never
+     * instantiates the memo or the host resolver behind it.
+     *
+     * @param iterable<RequestScopedScopeAccessCache> $memos
      */
     public function __construct(
-        private RequestScopedScopeAccessCache $scopeAccess,
+        private iterable $memos,
     ) {
     }
 
@@ -44,7 +48,7 @@ final readonly class VaultRequestBoundaryListener
             return;
         }
 
-        $this->scopeAccess->reset();
+        $this->clear();
     }
 
     /**
@@ -52,6 +56,13 @@ final readonly class VaultRequestBoundaryListener
      */
     public function onBoundary(): void
     {
-        $this->scopeAccess->reset();
+        $this->clear();
+    }
+
+    private function clear(): void
+    {
+        foreach ($this->memos as $memo) {
+            $memo->reset();
+        }
     }
 }

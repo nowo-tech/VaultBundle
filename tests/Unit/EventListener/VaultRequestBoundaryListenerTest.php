@@ -15,7 +15,10 @@ use Nowo\VaultBundle\Tests\Support\SodiumVaultPayloadCryptographerTestKey;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
+use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -99,6 +102,13 @@ final class VaultRequestBoundaryListenerTest extends TestCase
                 }
             }
             self::assertTrue($container->getDefinition(RequestScopedScopeAccessCache::class)->hasTag('kernel.reset'), 'kernel.reset stays as a second line.');
+            $memos = $definition->getArgument('$memos');
+            self::assertInstanceOf(IteratorArgument::class, $memos);
+            $references = $memos->getValues();
+            self::assertCount(1, $references);
+            self::assertInstanceOf(Reference::class, $references[0]);
+            self::assertSame(RequestScopedScopeAccessCache::class, (string) $references[0]);
+            self::assertSame(ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE, $references[0]->getInvalidBehavior(), 'A boundary never builds the memo.');
         }
     }
 
@@ -118,7 +128,7 @@ final class VaultRequestBoundaryListenerTest extends TestCase
             }
         });
 
-        return [$cache, new VaultRequestBoundaryListener($cache)];
+        return [$cache, new VaultRequestBoundaryListener([$cache])];
     }
 
     /**

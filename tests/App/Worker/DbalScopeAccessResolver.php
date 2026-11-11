@@ -16,7 +16,8 @@ use function is_string;
 
 /**
  * Host scope resolver of the worker kernel: membership lives in the `test_scope_member` table, so a test can revoke it
- * with plain SQL behind the bundle's back (as another request, worker or admin tool would). Counts its calls.
+ * with plain SQL behind the bundle's back (as another request, worker or admin tool would). Counts its instances and
+ * calls.
  */
 final class DbalScopeAccessResolver implements VaultScopeAccessResolverInterface
 {
@@ -24,9 +25,13 @@ final class DbalScopeAccessResolver implements VaultScopeAccessResolverInterface
 
     public static int $calls = 0;
 
+    /** Number of instances built (the boundary listener must never build the memo, nor this resolver behind it). */
+    public static int $instances = 0;
+
     public function __construct(
         private readonly Connection $connection,
     ) {
+        ++self::$instances;
     }
 
     public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess

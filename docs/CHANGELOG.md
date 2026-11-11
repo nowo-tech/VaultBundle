@@ -52,18 +52,23 @@ Target: **1.17.1** (patch).
 
 ### Security
 
-- **Revoked scope membership kept granting access in FrankenPHP worker mode with kernel reset false (pre-existing,
-  affects 1.16.0 to 1.17.0).** `Security\RequestScopedScopeAccessCache` memoizes the host resolver's answer per (user,
-  scope) and was cleared only by `kernel.reset`. A worker that never runs the services resetter
-  (`FRANKENPHP_RESET_KERNEL=false`, REQ-RUNTIME-002) kept a member's scope standing after the team or scope membership
-  was revoked, until the worker restarted: the scope pages, catalogue, health report, export and item checks kept
-  serving the scope's items. The new `EventListener\VaultRequestBoundaryListener` (registered by the bundle) clears the
-  memo on the main `kernel.request` (before the firewall), `kernel.terminate`, `console.terminate` and Messenger
-  `WorkerMessageHandledEvent` / `WorkerMessageFailedEvent`; `kernel.reset` still clears it too. Sub-requests keep their
-  main request's memo. Same class as StorageKit LR. Tests: `VaultScopeWorkerRevocationTest` (one kernel, no services
-  resetter: a membership deleted with SQL is refused on the next request; two users alternating for 100 rounds with
+- **Revoked scope membership kept granting access where the services resetter does not run (pre-existing, affects
+  1.16.0 to 1.17.0).** `Security\RequestScopedScopeAccessCache` memoizes the host resolver's answer per (user, scope)
+  and was cleared only by `kernel.reset` (`services_resetter`). With the stock Symfony kernel this is not reachable in
+  FrankenPHP worker mode: even with `FRANKENPHP_RESET_KERNEL=false`, `Kernel::handle()` → `boot()` runs
+  `services_resetter` before every request after the first. It is reachable only where the resetter does not run: a
+  host that removes or bypasses `services_resetter` or drives `http_kernel` directly, a long-running console command,
+  or a Messenger consumer started with `messenger:consume --no-reset` (Vault ships no Messenger handlers; a host
+  handler that calls the vault would be affected). There, a team or scope membership revoked later kept granting the
+  member's previous standing until the process restarted (scope pages, catalogue, health report, export and item
+  checks). The new `EventListener\VaultRequestBoundaryListener` (registered by the bundle) clears the memo on the main
+  `kernel.request` (before the firewall), `kernel.terminate`, `console.terminate` and Messenger
+  `WorkerMessageHandledEvent` / `WorkerMessageFailedEvent` (REQ-RUNTIME-002 rule 1); `kernel.reset` still clears it
+  too. Sub-requests keep their main request's memo. The listener only clears a memo that was already built (it never
+  instantiates the memo or the host resolver). Tests: `VaultScopeWorkerRevocationTest` (one kernel, services resetter
+  disabled: a membership deleted with SQL is refused on the next request; two users alternating for 100 rounds with
   the second one's membership toggled every round, memory margin 4 MiB) and `VaultRequestBoundaryListenerTest`.
-  No configuration change; hosts that wired their own reset can drop it.
+  No configuration change.
 
 ## [1.17.0] - 2026-11-11
 

@@ -24,10 +24,13 @@ trait VaultWebTestTrait
 {
     private function bootClient(): KernelBrowser
     {
-        $client = self::createClient(['disableReboot' => true]);
-        $em     = $this->em();
-        $tool   = new SchemaTool($em);
-        $meta   = $em->getMetadataFactory()->getAllMetadata();
+        // disableReboot() on the client (a createClient() option would be a kernel option and be ignored): one kernel
+        // for the whole test; the services resetter still runs between requests, as in stock FrankenPHP worker mode.
+        $client = self::createClient();
+        $client->disableReboot();
+        $em   = $this->em();
+        $tool = new SchemaTool($em);
+        $meta = $em->getMetadataFactory()->getAllMetadata();
         $tool->dropSchema($meta);
         $tool->createSchema($meta);
 

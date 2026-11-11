@@ -7,15 +7,21 @@ namespace Nowo\VaultBundle\Tests\E2E;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\Worker\DbalScopeAccessResolver;
 use Nowo\VaultBundle\Tests\App\Worker\NoopServicesResetter;
 use Nowo\VaultBundle\Tests\App\WorkerScopesKernel;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Event\TerminateEvent;
+use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function gc_collect_cycles;
 use function memory_get_usage;
@@ -48,8 +54,9 @@ final class VaultScopeWorkerRevocationTest extends WebTestCase
 
     protected function setUp(): void
     {
-        DbalScopeAccessResolver::$calls = 0;
-        NoopServicesResetter::$calls    = 0;
+        DbalScopeAccessResolver::$calls     = 0;
+        DbalScopeAccessResolver::$instances = 0;
+        NoopServicesResetter::$calls        = 0;
     }
 
     protected function tearDown(): void
@@ -79,6 +86,33 @@ final class VaultScopeWorkerRevocationTest extends WebTestCase
         $this->grant($alice);
         $client->request('GET', '/tools/vault/scopes/' . self::SCOPE);
         self::assertResponseIsSuccessful();
+    }
+
+    public function testABoundaryBuildsNoMemoAndStillClearsABuiltOne(): void
+    {
+        self::createClient(['debug' => false])->disableReboot();
+        $connection = $this->connection();
+        DbalScopeAccessResolver::createTable($connection);
+        /** @var EventDispatcherInterface $dispatcher */
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+
+        // Nobody resolved a scope yet: the boundaries clear nothing and build nothing.
+        $terminate = new TerminateEvent(self::$kernel, Request::create('/'), new Response());
+        $dispatcher->dispatch($terminate, KernelEvents::TERMINATE);
+        $dispatcher->dispatch($terminate, KernelEvents::TERMINATE);
+        self::assertSame(0, DbalScopeAccessResolver::$instances, 'A boundary must not instantiate the memo or the host resolver.');
+
+        // Built and filled: the next boundary still empties it.
+        /** @var RequestScopedScopeAccessCache $memo */
+        $memo = self::getContainer()->get(RequestScopedScopeAccessCache::class);
+        $user = new TestUser('7');
+        $connection->executeStatement('INSERT INTO ' . DbalScopeAccessResolver::TABLE . " (user_id, scope, permission, can_create) VALUES ('7', ?, 'read', 0)", [self::SCOPE]);
+        self::assertNotNull($memo->resolve($user, self::SCOPE));
+        $connection->executeStatement('DELETE FROM ' . DbalScopeAccessResolver::TABLE);
+        self::assertNotNull($memo->resolve($user, self::SCOPE), 'Memoized within the unit of work.');
+        $dispatcher->dispatch($terminate, KernelEvents::TERMINATE);
+        self::assertNull($memo->resolve($user, self::SCOPE), 'A built memo is still cleared at the boundary.');
+        self::assertSame(1, DbalScopeAccessResolver::$instances);
     }
 
     public function testTwoUsersAlternatingOnOneWorkerNeverShareTheirStanding(): void
