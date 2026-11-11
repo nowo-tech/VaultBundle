@@ -8,6 +8,7 @@
 | Method | Manual review of every service, controller, command, form type, Twig extension, Doctrine listener, repository and DI class under `src/` (entities, DTOs, events and enums skimmed) |
 | **Verdict** | ✅ **Viable under scenario B** (after remediation) — no bundle service keeps per-request or DB-derived state across requests; clearing the Doctrine identity map between requests remains the application's responsibility (W-03) |
 | Remediation (2026-09-23) | W-01, W-02, W-03 (bundle side), W-04 resolved; W-05 accepted. Regression tests simulate consecutive requests on the same service instances without `reset()` |
+| Update (2026-11-11, 1.17.1) | W-06 (scope membership memo cleared only by `kernel.reset`) resolved: the bundle clears it at the request, terminate, console and Messenger boundaries, so it no longer depends on the services resetter (REQ-RUNTIME-002). Note: with the stock Symfony kernel, `FRANKENPHP_RESET_KERNEL=false` still runs `services_resetter` before every request (`Kernel::handle()` → `boot()`); the memo leaked only where the resetter does not run (host removes/bypasses it or drives `http_kernel` directly, long-running console commands, `messenger:consume --no-reset`). Worker test `VaultScopeWorkerRevocationTest` |
 
 ## Table of contents
 
@@ -20,6 +21,7 @@
   - [W-03 — Repositories rely on Doctrine's resetter for the EntityManager (Medium, scenario B)](#w-03--repositories-rely-on-doctrines-resetter-for-the-entitymanager-medium-scenario-b)
   - [W-04 — Route loader refuses a second load in the same process (Low)](#w-04--route-loader-refuses-a-second-load-in-the-same-process-low)
   - [W-05 — Key material stays in worker memory (Info)](#w-05--key-material-stays-in-worker-memory-info)
+  - [W-06 — Scope membership memo cleared only by kernel.reset (High)](#w-06--scope-membership-memo-cleared-only-by-kernelreset-high)
 - [Usage recommendations in worker mode](#usage-recommendations-in-worker-mode)
 - [Re-audit triggers](#re-audit-triggers)
 
@@ -38,7 +40,7 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 |------|--------|-------|
 | Mutable state in shared services | ✅ (resolved) | `VaultRuntimeConfigProvider` only keeps the validated YAML baseline (immutable); `VaultAccessGuard::$readOnlyCache` and `VaultRouteLoader::$loaded` removed; `RuntimeKeyVaultPayloadCryptographer` rebuilds its delegate whenever the resolved key changes (checked on every call) |
 | Static properties / `static` locals | ✅ | Only pure static helpers (`UserIdResolver`, `VaultLoginDomainMatcher`, `*Integration::isAvailable()`, `VaultRuntimeConfigSchema::filter()`); no static properties |
-| `ResetInterface` / `kernel.reset` coverage | ✅ | One request-scoped memo since 1.16.0: `Security\RequestScopedScopeAccessCache` (scope membership per user and scope) implements `ResetInterface` and is tagged `kernel.reset`, so membership is re-evaluated on every request |
+| `ResetInterface` / `kernel.reset` coverage | ✅ (1.17.1) | One request-scoped memo since 1.16.0: `Security\RequestScopedScopeAccessCache` (scope membership per user and scope). Since 1.17.1 the bundle clears it itself (`EventListener\VaultRequestBoundaryListener`: main `kernel.request`, `kernel.terminate`, `console.terminate`, Messenger `WorkerMessageHandledEvent` / `WorkerMessageFailedEvent`), so it does not depend on `kernel.reset`, which also clears it (W-06) |
 | Request / user / locale captured in services | ✅ | User, request and token are passed as method arguments; nothing is captured in constructors |
 | Superglobals, `$_ENV`, `putenv`, `ini_set`, `setlocale`, timezone | ✅ | None used; config is compiled into container parameters |
 | Doctrine / EntityManager | ✅ (resolved, bundle side) | Repositories resolve the manager from `ManagerRegistry` per call and reset it when closed; settings row read with `HINT_REFRESH`. Identity-map clearing between requests stays the application's job |
@@ -56,7 +58,8 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 | `Config\VaultRuntimeConfigProvider` | yes | `?array $validatedYamlBaseline` (YAML only, immutable); DB-merged config read from the shared pool on every call | ✅ | ✅ |
 | `Security\RuntimeKeyVaultPayloadCryptographer` | yes (alias of `VaultPayloadCryptographerInterface`) | `$delegate`, `$activeKeyBase64` (rebuilt when the resolved key changes, checked on every call) | ✅ | ✅ |
 | `Service\VaultAccessGuard` | yes | none (cache removed); scope membership goes through the request-scoped cache below | ✅ | ✅ |
-| `Security\RequestScopedScopeAccessCache` (1.16.0) | yes | `array $memo` (user, scope) → `VaultScopeAccess`/null, **reset per request** (`kernel.reset`) | ✅ | ✅ |
+| `Security\RequestScopedScopeAccessCache` (1.16.0) | yes | `array $memo` (user, scope) → `VaultScopeAccess`/null, cleared by `VaultRequestBoundaryListener` at every request / command / message boundary (1.17.1) and by `kernel.reset` | ✅ | ✅ (1.17.1; ❌ in 1.16.0–1.17.0, W-06) |
+| `EventListener\VaultRequestBoundaryListener` (1.17.1) | yes | none (`readonly`); clears the memo above | ✅ | ✅ |
 | `Routing\VaultRouteLoader` | yes (`routing.loader`) | none (`$loaded` flag removed) | ✅ | ✅ |
 | `Config\VaultRuntimeConfigWriter`, `Security\VaultRuntimeConfigResolver`, `Security\ConfigurableVaultAccessChecker`, `Security\AllowAllVaultAccessChecker`, `Security\NullVaultTeamMembershipResolver` | yes | none (`readonly`); read config through the provider | ✅ | ✅ |
 | `BrowserExtension\VaultBrowserExtensionLoginRateLimiter` | yes | none; counters live in the PSR-6 cache pool | ✅ | ✅ |
@@ -110,6 +113,13 @@ Entities, DTOs, events, enums and value objects are created per call; none is st
 - **Recommendation:** none required; mention it in the threat model. Fixing W-01 also shortens the time a stale key is kept.
 - **Status:** Accepted — inherent to a server-side vault; after W-01 the delegate is rebuilt as soon as the resolved key changes, so a retired key is no longer used.
 
+### W-06 — Scope membership memo cleared only by kernel.reset (High)
+
+- **Where:** `src/Security/RequestScopedScopeAccessCache.php` (`array $memo`, `resolve()`), used by `Service\VaultAccessGuard::resolveScopeAccess()` and every scope check (scope pages, catalogue, health, export, item access on scope items). Introduced in 1.16.0.
+- **Worker impact:** under scenario B (the services resetter does not run), the memo was never cleared: once a worker had resolved a (user, scope) pair, a team or scope membership revoked later (in the host's database, by another request or worker, or by an admin tool) kept granting the member's previous standing in that worker until it restarted. The memo also grew with every (user, scope) pair. Scenario B is not the stock FrankenPHP setup: with the stock Symfony kernel, `FRANKENPHP_RESET_KERNEL=false` only stops the kernel from being cloned, and `Kernel::handle()` → `boot()` still runs `services_resetter` before every request after the first. Scenario B happens when the host removes or bypasses `services_resetter` or drives `http_kernel` directly, in long-running console commands, and in Messenger consumers started with `--no-reset` (Vault ships no Messenger handlers). Found by the REQ-RUNTIME-002 sweep of 2026-11-11 (same class as StorageKit LR).
+- **Status:** Resolved in 1.17.1 — `src/EventListener/VaultRequestBoundaryListener.php`, registered by `VaultExtension` (no host wiring): clears the memo on the main `kernel.request` (priority 2048, before the firewall), `kernel.terminate`, `console.terminate` and Messenger `WorkerMessageHandledEvent` / `WorkerMessageFailedEvent` (wired by event name; Console and Messenger stay optional). Sub-requests keep the main request's memo. The listener receives the memo as a reference ignored while uninitialised (like Symfony's services resetter), so a boundary never builds it or the host resolver. `kernel.reset` still clears it as a second line.
+- **Tests:** `tests/E2E/VaultScopeWorkerRevocationTest.php` on `tests/App/WorkerScopesKernel.php` (one kernel, `KernelBrowser::disableReboot()`, `services_resetter` replaced by a no-op, so nothing tagged `kernel.reset` runs; database-backed host resolver): (1) a member is served, the membership row is deleted with plain SQL, the next request is refused (404), and served again once re-granted; (2) two users alternating, 100 rounds × 4 requests, the second user's membership toggled by SQL every round, each response matching that user's current standing; memory after a 10-round warm-up grows by less than 4 MiB; (3) a boundary on a fresh kernel builds neither the memo nor the host resolver (references ignored while uninitialised), and a memo built and filled afterwards is still emptied by the next boundary. `tests/Unit/EventListener/VaultRequestBoundaryListenerTest.php` covers each boundary, the sub-request case and the extension wiring; `VaultAccessGuardScopeTest::testScopeMembershipIsMemoizedPerRequestAndReset` covers `reset()`.
+
 No other findings. The browser extension rate limiter, Bearer tokens and CSRF checks all keep their state in the cache pool, the database or the session, not in service properties.
 
 ## Usage recommendations in worker mode
@@ -118,7 +128,8 @@ No other findings. The browser extension rate limiter, Bearer tokens and CSRF ch
 - Keep `services_resetter` / `kernel.reset` enabled when possible so the Doctrine identity map is cleared between requests (W-03). Under scenario B the bundle recovers from a closed EntityManager on its own, but clearing the identity map is the application's job.
 - Set FrankenPHP `max_requests` (or `FRANKENPHP_LOOP_MAX`) to recycle workers; this bounds identity-map growth when nothing clears it.
 - Use a cache pool shared by all workers (`cache.app` on a shared filesystem, Redis) for `config_storage.cache_pool`, `browser_extension.login_rate_limit.cache_pool` and `security.secret_access_rate_limit.cache_pool`; a per-worker pool (e.g. `cache.adapter.array`) would split rate-limit counters between workers.
-- Custom `VaultAccessCheckerInterface`, `VaultTeamMembershipResolverInterface` and `VaultBrowserExtensionAuthenticatorInterface` implementations must be stateless, or implement `ResetInterface`.
+- Since 1.17.1 the bundle clears its only memo at the request boundary itself (W-06), so it stays correct where the services resetter does not run (host without `services_resetter`, long-running commands, `messenger:consume --no-reset`). Stock FrankenPHP worker mode, including `FRANKENPHP_RESET_KERNEL=false`, still runs the resetter before every request.
+- Custom `VaultAccessCheckerInterface`, `VaultTeamMembershipResolverInterface`, `VaultScopeAccessResolverInterface` and `VaultBrowserExtensionAuthenticatorInterface` implementations must be stateless, or clear their state at the request boundary (implementing `ResetInterface` alone is not enough where the services resetter does not run). A scope resolver should read memberships from the database on every call, not from collections cached on a managed user entity.
 - The demo (`demo/symfony8/Caddyfile`) already runs FrankenPHP in worker mode with `watch`.
 
 ## Re-audit triggers
