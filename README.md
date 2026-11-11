@@ -8,7 +8,7 @@ Symfony bundle for a **password and secrets vault**: logins, secure notes, credi
 
 ![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
 
-This bundle is **FrankenPHP worker mode friendly**.
+This bundle is **FrankenPHP worker mode friendly**, including kernel reset false (`FRANKENPHP_RESET_KERNEL=false`): it clears its own per-request state at every request boundary ([worker audit](docs/FRANKENPHP-WORKER-AUDIT.md)).
 
 | Vault home | Items list | Password generator |
 | --- | --- | --- |

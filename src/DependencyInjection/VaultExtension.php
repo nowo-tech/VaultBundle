@@ -16,6 +16,7 @@ use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPas
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\Doctrine\VaultUserColumnsListener;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
+use Nowo\VaultBundle\EventListener\VaultRequestBoundaryListener;
 use Nowo\VaultBundle\EventListener\VaultUserGateListener;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
@@ -319,6 +320,15 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setDefinition(RequestScopedScopeAccessCache::class, (new Definition(RequestScopedScopeAccessCache::class))
             ->setArgument('$resolver', new Reference(VaultScopeAccessResolverInterface::class))
             ->addTag('kernel.reset', ['method' => 'reset']));
+        // 1.17.1 (REQ-RUNTIME-002): kernel.reset alone is not enough with FRANKENPHP_RESET_KERNEL=false; the bundle
+        // clears the memo itself at the main request, terminate, console and Messenger worker boundaries.
+        $container->setDefinition(VaultRequestBoundaryListener::class, (new Definition(VaultRequestBoundaryListener::class))
+            ->setArgument('$scopeAccess', new Reference(RequestScopedScopeAccessCache::class))
+            ->addTag('kernel.event_listener', ['event' => 'kernel.request', 'method' => 'onKernelRequest', 'priority' => 2048])
+            ->addTag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => 'onBoundary', 'priority' => -2048])
+            ->addTag('kernel.event_listener', ['event' => 'console.terminate', 'method' => 'onBoundary', 'priority' => -2048])
+            ->addTag('kernel.event_listener', ['event' => VaultRequestBoundaryListener::WORKER_MESSAGE_HANDLED, 'method' => 'onBoundary', 'priority' => -2048])
+            ->addTag('kernel.event_listener', ['event' => VaultRequestBoundaryListener::WORKER_MESSAGE_FAILED, 'method' => 'onBoundary', 'priority' => -2048]));
 
         $container->setParameter('nowo_vault.scopes.enabled', $scopes['enabled']);
         $enabled = ['item_attachment'];

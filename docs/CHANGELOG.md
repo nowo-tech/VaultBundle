@@ -48,6 +48,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: **1.17.1** (patch).
+
+### Security
+
+- **Revoked scope membership kept granting access in FrankenPHP worker mode with kernel reset false (pre-existing,
+  affects 1.16.0 to 1.17.0).** `Security\RequestScopedScopeAccessCache` memoizes the host resolver's answer per (user,
+  scope) and was cleared only by `kernel.reset`. A worker that never runs the services resetter
+  (`FRANKENPHP_RESET_KERNEL=false`, REQ-RUNTIME-002) kept a member's scope standing after the team or scope membership
+  was revoked, until the worker restarted: the scope pages, catalogue, health report, export and item checks kept
+  serving the scope's items. The new `EventListener\VaultRequestBoundaryListener` (registered by the bundle) clears the
+  memo on the main `kernel.request` (before the firewall), `kernel.terminate`, `console.terminate` and Messenger
+  `WorkerMessageHandledEvent` / `WorkerMessageFailedEvent`; `kernel.reset` still clears it too. Sub-requests keep their
+  main request's memo. Same class as StorageKit LR. Tests: `VaultScopeWorkerRevocationTest` (one kernel, no services
+  resetter: a membership deleted with SQL is refused on the next request; two users alternating for 100 rounds with
+  the second one's membership toggled every round, memory margin 4 MiB) and `VaultRequestBoundaryListenerTest`.
+  No configuration change; hosts that wired their own reset can drop it.
+
 ## [1.17.0] - 2026-11-11
 
 DDD host path: user ids instead of entity relations and accepted user classes; owner and grantee ids compared exactly (binary collation); fixes cross-class owner confusion (security). See [UPGRADING](https://github.com/nowo-tech/VaultBundle/blob/v1.17.0/docs/UPGRADING.md#to-1170).
