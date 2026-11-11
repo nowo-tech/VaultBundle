@@ -75,23 +75,33 @@ Target **1.17.0** (minor): strict DDD / hexagonal hosts can use the vault (archi
 ### Security
 
 - **Cross-class owner confusion (pre-existing, affects 1.0.0 to 1.16.x; a security advisory follows this release).**
-  Ownership is compared by id, so before 1.17.0 a signed-in user of another class with a colliding id (an `Admin#5`
-  next to a `Customer#5` in the same entity manager) was treated as the owner of the other user's personal vault: list,
-  reveal, edit, delete, share and export. Now a signed-in user that is neither a `user_class` instance nor listed in
-  `accepted_user_classes` (with a usable `getId()`) fails closed: refused on the vault pages (403), by the
+  Ownership was compared by the string form of `getId()` only, ignoring the user's class. So before 1.17.0 a signed-in
+  user of another class with a colliding id (an `Admin#5` next to a `Customer#5`, typically in the same entity manager,
+  which is what lets the lists enumerate the other user's items; the per-item checks matched any user object with that
+  `getId()` on the vault firewall) was treated as the owner of the other user's personal vault: list, open, reveal,
+  edit, delete, share and, since 1.16.0, export. Now a signed-in user that is neither a `user_class` instance nor
+  listed in `accepted_user_classes` (with a usable `getId()`) fails closed: refused on the vault pages (403), by the
   repositories, the access guard (`VaultAccessGuard`: no ownership, grant or scope membership), the field revealer
   (`VaultAccessDeniedException`), grants (`grantAs()`), the personal export and the browser extension login, also when
   host code calls those services directly. Standard hosts whose only security user is the `user_class` entity are not
   affected.
 
-- **Id mapping compares ids byte for byte (LQ-V-M1).** The user id columns get a binary collation where the platform
-  defaults to a case- or accent-insensitive one (`utf8mb4_bin` on MySQL / MariaDB, `Latin1_General_100_BIN2` on SQL
-  Server; PostgreSQL, SQLite and Oracle already compare byte-exact), so `usera` never matches `UserA`. The decrypted
-  personal export (per item), the GDPR export and erasure and the token revocation also keep only the rows whose
-  stored id is identical (`===`), whatever the column collation. Ids longer than 128 bytes or with leading / trailing
-  whitespace are refused (never truncated or trimmed). The id columns are indexed (`<table>_<column>_idx`). CI runs
-  these checks on MySQL 8.0, MariaDB 11.4 and PostgreSQL 17.
+- **Id mapping compares ids byte for byte (LQ-V-M1, LQ-V-P2-M1).** The user id columns and the grant grantee id
+  (users and teams) get a binary collation where the platform defaults to a case- or accent-insensitive one
+  (`utf8mb4_bin` on MySQL / MariaDB, `Latin1_General_100_BIN2` on SQL Server; PostgreSQL, SQLite and Oracle already
+  compare byte-exact), so `usera` never matches `UserA`, neither as an owner nor as a grantee. Whatever the column
+  collation, the grant reads behind access decisions (`findActiveForGrantees()`, `findByGrantee()`, `findOne()`,
+  "shared with me"), the decrypted personal export (per item), the GDPR export and erasure (grants received
+  included) and the token revocation keep only the rows whose stored id is identical (`===`). Ids longer than 128
+  bytes, with leading / trailing whitespace, or with control, format (zero-width, bidi), separator or other
+  default-ignorable characters, and invalid UTF-8 are refused (never trimmed, normalised or truncated). The id columns
+  are indexed (`<table>_<column>_idx`). In id mapping the bundle needs the database platform when it builds its
+  metadata: set `doctrine.dbal.server_version` if the database is not reachable at `cache:warmup` (it now fails loudly
+  instead of caching metadata without the collation). CI runs these checks on MySQL 8.0, MariaDB 11.4 and
+  PostgreSQL 17.
 - In id mapping, a user returned by the `VaultUserLocatorInterface` for an extension token must be a vault user too.
+- `VaultFieldRevealer` refuses non-vault users but does not check ownership or grants: callers check
+  `VaultAccessGuard::canAccessItem(…, View)` first, as the bundle's routes do (documented).
 
 ### Changed
 

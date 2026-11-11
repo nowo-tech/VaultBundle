@@ -117,7 +117,7 @@ final readonly class VaultPersonalDataExporter
      */
     private function grantsReceived(EntityManagerInterface $em, string $userId, ?UserInterface $user): array
     {
-        $rows = $this->rows($em, 'SELECT g.resourceType AS resource_type, g.resourceId AS resource_id, g.permission AS permission, g.expiresAt AS expires_at, g.createdAt AS created_at FROM ' . VaultGrant::class . ' g WHERE g.granteeType = :type AND g.granteeId = :id ORDER BY g.createdAt ASC, g.id ASC', ['type' => GranteeType::User, 'id' => $userId]);
+        $rows = $this->rows($em, 'SELECT g.resourceType AS resource_type, g.resourceId AS resource_id, g.permission AS permission, g.expiresAt AS expires_at, g.createdAt AS created_at FROM ' . VaultGrant::class . ' g WHERE g.granteeType = :type AND g.granteeId = :id ORDER BY g.createdAt ASC, g.id ASC', ['type' => GranteeType::User, 'id' => $userId], 'g.granteeId', $userId, true);
 
         $out = [];
         foreach ($rows as $row) {
@@ -152,11 +152,11 @@ final readonly class VaultPersonalDataExporter
      *
      * @return list<array<string, mixed>>
      */
-    private function rows(EntityManagerInterface $em, string $dql, array $parameters, ?string $ownerField = null, ?string $userId = null): array
+    private function rows(EntityManagerInterface $em, string $dql, array $parameters, ?string $ownerField = null, ?string $userId = null, bool $exactInEveryMapping = false): array
     {
-        // 1.17.0 (LQ-V-M1): with the id mapping, also read the stored user id and keep the rows where it equals the
-        // requested id byte for byte, whatever the column collation.
-        $strict = $ownerField !== null && $userId !== null && $this->users?->mapsById() === true;
+        // 1.17.0 (LQ-V-M1): with the id mapping (and always for the grantee id, LQ-V-P2-M1), also read the stored id and
+        // keep the rows where it equals the requested id byte for byte, whatever the column collation.
+        $strict = $ownerField !== null && $userId !== null && ($exactInEveryMapping || $this->users?->mapsById() === true);
         if ($strict) {
             $dql = preg_replace('/ FROM /', ', ' . $ownerField . ' AS vault_owner FROM ', $dql, 1) ?? $dql;
         }

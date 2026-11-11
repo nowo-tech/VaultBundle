@@ -19,7 +19,10 @@ use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use SortDirection;
 
+use function array_filter;
+use function array_map;
 use function array_values;
+use function in_array;
 use function is_string;
 
 /**
@@ -87,8 +90,8 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
      */
     public function findByGrantee(GranteeType $type, string $granteeId): array
     {
-        /* @var list<VaultGrant> */
-        return $this->em()->createQueryBuilder()
+        /** @var list<VaultGrant> $grants */
+        $grants = $this->em()->createQueryBuilder()
             ->select('g')
             ->from(VaultGrant::class, 'g')
             ->where('g.granteeType = :type')
@@ -99,6 +102,9 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             ->setParameter('now', $this->now())
             ->getQuery()
             ->getResult();
+
+        // 1.17.0 (LQ-V-P2-M1): only the grantee itself, compared byte for byte, whatever the column collation.
+        return array_values(array_filter($grants, static fn (VaultGrant $grant): bool => $grant->getGranteeId() === $granteeId));
     }
 
     /**
@@ -110,8 +116,8 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
         GranteeType $granteeType,
         string $granteeId,
     ): ?VaultGrant {
-        /* @var VaultGrant|null */
-        return $this->em()->createQueryBuilder()
+        /** @var list<VaultGrant> $grants */
+        $grants = $this->em()->createQueryBuilder()
             ->select('g')
             ->from(VaultGrant::class, 'g')
             ->where('g.resourceType = :rt')
@@ -123,7 +129,16 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             ->setParameter('gt', $granteeType)
             ->setParameter('gid', $granteeId)
             ->getQuery()
-            ->getOneOrNullResult();
+            ->getResult();
+
+        // 1.17.0 (LQ-V-P2-M1): a case- or accent-insensitive collation may return another grantee's row; never that one.
+        foreach ($grants as $grant) {
+            if ($grant->getGranteeId() === $granteeId) {
+                return $grant;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -223,13 +238,21 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             $qb->setParameter('teamType', GranteeType::Team)->setParameter('teamIds', $teamIds);
         }
 
-        /* @var list<VaultGrant> */
-        return $qb->where($resources)
+        /** @var list<VaultGrant> $grants */
+        $grants = $qb->where($resources)
             ->andWhere($grantees)
             ->andWhere('g.expiresAt IS NULL OR g.expiresAt > :now')
             ->setParameter('now', $now)
             ->getQuery()
             ->getResult();
+
+        // 1.17.0 (LQ-V-P2-M1): keep the grants of this user and these teams only, compared byte for byte, whatever the
+        // column collation matched.
+        $teams = array_map(strval(...), $teamIds);
+
+        return array_values(array_filter($grants, static fn (VaultGrant $grant): bool => $grant->getGranteeType() === GranteeType::User
+            ? $userId !== null && $grant->getGranteeId() === $userId
+            : in_array($grant->getGranteeId(), $teams, true)));
     }
 
     /**

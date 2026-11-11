@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultFieldRevealCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
@@ -41,6 +42,10 @@ use function is_string;
  * limits apply (`security.secret_access_rate_limit`, `reveal.rate_limit`), the payload is decrypted, and the audit event
  * (ITEM_REVEALED, ITEM_COPIED or ITEM_ATTACHMENT_DOWNLOADED) is dispatched **before** the value is returned: a
  * listener that throws refuses the reveal (no audit, no reveal). Nothing it logs, dispatches or throws holds a value.
+ *
+ * It refuses users the vault does not accept (1.17.0), but it does **not** check ownership or grants of its own: every
+ * caller must first check {@see VaultAccessGuard::canAccessItem()} with {@see VaultAccessAction::View} for that user and
+ * item, as the bundle's reveal route, copy and browser extension do (LQ-V-P2-I5).
  */
 final readonly class VaultFieldRevealer
 {

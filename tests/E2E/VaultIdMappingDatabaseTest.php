@@ -13,19 +13,31 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultItem;
+use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Enum\VaultPermission;
+use Nowo\VaultBundle\Enum\VaultResourceType;
+use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
+use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
+use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultFolderService;
+use Nowo\VaultBundle\Service\VaultGrantResult;
+use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
+use Nowo\VaultBundle\Service\VaultSharedItemResolver;
 use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\IdMappingKernel;
 use PHPUnit\Framework\Attributes\Group;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Throwable;
 
 use function array_map;
 use function array_values;
@@ -43,8 +55,10 @@ use function sort;
  * Set VAULT_TEST_DATABASE_URL to run (CI job "Id mapping on database servers").
  */
 #[Group('database')]
-final class VaultIdMappingDatabaseTest extends KernelTestCase
+final class VaultIdMappingDatabaseTest extends WebTestCase
 {
+    private KernelBrowser $client;
+
     private DddUser $upper;
 
     private DddUser $lower;
@@ -61,7 +75,8 @@ final class VaultIdMappingDatabaseTest extends KernelTestCase
             self::markTestSkipped('Set VAULT_TEST_DATABASE_URL to run the id-mapping tests on a database server.');
         }
 
-        self::bootKernel(['environment' => 'database', 'debug' => false]);
+        $this->client = self::createClient(['environment' => 'database', 'debug' => false]);
+        $this->client->disableReboot();
         $em   = $this->em();
         $tool = new SchemaTool($em);
         $meta = $em->getMetadataFactory()->getAllMetadata();
@@ -82,8 +97,9 @@ final class VaultIdMappingDatabaseTest extends KernelTestCase
     {
         $connection = $this->em()->getConnection();
         if ($connection->getDatabasePlatform() instanceof AbstractMySQLPlatform) {
-            $collations = $connection->fetchAllKeyValue("SELECT CONCAT(TABLE_NAME, '.', COLUMN_NAME), COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'vault\\_%' AND COLUMN_NAME IN ('creator_id', 'created_by_id', 'user_id')");
-            self::assertGreaterThanOrEqual(7, count($collations));
+            $collations = $connection->fetchAllKeyValue("SELECT CONCAT(TABLE_NAME, '.', COLUMN_NAME), COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'vault\\_%' AND COLUMN_NAME IN ('creator_id', 'created_by_id', 'user_id', 'grantee_id')");
+            self::assertGreaterThanOrEqual(8, count($collations));
+            self::assertArrayHasKey('vault_grants.grantee_id', $collations);
             foreach ($collations as $column => $collation) {
                 self::assertSame('utf8mb4_bin', $collation, (string) $column);
             }
@@ -117,6 +133,129 @@ final class VaultIdMappingDatabaseTest extends KernelTestCase
 
         // Lists rely on the binary collation; the secret, GDPR and token paths stay exact without it.
         $this->assertExactEverywhere(false);
+    }
+
+    public function testGrantsMatchTheExactGranteeOnly(): void
+    {
+        $this->assertGrantsExact(false);
+    }
+
+    public function testGrantsMatchTheExactGranteeOnlyUnderACaseInsensitiveCollation(): void
+    {
+        // LQ-V-P2-M1: a host whose migration dropped the binary collation on grantee_id.
+        $this->foldCase($this->em()->getConnection(), 'vault_grants', 'grantee_id', true);
+
+        $this->assertGrantsExact(true);
+    }
+
+    /**
+     * An item of `owner-c` shared Read with `UserA`: the case variant `usera` and the zero-width variant `Us\u{200B}erA`
+     * get nothing (guard, reveal route, shared list, grant lookup, GDPR export and erasure, upsert).
+     */
+    private function assertGrantsExact(bool $folded): void
+    {
+        $owner = new DddUser('owner-c', 'id:owner-c');
+        $upper = new DddUser('UserA', 'id:UserA');
+        $lower = new DddUser('usera', 'id:usera');
+        $zwsp  = new DddUser("Us\u{200B}erA", "id:Us\u{200B}erA");
+
+        $item   = $this->service(VaultItemCreator::class)->create(VaultItemType::Login, 'Shared bank', $owner, ['password' => 'MARKER-shared']);
+        $grants = $this->service(VaultGrantService::class);
+        self::assertSame(VaultGrantResult::Created, $grants->grantAs($owner, VaultResourceType::Item, $item->getId(), GranteeType::User, 'UserA', VaultPermission::Read));
+        $this->em()->clear();
+        if ($folded) {
+            self::assertSame(1, (int) $this->em()->getConnection()->fetchOne("SELECT COUNT(*) FROM vault_grants WHERE grantee_id = 'usera'"), 'The collation folds case.');
+        }
+
+        $guard = $this->service(VaultAccessGuard::class);
+        self::assertTrue($guard->canAccessItem($upper, $item, VaultAccessAction::View));
+        self::assertFalse($guard->canAccessItem($lower, $item, VaultAccessAction::View));
+        self::assertFalse($guard->canAccessItem($zwsp, $item, VaultAccessAction::View), 'Invisible characters: not a vault user.');
+        self::assertSame([$item->getId() => null], $guard->resolvePermissionMap($lower, [$item]));
+
+        $shared = $this->service(VaultSharedItemResolver::class);
+        self::assertSame(['Shared bank'], array_map(static fn (VaultItem $i): string => $i->getTitle(), $shared->resolve($upper)));
+        self::assertSame([], $shared->resolve($lower));
+
+        $repository = $this->service(VaultGrantRepositoryInterface::class);
+        self::assertNotNull($repository->findOne(VaultResourceType::Item, $item->getId(), GranteeType::User, 'UserA'));
+        self::assertNull($repository->findOne(VaultResourceType::Item, $item->getId(), GranteeType::User, 'usera'));
+        self::assertSame([], $repository->findByGrantee(GranteeType::User, 'usera'));
+
+        // Through the pages: UserA reveals, usera and the zero-width variant do not, nor see it as shared.
+        self::assertSame(200, $this->reveal($upper, $item->getId()));
+        self::assertStringContainsString('MARKER-shared', (string) $this->client->getResponse()->getContent());
+        self::assertNotSame(200, $this->reveal($lower, $item->getId()));
+        self::assertStringNotContainsString('MARKER-shared', (string) $this->client->getResponse()->getContent());
+        $this->client->loginUser($lower);
+        $this->client->request('GET', '/tools/vault/shared');
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString('Shared bank', (string) $this->client->getResponse()->getContent());
+        $this->client->loginUser($zwsp);
+        $this->client->request('GET', '/tools/vault/items/' . $item->getId());
+        self::assertResponseStatusCodeSame(403);
+
+        $exporter = self::getContainer()->get('test.personal_data_exporter');
+        self::assertInstanceOf(VaultPersonalDataExporter::class, $exporter);
+        self::assertSame([], $exporter->export('usera')['grants_received']);
+        self::assertCount(1, $exporter->export('UserA')['grants_received']);
+
+        $eraser = self::getContainer()->get('test.personal_data_eraser');
+        self::assertInstanceOf(VaultPersonalDataEraser::class, $eraser);
+        self::assertSame(0, $eraser->erase('usera')->toArray()['grants_received']);
+        $this->em()->clear();
+        self::assertNotNull($repository->findOne(VaultResourceType::Item, $item->getId(), GranteeType::User, 'UserA'), 'UserA keeps the grant.');
+
+        // Upsert for usera never updates UserA's grant: a separate grant (binary column) or a refused insert (folded
+        // unique index), UserA's Read unchanged either way.
+        try {
+            $result = $grants->grantAs($owner, VaultResourceType::Item, $item->getId(), GranteeType::User, 'usera', VaultPermission::Write);
+            self::assertFalse($folded, 'The folded unique index refuses a second grantee row.');
+            self::assertSame(VaultGrantResult::Created, $result);
+        } catch (Throwable $exception) {
+            self::assertTrue($folded, $exception->getMessage());
+        }
+        $permissions = [];
+        foreach ($this->em()->getConnection()->fetchAllAssociative('SELECT grantee_id, permission FROM vault_grants') as $row) {
+            $permissions[(string) $row['grantee_id']] = (string) $row['permission'];
+        }
+        self::assertSame(VaultPermission::Read->value, $permissions['UserA']);
+        self::assertSame($folded ? null : VaultPermission::Write->value, $permissions['usera'] ?? null);
+    }
+
+    private function reveal(DddUser $user, string $itemId): int
+    {
+        $this->client->loginUser($user);
+        $this->client->request('GET', '/tools/vault/shared');
+        $request = $this->client->getRequest();
+        $stack   = self::getContainer()->get('request_stack');
+        $stack->push($request);
+        try {
+            $manager = self::getContainer()->get('security.csrf.token_manager');
+            self::assertInstanceOf(CsrfTokenManagerInterface::class, $manager);
+            $token = $manager->getToken('vault_reveal_' . $itemId)->getValue();
+            $request->getSession()->save();
+        } finally {
+            $stack->pop();
+        }
+        $this->client->request('POST', '/tools/vault/items/' . $itemId . '/reveal/password', server: ['HTTP_X_CSRF_TOKEN' => $token]);
+
+        return $this->client->getResponse()->getStatusCode();
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param class-string<T> $id
+     *
+     * @return T
+     */
+    private function service(string $id): object
+    {
+        $service = self::getContainer()->get($id);
+        self::assertInstanceOf($id, $service);
+
+        return $service;
     }
 
     /**

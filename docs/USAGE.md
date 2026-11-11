@@ -146,6 +146,10 @@ curl -X POST -H "X-CSRF-Token: $TOKEN" -d purpose=copy https://app.example/tools
 
 Read `value` only when `encoding` is `plain`.
 
+In your own code, `VaultFieldRevealer::reveal()` / `attachment()` refuse users the vault does not accept but do not check
+ownership or grants: call `VaultAccessGuard::canAccessItem($user, $item, VaultAccessAction::View)` first, as the
+bundle's routes do.
+
 ## Password health
 
 With `scopes.enabled` and `health.enabled`, members whose `VaultScopeAccess::$health` is true (and whom no
@@ -421,11 +425,15 @@ With `user_mapping: id`:
 
 - the user columns are `VARCHAR(128)` holding the id (no foreign key, no join to your users table: the bundle's
   metadata listener replaces the relation with a plain column), indexed, and compared byte for byte: on MySQL /
-  MariaDB they use `utf8mb4_bin` and on SQL Server `Latin1_General_100_BIN2` (PostgreSQL, SQLite and Oracle already
-  compare byte-exact). Keep that collation in your migrations: the per-item checks, the decrypted export, the GDPR
-  export / erasure and the token revocation stay exact without it, but lists and counts rely on it;
-- an id is `(string) getId()` as is: at most 128 bytes, no leading or trailing whitespace (such users are refused,
-  never trimmed or truncated); `5` and `"5"` are the same user, `"05"` and `"UserA"` / `"usera"` are not;
+  MariaDB they (and `vault_grants.grantee_id`) use `utf8mb4_bin` and on SQL Server `Latin1_General_100_BIN2`
+  (PostgreSQL, SQLite and Oracle already compare byte-exact). Keep that collation in your migrations: the access
+  decisions on grants, "shared with me", the decrypted export, the GDPR export / erasure and the token revocation stay
+  exact without it, but lists, counts and search rely on it. Set `doctrine.dbal.server_version` when the database is
+  not reachable at `cache:warmup` (the listener needs the platform);
+- an id is `(string) getId()` as is: at most 128 bytes, valid UTF-8, no leading or trailing whitespace and no control,
+  zero-width / format, space or other default-ignorable character (such users are refused, never trimmed, normalised
+  or truncated; this rule applies with the relation mapping too); `5` and `"5"` are the same user, `"05"` and
+  `"UserA"` / `"usera"` are not. Normalise ids in your own user model if you need case-insensitive identities;
 - the entities return a `VaultUserId` (`getId()`) for `getCreator()`, `getCreatedBy()` and `VaultExtensionToken::getUser()`;
   prefer the id accessors (`getCreatorId()`, `getCreatedById()`, `getUserId()`) in your code;
 - deleting a user deletes nothing in the vault: call `VaultPersonalDataEraser::erase($userId)` from your "user

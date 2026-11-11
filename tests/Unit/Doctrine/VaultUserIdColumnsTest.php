@@ -12,9 +12,11 @@ use Doctrine\DBAL\Platforms\SQLServerPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\LoadClassMetadataEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use LogicException;
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
+use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Tests\App\Entity\User;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -30,7 +32,30 @@ final class VaultUserIdColumnsTest extends TestCase
         self::assertSame(['charset' => 'utf8mb4', 'collation' => 'utf8mb4_bin'], $this->map(new MySQLPlatform())->fieldMappings['user']->options);
         self::assertSame(['collation' => 'Latin1_General_100_BIN2'], $this->map(new SQLServerPlatform())->fieldMappings['user']->options);
         self::assertNull($this->map(new PostgreSQLPlatform())->fieldMappings['user']->options);
-        self::assertNull($this->map(null)->fieldMappings['user']->options, 'Platform unknown: no option.');
+    }
+
+    public function testAnUnknownPlatformFailsLoudlyInsteadOfCachingMetadataWithoutTheCollation(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('server_version');
+        $this->map(null);
+    }
+
+    public function testGranteeIdGetsTheBinaryCollationInIdMode(): void
+    {
+        $metadata = new ClassMetadata(VaultGrant::class);
+        $metadata->setPrimaryTable(['name' => 'vault_grants']);
+        $metadata->mapField(['fieldName' => 'granteeId', 'columnName' => 'grantee_id', 'type' => 'string', 'length' => 128]);
+
+        $connection = $this->createStub(Connection::class);
+        $connection->method('getDatabasePlatform')->willReturn(new MySQLPlatform());
+        $em = $this->createStub(EntityManagerInterface::class);
+        $em->method('getConnection')->willReturn($connection);
+
+        (new VaultMetadataListener('i', 'f', 'g', 't', 'it', 's', 'x', User::class, VaultUserMapping::ID))
+            ->loadClassMetadata(new LoadClassMetadataEventArgs($metadata, $em));
+
+        self::assertSame(['charset' => 'utf8mb4', 'collation' => 'utf8mb4_bin'], $metadata->fieldMappings['granteeId']->options);
     }
 
     public function testIndexesTheUserIdColumnUnlessAnIndexStartsWithIt(): void

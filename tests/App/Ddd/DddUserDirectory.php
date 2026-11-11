@@ -9,9 +9,13 @@ use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
+use function str_starts_with;
+use function substr;
+
 /**
  * The DDD host's user directory (1.17.0 tests): the security user provider and the vault user locator port, backed
- * by a fixed list (no Doctrine). Users of {@see OtherDomainUser} sign in with an `admin-` prefix.
+ * by a fixed list (no Doctrine). Users of {@see OtherDomainUser} sign in with an `admin-` prefix; `id:<id>` signs in a
+ * {@see DddUser} with that exact id.
  *
  * @implements UserProviderInterface<UserInterface>
  */
@@ -45,6 +49,10 @@ final class DddUserDirectory implements UserProviderInterface, VaultUserLocatorI
     {
         if ($identifier === 'admin@example.com') {
             return new OtherDomainUser(self::ALICE, $identifier);
+        }
+        // `id:<id>` signs in a user with exactly that id (database tests: case and invisible-character variants).
+        if (str_starts_with($identifier, 'id:')) {
+            return new DddUser(substr($identifier, 3), $identifier);
         }
 
         foreach (self::users() as $user) {

@@ -88,8 +88,10 @@ final readonly class VaultPersonalDataEraser
         $personalItems   = $this->ownedIds($em, VaultItem::class, 'creator', $who, $userId, ' AND r.ownerScope IS NULL');
         $personalFolders = $this->ownedIds($em, VaultFolder::class, 'creator', $who, $userId, ' AND r.ownerScope IS NULL');
 
-        $received = $this->deleteGrants($em, 'g.granteeType = :granteeType AND g.granteeId = :granteeId', ['granteeType' => GranteeType::User, 'granteeId' => $userId], $batchSize);
-        $personal = $this->deleteGrants(
+        // LQ-V-P2-M1: only the grants received by this exact grantee id (byte for byte), in both mappings.
+        $receivedIds = $this->receivedGrantIds($em, $userId);
+        $received    = $this->deleteGrants($em, 'g.id IN (:ids)', ['ids' => $receivedIds !== [] ? $receivedIds : ['']], $batchSize);
+        $personal    = $this->deleteGrants(
             $em,
             '(g.resourceType = :item AND g.resourceId IN (:itemIds)) OR (g.resourceType = :folder AND g.resourceId IN (:folderIds))',
             // An empty IN list is invalid SQL: '' is never a resource id.
@@ -286,6 +288,30 @@ final readonly class VaultPersonalDataEraser
         $ids = [];
         foreach ($rows as $row) {
             if (!$strict || ($row['owner'] ?? null) === $userId) {
+                $ids[] = (string) $row['id'];
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Ids of the grants given directly to the user, kept only when the stored grantee id equals `$userId` byte for byte
+     * (a case- or accent-insensitive column collation would also return another user's grants).
+     *
+     * @return list<string>
+     */
+    private function receivedGrantIds(EntityManagerInterface $em, string $userId): array
+    {
+        /** @var list<array{id: string, granteeId: string}> $rows */
+        $rows = $em->createQuery('SELECT g.id AS id, g.granteeId AS granteeId FROM ' . VaultGrant::class . ' g WHERE g.granteeType = :type AND g.granteeId = :id ORDER BY g.id ASC')
+            ->setParameter('type', GranteeType::User)
+            ->setParameter('id', $userId)
+            ->getArrayResult();
+
+        $ids = [];
+        foreach ($rows as $row) {
+            if ($row['granteeId'] === $userId) {
                 $ids[] = (string) $row['id'];
             }
         }

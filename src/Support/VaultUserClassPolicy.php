@@ -13,6 +13,7 @@ use function is_numeric;
 use function is_string;
 use function ltrim;
 use function method_exists;
+use function preg_match;
 use function strlen;
 use function trim;
 
@@ -27,6 +28,13 @@ use function trim;
  */
 final readonly class VaultUserClassPolicy
 {
+    /**
+     * Characters an id must not contain: controls, format characters (zero-width, bidi), separators (spaces) and the
+     * other default-ignorable code points (combining grapheme joiner, Hangul fillers, Khmer / Mongolian inherent marks,
+     * variation selectors). With `u`, invalid UTF-8 makes preg_match() return false, which refuses the id as well.
+     */
+    private const INVISIBLE = '/[\p{Cc}\p{Cf}\p{Z}\x{034F}\x{115F}\x{1160}\x{17B4}\x{17B5}\x{180B}-\x{180F}\x{3164}\x{FE00}-\x{FE0F}\x{FFA0}\x{E0100}-\x{E01EF}]/u';
+
     /** @var list<string> */
     private array $acceptedUserClasses;
 
@@ -91,6 +99,10 @@ final readonly class VaultUserClassPolicy
      * Whether an id value can identify a user: a positive int, or a non-empty string / Stringable of at most
      * {@see VaultMetadataListener::USER_ID_LENGTH} bytes, without leading or trailing whitespace (1.17.0, LQ-V-I2: the
      * id is stored and compared byte for byte, never normalised), that is not a numeric value ≤ 0.
+     *
+     * Since 1.17.0 (LQ-V-P2-M1) a string id must also be valid UTF-8 without control, format (zero-width: U+200B,
+     * U+200D, U+FEFF, bidi marks…), separator (any space) or other default-ignorable characters: collations ignore
+     * those, so `Us\u{200B}erA` could match `UserA` in SQL. Such users are refused, never normalised.
      */
     public static function isUsableId(mixed $id): bool
     {
@@ -105,6 +117,7 @@ final readonly class VaultUserClassPolicy
         return $value !== ''
             && trim($value) === $value
             && strlen($value) <= VaultMetadataListener::USER_ID_LENGTH
+            && preg_match(self::INVISIBLE, $value) === 0
             && (!is_numeric($value) || (float) $value > 0);
     }
 }

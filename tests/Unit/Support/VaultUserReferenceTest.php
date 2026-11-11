@@ -68,6 +68,16 @@ final class VaultUserReferenceTest extends TestCase
         self::assertFalse(VaultUserClassPolicy::isUsableId('UserA '));
         self::assertFalse(VaultUserClassPolicy::isUsableId(str_repeat('a', 129)), 'LQ-V-I2: never truncated.');
         self::assertTrue(VaultUserClassPolicy::isUsableId(str_repeat('a', 128)));
+        self::assertFalse(VaultUserClassPolicy::isUsableId("Us\u{200B}erA"), 'LQ-V-P2-M1: zero-width space.');
+        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{FEFF}A"), 'BOM / zero-width no-break space.');
+        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{00A0}A"), 'No-break space.');
+        self::assertFalse(VaultUserClassPolicy::isUsableId('User A'), 'Any separator.');
+        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{202E}A"), 'Bidi override.');
+        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{034F}A"), 'Combining grapheme joiner.');
+        self::assertFalse(VaultUserClassPolicy::isUsableId("User\u{FE0F}A"), 'Variation selector.');
+        self::assertFalse(VaultUserClassPolicy::isUsableId("User\x01A"), 'Control character.');
+        self::assertFalse(VaultUserClassPolicy::isUsableId("User\xC3A"), 'Invalid UTF-8.');
+        self::assertTrue(VaultUserClassPolicy::isUsableId('josé@example.com'), 'Visible non-ASCII ids stay valid.');
         self::assertTrue(VaultUserClassPolicy::isUsableId($stringable));
     }
 

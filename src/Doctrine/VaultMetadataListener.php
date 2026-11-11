@@ -87,6 +87,10 @@ final readonly class VaultMetadataListener
         }
 
         $columnOptions = $this->userMapping === VaultUserMapping::ID ? $this->binaryCollation($args) : [];
+        if ($columnOptions !== [] && $class === VaultGrant::class && isset($metadata->fieldMappings['granteeId'])) {
+            // LQ-V-P2-M1: the grantee id (a user id or a team id) is compared like the user columns.
+            $metadata->fieldMappings['granteeId']->options = $columnOptions + ($metadata->fieldMappings['granteeId']->options ?? []);
+        }
         foreach (self::USER_FIELDS as $field) {
             if (!isset($metadata->associationMappings[$field])) {
                 continue;
@@ -101,9 +105,13 @@ final readonly class VaultMetadataListener
     }
 
     /**
-     * Column options that make the user id columns compare byte for byte (1.17.0, LQ-V-M1): MySQL / MariaDB and SQL
-     * Server default to case- (and accent-) insensitive collations, so `usera` would match `UserA`. PostgreSQL,
-     * SQLite and Oracle compare byte-exact by default and need nothing.
+     * Column options that make the user id columns (and the grantee id) compare byte for byte (1.17.0, LQ-V-M1):
+     * MySQL / MariaDB and SQL Server default to case- (and accent-) insensitive collations, so `usera` would match
+     * `UserA`. PostgreSQL, SQLite and Oracle compare byte-exact by default and need nothing.
+     *
+     * The result is cached with the metadata, so an unknown platform fails loudly instead of caching metadata without
+     * the collation (LQ-V-P2-I1): set `doctrine.dbal.server_version` when the database is not reachable at
+     * `cache:warmup`.
      *
      * @return array<string, string>
      */
@@ -111,8 +119,8 @@ final readonly class VaultMetadataListener
     {
         try {
             $platform = $args->getEntityManager()->getConnection()->getDatabasePlatform();
-        } catch (Throwable) {
-            return [];
+        } catch (Throwable $exception) {
+            throw new LogicException('nowo_vault.user_mapping "id" needs the database platform to map the user id columns (binary collation). Set doctrine.dbal.server_version (or make the database reachable) before warming up the cache.', 0, $exception);
         }
 
         return match (true) {
