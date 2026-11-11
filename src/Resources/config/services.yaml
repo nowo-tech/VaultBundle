@@ -128,6 +128,9 @@ services:
             $userClass: '%nowo_vault.user_class%'
             $managerName: '%nowo_vault.entity_manager%'
 
+    # 1.17.0: port for loading a host user by id; alias it to your own service when users are no Doctrine entities.
+    Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@Nowo\VaultBundle\Support\VaultUserLocator'
+
     Nowo\VaultBundle\Command\CheckDowngradeCommand:
         arguments:
             $managerName: '%nowo_vault.entity_manager%'

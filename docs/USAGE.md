@@ -20,6 +20,7 @@
 - [Twig overrides](#twig-overrides)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
 - [Translations](#translations)
+- [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 
 ## Manage UI
 
@@ -362,3 +363,82 @@ Template overrides and demos **must not** reintroduce raw `<form>`, `<input>`, `
 ## Translations
 
 Domain: `NowoVaultBundle`. Override in `translations/NowoVaultBundle.es.yaml`.
+
+## Using it from a DDD / hexagonal application
+
+The vault is its own bounded context: it owns its entities (items, folders, tags, grants, settings, extension tokens),
+its crypto and its pages. Your application never extends a vault class or uses a vault trait; it only tells the vault
+who the user is. Two paths are supported (1.17.0).
+
+**Standard Symfony project (default, zero config).** `user_class` is your Doctrine user entity (attributes or XML) in
+the vault's entity manager. The vault rows hold Doctrine relations (`ManyToOne`) to it: `creator_id`, `created_by_id`
+and `user_id` are foreign keys to your users table.
+
+```yaml
+nowo_vault:
+    user_class: App\Entity\User
+    encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
+```
+
+If your security user is not that entity (a JWT user, a wrapper, a read model carrying the entity id), list its class:
+it is stored as `getReference(user_class, getId())`, no query.
+
+```yaml
+nowo_vault:
+    user_class: App\Entity\User
+    accepted_user_classes: [App\Security\SecurityUser]
+```
+
+**Strict DDD / hexagonal host (opt-in).** Your domain users are plain PHP objects, mapped in XML in another entity
+manager or not in Doctrine at all, possibly with UUID ids. Store ids instead of relations:
+
+```yaml
+nowo_vault:
+    user_class: App\Infrastructure\Security\SecurityUser   # its getId() is stored
+    user_mapping: id
+```
+
+```yaml
+# config/services.yaml: how the vault loads a user by id (browser extension tokens, scope grantee checks)
+Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@App\Infrastructure\Vault\VaultUserLocator'
+```
+
+```php
+final readonly class VaultUserLocator implements VaultUserLocatorInterface
+{
+    public function __construct(private UserRepository $users) {}
+
+    public function find(string $id): ?UserInterface
+    {
+        $user = $this->users->ofId(UserId::fromString($id));
+
+        return $user !== null ? SecurityUser::fromDomain($user) : null;
+    }
+}
+```
+
+With `user_mapping: id`:
+
+- the user columns are `VARCHAR(128)` holding the id (no foreign key, no join to your users table, no metadata remap);
+- the entities return a `VaultUserId` (`getId()`) for `getCreator()`, `getCreatedBy()` and `VaultExtensionToken::getUser()`;
+  prefer the id accessors (`getCreatorId()`, `getCreatedById()`, `getUserId()`) in your code;
+- deleting a user deletes nothing in the vault: call `VaultPersonalDataEraser::erase($userId)` from your "user
+  deleted" handler (see [Personal data](#personal-data));
+- nothing ties the vault entities to your user class any more, which is the prerequisite for giving the vault its own
+  entity manager.
+
+**In both paths:**
+
+- only `user_class` instances, `VaultUserId`s and `accepted_user_classes` instances (with a usable `getId()`) are vault
+  users; any other signed-in user is refused on the pages (403), by the services and by the browser extension login,
+  so an `Admin#5` never matches a `Customer#5`;
+- react to vault activity through the id-only events (`ITEM_CHANGED`, `GRANT_*`, `ITEM_REVEALED`,
+  `PERSONAL_DATA_ERASED`; see [Events](#events)) and decide access through the ports (`VaultAccessCheckerInterface`,
+  `VaultScopeAccessResolverInterface`, `VaultTeamMembershipResolverInterface`, `VaultPasswordPolicyResolverInterface`,
+  `VaultReauthenticationCheckerInterface`);
+- replace how users are turned into stored values by aliasing `VaultUserReferenceResolverInterface`;
+- the services are stateless and work in FrankenPHP worker mode with the kernel kept alive and not reset.
+
+Known limitation: the vault's repositories still flush the entity manager configured in `database.entity_manager`
+(default `default`) on their own writes. Call the vault services outside your own pending unit of work (or inside
+`EntityManagerInterface::wrapInTransaction()`) until the dedicated vault entity manager lands in a later minor.

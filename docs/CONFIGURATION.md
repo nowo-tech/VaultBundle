@@ -38,6 +38,13 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 | Option | Description |
 |--------|-------------|
 | `user_class` | FQCN of User entity (`UserInterface` + `getId()`) |
+
+## Host users (1.17.0)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `user_mapping` | `relation` | `relation`: Doctrine relations to `user_class` (foreign keys to the host users table). `id`: the host user id in a string column (`VARCHAR(128)`, no relation, no foreign key); `user_class` need not be a Doctrine entity. See [USAGE.md](USAGE.md#using-it-from-a-ddd--hexagonal-application) |
+| `accepted_user_classes` | `[]` | Security-user classes other than `user_class` that map to a vault user by `getId()`. Any other signed-in user is refused (fail closed) |
 | `encryption_key` | Base64-encoded 32-byte libsodium key for payload encryption (YAML/env bootstrap; optional encrypted DB override in `vault_settings.encryption_key` with `nowo-tech/doctrine-encrypt-bundle`) |
 
 Generate a key:

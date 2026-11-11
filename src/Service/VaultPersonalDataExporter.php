@@ -20,7 +20,8 @@ use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
-use Nowo\VaultBundle\Support\VaultUserLocator;
+use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_map;
@@ -43,11 +44,12 @@ final readonly class VaultPersonalDataExporter
      */
     public function __construct(
         private ManagerRegistry $registry,
-        private ?VaultUserLocator $userLocator = null,
+        private ?VaultUserLocatorInterface $userLocator = null,
         private ?VaultAccessGuard $accessGuard = null,
         private ?VaultItemRepositoryInterface $itemRepository = null,
         private ?VaultFolderRepositoryInterface $folderRepository = null,
         private ?string $managerName = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -61,7 +63,8 @@ final readonly class VaultPersonalDataExporter
     {
         $em   = $this->em();
         $user = $this->userLocator?->find($userId);
-        $who  = $user ?? $userId;
+        // 1.17.0: with the id mapping the user columns hold the id itself.
+        $who = $this->users?->mapsById() === true ? $userId : ($user ?? $userId);
 
         return [
             'user_id'             => $userId,

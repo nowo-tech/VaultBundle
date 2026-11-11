@@ -14,7 +14,9 @@ use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\Controller\VaultExportController;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
+use Nowo\VaultBundle\Doctrine\VaultUserColumnsListener;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
+use Nowo\VaultBundle\EventListener\VaultUserGateListener;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
@@ -50,6 +52,9 @@ use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
 use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
+use Nowo\VaultBundle\Support\DoctrineVaultUserReferenceResolver;
+use Nowo\VaultBundle\Support\VaultUserClassPolicy;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -113,6 +118,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $runtimeBaseline      = RuntimeConfiguration::extractBaseline($config);
 
         $container->setParameter('nowo_vault.user_class', $config['user_class']);
+        $container->setParameter('nowo_vault.accepted_user_classes', $config['accepted_user_classes']);
+        $container->setParameter('nowo_vault.user_mapping', $config['user_mapping']);
         // Deprecated since 1.15 (REQ-UI-003: the pages read the CSS stack from nowo_ui_kit); kept for the deprecated
         // nowo_vault_css_framework Twig global.
         $container->setParameter('nowo_vault.css_framework', $this->cssFramework($config['css_framework']) ?? 'tabler');
@@ -175,6 +182,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
 
         $emRef     = new Reference(sprintf('doctrine.orm.%s_entity_manager', $emName));
         $cachePool = (string) $configStorage['cache_pool'];
+        $this->registerUserMapping($config, $emName, $container);
 
         foreach ([
             DoctrineOrmVaultItemRepository::class           => VaultItemRepositoryInterface::class,
@@ -190,6 +198,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                 ->setArgument('$registry', new Reference('doctrine'))
                 ->setArgument('$managerName', $emName));
             $container->setAlias($interface, $repoClass);
+            if ($repoClass !== DoctrineOrmVaultSettingsRepository::class) {
+                $container->getDefinition($repoClass)->setArgument('$users', new Reference(VaultUserReferenceResolverInterface::class));
+            }
         }
 
         // Token and grant expiry queries read the host clock when one is registered (REQ-DI-001).
@@ -208,6 +219,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$settingsTableName', $settingsTable)
             ->setArgument('$extensionTokensTableName', $extensionTokensTable)
             ->setArgument('$userClass', $config['user_class'])
+            ->setArgument('$userMapping', $config['user_mapping'])
             ->addTag('doctrine.event_listener', ['event' => 'loadClassMetadata']));
 
         $container->setDefinition(VaultRuntimeConfigProvider::class, (new Definition(VaultRuntimeConfigProvider::class))
@@ -471,6 +483,40 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $bundles = $container->getParameter('kernel.bundles');
 
         return isset($bundles['SecurityBundle']);
+    }
+
+    /**
+     * Host user mapping (1.17.0): accepted security-user classes, the user reference resolver (relation or id
+     * mapping), the listener normalising user columns of new rows and the gate refusing other users on the vault pages.
+     *
+     * @param array<string, mixed> $config
+     */
+    private function registerUserMapping(array $config, string $emName, ContainerBuilder $container): void
+    {
+        $container->setDefinition(VaultUserClassPolicy::class, (new Definition(VaultUserClassPolicy::class))
+            ->setAutowired(false)
+            ->setArgument('$userClass', $config['user_class'])
+            ->setArgument('$acceptedUserClasses', $config['accepted_user_classes']));
+
+        $container->setDefinition(DoctrineVaultUserReferenceResolver::class, (new Definition(DoctrineVaultUserReferenceResolver::class))
+            ->setAutowired(false)
+            ->setArgument('$userClass', $config['user_class'])
+            ->setArgument('$classes', new Reference(VaultUserClassPolicy::class))
+            ->setArgument('$userMapping', $config['user_mapping'])
+            ->setArgument('$registry', new Reference('doctrine', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$managerName', $emName));
+        $container->setAlias(VaultUserReferenceResolverInterface::class, DoctrineVaultUserReferenceResolver::class);
+
+        $container->setDefinition(VaultUserColumnsListener::class, (new Definition(VaultUserColumnsListener::class))
+            ->setAutowired(false)
+            ->setArgument('$users', new Reference(VaultUserReferenceResolverInterface::class))
+            ->addTag('doctrine.event_listener', ['event' => 'prePersist']));
+
+        $container->setDefinition(VaultUserGateListener::class, (new Definition(VaultUserGateListener::class))
+            ->setAutowired(false)
+            ->setArgument('$users', new Reference(VaultUserReferenceResolverInterface::class))
+            ->setArgument('$tokenStorage', new Reference('security.token_storage', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->addTag('kernel.event_listener', ['event' => 'kernel.controller', 'method' => 'onKernelController']));
     }
 
     /**

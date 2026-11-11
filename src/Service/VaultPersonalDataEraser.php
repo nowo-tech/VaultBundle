@@ -23,7 +23,8 @@ use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultPersonalDataErasedEvent;
 use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
-use Nowo\VaultBundle\Support\VaultUserLocator;
+use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -64,10 +65,11 @@ final readonly class VaultPersonalDataEraser
         private VaultGrantService $grantService,
         private VaultGrantRepositoryInterface $grantRepository,
         private ?EventDispatcherInterface $eventDispatcher = null,
-        private ?VaultUserLocator $userLocator = null,
+        private ?VaultUserLocatorInterface $userLocator = null,
         private ?ClockInterface $clock = null,
         private ?LoggerInterface $logger = null,
         private ?string $managerName = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -78,7 +80,8 @@ final readonly class VaultPersonalDataEraser
     {
         $batchSize = max(1, $batchSize);
         $em        = $this->em();
-        $who       = $this->userLocator?->find($userId) ?? $userId;
+        // 1.17.0: with the id mapping the user columns hold the id itself.
+        $who = $this->users?->mapsById() === true ? $userId : ($this->userLocator?->find($userId) ?? $userId);
 
         $received = $this->deleteGrants($em, 'g.granteeType = :granteeType AND g.granteeId = :granteeId', ['granteeType' => GranteeType::User, 'granteeId' => $userId], $batchSize);
         $personal = $this->deleteGrants(

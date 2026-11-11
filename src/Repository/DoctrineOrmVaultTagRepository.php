@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Repository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultTag;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use SortDirection;
 
 /**
@@ -14,6 +15,7 @@ use SortDirection;
  */
 final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepositoryInterface, VaultScopeTagRepositoryInterface
 {
+    use BindsVaultUserTrait;
     use ResolvesEntityManagerTrait;
 
     /**
@@ -23,6 +25,7 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
         private EntityManagerInterface $entityManager,
         private ?ManagerRegistry $registry = null,
         private ?string $managerName = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -54,7 +57,7 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
             ->from(VaultTag::class, 't')
             ->where('t.creator = :creator')
             ->andWhere('t.name = :name')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->setParameter('name', $name)
             ->setMaxResults(1)
             ->getQuery()
@@ -71,7 +74,7 @@ final readonly class DoctrineOrmVaultTagRepository implements VaultTagRepository
             ->select('t')
             ->from(VaultTag::class, 't')
             ->where('t.creator = :creator')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->orderBy('t.name', SortDirection::Ascending)
             ->getQuery()
             ->getResult();

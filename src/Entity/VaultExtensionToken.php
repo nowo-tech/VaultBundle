@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Entity;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\VaultBundle\ValueObject\Uuid;
+use Nowo\VaultBundle\ValueObject\VaultUserId;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -38,7 +39,7 @@ class VaultExtensionToken
         private DateTimeImmutable $expiresAt,
         #[ORM\ManyToOne(targetEntity: UserInterface::class)]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-        private object $user,
+        private object|string $user,
     ) {
         $this->id        = Uuid::generate()->toString();
         $this->createdAt = new DateTimeImmutable();
@@ -65,7 +66,15 @@ class VaultExtensionToken
      */
     public function getUser(): object
     {
-        return $this->user;
+        return VaultUserId::wrap($this->user);
+    }
+
+    /**
+     * The id of the user the token belongs to, or null when it exposes none (1.17.0). Works with both user mappings.
+     */
+    public function getUserId(): ?string
+    {
+        return VaultUserId::idOf($this->user);
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\DependencyInjection;
 
 use DateInterval;
 use Nowo\VaultBundle\Database\DatabaseDriver;
+use Nowo\VaultBundle\Doctrine\VaultUserMapping;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Ui\VaultPages;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
@@ -56,6 +57,16 @@ final class Configuration implements ConfigurationInterface
                     ->isRequired()
                     ->cannotBeEmpty()
                     ->example('App\\Entity\\User')
+                ->end()
+                ->arrayNode('accepted_user_classes')
+                    ->info('Security-user classes other than user_class that map to a vault user by getId() (a security user that is no Doctrine entity, a wrapper or a read model carrying the user_class id). Empty (default): only user_class instances own and list vault rows; users of another identity domain fail closed (1.17.0).')
+                    ->scalarPrototype()->cannotBeEmpty()->end()
+                    ->defaultValue([])
+                ->end()
+                ->enumNode('user_mapping')
+                    ->info('How vault rows store the host user: "relation" (default, Doctrine relations to user_class) or "id" (the user id in a string column, no relation and no foreign key; user_class need not be a Doctrine entity in the vault entity manager) (1.17.0).')
+                    ->values(VaultUserMapping::values())
+                    ->defaultValue(VaultUserMapping::RELATION)
                 ->end()
                 ->scalarNode('table_prefix')
                     ->info('Prefix for vault tables (items, folders, grants).')

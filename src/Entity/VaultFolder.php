@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
 use Nowo\VaultBundle\ValueObject\Uuid;
 use Nowo\VaultBundle\ValueObject\VaultOwner;
+use Nowo\VaultBundle\ValueObject\VaultUserId;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -42,7 +43,7 @@ class VaultFolder
     /** Who created the folder (audit only); null once that user was deleted (1.16.0). */
     #[ORM\ManyToOne(targetEntity: UserInterface::class)]
     #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
-    private ?object $createdBy;
+    private object|string|null $createdBy;
 
     /**
      * Creates a folder for the given creator, optionally under a parent folder. A scope folder passes `$creator = null`
@@ -56,14 +57,14 @@ class VaultFolder
         /** Personal owner; null for a scope folder (1.16.0). */
         #[ORM\ManyToOne(targetEntity: UserInterface::class)]
         #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
-        private ?object $creator,
+        private object|string|null $creator,
         #[ORM\ManyToOne(targetEntity: self::class)]
         #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
         private ?self $parent = null,
         ?string $ownerScope = null,
-        ?object $createdBy = null,
+        object|string|null $createdBy = null,
     ) {
-        $this->ownerScope = VaultOwner::fromColumns($creator, $ownerScope)->getScope();
+        $this->ownerScope = VaultOwner::fromColumns(VaultUserId::wrap($creator), $ownerScope)->getScope();
         $this->createdBy  = $createdBy ?? $creator;
         $this->id         = Uuid::generate()->toString();
         $this->createdAt  = new DateTimeImmutable();
@@ -75,7 +76,7 @@ class VaultFolder
      *
      * @throws VaultOwnerException when the scope key is invalid
      */
-    public static function forScope(string $name, string $scope, ?object $createdBy, ?self $parent = null): self
+    public static function forScope(string $name, string $scope, object|string|null $createdBy, ?self $parent = null): self
     {
         return new self($name, null, $parent, $scope, $createdBy);
     }
@@ -122,7 +123,7 @@ class VaultFolder
             throw new VaultOwnerException('A scope folder has no personal owner; use getOwner().');
         }
 
-        return $this->creator;
+        return VaultUserId::wrap($this->creator);
     }
 
     /**
@@ -130,7 +131,7 @@ class VaultFolder
      */
     public function getOwner(): VaultOwner
     {
-        return VaultOwner::fromColumns($this->creator, $this->ownerScope);
+        return VaultOwner::fromColumns(VaultUserId::wrap($this->creator), $this->ownerScope);
     }
 
     /**
@@ -146,7 +147,23 @@ class VaultFolder
      */
     public function getCreatedBy(): ?object
     {
-        return $this->createdBy;
+        return VaultUserId::wrap($this->createdBy);
+    }
+
+    /**
+     * The id of the personal owner, or null for a scope folder (1.17.0). Works with both user mappings.
+     */
+    public function getCreatorId(): ?string
+    {
+        return VaultUserId::idOf($this->creator);
+    }
+
+    /**
+     * The id of who created the folder (audit only), or null (1.17.0). Works with both user mappings.
+     */
+    public function getCreatedById(): ?string
+    {
+        return VaultUserId::idOf($this->createdBy);
     }
 
     /**

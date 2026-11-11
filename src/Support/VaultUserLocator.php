@@ -10,8 +10,10 @@ use Throwable;
 
 /**
  * Loads a host user by id (`nowo_vault.user_class`), e.g. to check that a user grantee belongs to a scope (1.16.0).
+ *
+ * 1.17.0: reads through the entity manager that maps `user_class` (the vault's one when none does).
  */
-final readonly class VaultUserLocator
+final readonly class VaultUserLocator implements VaultUserLocatorInterface
 {
     /**
      * @param class-string $userClass
@@ -33,7 +35,8 @@ final readonly class VaultUserLocator
         }
 
         try {
-            $user = $this->registry->getManager($this->managerName)->find($this->userClass, $id);
+            $manager = $this->registry->getManagerForClass($this->userClass) ?? $this->registry->getManager($this->managerName);
+            $user    = $manager->find($this->userClass, $id);
         } catch (Throwable) {
             return null;
         }

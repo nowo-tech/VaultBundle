@@ -15,6 +15,7 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Support\UserIdResolver;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use SortDirection;
 
@@ -42,6 +43,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
         private ?ManagerRegistry $registry = null,
         private ?string $managerName = null,
         private ?ClockInterface $clock = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -334,6 +336,8 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
         }
 
         $keys = [];
+        // 1.17.0: with the id mapping the creator is a plain column, not a relation.
+        $creatorId = $this->users?->mapsById() === true ? 'r.creator' : 'IDENTITY(r.creator)';
         foreach ([VaultResourceType::Item->value => VaultItem::class, VaultResourceType::Folder->value => VaultFolder::class] as $type => $class) {
             if ($ids[$type] === []) {
                 continue;
@@ -341,7 +345,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
 
             /** @var list<array{id: string, ownerScope: string|null, creatorId: int|string|null}> $rows */
             $rows = $this->em()->createQueryBuilder()
-                ->select('r.id AS id', 'r.ownerScope AS ownerScope', 'IDENTITY(r.creator) AS creatorId')
+                ->select('r.id AS id', 'r.ownerScope AS ownerScope', $creatorId . ' AS creatorId')
                 ->from($class, 'r')
                 ->where('r.id IN (:ids)')
                 ->setParameter('ids', $ids[$type])

@@ -25,7 +25,7 @@ use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Support\UserIdResolver;
-use Nowo\VaultBundle\Support\VaultUserLocator;
+use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -59,7 +59,7 @@ final readonly class VaultGrantService
         private ?VaultItemRepositoryInterface $itemRepository = null,
         private ?VaultFolderRepositoryInterface $folderRepository = null,
         private ?VaultGrantListResolver $grantListResolver = null,
-        private ?VaultUserLocator $userLocator = null,
+        private ?VaultUserLocatorInterface $userLocator = null,
         private array $temporary = [],
     ) {
     }

@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Repository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultFolder;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use SortDirection;
 
 /**
@@ -14,6 +15,7 @@ use SortDirection;
  */
 final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepositoryInterface, VaultScopeFolderRepositoryInterface
 {
+    use BindsVaultUserTrait;
     use ResolvesEntityManagerTrait;
 
     /**
@@ -23,6 +25,7 @@ final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepo
         private EntityManagerInterface $entityManager,
         private ?ManagerRegistry $registry = null,
         private ?string $managerName = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -61,7 +64,7 @@ final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepo
             ->select('f')
             ->from(VaultFolder::class, 'f')
             ->where('f.creator = :creator')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->orderBy('f.name', SortDirection::Ascending);
 
         if (!$includeDeleted) {
@@ -83,7 +86,7 @@ final readonly class DoctrineOrmVaultFolderRepository implements VaultFolderRepo
             ->from(VaultFolder::class, 'f')
             ->where('f.creator = :creator')
             ->andWhere('f.deletedAt IS NOT NULL')
-            ->setParameter('creator', $creator)
+            ->setParameter('creator', $this->userParameter($creator))
             ->orderBy('f.deletedAt', SortDirection::Descending)
             ->getQuery()
             ->getResult();

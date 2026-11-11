@@ -12,6 +12,7 @@ use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
 use Nowo\VaultBundle\ValueObject\Uuid;
 use Nowo\VaultBundle\ValueObject\VaultOwner;
+use Nowo\VaultBundle\ValueObject\VaultUserId;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -57,7 +58,7 @@ class VaultItem
     /** Who created the item (audit only, never used for access); null once that user was deleted (1.16.0). */
     #[ORM\ManyToOne(targetEntity: UserInterface::class)]
     #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
-    private ?object $createdBy;
+    private object|string|null $createdBy;
 
     /** @var Collection<int, VaultTag> */
     #[ORM\ManyToMany(targetEntity: VaultTag::class, inversedBy: 'items')]
@@ -82,7 +83,7 @@ class VaultItem
         /** Personal owner; null for a scope item (1.16.0). Still ON DELETE CASCADE (safety net). */
         #[ORM\ManyToOne(targetEntity: UserInterface::class)]
         #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
-        private ?object $creator,
+        private object|string|null $creator,
         /** Encrypted JSON payload (libsodium). */
         #[ORM\Column(type: 'text')]
         private string $ciphertext,
@@ -90,11 +91,11 @@ class VaultItem
         #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
         private ?VaultFolder $folder = null,
         ?string $ownerScope = null,
-        ?object $createdBy = null,
+        object|string|null $createdBy = null,
     ) {
         // The folder's owner is checked by the services that create / move items (VaultItemCreator, the controllers):
         // rows written before 1.16.0 may hold a folder of another user, and the guard ignores such folder grants.
-        $owner = VaultOwner::fromColumns($creator, $ownerScope);
+        $owner = VaultOwner::fromColumns(VaultUserId::wrap($creator), $ownerScope);
 
         $this->ownerScope      = $owner->getScope();
         $this->createdBy       = $createdBy ?? $creator;
@@ -114,7 +115,7 @@ class VaultItem
         VaultItemType $itemType,
         string $title,
         string $scope,
-        ?object $createdBy,
+        object|string|null $createdBy,
         string $ciphertext,
         ?VaultFolder $folder = null,
     ): self {
@@ -171,7 +172,7 @@ class VaultItem
             throw new VaultOwnerException('A scope item has no personal owner; use getOwner().');
         }
 
-        return $this->creator;
+        return VaultUserId::wrap($this->creator);
     }
 
     /**
@@ -179,7 +180,7 @@ class VaultItem
      */
     public function getOwner(): VaultOwner
     {
-        return VaultOwner::fromColumns($this->creator, $this->ownerScope);
+        return VaultOwner::fromColumns(VaultUserId::wrap($this->creator), $this->ownerScope);
     }
 
     /**
@@ -203,7 +204,23 @@ class VaultItem
      */
     public function getCreatedBy(): ?object
     {
-        return $this->createdBy;
+        return VaultUserId::wrap($this->createdBy);
+    }
+
+    /**
+     * The id of the personal owner, or null for a scope item (1.17.0). Works with both user mappings.
+     */
+    public function getCreatorId(): ?string
+    {
+        return VaultUserId::idOf($this->creator);
+    }
+
+    /**
+     * The id of who created the item (audit only), or null (1.17.0). Works with both user mappings.
+     */
+    public function getCreatedById(): ?string
+    {
+        return VaultUserId::idOf($this->createdBy);
     }
 
     /**

@@ -18,15 +18,23 @@ use Nowo\VaultBundle\Entity\VaultTag;
 use function array_replace_recursive;
 use function get_debug_type;
 use function in_array;
+use function is_array;
 use function is_scalar;
 use function ltrim;
 use function sprintf;
 
 /**
- * Applies configurable table prefix and user entity mapping to vault entities.
+ * Applies configurable table prefix and user entity mapping to vault entities: relations to `user_class` (default) or,
+ * with `nowo_vault.user_mapping: id` (1.17.0), string user id columns without any relation to the host.
  */
 final readonly class VaultMetadataListener
 {
+    /** Fields of the vault entities that hold a host user. */
+    public const USER_FIELDS = ['creator', 'createdBy', 'user'];
+
+    /** Length of a user id column with the id mapping (ints, UUIDs, ULIDs and other string ids). */
+    public const USER_ID_LENGTH = 128;
+
     /**
      * Creates the listener with the resolved (prefixed) table names and user class.
      */
@@ -39,6 +47,7 @@ final readonly class VaultMetadataListener
         private string $settingsTableName,
         private string $extensionTokensTableName,
         private string $userClass,
+        private string $userMapping = VaultUserMapping::RELATION,
     ) {
     }
 
@@ -74,11 +83,40 @@ final readonly class VaultMetadataListener
             return;
         }
 
-        foreach (['creator', 'createdBy', 'user'] as $field) {
-            if (isset($metadata->associationMappings[$field])) {
+        foreach (self::USER_FIELDS as $field) {
+            if (!isset($metadata->associationMappings[$field])) {
+                continue;
+            }
+
+            if ($this->userMapping === VaultUserMapping::ID) {
+                $this->mapUserIdColumn($metadata, $field);
+            } else {
                 $this->remapUserAssociation($metadata, $field);
             }
         }
+    }
+
+    /**
+     * Id mapping (1.17.0): replaces the relation to the host user by a string column of the same name holding the
+     * user id (no foreign key, no join to the host users table).
+     *
+     * @param ClassMetadata<object> $metadata
+     */
+    private function mapUserIdColumn(ClassMetadata $metadata, string $fieldName): void
+    {
+        $mapping = $this->mappingToArray($metadata->associationMappings[$fieldName]);
+        /** @var array{name?: string, nullable?: bool} $joinColumn */
+        $joinColumn = is_array($mapping['joinColumns'] ?? null) && is_array($mapping['joinColumns'][0] ?? null) ? $mapping['joinColumns'][0] : [];
+
+        unset($metadata->associationMappings[$fieldName]);
+
+        $metadata->mapField([
+            'fieldName'  => $fieldName,
+            'columnName' => $joinColumn['name'] ?? $fieldName . '_id',
+            'type'       => 'string',
+            'length'     => self::USER_ID_LENGTH,
+            'nullable'   => $joinColumn['nullable'] ?? true,
+        ]);
     }
 
     /**

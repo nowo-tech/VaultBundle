@@ -9,6 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Support\UserIdResolver;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 
@@ -17,6 +18,7 @@ use Symfony\Component\Clock\NativeClock;
  */
 final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultExtensionTokenRepositoryInterface
 {
+    use BindsVaultUserTrait;
     use ResolvesEntityManagerTrait;
 
     /**
@@ -27,6 +29,7 @@ final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultEx
         private ?ManagerRegistry $registry = null,
         private ?string $managerName = null,
         private ?ClockInterface $clock = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -79,9 +82,8 @@ final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultEx
         return $this->em()->createQueryBuilder()
             ->select('t')
             ->from(VaultExtensionToken::class, 't')
-            ->innerJoin('t.user', 'u')
-            ->where('u = :user')
-            ->setParameter('user', $user)
+            ->where('t.user = :user')
+            ->setParameter('user', $this->userParameter($user))
             ->getQuery()
             ->getResult();
     }

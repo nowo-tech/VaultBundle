@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.17.0](#to-1170)
 - [To 1.16.0](#to-1160)
   - [Schema](#schema)
   - [BC notes](#bc-notes)
@@ -68,6 +69,51 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.17.0
+
+From **1.16.0** (minor):
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+**Standard hosts:** nothing to do. `user_mapping` defaults to `relation` (today's Doctrine relations to `user_class`),
+`accepted_user_classes` to `[]`, and the schema does not change.
+
+**BC notes**
+
+- A signed-in user that is not a `user_class` instance (nor listed in `accepted_user_classes`) is now refused on the
+  vault pages (403), by the repositories and services (`AccessDeniedException`) and by the browser extension login.
+  Such users could not create vault rows before (Doctrine refused them) and, with a colliding id, could be matched
+  with another user's personal vault. If your security user is a wrapper or a read model carrying the `user_class` id,
+  list its class:
+
+  ```yaml
+  nowo_vault:
+      user_class: App\Entity\User
+      accepted_user_classes: [App\Security\SecurityUser]
+  ```
+
+- Entity user properties are typed `object|string|null` internally (they hold the id with the id mapping); the public
+  getters keep their signatures. Custom code that persisted vault entities with a non-`user_class` user now gets an
+  `AccessDeniedException` at `persist()` instead of a Doctrine error at `flush()`.
+- `VaultPersonalDataExporter`, `VaultPersonalDataEraser` and `VaultGrantService` take the new
+  `VaultUserLocatorInterface` (the `VaultUserLocator` class implements it, so existing wiring keeps working).
+
+**Opt-in: id mapping for DDD / hexagonal hosts.** New installs can store user ids instead of relations:
+
+```yaml
+nowo_vault:
+    user_class: App\Security\SecurityUser   # the class whose getId() is stored; need not be a Doctrine entity
+    user_mapping: id
+```
+
+With an existing database, switching from `relation` to `id` changes the user columns from foreign keys to
+`VARCHAR(128)`: generate the migration (`doctrine:migrations:diff`), check that it drops the foreign keys and converts
+`creator_id`, `created_by_id` and `user_id` keeping their values (ids are stored as strings), then migrate. Alias
+`Nowo\VaultBundle\Support\VaultUserLocatorInterface` to your own user directory when `user_class` is no Doctrine
+entity (browser extension tokens and scope grantee checks load users through it).
 
 ## To 1.16.0
 
