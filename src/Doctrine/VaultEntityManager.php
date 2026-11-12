@@ -115,8 +115,14 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
             }
             // DoctrineBundle's ContainerAwareEventManager extends EventManager; any other implementation gets a fresh one.
             $eventManager = $source->getEventManager();
+            // Same mapping, caches and proxies, but a repository factory owned by this manager (audit NX): the shared
+            // factory (DoctrineBundle's ContainerRepositoryFactory) keeps one repository per manager instance for the
+            // life of the process, so every replaced private manager would stay in memory in worker mode.
+            // Service repositories (ServiceEntityRepositoryInterface) still come from the source factory (audit NZ-M1).
+            $configuration = clone $source->getConfiguration();
+            $configuration->setRepositoryFactory(new PrivateManagerRepositoryFactory($configuration->getRepositoryFactory()));
             // @igor-ignore - Bundle-owned unit of work: dropped at every boundary, replaced when closed, stale or on another connection.
-            $current = $this->current = new EntityManager($source->getConnection(), $source->getConfiguration(), $eventManager instanceof EventManager ? $eventManager : null);
+            $current = $this->current = new EntityManager($source->getConnection(), $configuration, $eventManager instanceof EventManager ? $eventManager : null);
             // @igor-ignore - Bundle-owned flag of the private manager, reset when the manager is replaced.
             $this->stale = false;
             // @igor-ignore - Bundle-owned bookkeeping, reset when the manager is replaced.
@@ -380,6 +386,15 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
             }
         }
         foreach ($wanted as $name => $filter) {
+            // A filter registered (or registered again with another class) on the source configuration after this
+            // manager was created is unknown to its copy: register it, and drop an instance of the previous class.
+            $class = $source->getConfiguration()->getFilterClassName($name);
+            if ($class !== null && $target->getConfiguration()->getFilterClassName($name) !== $class) {
+                if ($filters->isEnabled($name)) {
+                    $filters->disable($name);
+                }
+                $target->getConfiguration()->addFilter($name, $class);
+            }
             $state = (string) $filter;
             if ($filters->isEnabled($name)) {
                 if ((string) $filters->getFilter($name) === $state) {
