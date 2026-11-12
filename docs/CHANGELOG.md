@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **SQL filter mirroring (audit NZ-I6):** the private manager registers the class of each enabled source filter
+  *instance* (not the class named in the source configuration), so the mirror is exact, also when a filter is
+  registered again under the same name with another class.
+
 ## [1.19.2] - 2026-11-12
 
 ### Fixed

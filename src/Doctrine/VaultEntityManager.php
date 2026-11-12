@@ -386,10 +386,11 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
             }
         }
         foreach ($wanted as $name => $filter) {
-            // A filter registered (or registered again with another class) on the source configuration after this
-            // manager was created is unknown to its copy: register it, and drop an instance of the previous class.
-            $class = $source->getConfiguration()->getFilterClassName($name);
-            if ($class !== null && $target->getConfiguration()->getFilterClassName($name) !== $class) {
+            // The class of the source's enabled instance is mirrored exactly: a filter registered after this manager was
+            // created, or registered again with another class, is registered on the copy (an instance of the old class
+            // is dropped first).
+            $class = $filter::class;
+            if ($target->getConfiguration()->getFilterClassName($name) !== $class) {
                 if ($filters->isEnabled($name)) {
                     $filters->disable($name);
                 }

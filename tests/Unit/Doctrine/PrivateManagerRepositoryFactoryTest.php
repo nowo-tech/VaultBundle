@@ -143,6 +143,8 @@ final class PrivateManagerRepositoryFactoryTest extends TestCase
         self::assertInstanceOf(FilterA::class, $before);
 
         $source->getConfiguration()->addFilter('swap', FilterB::class);
+        $source->getFilters()->disable('swap');
+        $source->getFilters()->enable('swap');
 
         $after = $own->live()->getFilters()->getFilter('swap');
         self::assertInstanceOf(FilterB::class, $after, 'The instance of the previous class was dropped.');
