@@ -9,6 +9,7 @@ use Nowo\VaultBundle\DependencyInjection\Compiler\ConditionalMappingPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\ExportLockFactoryPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\TwigPathsPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -31,6 +32,8 @@ final class VaultBundle extends Bundle
         $container->addCompilerPass(new BrowserExtensionUserCheckerPass());
         $container->addCompilerPass(new CsrfProtectionPass());
         $container->addCompilerPass(new ExportLockFactoryPass());
+        // 1.19.0: before optimization (decorators and bindings are resolved later).
+        $container->addCompilerPass(new VaultPortsPass());
         // 1.18.0: before DoctrineBundle's DbalSchemaFilterPass (priority 0), which collects the schema filter tag.
         $container->addCompilerPass(new ConditionalMappingPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
     }

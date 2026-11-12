@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Support;
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
 use Nowo\VaultBundle\ValueObject\VaultUserId;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Stringable;
 
 use function is_int;
@@ -21,8 +22,8 @@ use function trim;
 /**
  * Which users the vault maps to a creator / owner by their `getId()` (1.17.0).
  *
- * `nowo_vault.user_class` instances always are, and so is a {@see VaultUserId} (what the entities return with the id
- * mapping). Another class is only when listed in `nowo_vault.accepted_user_classes` (a security user that is no
+ * `nowo_vault.user_class` instances always are, and so are a {@see VaultUserId} (what the entities return with the id
+ * mapping) and a {@see VaultRefUser} (a {@see VaultUserRef} your code gave by id, 1.19.0). Another class is only when listed in `nowo_vault.accepted_user_classes` (a security user that is no
  * Doctrine entity, a wrapper or a read model carrying the `user_class` id). With the default empty list, a user of
  * another identity domain (Admin#5 next to Customer#5) is never matched with a vault owner: those paths fail closed.
  * Ids of 0, negative ids and empty ids are refused.
@@ -67,11 +68,12 @@ final readonly class VaultUserClassPolicy
     }
 
     /**
-     * Whether the user is a `user_class` instance, a {@see VaultUserId} or an instance of a listed accepted class.
+     * Whether the user is a `user_class` instance, a {@see VaultUserId}, the vault's stand-in for a {@see VaultUserRef}
+     * your code gave by id ({@see VaultRefUser}, 1.19.0) or an instance of a listed accepted class.
      */
     public function isAccepted(object $user): bool
     {
-        if ($user instanceof VaultUserId || $this->isUserClass($user)) {
+        if ($user instanceof VaultUserId || $user instanceof VaultRefUser || $this->isUserClass($user)) {
             return true;
         }
 

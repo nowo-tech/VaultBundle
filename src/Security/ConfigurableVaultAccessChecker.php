@@ -6,12 +6,16 @@ namespace Nowo\VaultBundle\Security;
 
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Symfony\Bundle\SecurityBundle\Security;
+use Nowo\VaultBundle\Support\VaultUserRefs;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Role-based default implementation of {@see VaultAccessCheckerInterface}.
+ * Role-based default implementation of {@see VaultAccessPolicyInterface} and of the deprecated
+ * {@see VaultAccessCheckerInterface}: both give the same answer for the same user (1.19.0; the reference's user object,
+ * or the vault's stand-in for a reference given by id, whose role names are then the ones checked).
  */
-final readonly class ConfigurableVaultAccessChecker implements VaultAccessCheckerInterface
+final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicyInterface, VaultAccessCheckerInterface
 {
     /**
      * Creates the checker with Symfony Security and the runtime configuration provider.
@@ -68,6 +72,42 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
         }
 
         return $this->hasAnyRole($this->securityRoles()['delete_roles'], $user);
+    }
+
+    public function allowsAccess(?VaultUserRef $user = null): bool
+    {
+        return self::known($user) && $this->canAccess(self::user($user));
+    }
+
+    public function allowsCreate(?VaultUserRef $user = null): bool
+    {
+        return self::known($user) && $this->canCreate(self::user($user));
+    }
+
+    public function allowsList(?VaultUserRef $user = null): bool
+    {
+        return self::known($user) && $this->canList(self::user($user));
+    }
+
+    public function allowsRevoke(?VaultUserRef $user = null): bool
+    {
+        return self::known($user) && $this->canRevoke(self::user($user));
+    }
+
+    /**
+     * False for a reference with neither a user object nor an id (fail closed: it never stands for the token user).
+     */
+    private static function known(?VaultUserRef $user): bool
+    {
+        return !$user instanceof VaultUserRef || VaultUserRefs::toUser($user) instanceof UserInterface;
+    }
+
+    /**
+     * The user a reference stands for (null for null: the request's own token is checked).
+     */
+    private static function user(?VaultUserRef $user): ?UserInterface
+    {
+        return $user instanceof VaultUserRef ? VaultUserRefs::toUser($user) : null;
     }
 
     private function isAdmin(?UserInterface $user): bool

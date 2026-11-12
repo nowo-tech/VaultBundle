@@ -14,6 +14,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 /**
  * Password health report (1.16.0, gap 5). The server strategy decrypts in memory today; a zero-knowledge client
  * strategy can later compute the same report in the browser: the report DTO is the contract, not the computation.
+ *
+ * @deprecated since 1.19.0, implement {@see VaultHealthReportProviderInterface} instead (framework-free, REQ-ARCH-001 rule 3); removed in 2.0.
  */
 interface VaultHealthReporterInterface
 {

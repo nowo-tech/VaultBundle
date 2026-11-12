@@ -31,6 +31,8 @@ use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use SensitiveParameter;
+use Nowo\VaultBundle\Support\VaultUserRefs;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Throwable;
@@ -69,7 +71,7 @@ use function sodium_memzero;
  * - Breached: the optional host {@see VaultBreachCheckerInterface}; null when absent or failing.
  * - Cache: off unless `health.cache_ttl` > 0; then only the report (flags, titles, group numbers) is cached, per viewer.
  */
-final readonly class VaultHealthReporter implements VaultHealthReporterInterface
+final readonly class VaultHealthReporter implements VaultHealthReportProviderInterface, VaultHealthReporterInterface
 {
     /**
      * Stores the collaborators and the limits.
@@ -129,6 +131,16 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
     /**
      * Report over the owner's personal login items.
      */
+    public function reportForScope(VaultUserRef $viewer, string $scope, ?VaultPasswordPolicy $policy = null): VaultHealthReport
+    {
+        return $this->forScope(VaultUserRefs::toUser($viewer) ?? throw new VaultAccessDeniedException(), $scope, $policy);
+    }
+
+    public function reportForPersonalVault(VaultUserRef $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
+    {
+        return $this->forPersonalVault(VaultUserRefs::toUser($owner) ?? throw new VaultAccessDeniedException(), $policy);
+    }
+
     public function forPersonalVault(UserInterface $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
         $items = $this->itemRepository->findByCreatorAndItemType($owner, VaultItemType::Login);
