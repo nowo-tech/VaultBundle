@@ -6,8 +6,16 @@ namespace Nowo\VaultBundle\Tests\Integration;
 
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Platforms\DB2Platform;
+use Doctrine\DBAL\Platforms\MySQLPlatform;
+use Doctrine\DBAL\Platforms\OraclePlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+use Doctrine\DBAL\Platforms\SQLServerPlatform;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use InvalidArgumentException;
 use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Tests\App\BeaconAdoptionKernel;
@@ -72,6 +80,65 @@ final class VaultExtensionTokenTableTest extends KernelTestCase
         self::assertSame(['00000000-0000-4000-8000-00000000000d'], array_column($table->rowsForUser($this->em(), '7', false), 'id'));
         self::assertSame(1, $table->deleteForUser($this->em(), '7', false));
         self::assertSame(0, $table->deleteForUser($this->em(), '7', false));
+    }
+
+    public function testRelationMappingDoesNotMatchNonCanonicalIdsThroughNumericCoercion(): void
+    {
+        // NC2-2: SQLite (like MySQL) compares an INTEGER column with '01' / '1abc' numerically; the string check refuses.
+        $this->createTable('INTEGER');
+        $this->insert('00000000-0000-4000-8000-000000000010', 1, '2999-01-01 00:00:00');
+        $table = new VaultExtensionTokenTable(self::TABLE);
+        self::assertSame(1, (int) $this->connection()->fetchOne('SELECT COUNT(*) FROM ' . self::TABLE . " WHERE user_id = '01'"), 'The database alone would match.');
+
+        self::assertSame([], $table->rowsForUser($this->em(), '01', false));
+        self::assertSame([], $table->rowsForUser($this->em(), '1abc', false));
+        self::assertSame(0, $table->deleteForUser($this->em(), '01', false));
+        self::assertCount(1, $table->rowsForUser($this->em(), '1', false));
+    }
+
+    public function testABinaryUserIdentifierIsNotComparedAsAString(): void
+    {
+        $this->createTable('BLOB');
+        $this->connection()->insert(self::TABLE, ['id' => '00000000-0000-4000-8000-000000000011', 'user_id' => 'bin-1', 'created_at' => '2026-01-01 00:00:00', 'expires_at' => '2999-01-01 00:00:00'], ['user_id' => ParameterType::BINARY]);
+        $item = $this->createMock(ClassMetadata::class);
+        $item->method('getAssociationTargetClass')->willReturn('App\\User');
+        $user = $this->createMock(ClassMetadata::class);
+        $user->method('getIdentifierFieldNames')->willReturn(['id']);
+        $user->method('getTypeOfField')->willReturn(Types::BINARY);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getConnection')->willReturn($this->connection());
+        $em->method('getClassMetadata')->willReturnCallback(static fn (string $class): ClassMetadata => $class === VaultItem::class ? $item : $user);
+
+        self::assertCount(1, (new VaultExtensionTokenTable(self::TABLE))->rowsForUser($em, 'bin-1', false));
+    }
+
+    public function testTheTableNameIsValidated(): void
+    {
+        self::assertTrue((new VaultExtensionTokenTable('public.vault_extension_tokens'))->tableExists($this->connection()) === false);
+
+        $this->expectException(InvalidArgumentException::class);
+        new VaultExtensionTokenTable('vault_tokens; DROP TABLE x');
+    }
+
+    public function testTheExistenceProbeOfEveryPlatformNeverTouchesTheTable(): void
+    {
+        foreach ([
+            [new PostgreSQLPlatform(), 'to_regclass', null, false],
+            [new PostgreSQLPlatform(), 'to_regclass', 'vault_test_tokens', true],
+            [new MySQLPlatform(), 'information_schema.tables WHERE table_schema = DATABASE()', '0', false],
+            [new SQLServerPlatform(), 'OBJECT_ID', null, false],
+            [new SQLServerPlatform(), 'OBJECT_ID', 1234, true],
+            [new OraclePlatform(), 'user_tables', '1', true],
+            [new DB2Platform(), 'information_schema.tables WHERE table_name', '0', false],
+        ] as [$platform, $fragment, $answer, $exists]) {
+            $connection = $this->createMock(Connection::class);
+            $connection->method('getDatabasePlatform')->willReturn($platform);
+            $connection->expects(self::once())->method('fetchOne')->with(self::stringContains($fragment), [self::TABLE])->willReturn($answer);
+            $connection->expects(self::never())->method('executeStatement');
+            $connection->expects(self::never())->method('fetchAllAssociative');
+
+            self::assertSame($exists, (new VaultExtensionTokenTable(self::TABLE))->tableExists($connection), $platform::class);
+        }
     }
 
     public function testAMissingTableCountsAsEmpty(): void

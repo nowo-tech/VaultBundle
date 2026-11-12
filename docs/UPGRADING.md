@@ -139,7 +139,14 @@ nowo_vault:
   on the vault connection (the schema tools do not see the table): the personal data exporter lists them, the eraser
   deletes the user's rows (byte-exact user id with `user_mapping: id`, as in 1.17.0) and
   `nowo:vault:extension-tokens:purge` deletes the expired ones. A token still inside its TTL would work again if the
-  extension is re-enabled, so keep running the purge (or drop the table). A missing table counts as empty.
+  extension is re-enabled, so keep running the purge (or drop the table). A missing table counts as empty: its
+  existence is checked first with a catalogue query that cannot fail (`to_regclass()` on PostgreSQL,
+  `information_schema.tables` on MySQL / MariaDB), so an erasure inside the host's own transaction still commits.
+- The plain SQL fallback assumes the default column names of the 1.17 token table (`id`, `user_id`, `created_at`,
+  `expires_at`, `last_used_at`); a host that renamed them (naming strategy, mapping override) must migrate or drop the
+  table itself.
+- The fallback looks for the table under the **current** `table_prefix` (`{table_prefix}_extension_tokens`): if the
+  prefix changed since the rows were written, the old table is not found; drop or rename it yourself.
 - `database.conditional_mapping` defaults to `false` in 1.x (every table mapped, as before).
 
 ## To 1.17.1

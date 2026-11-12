@@ -75,8 +75,9 @@ the fixes listed under *Fixed* and *Changed*. See [UPGRADING](UPGRADING.md#to-11
   them. The tables of a disabled feature are hidden from the schema tools of the vault connection (DBAL schema asset
   filter), so an existing table is never dropped automatically. While the token entity is not mapped, the
   personal data exporter / eraser and `nowo:vault:extension-tokens:purge` read, erase and purge the rows an earlier
-  release left in the token table with plain SQL on the vault connection (byte-exact user id with the id mapping; a
-  missing table counts as empty).
+  release left in the token table with plain SQL on the vault connection (byte-exact user id with the id mapping, a
+  string comparison of the converted id with the relation mapping; the table's existence is checked first with a
+  catalogue query that cannot fail, so a missing table never aborts the host's transaction).
 - `VaultItemFormType` option `strength_meter` (default `true`).
 - Translation key `vault.action.share` in every catalogue.
 
