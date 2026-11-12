@@ -90,6 +90,22 @@ final class VaultPortsPass implements CompilerPassInterface
         'health_reporter'  => ['legacy' => VaultHealthReporterInterface::class, 'policy' => VaultHealthReportProviderInterface::class, 'gate' => VaultHealthReporterGate::class, 'both' => false],
     ];
 
+    /** The port interfaces (their decorators are handled as port decorators). */
+    private const INTERFACES = [
+        VaultAccessCheckerInterface::class            => true,
+        VaultAccessPolicyInterface::class             => true,
+        VaultTeamMembershipResolverInterface::class   => true,
+        VaultTeamMembershipProviderInterface::class   => true,
+        VaultScopeAccessResolverInterface::class      => true,
+        VaultScopeAccessProviderInterface::class      => true,
+        VaultReauthenticationCheckerInterface::class  => true,
+        VaultReauthenticationProviderInterface::class => true,
+        VaultUserLocatorInterface::class              => true,
+        VaultUserDirectoryInterface::class            => true,
+        VaultHealthReporterInterface::class           => true,
+        VaultHealthReportProviderInterface::class     => true,
+    ];
+
     private const PACKAGE = 'nowo-tech/vault-bundle';
 
     /**
@@ -155,6 +171,10 @@ final class VaultPortsPass implements CompilerPassInterface
 
         if ($hostAlias) {
             $hostService = $this->resolve($container, $policy);
+            $foreign     = $this->decoratorsWithout($container, $hostService, $policy);
+            if ($foreign !== []) {
+                throw new LogicException(sprintf('"%s" decorates "%s", which serves "%s", but does not implement it: implement "%s" on the decorator.', implode('", "', $foreign), $hostService, $policy, $policy));
+            }
             if (!$builtIn && $hostService !== $this->resolve($container, $service)) {
                 throw new LogicException(sprintf('"%s" is aliased to "%s" by the application and %s names "%s": keep only one of them.', $policy, $hostService, $option, $service));
             }
@@ -174,6 +194,18 @@ final class VaultPortsPass implements CompilerPassInterface
             }
 
             return $this->both($port, $name, $legacyDecorators, $policy, $legacy);
+        }
+
+        // Audit NJ-3: a decorator of the service itself (not of the interface) that lacks the 1.19 interface replaces the
+        // service everywhere: only the deprecated interface can be asked, exactly as in 1.18.
+        $foreign = $implementsPolicy ? $this->decoratorsWithout($container, $service, $policy) : [];
+        if ($foreign !== []) {
+            trigger_deprecation(self::PACKAGE, '1.19', 'The vault service "%s" behind %s is decorated by "%s", which implements only the deprecated "%s": the deprecated interface is asked; implement "%s" on the decorator (the deprecated interface is removed in 2.0).', $service, $option, implode('", "', $foreign), $legacy, $policy);
+            if (!$hostLegacy) {
+                $container->setAlias($legacy, $service)->setPublic(false);
+            }
+
+            return VaultPortMode::LEGACY;
         }
 
         if ($implementsPolicy) {
@@ -261,6 +293,37 @@ final class VaultPortsPass implements CompilerPassInterface
         }
 
         return $ids;
+    }
+
+    /**
+     * Decorators of the service id itself or of an alias of it (not the port interfaces) whose class is known and does
+     * not implement the interface.
+     *
+     * @return list<string>
+     */
+    private function decoratorsWithout(ContainerBuilder $container, string $service, string $interface): array
+    {
+        $target = $this->resolve($container, $service);
+        $ids    = [$target => true];
+        foreach ($container->getAliases() as $aliasId => $alias) {
+            if ((string) $aliasId !== $interface && !isset(self::INTERFACES[(string) $aliasId]) && $this->resolve($container, (string) $aliasId) === $target) {
+                $ids[(string) $aliasId] = true;
+            }
+        }
+
+        $foreign = [];
+        foreach ($container->getDefinitions() as $definitionId => $definition) {
+            $decorated = $definition->getDecoratedService()[0] ?? null;
+            if (!is_string($decorated) || !isset($ids[$decorated])) {
+                continue;
+            }
+            $class = $this->classOf($container, (string) $definitionId);
+            if ($class !== null && !is_a($class, $interface, true)) {
+                $foreign[] = (string) $definitionId;
+            }
+        }
+
+        return $foreign;
     }
 
     private function resolve(ContainerBuilder $container, string $id): string

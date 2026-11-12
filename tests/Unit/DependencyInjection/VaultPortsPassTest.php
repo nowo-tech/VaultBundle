@@ -120,6 +120,41 @@ final class VaultPortsPassTest extends TestCase
     }
 
     #[Test]
+    public function aDecoratorOfTheServiceItselfWithoutThe119InterfaceKeepsThe118Wiring(): void
+    {
+        // Audit NJ-3: a valid 1.18 config decorates the concrete service id (here the built-in role checker).
+        $container = $this->container('access_checker', 'nowo_vault.access_checker.default', ConfigurableVaultAccessChecker::class, true);
+        $container->setAlias('app.vault_checker', 'nowo_vault.access_checker.default');
+        $container->register('app.audit', PassThroughLegacyDecorators::class)
+            ->setDecoratedService('app.vault_checker')
+            ->setArguments([new Reference('app.audit.inner')]);
+        (new VaultPortsPass())->process($container);
+
+        self::assertSame(VaultPortMode::LEGACY, $this->mode($container, 'access_checker'));
+        self::assertFalse($container->hasAlias(VaultAccessPolicyInterface::class), 'the 1.19 interface would resolve to the decorator');
+        self::assertSame('nowo_vault.access_checker.default', (string) $container->getAlias(VaultAccessCheckerInterface::class));
+        self::assertStringContainsString('app.audit', $this->deprecations[0] ?? '');
+
+        // A decorator that implements the 1.19 interface too keeps the 1.19 wiring.
+        $both = $this->container('access_checker', 'app.ports', BothHostPorts::class);
+        $both->register('app.both_audit', BothHostPorts::class)->setDecoratedService('app.ports');
+        (new VaultPortsPass())->process($both);
+        self::assertSame(VaultPortMode::POLICY, $this->mode($both, 'access_checker'));
+    }
+
+    #[Test]
+    public function aDecoratorWithoutThe119InterfaceOfTheApplicationsOwn119ServiceFailsTheBuild(): void
+    {
+        $container = $this->container('team_membership', NullVaultTeamMembershipResolver::class, NullVaultTeamMembershipResolver::class, true);
+        $container->register('app.teams', BothHostPorts::class);
+        $container->setAlias(VaultTeamMembershipProviderInterface::class, 'app.teams');
+        $container->register('app.audit', PassThroughLegacyDecorators::class)->setDecoratedService('app.teams')->setArguments([new Reference('app.audit.inner')]);
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('implement "' . VaultTeamMembershipProviderInterface::class . '" on the decorator');
+        (new VaultPortsPass())->process($container);
+    }
+
+    #[Test]
     public function aMissingServiceKeepsThe118WiringAndLetsTheContainerReportIt(): void
     {
         $container = $this->container('access_checker', 'app.ports', LegacyHostPorts::class);
