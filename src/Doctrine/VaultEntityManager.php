@@ -27,7 +27,8 @@ use function ksort;
 use function sprintf;
 
 /**
- * The vault's private entity manager (1.19.0, REQ-ARCH-001 rule 6; `database.private_entity_manager`, on by default).
+ * The vault's private entity manager (1.19.0, REQ-ARCH-001 rule 6; opt-in with `database.private_entity_manager: true`
+ * until 2.0, where it becomes the only mode).
  *
  * Up to 1.18 the vault repositories and services wrote through the application's entity manager named by
  * `database.entity_manager` (default `default`): saving an item flushed every change the application had left pending
@@ -42,8 +43,9 @@ use function sprintf;
  * created again when:
  *
  * - it was closed (its own failed flush) or the source connection changed;
- * - a rollback (transaction or savepoint) happened on the connection since it last wrote, so its identity map may
- *   describe rows that no longer exist ({@see PrivateEntityManagerMiddleware}). A stale manager that still has
+ * - a rollback (transaction or savepoint) undid rows it wrote inside a transaction of the application, so its identity
+ *   map may describe rows that no longer exist ({@see PrivateEntityManagerMiddleware}; DBAL 4 only, with DBAL 3 the
+ *   manager is only replaced at the next boundary). A rollback of a level it did not write in leaves it alone. A stale manager that still has
  *   scheduled inserts, updates or deletes is **kept** (replacing it would silently drop them) until that work is
  *   flushed or the next unit-of-work boundary;
  * - {@see reset()} ran: at every unit-of-work boundary ({@see VaultUnitOfWorkSubscriber}: start and end of the main
@@ -59,8 +61,16 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
 {
     private ?EntityManagerInterface $current = null;
 
-    /** A rollback happened on the connection since the private manager was created or last replaced. */
+    /** A rollback undid rows the private manager wrote since it was created or last replaced. */
     private bool $stale = false;
+
+    /**
+     * Transaction nesting levels of the connection that hold rows the private manager wrote and nobody committed yet
+     * (audit NJ-2: only a rollback of one of these levels makes the identity map stale).
+     *
+     * @var array<int, true>
+     */
+    private array $uncommitted = [];
 
     /**
      * @param ManagerRegistry $registry The application's Doctrine registry (the source manager is resolved per call)
@@ -106,6 +116,8 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
             $current = $this->current = new EntityManager($source->getConnection(), $source->getConfiguration(), $eventManager instanceof EventManager ? $eventManager : null);
             // @igor-ignore - Bundle-owned flag of the private manager, reset when the manager is replaced.
             $this->stale = false;
+            // @igor-ignore - Bundle-owned bookkeeping, reset when the manager is replaced.
+            $this->uncommitted = [];
         }
         $this->syncFilters($source, $current);
 
@@ -129,15 +141,76 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
     }
 
     /**
-     * A transaction or savepoint was rolled back on the connection (told by {@see PrivateEntityManagerConnection}).
-     * The manager is replaced at its next use unless it has scheduled work; it is never cleared here (the rollback
-     * may run inside the private manager's own failing flush).
+     * A transaction (level 1) or savepoint (its level; null when the level is unknown) was rolled back on the
+     * connection (told by {@see PrivateEntityManagerConnection}). The manager becomes stale only when the rollback
+     * undid rows it wrote (audit NJ-2: an unrelated rollback of the application, or of a vault savepoint, leaves it
+     * alone); a stale manager is replaced at its next use unless it has scheduled work. It is never cleared here (the
+     * rollback may run inside the private manager's own failing flush).
      */
-    public function connectionRolledBack(): void
+    public function connectionRolledBack(?int $level = 1): void
     {
-        if ($this->current instanceof EntityManagerInterface) {
+        $undone = false;
+        foreach (array_keys($this->uncommitted) as $written) {
+            if ($level === null || $written >= $level) {
+                $undone = true;
+                // @igor-ignore - Bundle-owned bookkeeping of the private manager's open transaction levels.
+                unset($this->uncommitted[$written]);
+            }
+        }
+        if ($undone && $this->current instanceof EntityManagerInterface) {
             // @igor-ignore - Bundle-owned flag of the private manager, cleared when the manager is replaced.
             $this->stale = true;
+        }
+    }
+
+    /**
+     * The outermost transaction was committed: every row the private manager wrote is durable.
+     */
+    public function connectionCommitted(): void
+    {
+        // @igor-ignore - Bundle-owned bookkeeping of the private manager's open transaction levels.
+        $this->uncommitted = [];
+    }
+
+    /**
+     * A savepoint of this level was released: its rows now belong to the level below.
+     */
+    public function savepointReleased(int $level): void
+    {
+        if (isset($this->uncommitted[$level])) {
+            // @igor-ignore - Bundle-owned bookkeeping of the private manager's open transaction levels.
+            unset($this->uncommitted[$level]);
+            if ($level > 1) {
+                // @igor-ignore - Bundle-owned bookkeeping of the private manager's open transaction levels.
+                $this->uncommitted[$level - 1] = true;
+            }
+        }
+    }
+
+    public function flush(): void
+    {
+        $this->live()->flush();
+        $this->wrote();
+    }
+
+    public function wrapInTransaction(callable $func): mixed
+    {
+        try {
+            return $this->live()->wrapInTransaction($func);
+        } finally {
+            $this->wrote();
+        }
+    }
+
+    /**
+     * Records the nesting level the private manager's last write is waiting in (none outside a transaction).
+     */
+    private function wrote(): void
+    {
+        $level = $this->current?->getConnection()->getTransactionNestingLevel() ?? 0;
+        if ($level > 0) {
+            // @igor-ignore - Bundle-owned bookkeeping of the private manager's open transaction levels.
+            $this->uncommitted[$level] = true;
         }
     }
 
@@ -164,6 +237,8 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
         $this->current = null;
         // @igor-ignore - Boundary drop of the bundle's own manager (no state kept).
         $this->stale = false;
+        // @igor-ignore - Boundary drop of the bundle's own manager (no state kept).
+        $this->uncommitted = [];
         if (!$current instanceof EntityManagerInterface || !$current->isOpen()) {
             return;
         }

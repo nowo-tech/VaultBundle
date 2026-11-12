@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Integration\Ports;
 
+use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Doctrine\VaultEntityManager;
@@ -147,6 +148,42 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
 
         self::assertSame(1, (int) $connection->fetchOne("SELECT COUNT(*) FROM users WHERE email = 'host-row@example.com'"), 'the host row survives the failed vault statement');
         self::assertSame('Inside the host transaction', $this->item($container, $kept->getId())?->getTitle());
+    }
+
+    #[Test]
+    public function anUnrelatedHostRollbackNeverBreaksTheNextVaultSave(): void
+    {
+        // Audit NJ-2 repro: load an item, the application rolls back a transaction of its own, edit, save.
+        [$container, $users] = $this->boot('private_relation_legacy');
+        $ids                 = self::seedVault($container, $users);
+        $connection          = self::hostManager($container)->getConnection();
+        $vault               = self::vaultManager($container);
+        assert($vault instanceof VaultEntityManager);
+        $updater = $container->get(VaultItemUpdater::class);
+        assert($updater instanceof VaultItemUpdater);
+        $item = $this->item($container, $ids['personal']);
+        assert($item instanceof VaultItem);
+
+        $connection->beginTransaction();
+        $connection->insert('users', ['email' => 'rolled-back@example.com', 'password' => 'x']);
+        $connection->beginTransaction();
+        $connection->rollBack();
+        $connection->rollBack();
+        self::assertFalse($vault->isStale());
+
+        $updater->update($item, 'Saved after an unrelated rollback', ['password' => 'REDACTED-TEST-3'], null, $users['alice']);
+        self::assertSame('Saved after an unrelated rollback', $connection->fetchOne('SELECT title FROM vault_items WHERE id = ?', [$ids['personal']]));
+
+        // A vault statement's own savepoint does not make the manager stale either.
+        $connection->beginTransaction();
+        try {
+            VaultSavepoint::write($connection, static fn (): int|string => $connection->executeStatement('DELETE FROM nowo_vault_missing_table'));
+        } catch (Exception) {
+        }
+        $connection->commit();
+        self::assertFalse($vault->isStale());
+        $updater->update($item, 'Saved again', ['password' => 'REDACTED-TEST-4'], null, $users['alice']);
+        self::assertSame('Saved again', $connection->fetchOne('SELECT title FROM vault_items WHERE id = ?', [$ids['personal']]));
     }
 
     #[Test]

@@ -49,34 +49,55 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
     }
 
     #[Test]
-    public function rollbacksAndFailedCommitsMarkThePrivateManagerStale(): void
+    public function onlyARollbackOfRowsThePrivateManagerWroteMakesItStale(): void
     {
         $private = $this->privateManager();
+        $real    = $private->getConnection();
         $inner   = $this->createMock(DriverConnection::class);
         $inner->method('exec')->willReturn(0);
-        $inner->expects(self::exactly(2))->method('commit')->willReturnOnConsecutiveCalls(null, self::throwException(new RuntimeException('commit failed')));
+        $inner->method('commit')->willReturnOnConsecutiveCalls(null, self::throwException(new RuntimeException('commit failed')));
         $connection = new PrivateEntityManagerConnection($inner, $private);
+        $real->beginTransaction();
 
-        $connection->commit();
-        $connection->exec('SAVEPOINT DOCTRINE_2');
+        $this->write($private);
         $connection->exec('RELEASE SAVEPOINT DOCTRINE_2');
-        self::assertFalse($private->isStale());
+        $connection->exec('ROLLBACK TO SAVEPOINT nowo_vault_0a1b2c');
         $connection->exec('ROLLBACK TO SAVEPOINT DOCTRINE_2');
-        self::assertTrue($private->isStale());
+        self::assertFalse($private->isStale(), 'NJ-2: a vault savepoint or a deeper level the manager did not write in');
+        $connection->exec('ROLLBACK TO SAVEPOINT host_point');
+        self::assertTrue($private->isStale(), 'a savepoint of unknown level: conservative');
 
         $private->reset();
-        $private->live();
+        $this->write($private);
         $connection->rollBack();
         self::assertTrue($private->isStale());
 
         $private->reset();
-        $private->live();
+        $this->write($private);
+        $connection->commit();
+        $connection->rollBack();
+        self::assertFalse($private->isStale(), 'committed rows are not undone by a later rollback');
+
+        $private->reset();
+        $this->write($private);
         try {
             $connection->commit();
             self::fail('the commit failure is rethrown');
         } catch (RuntimeException) {
         }
         self::assertTrue($private->isStale());
+
+        // Rows written in a nested level move down when its savepoint is released.
+        $private->reset();
+        $real->beginTransaction();
+        $this->write($private);
+        $connection->exec('RELEASE SAVEPOINT DOCTRINE_2');
+        $connection->exec('ROLLBACK TO SAVEPOINT DOCTRINE_2');
+        self::assertFalse($private->isStale());
+        $connection->rollBack();
+        self::assertTrue($private->isStale());
+        $real->rollBack();
+        $real->rollBack();
 
         $driver = $this->createMock(Driver::class);
         $driver->method('connect')->willReturn($this->createMock(DriverConnection::class));
@@ -87,16 +108,29 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
     public function aStaleManagerWithPendingWorkIsKeptUntilFlushed(): void
     {
         $private = $this->privateManager();
-        $live    = $private->live();
+        $real    = $private->getConnection();
+        $real->beginTransaction();
+        $this->write($private);
+        $live = $private->live();
         $private->persist(VaultItem::forScope(VaultItemType::Login, 'Pending', 'org-1', null, 'c'));
-        $private->connectionRolledBack();
+        $private->connectionRolledBack(1);
 
         self::assertSame($live, $private->live(), 'pending inserts survive a rollback signal');
         $private->flush();
-        $private->connectionRolledBack();
+        $private->connectionRolledBack(1);
         self::assertNotSame($live, $private->live(), 'no pending work: replaced');
+        $private->connectionRolledBack(null);
+        self::assertFalse($private->isStale(), 'a fresh manager wrote nothing');
+        $private->wrapInTransaction(static fn (): bool => true);
+        $real->rollBack();
         $private->clear();
         (new VaultEntityManager($this->doctrine()))->clear();
+    }
+
+    private function write(VaultEntityManager $private): void
+    {
+        $private->persist(VaultItem::forScope(VaultItemType::Login, 'Written', 'org-1', null, 'c'));
+        $private->flush();
     }
 
     #[Test]
