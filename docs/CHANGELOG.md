@@ -76,7 +76,7 @@ With an unchanged configuration every access decision is the one of 1.18.0 (equi
   is only a pointer: the vault resolves its id again through the user locator port and uses that answer's identity
   and roles, never the reference's (audit NJ-1). Only a directory answer for exactly the requested id becomes the
   vault's internal stand-in user (the strict id-mapping rules apply to it); the built-in role checker denies a
-  reference without a user object.
+  reference without a user object. Only the user-locator gate can build the stand-in user (audit NJV-5).
 - **Port selection at build time** (`VaultPortsPass`): the 1.19 interface is asked when the service implements it; a
   service implementing only the deprecated interface is asked exactly as in 1.18 (deprecation); a service implementing
   neither fails the build; a decorator of a deprecated interface keeps it asked: for the access checker, team
@@ -117,7 +117,12 @@ With an unchanged configuration every access decision is the one of 1.18.0 (equi
   transaction nesting level; a rollback of the application's own nested transaction or of a vault savepoint leaves it
   alone, audit NJ-2). With doctrine/dbal 3 there is no rollback middleware (replaced at the next boundary).
 - A decorator of the configured service id itself (not of the interface) that lacks the 1.19 interface keeps the
-  deprecated interface asked, as in 1.18 (audit NJ-3).
+  deprecated interface asked, as in 1.18 (audit NJ-3); so does such a decorator of a decorator, a decorator of the 1.19
+  interface that lacks it, or a decorator whose class is unknown at build time (factory; audit NJV-2).
+- The private manager also records the transaction level of its bulk DQL / DBAL writes, `refresh()` and loads, so a
+  rollback of that level makes it start over (audit NJV-1).
+- Users looked up by id through the user locator gate must have exactly the requested id (byte for byte): a
+  non-canonical id (`05`, an upper-case UUID) finds nobody.
 - Vault bulk DQL and DBAL writes (grant expiry / revoke / update, token purge, the raw token table) run inside a
   savepoint when your code already opened a transaction on the connection: a failing vault statement no longer leaves
   a PostgreSQL transaction aborted.

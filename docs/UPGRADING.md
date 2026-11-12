@@ -114,6 +114,10 @@ What you will notice without changing anything:
 - **Relation mapping:** a `user_class` instance managed by another entity manager than the vault's is stored as a
   reference of the same id (1.18 failed with *new entity found through the relationship*).
 - New events `FOLDER_CHANGED` and `TAG_CHANGED` are dispatched (ids only).
+- **Users looked up by id match byte for byte.** The user locator gate keeps a lookup only when the user found has
+  exactly the requested id: a non-canonical id (`"05"` for user `5`, an upper-case UUID for a lower-case one) now finds
+  nobody (no extension token resolved, no scope grantee check, no GDPR user object) where a loose 1.18 lookup
+  (e.g. Doctrine casting `"05"` to `5`) found one. Store and pass canonical ids.
 - If you instantiate `VaultFolderService`, `VaultTagService` or `VaultItemFormType` yourself: they take new optional
   constructor arguments at the end.
 

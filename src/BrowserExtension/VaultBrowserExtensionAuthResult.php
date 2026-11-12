@@ -81,7 +81,9 @@ final readonly class VaultBrowserExtensionAuthResult
     }
 
     /**
-     * The authenticated user as a framework-free reference, or null when the attempt failed (1.19.0).
+     * The authenticated user as a framework-free reference, or null when the attempt failed (1.19.0). For a result
+     * built from an id alone, this is the authenticator's own reference: its identifier and role names are untrusted
+     * (audit NJ-1); the vault resolves the id through the user locator before using it.
      */
     public function getUserRef(): ?VaultUserRef
     {

@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Support;
 
+use LogicException;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
+
+use function debug_backtrace;
+
+use const DEBUG_BACKTRACE_IGNORE_ARGS;
 
 /**
  * The vault's own stand-in for a user that your {@see VaultUserDirectoryInterface} returned as a {@see VaultUserRef}
@@ -30,9 +36,16 @@ final readonly class VaultRefUser implements UserInterface
      * The stand-in of the directory's answer for an id; null for an answer without an id.
      *
      * @internal only the user-locator gate calls it
+     *
+     * @throws LogicException when called from anywhere else (audit NJV-5: a caller's reference never becomes a user)
      */
     public static function fromDirectory(VaultUserRef $ref): ?self
     {
+        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['class'] ?? null;
+        if ($caller !== VaultUserLocatorGate::class) {
+            throw new LogicException('Only the vault user-locator gate builds a stand-in user from a directory answer.');
+        }
+
         return $ref->id !== null ? new self($ref, $ref->id) : null;
     }
 
