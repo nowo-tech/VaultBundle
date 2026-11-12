@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Event;
 
+use Closure;
 use InvalidArgumentException;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Support\VaultUserRefs;
@@ -32,6 +33,8 @@ final class VaultItemListQueryEvent extends Event
         private readonly ?string $folderId = null,
         private readonly bool $trashOnly = false,
         private readonly bool $sharedOnly = false,
+        /** 1.19.0 (NJ-1): resolves a reference by id through the user locator port (set by the vault). */
+        private readonly ?Closure $refResolver = null,
     ) {
     }
 
@@ -164,14 +167,18 @@ final class VaultItemListQueryEvent extends Event
     }
 
     /**
-     * Same as {@see self::setListSubject()} with a framework-free reference (1.19.0): its user object, or the vault's
-     * stand-in for its id.
+     * Same as {@see self::setListSubject()} with a framework-free reference (1.19.0): its user object, or the user its id
+     * resolves to through the vault's user locator port (audit NJ-1; the reference's roles are never used).
      *
-     * @throws InvalidArgumentException when the reference has neither a user object nor an id
+     * @throws InvalidArgumentException when the reference stands for no known vault user
      */
     public function setListSubjectRef(VaultUserRef $listSubject): void
     {
+        $user = VaultUserRefs::toUser($listSubject);
+        if (!$user instanceof UserInterface && $this->refResolver instanceof Closure) {
+            $user = ($this->refResolver)($listSubject);
+        }
         // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
-        $this->listSubject = VaultUserRefs::toUser($listSubject) ?? throw new InvalidArgumentException('The list subject needs a user object or an id.');
+        $this->listSubject = $user instanceof UserInterface ? $user : throw new InvalidArgumentException('The list subject is no known vault user (a user object, or an id the user locator finds).');
     }
 }

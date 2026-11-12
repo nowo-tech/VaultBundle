@@ -10,7 +10,7 @@ $m = [
     ['src/Port/VaultAccessCheckerGate.php', "if (\$this->mode === VaultPortMode::LEGACY) {\n                return true;", "if (\$this->mode === VaultPortMode::LEGACY) {\n                return false;"],
     ['src/Port/VaultAccessCheckerGate.php', 'return $policy($accessPolicy, VaultUserRefs::fromNullableUser($user)) === true;', 'return $policy($accessPolicy, VaultUserRefs::fromNullableUser($user)) !== true;'],
     ['src/Port/VaultAccessCheckerGate.php', 'static fn (VaultAccessPolicyInterface $p, ?VaultUserRef $ref): bool => $p->allowsCreate($ref)', 'static fn (VaultAccessPolicyInterface $p, ?VaultUserRef $ref): bool => $p->allowsAccess($ref)'],
-    ['src/Port/VaultTeamMembershipGate.php', 'if (in_array($teamId, $teamIds, true)) {', 'if (true) {'],
+    ['src/Port/VaultTeamMembershipGate.php', 'if (isset($policyIds[(string) $teamId])) {', 'if (true) {'],
     ['src/Port/VaultTeamMembershipGate.php', "if (\$this->mode === VaultPortMode::POLICY) {\n            return \$teamIds;", "if (\$this->mode === VaultPortMode::POLICY) {\n            return [];"],
     ['src/Port/VaultTeamMembershipGate.php', 'return $legacy->getTeamIdsForUser($user);', 'return [];'],
     ['src/Port/VaultScopeAccessGate.php', '$legacy->catalogue && $access->catalogue,', '$legacy->catalogue || $access->catalogue,'],
@@ -25,6 +25,9 @@ $m = [
     ['src/Security/NullVaultTeamMembershipResolver.php', "public function teamIdsOf(VaultUserRef \$user): array\n    {\n        return [];", "public function teamIdsOf(VaultUserRef \$user): array\n    {\n        return ['team-1'];"],
     ['src/Security/NullVaultScopeAccessResolver.php', "public function scopeAccessOf(VaultUserRef \$user, string \$scope): ?VaultScopeAccess\n    {\n        return null;", "public function scopeAccessOf(VaultUserRef \$user, string \$scope): ?VaultScopeAccess\n    {\n        return new VaultScopeAccess(null);"],
     ['src/Support/VaultUserClassPolicy.php', 'if ($user instanceof VaultUserId || $user instanceof VaultRefUser || $this->isUserClass($user)) {', 'if ($user instanceof VaultUserId || $user instanceof VaultRefUser || $this->isUserClass($user) || $user instanceof \\Symfony\\Component\\Security\\Core\\User\\UserInterface) {'],
+    ['src/Security/ConfigurableVaultAccessChecker.php', 'return !$user instanceof VaultUserRef || VaultUserRefs::toUser($user) instanceof UserInterface;', 'return true;'],
+    ['src/Support/VaultUserRefResolver.php', 'UserIdResolver::getId($found) === $ref->id ? $found : null;', '$found;'],
+    ['src/Support/VaultUserRefs.php', 'return $user instanceof UserInterface ? $user : null;', 'return $user instanceof UserInterface ? $user : ($ref->id !== null ? new \\Nowo\\VaultBundle\\Tests\\Stub\\TestUser($ref->id, $ref->identifier, $ref->roles) : null);'],
     ['src/Security/RequestScopedScopeAccessCache.php', '$this->memo[$key] = $this->resolver->resolve($user, $scope);', '$this->memo[$key] = $this->resolver->resolve($user, \'org-1\');'],
 ];
 $killed = 0;

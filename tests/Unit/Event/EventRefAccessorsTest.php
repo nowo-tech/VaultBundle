@@ -32,7 +32,6 @@ use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Service\VaultTrashService;
-use Nowo\VaultBundle\Support\VaultRefUser;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use PHPUnit\Framework\Attributes\Test;
@@ -89,12 +88,13 @@ final class EventRefAccessorsTest extends TestCase
     public function theListSubjectCanBeChangedWithAReference(): void
     {
         $viewer = new TestUser('u-1');
-        $event  = new VaultItemListQueryEvent($viewer, $viewer);
+        $found  = new TestUser('u-2', 'found@example.com');
+        $event  = new VaultItemListQueryEvent($viewer, $viewer, refResolver: static fn (VaultUserRef $ref): ?TestUser => $ref->id === 'u-2' ? $found : null);
         self::assertSame('u-1', $event->getViewerId());
         self::assertSame('u-1', $event->getListSubjectId());
 
-        $event->setListSubjectRef(VaultUserRef::ofId('u-2'));
-        self::assertInstanceOf(VaultRefUser::class, $event->getListSubject());
+        $event->setListSubjectRef(VaultUserRef::ofId('u-2', 'forged', ['ROLE_ADMIN']));
+        self::assertSame($found, $event->getListSubject(), 'resolved again: the reference only names the id');
         self::assertSame('u-2', $event->getListSubjectRef()->id);
         $other = new TestUser('u-3');
         $event->setListSubjectRef(new VaultUserRef('u-3', '', [], $other));

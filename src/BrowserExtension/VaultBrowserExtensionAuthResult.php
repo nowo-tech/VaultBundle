@@ -13,8 +13,10 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * Immutable outcome of a browser extension login attempt (authenticated user or failure reason).
  *
  * 1.19.0 (REQ-ARCH-001 rule 3): a successful result can be built from a framework-free {@see VaultUserRef}
- * ({@see self::authenticated()}) and read as one ({@see self::getUserRef()}). A reference without a user object stands
- * for that vault user id (the vault's stand-in user, with the reference's role names).
+ * ({@see self::authenticated()}) and read as one ({@see self::getUserRef()}). With a user object, that object is the
+ * user (the vault's class policy applies, as in 1.18). A reference by id alone carries no trust (audit NJ-1): the vault
+ * looks the id up again through its user locator port and uses that answer's identity and roles (never the
+ * reference's); an unknown id gets no token.
  */
 final readonly class VaultBrowserExtensionAuthResult
 {
@@ -22,6 +24,7 @@ final readonly class VaultBrowserExtensionAuthResult
         private bool $success,
         private ?UserInterface $user = null,
         private ?string $failureReason = null,
+        private ?VaultUserRef $ref = null,
     ) {
     }
 
@@ -36,13 +39,19 @@ final readonly class VaultBrowserExtensionAuthResult
     }
 
     /**
-     * Builds a successful result for the referenced user (1.19.0): its user object, or the vault's stand-in for its id.
+     * Builds a successful result for the referenced user (1.19.0): its user object, or only its id (the vault resolves
+     * it again through the user locator port; the reference's roles are ignored).
      *
      * @throws InvalidArgumentException when the reference has neither a user object nor an id
      */
     public static function authenticated(VaultUserRef $user): self
     {
-        return new self(true, VaultUserRefs::toUser($user) ?? throw new InvalidArgumentException('An authenticated vault user needs a user object or an id.'));
+        $object = VaultUserRefs::toUser($user);
+        if (!$object instanceof UserInterface && $user->id === null) {
+            throw new InvalidArgumentException('An authenticated vault user needs a user object or an id.');
+        }
+
+        return new self(true, $object, null, $object instanceof UserInterface ? null : $user);
     }
 
     /**
@@ -76,7 +85,7 @@ final readonly class VaultBrowserExtensionAuthResult
      */
     public function getUserRef(): ?VaultUserRef
     {
-        return VaultUserRefs::fromNullableUser($this->user);
+        return $this->ref ?? VaultUserRefs::fromNullableUser($this->user);
     }
 
     /**

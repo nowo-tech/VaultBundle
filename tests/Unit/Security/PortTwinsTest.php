@@ -14,7 +14,6 @@ use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
 use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
-use Nowo\VaultBundle\Support\VaultRefUser;
 use Nowo\VaultBundle\Support\VaultUserLocator;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
@@ -53,8 +52,8 @@ final class PortTwinsTest extends TestCase
         self::assertTrue($checker->allowsAccess());
         self::assertTrue($checker->allowsList(new VaultUserRef('1', 'token@example.com', [], $token)));
         self::assertFalse($checker->allowsCreate(new VaultUserRef('1', 'token@example.com', [], $token)));
-        self::assertTrue($checker->allowsRevoke(VaultUserRef::ofId('9', 'x', ['ROLE_VAULT_DELETE'])), 'a reference by id: its own role names');
-        self::assertFalse($checker->allowsAccess(VaultUserRef::ofId('9', 'x', ['ROLE_VAULT_DELETE'])));
+        self::assertFalse($checker->allowsRevoke(VaultUserRef::ofId('9', 'x', ['ROLE_VAULT_DELETE'])), 'NJ-1: a reference by id never brings its own roles');
+        self::assertFalse($checker->allowsAccess(VaultUserRef::ofId('1', 'token@example.com', ['ROLE_VAULT_ADMIN'])), 'not even with the token user id');
         foreach (['allowsAccess', 'allowsCreate', 'allowsList', 'allowsRevoke'] as $method) {
             self::assertFalse($checker->{$method}(new VaultUserRef(null)), $method . ': neither a user nor an id never means the token user');
         }
@@ -88,7 +87,9 @@ final class PortTwinsTest extends TestCase
         self::assertTrue($result->isSuccess());
         self::assertSame($user, $result->getUser());
         self::assertSame($user, $result->getUserRef()?->user());
-        self::assertInstanceOf(VaultRefUser::class, VaultBrowserExtensionAuthResult::authenticated(VaultUserRef::ofId('7'))->getUser());
+        $byId = VaultBrowserExtensionAuthResult::authenticated(VaultUserRef::ofId('7', 'x', ['ROLE_ADMIN']));
+        self::assertNull($byId->getUser(), 'by id: no user until the vault resolves it');
+        self::assertSame('7', $byId->getUserRef()?->id);
         self::assertNull(VaultBrowserExtensionAuthResult::failure('x')->getUserRef());
 
         $this->expectException(InvalidArgumentException::class);

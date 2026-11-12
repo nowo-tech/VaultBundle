@@ -39,6 +39,8 @@ use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Support\DoctrineVaultUserReferenceResolver;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultUserClassPolicy;
+use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use Nowo\VaultBundle\Support\VaultUserRefResolver;
 use Nowo\VaultBundle\Tests\App\Ddd\OtherDomainUser;
 use Nowo\VaultBundle\Tests\Stub\InMemoryGrantRepository;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
@@ -68,6 +70,7 @@ use function implode;
 use function in_array;
 use function is_string;
 use function sprintf;
+use function strtolower;
 use function var_export;
 
 /**
@@ -133,6 +136,72 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
 
         self::assertSame([], array_diff_assoc($reference, $current), 'decisions that differ: ' . implode(', ', array_keys(array_diff_assoc($reference, $current))));
         self::assertSame($reference, $current);
+    }
+
+    /**
+     * Audit NJ-1: a reference given by id alone never decides by itself. The role checker denies every feature to it
+     * (whatever roles it claims, even with the token user's id), and the vault resolves its id through the user
+     * locator: the answer is the located user (its own roles), or nothing for an unknown id or an answer for another id.
+     */
+    #[Test]
+    public function forgedReferencesNeverWidenAnyDecision(): void
+    {
+        $token    = new TestUser('u-token', 'token@example.com', ['ROLE_VAULT_USER']);
+        $security = $this->createMock(Security::class);
+        $security->method('getUser')->willReturn($token);
+        $security->method('isGranted')->willReturn(true);
+        $security->method('isGrantedForUser')->willReturn(true);
+        $provider = new VaultRuntimeConfigProvider(VaultRuntimeConfigFactory::baseline(['security' => ['admin_roles' => ['ROLE_VAULT_ADMIN'], 'access_roles' => [], 'create_roles' => [], 'list_roles' => [], 'delete_roles' => []]]), false, $this->createMock(VaultSettingsRepositoryInterface::class), new ArrayAdapter());
+        $gate     = new VaultAccessCheckerGate(VaultPortMode::POLICY, null, new ConfigurableVaultAccessChecker($security, $provider));
+        $policy   = new ConfigurableVaultAccessChecker($security, $provider);
+        foreach (['u-token', 'u-alice', 'U-ALICE'] as $id) {
+            $forged = VaultUserRef::ofId($id, 'token@example.com', ['ROLE_VAULT_ADMIN']);
+            foreach (['allowsAccess', 'allowsCreate', 'allowsList', 'allowsRevoke'] as $feature) {
+                self::assertFalse($policy->{$feature}($forged), $feature . ' / ' . $id);
+            }
+        }
+        self::assertTrue($gate->canAccess(), 'the request token itself is still checked');
+
+        $users = $this->users();
+        $byId  = [];
+        foreach ($users as $user) {
+            if (!$user instanceof OtherDomainUser) {
+                $byId[(string) UserIdResolver::getId($user)] = $user;
+            }
+        }
+        $locator = new class($byId) implements VaultUserLocatorInterface {
+            /** @param array<string, UserInterface> $users */
+            public function __construct(private readonly array $users)
+            {
+            }
+
+            public function find(string $id): ?UserInterface
+            {
+                // A sloppy host lookup: case-insensitive.
+                foreach ($this->users as $userId => $user) {
+                    if (strtolower((string) $userId) === strtolower($id)) {
+                        return $user;
+                    }
+                }
+
+                return null;
+            }
+        };
+        $resolver = new VaultUserRefResolver($locator);
+        foreach ($users as $name => $user) {
+            $id = UserIdResolver::getId($user);
+            if ($id === null || $user instanceof OtherDomainUser) {
+                continue;
+            }
+            $resolved = $resolver->resolve(VaultUserRef::ofId($id, 'forged', ['ROLE_VAULT_ADMIN']));
+            // u-alice and U-ALICE collide in the sloppy lookup: only the byte-equal answer is kept.
+            if ($resolved instanceof UserInterface) {
+                self::assertSame($user, $resolved, $name);
+                self::assertNotContains('ROLE_VAULT_ADMIN', $resolved->getRoles());
+            }
+        }
+        self::assertNull($resolver->resolve(VaultUserRef::ofId('u-nobody', 'x', ['ROLE_VAULT_ADMIN'])));
+        self::assertNull($resolver->resolve(VaultUserRef::ofId('U-BOB')), 'an answer for another id (u-bob) is refused');
     }
 
     /**

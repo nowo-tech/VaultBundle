@@ -13,7 +13,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 /**
  * Role-based default implementation of {@see VaultAccessPolicyInterface} and of the deprecated
  * {@see VaultAccessCheckerInterface}: both give the same answer for the same user (1.19.0; the reference's user object,
- * or the vault's stand-in for a reference given by id, whose role names are then the ones checked).
+ * which is the one the bundle would have passed to the deprecated interface). A reference without a user object is
+ * denied (audit NJ-1: its role names come from the caller and are never trusted).
  */
 final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicyInterface, VaultAccessCheckerInterface
 {
@@ -95,7 +96,8 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicy
     }
 
     /**
-     * False for a reference with neither a user object nor an id (fail closed: it never stands for the token user).
+     * False for a reference without a Symfony user object (fail closed: it never stands for the token user, and a
+     * caller's role names are never trusted, audit NJ-1).
      */
     private function known(?VaultUserRef $user): bool
     {

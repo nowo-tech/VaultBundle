@@ -24,7 +24,10 @@ final class VaultUserRefs
     public static function fromUser(UserInterface $user): VaultUserRef
     {
         if ($user instanceof VaultRefUser) {
-            return $user->ref();
+            // The directory's stand-in: its own data, with the stand-in as the user object.
+            $ref = $user->ref();
+
+            return new VaultUserRef($user->getId(), $ref->identifier, $ref->roles, $user);
         }
 
         $id = UserIdResolver::getId($user);
@@ -44,16 +47,13 @@ final class VaultUserRefs
     }
 
     /**
-     * The user a reference stands for: the user object it carries when that is a Symfony user, else a
-     * {@see VaultRefUser} with its id; null when it has neither.
+     * The Symfony user object a reference carries, or null (audit NJ-1: a reference by id alone is never trusted as a
+     * user; resolve its id through {@see VaultUserRefResolver}).
      */
     public static function toUser(VaultUserRef $ref): ?UserInterface
     {
         $user = $ref->user();
-        if ($user instanceof UserInterface) {
-            return $user;
-        }
 
-        return VaultRefUser::of($ref);
+        return $user instanceof UserInterface ? $user : null;
     }
 }

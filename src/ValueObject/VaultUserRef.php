@@ -31,9 +31,9 @@ use function trim;
  * keyed by this object, so a dump, `var_export()`, `(array)` cast, `json_encode()` or `serialize()` of the VO never shows
  * a password hash or another field of the user, and a `clone` or an unserialized copy has no user object.
  *
- * A reference built by your own code with an id and no user object ({@see self::ofId()}) is your statement that the id
- * is a vault user id (`nowo_vault.user_class` id space): the vault then works with that id only (the same rules as the
- * `getId()` of a `user_class` instance, including the strict id-mapping rules).
+ * A reference built by your code with an id and no user object ({@see self::ofId()}) is only a pointer (audit NJ-1): the
+ * vault looks the id up again through its user locator port and uses that answer (identity, roles); the identifier and
+ * role names you put in it are never trusted, and an id the locator does not find is refused.
  *
  * Built per call and never stored by the bundle (FrankenPHP worker mode, kernel reset false).
  */
