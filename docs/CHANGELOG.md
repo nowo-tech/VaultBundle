@@ -51,6 +51,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Console boundary tracking (audit NM, B7):** `VaultUnitOfWorkSubscriber` counted console depth with `++` / `--`
+  at priorities +-4096, so a listener that threw or stopped the propagation could leave the counter behind in a
+  long-running process, and the outermost command then no longer cleared the bundle's private entity manager (or a
+  nested command cleared the outer unit mid-run). Each run is now a frame (command + input) pushed and popped at
+  `PHP_INT_MAX`, restoring the message / request state it saved; a frame whose `console.error` listener threw is
+  dropped at the next unit boundary; main requests are counted (decremented at `kernel.finish_request`, healed at a
+  top-level `kernel.terminate`); `WorkerMessageSkipEvent` (from `messenger:failed:retry`) ends the message unit; the
+  subscriber implements `ResetInterface`. Precondition of the leak: a long-running process without the services
+  resetter between units. Patch release, no configuration change.
+
 ## [1.19.0] - 2026-11-12
 
 Target: **1.19.0** (minor). REQ-ARCH-001 batch B7: framework-free twins of the six host ports that took a Symfony
