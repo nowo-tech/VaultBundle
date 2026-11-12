@@ -476,8 +476,13 @@ final readonly class VaultUserDirectory implements VaultUserDirectoryInterface
     public function findUser(string $id): ?VaultUserRef
     {
         $user = $this->users->ofId(UserId::fromString($id));
+        // Null for an unknown, disabled, locked or foreign user: no Symfony UserChecker sees the vault's stand-in.
+        if ($user === null || !$user->isActive()) {
+            return null;
+        }
 
-        return $user !== null ? VaultUserRef::ofId($id, $user->email(), $user->roleNames()) : null;
+        // Exactly the requested id (the vault refuses an answer for another id), with the roles of your own model.
+        return VaultUserRef::ofId($id, $user->email(), $user->roleNames());
     }
 }
 
@@ -504,8 +509,13 @@ The ports you implement or call:
 | `Service\VaultHealthReportProviderInterface` | `VaultUserRef` → `VaultHealthReport` | you call it |
 | `Service\VaultPersonalDataEraserInterface` / `…ExporterInterface` | user id | you call them |
 
-Call the vault from your application layer with a reference by id (`VaultUserRef::ofId($userId)`): it stands for that
-vault user. Grantees are string ids (`GranteeType` + id), so sharing with your teams needs no relation to your team
+Your directory is the only source of trust for users known by id: the identity and role names the vault uses come
+from its answer, and it must answer null for a user who must not use the vault (unknown, disabled, locked, another
+identity domain), because no Symfony `UserChecker` sees the vault's stand-in user. When your application layer calls
+the vault with a reference by id (`VaultUserRef::ofId($userId)`, e.g. a health report or a browser-extension
+authenticator answer), the vault only takes the id from it and looks it up through the directory again; the identifier
+and roles you put in the reference are ignored, so never build one from untrusted input expecting it to carry
+permissions. Grantees are string ids (`GranteeType` + id), so sharing with your teams needs no relation to your team
 entity.
 
 With `user_mapping: id`:

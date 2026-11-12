@@ -9,8 +9,6 @@ use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Support\VaultUserRefs;
 use Symfony\Component\Security\Core\User\UserInterface;
 
-use function in_array;
-
 /**
  * The teams the bundle uses for team grants (1.19.0): the host's {@see VaultTeamMembershipProviderInterface}, the
  * deprecated {@see VaultTeamMembershipResolverInterface} (exactly as in 1.18), or both, keeping only the team ids both
@@ -46,9 +44,15 @@ final readonly class VaultTeamMembershipGate implements VaultTeamMembershipResol
 
         /** @var VaultTeamMembershipResolverInterface $legacy asserted in the constructor */
         $legacy = $this->legacy;
-        $both   = [];
+        // Compared as strings (audit NJ-4): a host answering int team ids through one interface and strings through the
+        // other keeps its teams, as grant matching compares the string grantee ids.
+        $policyIds = [];
+        foreach ($teamIds as $teamId) {
+            $policyIds[(string) $teamId] = true;
+        }
+        $both = [];
         foreach ($legacy->getTeamIdsForUser($user) as $teamId) {
-            if (in_array($teamId, $teamIds, true)) {
+            if (isset($policyIds[(string) $teamId])) {
                 $both[] = $teamId;
             }
         }

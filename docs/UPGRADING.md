@@ -151,12 +151,20 @@ How the bundle picks the interface (same config keys as before):
 | You alias the 1.19 interface yourself | Your service wins over the built-in; with a different configured (non built-in) service the build fails (keep one). |
 | A decorator of the deprecated access checker, team membership or scope access interface | It keeps running. When the 1.19 interface is served too, **both** are asked and the weaker answer wins: both must allow; only the team ids both return; not a member when either says so, the lower baseline, each flag only when both set it. Deprecation naming the decorator. |
 | A decorator of the deprecated user locator, re-authentication or health interface | It keeps running and that interface stays the one asked. Together with another service behind the 1.19 interface the build fails. |
+| A decorator of the service id itself (e.g. `nowo_vault.access_checker.default`, `VaultUserLocator`, your configured id) | When its class lacks the 1.19 interface, the deprecated interface is asked, as in 1.18 (deprecation naming it). A decorator lacking the 1.19 interface on a service you aliased to the 1.19 interface fails the build. |
 
-A `VaultUserRef` built by your code with an id and no user object (`VaultUserRef::ofId($id, $identifier, $roles)`)
-stands for that vault user id: the vault works with an internal stand-in user carrying the id and role names (with the
-relation mapping it is stored as `getReference(user_class, id)`; the strict id-mapping rules apply with
-`user_mapping: id`). Build it only for ids of your `user_class` identity domain. The built-in role checker checks such
-a reference with its own role names, and denies a reference with neither a user object nor an id.
+A `VaultUserRef` built by your code with an id and no user object (`VaultUserRef::ofId($id)`) is only a pointer: where
+the vault accepts one (`VaultHealthReportProviderInterface`, `VaultBrowserExtensionAuthResult::authenticated()`,
+`VaultItemListQueryEvent::setListSubjectRef()`) it looks the id up again through the user locator port (your
+`VaultUserDirectoryInterface` or the deprecated locator) and uses that answer; the identifier and role names of the
+reference are ignored, and an unknown id is refused (no token, access denied). A reference carrying a user object uses
+that object, under the same class rules as in 1.18 (`user_class` / `accepted_user_classes`). The built-in role checker
+denies a reference without a user object. Your directory must answer only for exactly the requested id and return null
+for disabled, locked or foreign users: the vault's stand-in for its answer is not seen by a Symfony `UserChecker`.
+
+**Both interfaces asked can deny more than 1.18.** A decorator of a deprecated access port that *widened* access in
+1.18 (granted more, added teams, raised a scope standing) no longer widens it once your service also implements the
+1.19 interface: the weaker of the two answers wins. Move such a decorator to the 1.19 interface.
 
 ### Events
 
@@ -195,8 +203,13 @@ patterns before turning it on:**
   that caches per entity manager sees one manager per unit of work.
 - **Forms:** an `EntityType` of vault entities in your own forms must use the same manager as the choices
   (`'em' => <the vault's manager>` or plain ids).
-- With the relation mapping, `getCreator()` / `getCreatedBy()` return a reference loaded by the private manager (not
-  the security user instance): compare users by id, as the vault does.
+- With the relation mapping, `getCreator()` / `getCreatedBy()` (and the browser-extension Bearer user, loaded from the
+  token row) are objects of the private manager, not of yours: compare users by id, as the vault does, and never
+  persist or associate them through your own manager (Doctrine refuses them as new entities found through a
+  relationship); re-load them by id with your manager instead. Your Doctrine listeners on the vault entities receive
+  these objects too.
+- With doctrine/dbal 3 there is no rollback middleware: after a rollback of your transaction the private manager is
+  only replaced at the next unit-of-work boundary.
 - In worker mode the private manager is dropped at every boundary; your own managers are still yours to clear
   (REQ-RUNTIME-002 rule 7, see [FRANKENPHP-WORKER-AUDIT](FRANKENPHP-WORKER-AUDIT.md)).
 

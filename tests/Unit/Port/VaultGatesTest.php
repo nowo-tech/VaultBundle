@@ -118,6 +118,13 @@ final class VaultGatesTest extends TestCase
         self::assertSame(['a', 'c'], (new VaultTeamMembershipGate(VaultPortMode::BOTH, $legacy, $policy))->getTeamIdsForUser($user));
         self::assertSame(['a', 'b', 'c'], (new VaultTeamMembershipGate(VaultPortMode::LEGACY, $legacy))->getTeamIdsForUser($user));
         self::assertSame(['c', 'a', 'z'], (new VaultTeamMembershipGate(VaultPortMode::POLICY, null, $policy))->getTeamIdsForUser($user));
+
+        // NJ-4: int ids from one interface and strings from the other are the same teams.
+        $ints = $this->createMock(VaultTeamMembershipResolverInterface::class);
+        $ints->method('getTeamIdsForUser')->willReturn([7, 8]);
+        $strings = $this->createMock(VaultTeamMembershipProviderInterface::class);
+        $strings->method('teamIdsOf')->willReturn(['8', '9']);
+        self::assertSame([8], (new VaultTeamMembershipGate(VaultPortMode::BOTH, $ints, $strings))->getTeamIdsForUser($user));
     }
 
     #[Test]
@@ -228,11 +235,15 @@ final class VaultGatesTest extends TestCase
             ['3', new VaultUserRef('3', 'u', [], $user)],
             ['4', VaultUserRef::ofId('4')],
             ['5', null],
+            ['a', VaultUserRef::ofId('A')],
+            ['b', new VaultUserRef('b', 'u', [], $user)],
         ]);
         $gate = new VaultUserLocatorGate(VaultPortMode::POLICY, null, $directory);
         self::assertSame($user, $gate->find('3'));
         self::assertInstanceOf(VaultRefUser::class, $gate->find('4'));
         self::assertNull($gate->find('5'));
+        self::assertNull($gate->find('a'), 'NJ-1: an answer for another id (byte for byte) is refused');
+        self::assertNull($gate->find('b'), 'a user object with another id is refused');
 
         $legacy = $this->createMock(VaultUserLocatorInterface::class);
         $legacy->method('find')->willReturn($user);

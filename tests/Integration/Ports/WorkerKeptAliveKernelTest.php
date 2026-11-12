@@ -53,6 +53,7 @@ final class WorkerKeptAliveKernelTest extends WebTestCase
     {
         yield 'relation mapping, 1.19 ports, private manager' => ['private_relation_new_worker'];
         yield 'DDD host: id + XML mapping, private manager' => ['private_idxml_new_worker'];
+        yield 'default persistence (1.18 wiring), 1.19 ports' => ['legacy_relation_new_worker'];
     }
 
     #[Test]
@@ -66,8 +67,8 @@ final class WorkerKeptAliveKernelTest extends WebTestCase
         self::resetSchema($container);
         $users = self::seedUsers($container, str_contains($variant, '_id'));
         $ids   = self::seedVault($container, $users);
-        $vault = $container->get(VaultEntityManager::class);
-        assert($vault instanceof VaultEntityManager);
+        $vault = $container->has(VaultEntityManager::class) ? $container->get(VaultEntityManager::class) : null;
+        assert($vault === null || $vault instanceof VaultEntityManager);
         NoopServicesResetter::$calls = 0;
 
         $expect = [
@@ -88,7 +89,9 @@ final class WorkerKeptAliveKernelTest extends WebTestCase
             foreach ($expect[$name] as $title => $visible) {
                 self::assertSame($visible, str_contains($content, $title), sprintf('request %d as %s: %s', $i, $name, $title));
             }
-            self::assertFalse($vault->isCreated(), 'the private manager is dropped at the end of every request');
+            if ($vault instanceof VaultEntityManager) {
+                self::assertFalse($vault->isCreated(), 'the private manager is dropped at the end of every request');
+            }
 
             // bob's shared view and the item page follow the grant, whatever the previous request loaded.
             if ($i % 50 === 1) {

@@ -73,7 +73,10 @@ With an unchanged configuration every access decision is the one of 1.18.0 (equi
   The built-ins implement both interfaces of their port. The existing config keys (`security.access_checker`,
   `team_membership_resolver`, `scopes.access_resolver`, `export.reauth_checker`) accept a service implementing either
   interface; you can also alias the 1.19 interface yourself. A reference built by your code with `VaultUserRef::ofId()`
-  stands for that vault user id (the vault uses an internal stand-in user; the strict id-mapping rules apply to it).
+  is only a pointer: the vault resolves its id again through the user locator port and uses that answer's identity
+  and roles, never the reference's (audit NJ-1). Only a directory answer for exactly the requested id becomes the
+  vault's internal stand-in user (the strict id-mapping rules apply to it); the built-in role checker denies a
+  reference without a user object.
 - **Port selection at build time** (`VaultPortsPass`): the 1.19 interface is asked when the service implements it; a
   service implementing only the deprecated interface is asked exactly as in 1.18 (deprecation); a service implementing
   neither fails the build; a decorator of a deprecated interface keeps it asked: for the access checker, team
@@ -110,6 +113,11 @@ With an unchanged configuration every access decision is the one of 1.18.0 (equi
 
 ### Changed
 
+- The private entity manager is replaced after a rollback only when the rollback undid rows it wrote (tracked per
+  transaction nesting level; a rollback of the application's own nested transaction or of a vault savepoint leaves it
+  alone, audit NJ-2). With doctrine/dbal 3 there is no rollback middleware (replaced at the next boundary).
+- A decorator of the configured service id itself (not of the interface) that lacks the 1.19 interface keeps the
+  deprecated interface asked, as in 1.18 (audit NJ-3).
 - Vault bulk DQL and DBAL writes (grant expiry / revoke / update, token purge, the raw token table) run inside a
   savepoint when your code already opened a transaction on the connection: a failing vault statement no longer leaves
   a PostgreSQL transaction aborted.
