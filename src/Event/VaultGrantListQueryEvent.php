@@ -9,6 +9,8 @@ use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
+use Nowo\VaultBundle\Support\VaultUserRefs;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 
@@ -42,6 +44,8 @@ final class VaultGrantListQueryEvent extends Event
 
     /**
      * Returns the user that is sharing the resource.
+     *
+     * @deprecated since 1.19.0, use getGrantedByRef() / getGrantedById() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
      */
     public function getGrantedBy(): UserInterface
     {
@@ -164,5 +168,21 @@ final class VaultGrantListQueryEvent extends Event
         }
 
         return $labels;
+    }
+
+    /**
+     * The user who shares as a framework-free reference (1.19.0, REQ-ARCH-001 rules 3 and 4).
+     */
+    public function getGrantedByRef(): VaultUserRef
+    {
+        return VaultUserRefs::fromUser($this->grantedBy);
+    }
+
+    /**
+     * The user who shares's vault user id, or null when it has none (1.19.0).
+     */
+    public function getGrantedById(): ?string
+    {
+        return $this->getGrantedByRef()->id;
     }
 }

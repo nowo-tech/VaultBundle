@@ -16,6 +16,8 @@ use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
+use Nowo\VaultBundle\Support\VaultUserRefResolver;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -55,6 +57,7 @@ final readonly class VaultBrowserExtensionAuthService
         private ?LoggerInterface $logger = null,
         private ?VaultUserReferenceResolverInterface $users = null,
         private ?VaultUserLocatorInterface $userLocator = null,
+        private ?VaultUserRefResolver $refs = null,
     ) {
     }
 
@@ -80,6 +83,11 @@ final readonly class VaultBrowserExtensionAuthService
         }
 
         $user = $result->getUser();
+        $ref  = $result->getUserRef();
+        if (!$user instanceof UserInterface && $ref instanceof VaultUserRef) {
+            // 1.19.0 (NJ-1): a result by id alone is looked up again; its identity and roles come from the directory.
+            $user = $this->refs?->resolve($ref);
+        }
         // 1.17.0: a user the vault does not accept (another identity domain) never gets a token.
         if (!$user instanceof UserInterface || $this->users?->isAccepted($user) === false || !$this->isStillAllowed($user)) {
             $this->logger()->notice('Vault browser extension login rejected.', ['bundle' => 'nowo_vault', 'action' => 'extension_login', 'reason' => 'access_denied']);

@@ -9,6 +9,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 /**
  * Host hook (1.16.0): what a scope is, who belongs to it and with which baseline permission. The bundle calls it on
  * every request (memoized per request only), so a user who leaves a scope loses access at once.
+ *
+ * @deprecated since 1.19.0, implement {@see VaultScopeAccessProviderInterface} instead (framework-free, REQ-ARCH-001 rule 3); removed in 2.0.
  */
 interface VaultScopeAccessResolverInterface
 {

@@ -56,7 +56,7 @@ use function max;
  * Then `PERSONAL_DATA_ERASED` (user id and counts). Idempotent: a second run counts zero. Call it **before** deleting
  * the user row. It writes with DQL / DBAL statements only (no flush of the host's unit of work).
  */
-final readonly class VaultPersonalDataEraser
+final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserInterface
 {
     /**
      * Stores the Doctrine registry and the collaborators.

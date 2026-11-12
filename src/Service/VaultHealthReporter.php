@@ -25,7 +25,10 @@ use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Support\UserIdResolver;
+use Nowo\VaultBundle\Support\VaultUserRefResolver;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\ValueObject\VaultOwner;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -69,7 +72,7 @@ use function sodium_memzero;
  * - Breached: the optional host {@see VaultBreachCheckerInterface}; null when absent or failing.
  * - Cache: off unless `health.cache_ttl` > 0; then only the report (flags, titles, group numbers) is cached, per viewer.
  */
-final readonly class VaultHealthReporter implements VaultHealthReporterInterface
+final readonly class VaultHealthReporter implements VaultHealthReportProviderInterface, VaultHealthReporterInterface
 {
     /**
      * Stores the collaborators and the limits.
@@ -93,6 +96,8 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
         private int $minIntervalSeconds = 0,
         /** health.breach_cache_ttl: seconds a breach answer is kept per item and secret change (0 = never). */
         private int $breachCacheTtl = 0,
+        /** 1.19.0 (NJ-1): resolves a reference given by id through the user locator port. */
+        private ?VaultUserRefResolver $refs = null,
     ) {
     }
 
@@ -129,6 +134,26 @@ final readonly class VaultHealthReporter implements VaultHealthReporterInterface
     /**
      * Report over the owner's personal login items.
      */
+    public function reportForScope(VaultUserRef $viewer, string $scope, ?VaultPasswordPolicy $policy = null): VaultHealthReport
+    {
+        return $this->forScope($this->userOf($viewer), $scope, $policy);
+    }
+
+    public function reportForPersonalVault(VaultUserRef $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
+    {
+        return $this->forPersonalVault($this->userOf($owner), $policy);
+    }
+
+    /**
+     * The user object of the reference, or the user its id resolves to through the user locator port (audit NJ-1).
+     *
+     * @throws VaultAccessDeniedException when neither gives a user
+     */
+    private function userOf(VaultUserRef $ref): UserInterface
+    {
+        return ($this->refs instanceof VaultUserRefResolver ? $this->refs->resolve($ref) : VaultUserRefs::toUser($ref)) ?? throw new VaultAccessDeniedException();
+    }
+
     public function forPersonalVault(UserInterface $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
         $items = $this->itemRepository->findByCreatorAndItemType($owner, VaultItemType::Login);

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.19.0: XML mapping of the vault entity (same tables, columns, indexes and constraints as its attributes).
+     Used with nowo_vault.database.mapping_type: xml, or by a host that maps the vault entities itself. The table name
+     prefix (table_prefix) and the host user associations (user_class / user_mapping) are applied at runtime by the
+     bundle's metadata listener, exactly as for the attributes. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\VaultBundle\Entity\VaultExtensionToken" table="vault_extension_tokens">
+        <indexes>
+            <index name="vault_extension_tokens_hash_idx" columns="token_hash"/>
+            <index name="vault_extension_tokens_expires_idx" columns="expires_at"/>
+        </indexes>
+        <id name="id" type="string" length="36"/>
+        <field name="createdAt" column="created_at" type="datetime_immutable"/>
+        <field name="lastUsedAt" column="last_used_at" type="datetime_immutable" nullable="true"/>
+        <field name="tokenHash" column="token_hash" type="string" length="64" unique="true"/>
+        <field name="expiresAt" column="expires_at" type="datetime_immutable"/>
+        <many-to-one field="user" target-entity="Symfony\Component\Security\Core\User\UserInterface">
+            <join-column nullable="false" on-delete="CASCADE"/>
+        </many-to-one>
+    </entity>
+</doctrine-mapping>

@@ -11,6 +11,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
  *
  * Implement in the application or register a custom service id in
  * nowo_vault.team_membership_resolver.
+ *
+ * @deprecated since 1.19.0, implement {@see VaultTeamMembershipProviderInterface} instead (framework-free, REQ-ARCH-001 rule 3); removed in 2.0.
  */
 interface VaultTeamMembershipResolverInterface
 {

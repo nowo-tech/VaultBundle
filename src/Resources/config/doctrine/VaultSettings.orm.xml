@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.19.0: XML mapping of the vault entity (same tables, columns, indexes and constraints as its attributes).
+     Used with nowo_vault.database.mapping_type: xml, or by a host that maps the vault entities itself. The table name
+     prefix (table_prefix) and the host user associations (user_class / user_mapping) are applied at runtime by the
+     bundle's metadata listener, exactly as for the attributes. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\VaultBundle\Entity\VaultSettings" table="vault_settings">
+        <id name="scope" type="string" length="64"/>
+        <field name="updatedAt" column="updated_at" type="datetime_immutable"/>
+        <field name="values" column="config_values" type="json"/>
+        <field name="encryptionKey" column="encryption_key" type="text" nullable="true"/>
+    </entity>
+</doctrine-mapping>

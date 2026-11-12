@@ -67,7 +67,7 @@ The screenshot at the top of this README comes from this demo (fixture data only
 
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
-- [Usage](docs/USAGE.md)
+- [Usage](docs/USAGE.md): [Standard Symfony host](docs/USAGE.md#standard-symfony-host) and [DDD / hexagonal host](docs/USAGE.md#ddd--hexagonal-host) (framework-free ports, id mapping, XML mapping, private entity manager)
 - [Templates (UiKit page contract)](docs/TEMPLATES.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)

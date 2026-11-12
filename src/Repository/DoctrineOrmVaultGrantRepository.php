@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\VaultBundle\Doctrine\VaultSavepoint;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -283,15 +284,15 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
      */
     public function deleteExpired(string $id, DateTimeImmutable $now): bool
     {
-        $deleted = (int) $this->em()->createQueryBuilder()
+        $query = $this->em()->createQueryBuilder()
             ->delete(VaultGrant::class, 'g')
             ->where('g.id = :id')
             ->andWhere('g.expiresAt IS NOT NULL')
             ->andWhere('g.expiresAt <= :now')
             ->setParameter('id', $id)
             ->setParameter('now', $now)
-            ->getQuery()
-            ->execute();
+            ->getQuery();
+        $deleted = (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute(), $this->em());
 
         return $this->afterDelete($id, $deleted);
     }
@@ -301,12 +302,12 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
      */
     public function deleteById(string $id): bool
     {
-        $deleted = (int) $this->em()->createQueryBuilder()
+        $query = $this->em()->createQueryBuilder()
             ->delete(VaultGrant::class, 'g')
             ->where('g.id = :id')
             ->setParameter('id', $id)
-            ->getQuery()
-            ->execute();
+            ->getQuery();
+        $deleted = (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute(), $this->em());
 
         return $this->afterDelete($id, $deleted);
     }
@@ -316,7 +317,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
      */
     public function updatePermissionAndExpiry(string $id, VaultPermission $permission, ?DateTimeImmutable $expiresAt): bool
     {
-        $updated = (int) $this->em()->createQueryBuilder()
+        $query = $this->em()->createQueryBuilder()
             ->update(VaultGrant::class, 'g')
             ->set('g.permission', ':permission')
             ->set('g.expiresAt', ':expiresAt')
@@ -324,8 +325,8 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             ->setParameter('permission', $permission)
             ->setParameter('expiresAt', $expiresAt, 'datetime_immutable')
             ->setParameter('id', $id)
-            ->getQuery()
-            ->execute();
+            ->getQuery();
+        $updated = (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute(), $this->em());
 
         $managed = $this->em()->getUnitOfWork()->tryGetById($id, VaultGrant::class);
         if ($managed instanceof VaultGrant) {

@@ -1,0 +1,370 @@
+
+
+Code Coverage Report:
+  2026-11-12 09:14:46
+
+ Summary:
+  Classes: 96.67% (174/180)
+  Methods: 99.27% (1088/1096)
+  Lines:   99.69% (7115/7137)
+
+Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% ( 13/ 13)
+Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthResult
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% ( 28/ 28)
+Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% ( 29/ 29)
+Nowo\VaultBundle\BrowserExtension\VaultLoginDomainMatcher
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% ( 33/ 33)
+Nowo\VaultBundle\Command\CheckDowngradeCommand
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 20/ 20)
+Nowo\VaultBundle\Command\PurgeExpiredGrantsCommand
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 14/ 14)
+Nowo\VaultBundle\Command\PurgeExtensionTokensCommand
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  6/  6)
+Nowo\VaultBundle\Command\ReencryptVaultPayloadsCommand
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% (126/126)
+Nowo\VaultBundle\Config\VaultRuntimeConfigProvider
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% ( 20/ 20)
+Nowo\VaultBundle\Config\VaultRuntimeConfigSchema
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% ( 10/ 10)
+Nowo\VaultBundle\Config\VaultRuntimeConfigWriter
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% ( 42/ 42)
+Nowo\VaultBundle\Controller\VaultBrowserExtensionController
+  Methods: 100.00% ( 7/ 7)   Lines: 100.00% ( 65/ 65)
+Nowo\VaultBundle\Controller\VaultCsrfTrait
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% ( 12/ 12)
+Nowo\VaultBundle\Controller\VaultExportController
+  Methods: 100.00% (15/15)   Lines: 100.00% ( 89/ 89)
+Nowo\VaultBundle\Controller\VaultManageController
+  Methods: 100.00% (48/48)   Lines: 100.00% (511/511)
+Nowo\VaultBundle\Controller\VaultPagesTrait
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  6/  6)
+Nowo\VaultBundle\Controller\VaultRevealController
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% ( 20/ 20)
+Nowo\VaultBundle\Controller\VaultRevealResponsesTrait
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\Controller\VaultRuntimeConfigController
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% (118/118)
+Nowo\VaultBundle\Controller\VaultScopeController
+  Methods: 100.00% (15/15)   Lines: 100.00% (183/183)
+Nowo\VaultBundle\Database\DatabaseDriver
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 29/ 29)
+Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 39/ 39)
+Nowo\VaultBundle\DependencyInjection\Compiler\ConditionalMappingPass
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% ( 24/ 24)
+Nowo\VaultBundle\DependencyInjection\Compiler\CsrfProtectionPass
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  7/  7)
+Nowo\VaultBundle\DependencyInjection\Compiler\ExportLockFactoryPass
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  4/  4)
+Nowo\VaultBundle\DependencyInjection\Compiler\PrivateEntityManagerPass
+  Methods:  50.00% ( 1/ 2)   Lines:  95.00% ( 19/ 20)
+Nowo\VaultBundle\DependencyInjection\Compiler\TwigPathsPass
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 25/ 25)
+Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass
+  Methods:  87.50% ( 7/ 8)   Lines:  98.91% ( 91/ 92)
+Nowo\VaultBundle\DependencyInjection\Configuration
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% (715/715)
+Nowo\VaultBundle\DependencyInjection\RuntimeConfiguration
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% (191/191)
+Nowo\VaultBundle\DependencyInjection\VaultExtension
+  Methods: 100.00% (17/17)   Lines: 100.00% (433/433)
+Nowo\VaultBundle\Doctrine\PrivateEntityManagerConnection
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 11/ 11)
+Nowo\VaultBundle\Doctrine\PrivateEntityManagerDriver
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Doctrine\PrivateEntityManagerMiddleware
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Doctrine\VaultEntityManager
+  Methods:  85.71% (12/14)   Lines:  81.18% ( 69/ 85)
+Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% ( 59/ 59)
+Nowo\VaultBundle\Doctrine\VaultFeatureMappingDriver
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% (  7/  7)
+Nowo\VaultBundle\Doctrine\VaultManagerRegistry
+  Methods: 100.00% (15/15)   Lines: 100.00% ( 25/ 25)
+Nowo\VaultBundle\Doctrine\VaultMetadataListener
+  Methods: 100.00% ( 7/ 7)   Lines: 100.00% ( 69/ 69)
+Nowo\VaultBundle\Doctrine\VaultSavepoint
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% ( 13/ 13)
+Nowo\VaultBundle\Doctrine\VaultUnmappedTablesSchemaFilter
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  5/  5)
+Nowo\VaultBundle\Doctrine\VaultUserColumnsListener
+  Methods:  75.00% ( 3/ 4)   Lines:  96.43% ( 27/ 28)
+Nowo\VaultBundle\Doctrine\VaultUserMapping
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Dto\PasswordGeneratorOptions
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  9/  9)
+Nowo\VaultBundle\Dto\VaultBrowserExtensionLoginMatch
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 13/ 13)
+Nowo\VaultBundle\Dto\VaultCatalogueEntry
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Dto\VaultCataloguePage
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Dto\VaultCatalogueQuery
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Dto\VaultErasureResult
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 14/ 14)
+Nowo\VaultBundle\Dto\VaultGranteeChoice
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% (  3/  3)
+Nowo\VaultBundle\Dto\VaultHealthItemResult
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Dto\VaultHealthReport
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% (  5/  5)
+Nowo\VaultBundle\Dto\VaultItemFormData
+  Methods: 100.00% (11/11)   Lines: 100.00% (107/107)
+Nowo\VaultBundle\Dto\VaultPasswordPolicy
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Dto\VaultShareFormData
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  5/  5)
+Nowo\VaultBundle\Entity\VaultExtensionToken
+  Methods: 100.00% (10/10)   Lines: 100.00% ( 12/ 12)
+Nowo\VaultBundle\Entity\VaultFolder
+  Methods: 100.00% (19/19)   Lines: 100.00% ( 33/ 33)
+Nowo\VaultBundle\Entity\VaultGrant
+  Methods: 100.00% (15/15)   Lines: 100.00% ( 18/ 18)
+Nowo\VaultBundle\Entity\VaultItem
+  Methods: 100.00% (31/31)   Lines: 100.00% ( 60/ 60)
+Nowo\VaultBundle\Entity\VaultSettings
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% ( 12/ 12)
+Nowo\VaultBundle\Entity\VaultTag
+  Methods: 100.00% (10/10)   Lines: 100.00% ( 15/ 15)
+Nowo\VaultBundle\Enum\VaultItemType
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  7/  7)
+Nowo\VaultBundle\Enum\VaultPermission
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\EventListener\VaultNoStoreResponseListener
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\EventListener\VaultRequestBoundaryListener
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% (  7/  7)
+Nowo\VaultBundle\EventListener\VaultUnitOfWorkSubscriber
+  Methods: 100.00% (10/10)   Lines: 100.00% ( 26/ 26)
+Nowo\VaultBundle\EventListener\VaultUserGateListener
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\Event\VaultAccessAction
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Event\VaultBrowserExtensionAuthEvent
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% (  6/  6)
+Nowo\VaultBundle\Event\VaultCatalogueAccessCheckEvent
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\Event\VaultFieldRevealCheckEvent
+  Methods: 100.00% (12/12)   Lines: 100.00% ( 12/ 12)
+Nowo\VaultBundle\Event\VaultFolderAccessCheckEvent
+  Methods: 100.00% (11/11)   Lines: 100.00% ( 11/ 11)
+Nowo\VaultBundle\Event\VaultFolderChangeEvent
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% (  6/  6)
+Nowo\VaultBundle\Event\VaultGrantChangeEvent
+  Methods: 100.00% (14/14)   Lines: 100.00% ( 14/ 14)
+Nowo\VaultBundle\Event\VaultGrantListQueryEvent
+  Methods: 100.00% (16/16)   Lines: 100.00% ( 26/ 26)
+Nowo\VaultBundle\Event\VaultGrantPolicyCheckEvent
+  Methods: 100.00% (13/13)   Lines: 100.00% ( 13/ 13)
+Nowo\VaultBundle\Event\VaultHealthAccessCheckEvent
+  Methods:  87.50% ( 7/ 8)   Lines:  87.50% (  7/  8)
+Nowo\VaultBundle\Event\VaultHealthReportGeneratedEvent
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\Event\VaultItemAccessCheckEvent
+  Methods: 100.00% (13/13)   Lines: 100.00% ( 13/ 13)
+Nowo\VaultBundle\Event\VaultItemChangeEvent
+  Methods: 100.00% ( 7/ 7)   Lines: 100.00% (  7/  7)
+Nowo\VaultBundle\Event\VaultItemListQueryEvent
+  Methods: 100.00% (16/16)   Lines: 100.00% ( 18/ 18)
+Nowo\VaultBundle\Event\VaultItemListResultEvent
+  Methods: 100.00% ( 9/ 9)   Lines: 100.00% ( 12/ 12)
+Nowo\VaultBundle\Event\VaultItemReadOnlyEvent
+  Methods: 100.00% (10/10)   Lines: 100.00% ( 10/ 10)
+Nowo\VaultBundle\Event\VaultItemRevealedEvent
+  Methods: 100.00% ( 9/ 9)   Lines: 100.00% (  9/  9)
+Nowo\VaultBundle\Event\VaultItemsExportedEvent
+  Methods: 100.00% ( 7/ 7)   Lines: 100.00% (  7/  7)
+Nowo\VaultBundle\Event\VaultPersonalDataErasedEvent
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% (  4/  4)
+Nowo\VaultBundle\Event\VaultRevealThrottledEvent
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% (  4/  4)
+Nowo\VaultBundle\Event\VaultTagChangeEvent
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% (  6/  6)
+Nowo\VaultBundle\Exception\VaultAccessDeniedException
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Exception\VaultDecryptionFailedException
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Exception\VaultGrantRefusedException
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Exception\VaultHealthThrottledException
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Exception\VaultHealthTooLargeException
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Exception\VaultRevealRefusedException
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% (  4/  4)
+Nowo\VaultBundle\Form\VaultActionType
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 15/ 15)
+Nowo\VaultBundle\Form\VaultFolderCreateType
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 13/ 13)
+Nowo\VaultBundle\Form\VaultItemFormType
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% (170/170)
+Nowo\VaultBundle\Form\VaultItemSearchType
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 19/ 19)
+Nowo\VaultBundle\Form\VaultPasswordGeneratorType
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 46/ 46)
+Nowo\VaultBundle\Form\VaultPersonalExportType
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 19/ 19)
+Nowo\VaultBundle\Form\VaultRuntimeConfigType
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 44/ 44)
+Nowo\VaultBundle\Form\VaultShareType
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% ( 83/ 83)
+Nowo\VaultBundle\Integration\DoctrineEncryptIntegration
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Integration\PasswordStrengthIntegration
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% (  7/  7)
+Nowo\VaultBundle\Integration\TagInputIntegration
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Internal\HiddenValues
+  Methods:  50.00% ( 2/ 4)   Lines:  60.00% (  3/  5)
+Nowo\VaultBundle\Port\VaultAccessCheckerGate
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% ( 13/ 13)
+Nowo\VaultBundle\Port\VaultHealthReporterGate
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% (  7/  7)
+Nowo\VaultBundle\Port\VaultPortMode
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  6/  6)
+Nowo\VaultBundle\Port\VaultReauthenticationGate
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% ( 21/ 21)
+Nowo\VaultBundle\Port\VaultScopeAccessGate
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 20/ 20)
+Nowo\VaultBundle\Port\VaultTeamMembershipGate
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% ( 14/ 14)
+Nowo\VaultBundle\Port\VaultUserLocatorGate
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  6/  6)
+Nowo\VaultBundle\Repository\BindsVaultUserTrait
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository
+  Methods: 100.00% ( 7/ 7)   Lines: 100.00% ( 34/ 34)
+Nowo\VaultBundle\Repository\DoctrineOrmVaultFolderRepository
+  Methods: 100.00% ( 7/ 7)   Lines: 100.00% ( 33/ 33)
+Nowo\VaultBundle\Repository\DoctrineOrmVaultGrantRepository
+  Methods: 100.00% (21/21)   Lines: 100.00% (181/181)
+Nowo\VaultBundle\Repository\DoctrineOrmVaultItemRepository
+  Methods: 100.00% (24/24)   Lines: 100.00% (240/240)
+Nowo\VaultBundle\Repository\DoctrineOrmVaultSettingsRepository
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 11/ 11)
+Nowo\VaultBundle\Repository\DoctrineOrmVaultTagRepository
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% ( 42/ 42)
+Nowo\VaultBundle\Repository\ResolvesEntityManagerTrait
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  6/  6)
+Nowo\VaultBundle\Routing\VaultRouteLoader
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 36/ 36)
+Nowo\VaultBundle\Security\AllowAllVaultAccessChecker
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\Security\ConfigVaultPasswordPolicyResolver
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker
+  Methods: 100.00% (14/14)   Lines: 100.00% ( 26/ 26)
+Nowo\VaultBundle\Security\NullVaultScopeAccessResolver
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Security\RequestScopedScopeAccessCache
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\Security\RuntimeKeyVaultPayloadCryptographer
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 20/ 20)
+Nowo\VaultBundle\Security\VaultReauthProof
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% (  3/  3)
+Nowo\VaultBundle\Security\VaultReauthProofValidator
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% ( 25/ 25)
+Nowo\VaultBundle\Security\VaultRevealRateLimiter
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% ( 25/ 25)
+Nowo\VaultBundle\Security\VaultRuntimeConfigResolver
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 18/ 18)
+Nowo\VaultBundle\Security\VaultScopeAccess
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% ( 19/ 19)
+Nowo\VaultBundle\Service\VaultAccessGuard
+  Methods: 100.00% (17/17)   Lines: 100.00% (151/151)
+Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService
+  Methods: 100.00% (12/12)   Lines: 100.00% ( 65/ 65)
+Nowo\VaultBundle\Service\VaultBrowserExtensionLoginResolver
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 48/ 48)
+Nowo\VaultBundle\Service\VaultCatalogue
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% ( 76/ 76)
+Nowo\VaultBundle\Service\VaultFieldRevealer
+  Methods: 100.00% ( 9/ 9)   Lines: 100.00% ( 78/ 78)
+Nowo\VaultBundle\Service\VaultFolderService
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% ( 27/ 27)
+Nowo\VaultBundle\Service\VaultGrantExpiryService
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 46/ 46)
+Nowo\VaultBundle\Service\VaultGrantListResolver
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 12/ 12)
+Nowo\VaultBundle\Service\VaultGrantPurgeResult
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  2/  2)
+Nowo\VaultBundle\Service\VaultGrantService
+  Methods: 100.00% (26/26)   Lines: 100.00% (147/147)
+Nowo\VaultBundle\Service\VaultHealthReporter
+  Methods: 100.00% (12/12)   Lines: 100.00% (161/161)
+Nowo\VaultBundle\Service\VaultItemCreator
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 23/ 23)
+Nowo\VaultBundle\Service\VaultItemLister
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% ( 43/ 43)
+Nowo\VaultBundle\Service\VaultItemUpdater
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% ( 31/ 31)
+Nowo\VaultBundle\Service\VaultPasswordGenerator
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 36/ 36)
+Nowo\VaultBundle\Service\VaultPayloadReencryptionResult
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Service\VaultPayloadReencryptionService
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 38/ 38)
+Nowo\VaultBundle\Service\VaultPersonalDataEraser
+  Methods: 100.00% (13/13)   Lines: 100.00% (135/135)
+Nowo\VaultBundle\Service\VaultPersonalDataExporter
+  Methods: 100.00% ( 9/ 9)   Lines: 100.00% ( 71/ 71)
+Nowo\VaultBundle\Service\VaultPersonalExportStreamer
+  Methods: 100.00% (12/12)   Lines: 100.00% ( 96/ 96)
+Nowo\VaultBundle\Service\VaultScopeItemLister
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 31/ 31)
+Nowo\VaultBundle\Service\VaultSharedItemResolver
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 21/ 21)
+Nowo\VaultBundle\Service\VaultTagService
+  Methods: 100.00% (11/11)   Lines: 100.00% ( 61/ 61)
+Nowo\VaultBundle\Service\VaultTrashService
+  Methods: 100.00% (13/13)   Lines: 100.00% ( 46/ 46)
+Nowo\VaultBundle\Support\DoctrineVaultUserReferenceResolver
+  Methods: 100.00% ( 4/ 4)   Lines: 100.00% ( 15/ 15)
+Nowo\VaultBundle\Support\UserIdResolver
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  9/  9)
+Nowo\VaultBundle\Support\VaultAttachmentFilename
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% ( 10/ 10)
+Nowo\VaultBundle\Support\VaultRefUser
+  Methods: 100.00% ( 7/ 7)   Lines: 100.00% (  9/  9)
+Nowo\VaultBundle\Support\VaultRevealedValue
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% (  5/  5)
+Nowo\VaultBundle\Support\VaultUserClassPolicy
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% ( 25/ 25)
+Nowo\VaultBundle\Support\VaultUserLocator
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 10/ 10)
+Nowo\VaultBundle\Support\VaultUserRefs
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% ( 11/ 11)
+Nowo\VaultBundle\Twig\VaultExtension
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% (  4/  4)
+Nowo\VaultBundle\Ui\VaultPageFactory
+  Methods: 100.00% (23/23)   Lines: 100.00% (375/375)
+Nowo\VaultBundle\Ui\VaultPages
+  Methods: 100.00% ( 8/ 8)   Lines: 100.00% ( 33/ 33)
+Nowo\VaultBundle\Validator\VaultPasswordPolicyConstraint
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+Nowo\VaultBundle\Validator\VaultPasswordPolicyConstraintValidator
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% ( 20/ 20)
+Nowo\VaultBundle\ValueObject\Uuid
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% ( 13/ 13)
+Nowo\VaultBundle\ValueObject\VaultOwner
+  Methods: 100.00% (11/11)   Lines: 100.00% ( 21/ 21)
+Nowo\VaultBundle\ValueObject\VaultReauthContext
+  Methods: 100.00% ( 3/ 3)   Lines: 100.00% (  5/  5)
+Nowo\VaultBundle\ValueObject\VaultUserId
+  Methods: 100.00% ( 5/ 5)   Lines: 100.00% (  8/  8)
+Nowo\VaultBundle\ValueObject\VaultUserRef
+  Methods: 100.00% ( 6/ 6)   Lines: 100.00% ( 14/ 14)
+Nowo\VaultBundle\VaultBundle
+  Methods: 100.00% ( 2/ 2)   Lines: 100.00% ( 10/ 10)

@@ -10,6 +10,7 @@ use Nowo\VaultBundle\Event\VaultItemListQueryEvent;
 use Nowo\VaultBundle\Event\VaultItemListResultEvent;
 use Nowo\VaultBundle\Repository\VaultItemPaginatorInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
+use Nowo\VaultBundle\Support\VaultUserRefResolver;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -29,6 +30,7 @@ final readonly class VaultItemLister
         private VaultItemRepositoryInterface $itemRepository,
         private VaultSharedItemResolver $sharedItemResolver,
         private EventDispatcherInterface $eventDispatcher,
+        private ?VaultUserRefResolver $refs = null,
     ) {
     }
 
@@ -52,7 +54,7 @@ final readonly class VaultItemLister
         int $page = 1,
         ?int $perPage = null,
     ): array {
-        $queryEvent = new VaultItemListQueryEvent($viewer, $viewer, $folderId, $trashOnly, $sharedOnly);
+        $queryEvent = new VaultItemListQueryEvent($viewer, $viewer, $folderId, $trashOnly, $sharedOnly, $this->refs instanceof VaultUserRefResolver ? $this->refs->resolve(...) : null);
         $this->eventDispatcher->dispatch($queryEvent, VaultEvents::ITEM_LIST_QUERY);
 
         $offset    = $perPage === null ? 0 : (max(1, $page) - 1) * $perPage;

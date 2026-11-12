@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.19.0: XML mapping of the vault entity (same tables, columns, indexes and constraints as its attributes).
+     Used with nowo_vault.database.mapping_type: xml, or by a host that maps the vault entities itself. The table name
+     prefix (table_prefix) and the host user associations (user_class / user_mapping) are applied at runtime by the
+     bundle's metadata listener, exactly as for the attributes. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\VaultBundle\Entity\VaultFolder" table="vault_folders">
+        <indexes>
+            <index name="vault_folders_owner_scope_idx" columns="owner_scope,deleted_at"/>
+        </indexes>
+        <id name="id" type="string" length="36"/>
+        <field name="deletedAt" column="deleted_at" type="datetime_immutable" nullable="true"/>
+        <field name="createdAt" column="created_at" type="datetime_immutable"/>
+        <field name="updatedAt" column="updated_at" type="datetime_immutable"/>
+        <field name="ownerScope" column="owner_scope" type="string" length="128" nullable="true"/>
+        <field name="name" type="string" length="255"/>
+        <many-to-one field="createdBy" target-entity="Symfony\Component\Security\Core\User\UserInterface">
+            <join-column name="created_by_id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+        <many-to-one field="creator" target-entity="Symfony\Component\Security\Core\User\UserInterface">
+            <join-column nullable="true" on-delete="CASCADE"/>
+        </many-to-one>
+        <many-to-one field="parent" target-entity="Nowo\VaultBundle\Entity\VaultFolder">
+            <join-column nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+    </entity>
+</doctrine-mapping>

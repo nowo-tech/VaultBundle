@@ -4,6 +4,13 @@ services:
         autowire: true
         autoconfigure: true
         public: false
+        # 1.19.0 (REQ-ARCH-001 rule 3): the vault services ask the host ports through internal gates, which ask the
+        # framework-free 1.19 interfaces, the deprecated ones (exactly as in 1.18) or both (VaultPortsPass).
+        bind:
+            Nowo\VaultBundle\Security\VaultAccessCheckerInterface: '@nowo_vault.port.access_checker'
+            Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface: '@nowo_vault.port.team_membership'
+            Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@nowo_vault.port.user_locator'
+            Nowo\VaultBundle\Service\VaultHealthReporterInterface: '@nowo_vault.port.health_reporter'
 
     Nowo\VaultBundle\:
         resource: '../../'
@@ -16,6 +23,8 @@ services:
             - '../../Security/'
             - '../../BrowserExtension/VaultBrowserExtensionLoginRateLimiter.php'
             - '../../Controller/'
+            - '../../Internal/'
+            - '../../Port/'
 
     # REQ-SF-004 rule 7: controllers are registered explicitly, NOT autoconfigured (no #[AsController]). On
     # Symfony >= 7.3 a #[Route] class is autoconfigured with the routing.controller tag and the host's
@@ -47,7 +56,7 @@ services:
     Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService:
         arguments:
             $tokenTtlSeconds: '%nowo_vault.browser_extension.token_ttl%'
-            $accessChecker: '@Nowo\VaultBundle\Security\VaultAccessCheckerInterface'
+            $accessChecker: '@nowo_vault.port.access_checker'
             $userChecker: null
 
     Nowo\VaultBundle\Command\ReencryptVaultPayloadsCommand:
@@ -112,6 +121,10 @@ services:
     Nowo\VaultBundle\Service\VaultPersonalDataEraser:
         arguments:
             $managerName: '%nowo_vault.entity_manager%'
+
+    # 1.19.0 (REQ-ARCH-001 rule 1): id-based GDPR ports.
+    Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface: '@Nowo\VaultBundle\Service\VaultPersonalDataEraser'
+    Nowo\VaultBundle\Service\VaultPersonalDataExporterInterface: '@Nowo\VaultBundle\Service\VaultPersonalDataExporter'
 
     Nowo\VaultBundle\Service\VaultFieldRevealer:
         arguments:

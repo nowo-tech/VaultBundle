@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.19.0: XML mapping of the vault entity (same tables, columns, indexes and constraints as its attributes).
+     Used with nowo_vault.database.mapping_type: xml, or by a host that maps the vault entities itself. The table name
+     prefix (table_prefix) and the host user associations (user_class / user_mapping) are applied at runtime by the
+     bundle's metadata listener, exactly as for the attributes. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\VaultBundle\Entity\VaultItem" table="vault_items">
+        <indexes>
+            <index name="vault_items_type_idx" columns="item_type"/>
+            <index name="vault_items_deleted_idx" columns="deleted_at"/>
+            <index name="vault_items_owner_scope_idx" columns="owner_scope,deleted_at,updated_at"/>
+            <index name="vault_items_created_by_idx" columns="created_by_id"/>
+        </indexes>
+        <id name="id" type="string" length="36"/>
+        <field name="deletedAt" column="deleted_at" type="datetime_immutable" nullable="true"/>
+        <field name="createdAt" column="created_at" type="datetime_immutable"/>
+        <field name="updatedAt" column="updated_at" type="datetime_immutable"/>
+        <field name="secretChangedAt" column="secret_changed_at" type="datetime_immutable" nullable="true"/>
+        <field name="catalogueHidden" column="catalogue_hidden" type="boolean">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="ownerScope" column="owner_scope" type="string" length="128" nullable="true"/>
+        <field name="itemType" column="item_type" type="string" length="32" enum-type="Nowo\VaultBundle\Enum\VaultItemType"/>
+        <field name="title" type="string" length="255"/>
+        <field name="ciphertext" type="text"/>
+        <many-to-one field="createdBy" target-entity="Symfony\Component\Security\Core\User\UserInterface">
+            <join-column name="created_by_id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+        <many-to-one field="creator" target-entity="Symfony\Component\Security\Core\User\UserInterface">
+            <join-column nullable="true" on-delete="CASCADE"/>
+        </many-to-one>
+        <many-to-one field="folder" target-entity="Nowo\VaultBundle\Entity\VaultFolder">
+            <join-column nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+        <many-to-many field="tags" target-entity="Nowo\VaultBundle\Entity\VaultTag" inversed-by="items">
+            <join-table name="vault_item_tag">
+                <join-columns>
+                    <join-column name="item_id" referenced-column-name="id" on-delete="CASCADE"/>
+                </join-columns>
+                <inverse-join-columns>
+                    <join-column name="tag_id" referenced-column-name="id" on-delete="CASCADE"/>
+                </inverse-join-columns>
+            </join-table>
+        </many-to-many>
+    </entity>
+</doctrine-mapping>

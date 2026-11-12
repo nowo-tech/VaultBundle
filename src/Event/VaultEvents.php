@@ -119,4 +119,14 @@ final class VaultEvents
      * The personal data of a user was erased (1.16.0, {@see VaultPersonalDataErasedEvent}, counts only).
      */
     public const PERSONAL_DATA_ERASED = 'nowo_vault.personal_data_erased';
+
+    /**
+     * A folder was created, renamed, trashed, restored or purged (1.19.0, {@see VaultFolderChangeEvent}, ids only).
+     */
+    public const FOLDER_CHANGED = 'nowo_vault.folder_changed';
+
+    /**
+     * A tag was created or deleted (1.19.0, {@see VaultTagChangeEvent}, ids only).
+     */
+    public const TAG_CHANGED = 'nowo_vault.tag_changed';
 }

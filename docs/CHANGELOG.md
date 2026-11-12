@@ -50,6 +50,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: **1.19.0** (minor). REQ-ARCH-001 batch B7: framework-free twins of the six host ports that took a Symfony
+`UserInterface` / `Request` (rule 3), id and reference accessors on the events plus folder and tag change events
+(rules 1 and 4), an opt-in private entity manager for the vault rows (rule 6) and an XML mapping of the six entities.
+With an unchanged configuration every access decision is the one of 1.18.0 (equivalence matrices against literal
+1.18.0 copies, mutation-checked; same HTTP answers for every host shape) and the vault still writes through
+`database.entity_manager`; new deprecations appear when the container is built. See
+[UPGRADING](UPGRADING.md#to-1190).
+
+### Added
+
+- **Framework-free ports (REQ-ARCH-001 rule 3).** `ValueObject\VaultUserRef` (user id as given, identifier, role
+  names; the user object is reachable through `user()` but kept out of every dump, cast, JSON and serialized copy by
+  an internal `WeakMap`) and `ValueObject\VaultReauthContext` (purpose, user, method, route; path and session binding
+  hidden the same way). New interfaces, each the twin of a now deprecated one:
+  `Security\VaultAccessPolicyInterface` (`allowsAccess/Create/List/Revoke(?VaultUserRef)`),
+  `Security\VaultTeamMembershipProviderInterface` (`teamIdsOf(VaultUserRef)`),
+  `Security\VaultScopeAccessProviderInterface` (`scopeAccessOf(VaultUserRef, string)`),
+  `Security\VaultReauthenticationProviderInterface` (`proofFor` / `consumeProof` / `reauthenticationUrl` with a
+  `VaultReauthContext`), `Support\VaultUserDirectoryInterface` (`findUser(string): ?VaultUserRef`) and
+  `Service\VaultHealthReportProviderInterface` (`reportForScope` / `reportForPersonalVault` with a `VaultUserRef`).
+  The built-ins implement both interfaces of their port. The existing config keys (`security.access_checker`,
+  `team_membership_resolver`, `scopes.access_resolver`, `export.reauth_checker`) accept a service implementing either
+  interface; you can also alias the 1.19 interface yourself. A reference built by your code with `VaultUserRef::ofId()`
+  is only a pointer: the vault resolves its id again through the user locator port and uses that answer's identity
+  and roles, never the reference's (audit NJ-1). Only a directory answer for exactly the requested id becomes the
+  vault's internal stand-in user (the strict id-mapping rules apply to it); the built-in role checker denies a
+  reference without a user object. Only the user-locator gate can build the stand-in user (audit NJV-5).
+- **Port selection at build time** (`VaultPortsPass`): the 1.19 interface is asked when the service implements it; a
+  service implementing only the deprecated interface is asked exactly as in 1.18 (deprecation); a service implementing
+  neither fails the build; a decorator of a deprecated interface keeps it asked: for the access checker, team
+  membership and scope access together with the 1.19 interface (the weaker answer wins: both must allow, team ids both
+  return, the lower standing), for the user locator, the re-authentication hook and the health reporter alone (the
+  build fails when the 1.19 interface is served by another service). The deprecated alias is registered only when the
+  service implements the deprecated interface. The chosen mode is in `nowo_vault.port.<name>.mode`.
+- **Events (rules 1 and 4).** Every hook event with a user gives `get…Ref()` / `get…Id()` (`getUserRef()`,
+  `getViewerRef()`, `getActorRef()`, `getGrantedByRef()`, `getListSubjectRef()`, …) and the ids of its resources
+  (`getItemId()`, `getFolderId()`, `getOwnerKey()`, `VaultItemListResultEvent::getItemIds()`);
+  `VaultItemListQueryEvent::setListSubjectRef()`. New `FOLDER_CHANGED` (`VaultFolderChangeEvent`: created, renamed,
+  trashed, restored, purged) and `TAG_CHANGED` (`VaultTagChangeEvent`: created, deleted), ids only, after the vault's
+  write. `VaultBrowserExtensionAuthResult::authenticated(VaultUserRef)` and `getUserRef()`.
+- **GDPR ports (rule 1).** `Service\VaultPersonalDataEraserInterface` and `Service\VaultPersonalDataExporterInterface`
+  (string user ids), aliased to the existing services.
+- **Private entity manager (rule 6, opt-in): `database.private_entity_manager: true`.** The repositories and the
+  services that read or write vault rows use a bundle-owned entity manager created on the connection, mapping
+  configuration and event manager of `database.entity_manager`: a vault write never flushes, clears, closes or resets
+  an application manager (1.18 flushed `database.entity_manager`, so your pending changes were committed with the
+  vault's, and reset it after a failed write). It is replaced when closed, after a rollback on its connection (DBAL 4
+  middleware attached only to that connection) and at every unit-of-work boundary (start and end of the main request,
+  of a Messenger message and of the outermost console command); vault changes still pending at a boundary are dropped
+  and logged as a warning (entity classes and counts). A host transaction includes the vault rows. The item form reads
+  the folder choices through it.
+- **XML mapping.** `src/Resources/config/doctrine/*.orm.xml` for the six entities (same tables, columns, indexes and
+  constraints as the attributes; parity tested in both user mappings). `database.mapping_type: xml` registers it;
+  `database.register_mapping: false` lets you map `Nowo\VaultBundle\Entity` yourself. `database.conditional_mapping`
+  works with both.
+- Tests: equivalence matrices against literal v1.18.0 copies (`tests/Support/Legacy`) with a source mutation check
+  (`scripts/mutation-check-access-matrix.php`, 20 of 20 mutations killed), every host shape through `lint:container`
+  and the same HTTP request matrix as the 1.18 wiring, database state equivalence of the 1.18 and private persistence
+  (SQLite, MySQL 8.0, MariaDB 11.4, PostgreSQL 17), a DDD host kernel (id mapping, XML mapping, plain PHP users, only
+  the 1.19 ports) and a worker test (600 requests, alternating users, services resetter bypassed, flat memory).
+
+### Changed
+
+- The private entity manager is replaced after a rollback only when the rollback undid rows it wrote (tracked per
+  transaction nesting level; a rollback of the application's own nested transaction or of a vault savepoint leaves it
+  alone, audit NJ-2). With doctrine/dbal 3 there is no rollback middleware (replaced at the next boundary).
+- A decorator of the configured service id itself (not of the interface) that lacks the 1.19 interface keeps the
+  deprecated interface asked, as in 1.18 (audit NJ-3); so does such a decorator of a decorator, a decorator of the 1.19
+  interface that lacks it, or a decorator whose class is unknown at build time (factory; audit NJV-2).
+- The private manager also records the transaction level of its bulk DQL / DBAL writes, `refresh()` and loads, so a
+  rollback of that level makes it start over (audit NJV-1).
+- Users looked up by id through the user locator gate must have exactly the requested id (byte for byte): a
+  non-canonical id (`05`, an upper-case UUID) finds nobody.
+- Vault bulk DQL and DBAL writes (grant expiry / revoke / update, token purge, the raw token table) run inside a
+  savepoint when your code already opened a transaction on the connection: a failing vault statement no longer leaves
+  a PostgreSQL transaction aborted.
+- With the relation mapping, a `user_class` instance managed by another entity manager than the one that persists the
+  vault row becomes a reference of the same id of that manager (Doctrine refused it before: *new entity found through
+  the relationship*).
+- `VaultFolderService`, `VaultTagService` and `VaultItemFormType` take new optional constructor arguments (event
+  dispatcher and clock; the folder entity manager).
+
+### Deprecated (removed in 2.0)
+
+- `VaultAccessCheckerInterface`, `VaultTeamMembershipResolverInterface`, `VaultScopeAccessResolverInterface`,
+  `VaultReauthenticationCheckerInterface`, `VaultUserLocatorInterface`, `VaultHealthReporterInterface` (and their
+  service aliases when served by a built-in): use the 1.19 twins.
+- The `UserInterface` getters of the events (`getUser()`, `getViewer()`, `getActor()`, `getGrantedBy()`,
+  `getListSubject()` / `setListSubject()`) and `VaultBrowserExtensionAuthResult::success()` / `getUser()`.
+- Not setting `database.private_entity_manager`, and setting it to `false`: the private entity manager is the only
+  mode in 2.0.
+
 ## [1.18.0] - 2026-11-12
 
 Target: **1.18.0** (minor). Closes the seven gaps the Symfony Beacon app found while adopting the personal vault

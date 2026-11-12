@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Security;
 
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
+use Nowo\VaultBundle\Support\VaultUserRefs;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Role-based default implementation of {@see VaultAccessCheckerInterface}.
+ * Role-based default implementation of {@see VaultAccessPolicyInterface} and of the deprecated
+ * {@see VaultAccessCheckerInterface}: both give the same answer for the same user (1.19.0; the reference's user object,
+ * which is the one the bundle would have passed to the deprecated interface). A reference without a user object is
+ * denied (audit NJ-1: its role names come from the caller and are never trusted).
  */
-final readonly class ConfigurableVaultAccessChecker implements VaultAccessCheckerInterface
+final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicyInterface, VaultAccessCheckerInterface
 {
     /**
      * Creates the checker with Symfony Security and the runtime configuration provider.
@@ -68,6 +73,43 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessChecke
         }
 
         return $this->hasAnyRole($this->securityRoles()['delete_roles'], $user);
+    }
+
+    public function allowsAccess(?VaultUserRef $user = null): bool
+    {
+        return $this->known($user) && $this->canAccess($this->user($user));
+    }
+
+    public function allowsCreate(?VaultUserRef $user = null): bool
+    {
+        return $this->known($user) && $this->canCreate($this->user($user));
+    }
+
+    public function allowsList(?VaultUserRef $user = null): bool
+    {
+        return $this->known($user) && $this->canList($this->user($user));
+    }
+
+    public function allowsRevoke(?VaultUserRef $user = null): bool
+    {
+        return $this->known($user) && $this->canRevoke($this->user($user));
+    }
+
+    /**
+     * False for a reference without a Symfony user object (fail closed: it never stands for the token user, and a
+     * caller's role names are never trusted, audit NJ-1).
+     */
+    private function known(?VaultUserRef $user): bool
+    {
+        return !$user instanceof VaultUserRef || VaultUserRefs::toUser($user) instanceof UserInterface;
+    }
+
+    /**
+     * The user a reference stands for (null for null: the request's own token is checked).
+     */
+    private function user(?VaultUserRef $user): ?UserInterface
+    {
+        return $user instanceof VaultUserRef ? VaultUserRefs::toUser($user) : null;
     }
 
     private function isAdmin(?UserInterface $user): bool

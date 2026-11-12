@@ -9,6 +9,8 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Service\VaultGrantService;
+use Nowo\VaultBundle\Support\VaultUserRefs;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 
@@ -36,6 +38,8 @@ final class VaultGrantPolicyCheckEvent extends Event
 
     /**
      * The acting user.
+     *
+     * @deprecated since 1.19.0, use getActorRef() / getActorId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
      */
     public function getActor(): UserInterface
     {
@@ -113,5 +117,21 @@ final class VaultGrantPolicyCheckEvent extends Event
     public function getDeniedCode(): ?string
     {
         return $this->deniedCode;
+    }
+
+    /**
+     * The actor as a framework-free reference (1.19.0, REQ-ARCH-001 rules 3 and 4).
+     */
+    public function getActorRef(): VaultUserRef
+    {
+        return VaultUserRefs::fromUser($this->actor);
+    }
+
+    /**
+     * The actor's vault user id, or null when it has none (1.19.0).
+     */
+    public function getActorId(): ?string
+    {
+        return $this->getActorRef()->id;
     }
 }

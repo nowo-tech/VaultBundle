@@ -9,20 +9,29 @@ use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterface;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
+use Nowo\VaultBundle\Command\CheckDowngradeCommand;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\Controller\VaultExportController;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
+use Nowo\VaultBundle\Doctrine\PrivateEntityManagerMiddleware;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
+use Nowo\VaultBundle\Doctrine\VaultManagerRegistry;
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\Doctrine\VaultUserColumnsListener;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultSettings;
 use Nowo\VaultBundle\EventListener\VaultRequestBoundaryListener;
+use Nowo\VaultBundle\EventListener\VaultUnitOfWorkSubscriber;
 use Nowo\VaultBundle\EventListener\VaultUserGateListener;
+use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
+use Nowo\VaultBundle\Port\VaultPortMode;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultFolderRepository;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultGrantRepository;
@@ -53,11 +62,15 @@ use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
+use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
 use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
+use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
+use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
 use Nowo\VaultBundle\Support\DoctrineVaultUserReferenceResolver;
 use Nowo\VaultBundle\Support\VaultUserClassPolicy;
+use Nowo\VaultBundle\Support\VaultUserLocator;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Ui\VaultPages;
 use Psr\Clock\ClockInterface;
@@ -73,7 +86,9 @@ use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Security\Core\User\UserCheckerInterface;
 
 use function array_key_exists;
+use function in_array;
 use function is_array;
+use function is_bool;
 use function is_string;
 use function rtrim;
 use function sprintf;
@@ -83,6 +98,9 @@ use function sprintf;
  */
 final class VaultExtension extends Extension implements PrependExtensionInterface
 {
+    /** Directory of the XML mapping of the vault entities (1.19.0, same tables and columns as the attributes). */
+    public const XML_MAPPING_DIR = __DIR__ . '/../Resources/config/doctrine';
+
     /** Server-side evaluator of nowo-tech/password-strength-bundle, used by the health report when installed. */
     public const STRENGTH_EVALUATOR = 'Nowo\\PasswordStrengthBundle\\Service\\PasswordStrengthEvaluator';
 
@@ -102,6 +120,11 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         // prototypes, or their configured arguments (user_provider, user_checker, environment) are lost.
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
+        // 1.19.0: the resource scan aliases singly-implemented interfaces; the 1.19 port interfaces are aliased by
+        // VaultPortsPass only, so an alias found there is always the application's own.
+        foreach (VaultPortsPass::PORTS as $port) {
+            $container->removeAlias($port['policy']);
+        }
 
         if (
             !$config['security']['allow_unauthenticated']
@@ -198,15 +221,30 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.tag_input_enabled', TagInputIntegration::isAvailable());
 
         $teamResolverId = $config['team_membership_resolver'] ?? null;
-        if (!is_string($teamResolverId) || $teamResolverId === '') {
+        $teamBuiltIn    = !is_string($teamResolverId) || $teamResolverId === '';
+        if ($teamBuiltIn) {
             $teamResolverId = NullVaultTeamMembershipResolver::class;
             $container->setDefinition(NullVaultTeamMembershipResolver::class, new Definition(NullVaultTeamMembershipResolver::class));
         }
         $container->setAlias(VaultTeamMembershipResolverInterface::class, $teamResolverId);
+        $this->registerPort($container, 'team_membership', $teamResolverId, $teamBuiltIn, 'nowo_vault.team_membership_resolver');
+        $this->registerPort($container, 'user_locator', VaultUserLocator::class, true, 'the user locator (VaultUserDirectoryInterface)');
 
-        $emRef     = new Reference(sprintf('doctrine.orm.%s_entity_manager', $emName));
+        // 1.19.0 (REQ-ARCH-001 rule 6): the private entity manager (default) or the 1.18 wiring (deprecated opt-out).
+        $private = $database['private_entity_manager'] === true;
+        if ($database['private_entity_manager'] === null) {
+            trigger_deprecation('nowo-tech/vault-bundle', '1.19', 'Not setting "nowo_vault.database.private_entity_manager" is deprecated: it keeps the 1.18 behaviour (the vault flushes the "%s" entity manager on its own writes, including your pending changes) and becomes true in 2.0. Set it to true (recommended, see UPGRADING.md "To 1.19.0").', $emName);
+        } elseif (!$private) {
+            trigger_deprecation('nowo-tech/vault-bundle', '1.19', '"nowo_vault.database.private_entity_manager: false" is deprecated: the private entity manager becomes the only mode in 2.0.');
+        }
+        $container->setParameter('nowo_vault.private_entity_manager', $private);
+        $emRef       = $private ? new Reference(VaultEntityManager::class) : new Reference(sprintf('doctrine.orm.%s_entity_manager', $emName));
+        $registryRef = $private ? new Reference(VaultManagerRegistry::class) : new Reference('doctrine');
+        if ($private) {
+            $this->registerPrivateEntityManager($container, $emName);
+        }
         $cachePool = (string) $configStorage['cache_pool'];
-        $this->registerUserMapping($config, $emName, $container);
+        $this->registerUserMapping($config, $emName, $container, $private ? $registryRef : new Reference('doctrine', ContainerInterface::NULL_ON_INVALID_REFERENCE));
 
         foreach ([
             DoctrineOrmVaultItemRepository::class           => VaultItemRepositoryInterface::class,
@@ -219,7 +257,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $container->setDefinition($repoClass, (new Definition($repoClass))
                 ->setAutowired(false)
                 ->setArgument('$entityManager', $emRef)
-                ->setArgument('$registry', new Reference('doctrine'))
+                ->setArgument('$registry', $registryRef)
                 ->setArgument('$managerName', $emName));
             $container->setAlias($interface, $repoClass);
             if ($repoClass !== DoctrineOrmVaultSettingsRepository::class) {
@@ -279,6 +317,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setAlias(VaultPayloadCryptographerInterface::class, RuntimeKeyVaultPayloadCryptographer::class);
 
         $accessCheckerId = $config['security']['access_checker'] ?? null;
+        $accessBuiltIn   = !is_string($accessCheckerId) || $accessCheckerId === '' || (bool) $config['security']['allow_unauthenticated'];
         $this->assertSomeRoleConfigured($config['security']);
         if ($config['security']['allow_unauthenticated']) {
             // Every vault page and secret open to anyone: never in production, whatever the recipe says.
@@ -294,6 +333,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         }
 
         $container->setAlias(VaultAccessCheckerInterface::class, $accessCheckerId);
+        $this->registerPort($container, 'access_checker', $accessCheckerId, $accessBuiltIn, 'nowo_vault.security.access_checker');
 
         $authenticatorId = $browserExtension['authenticator'] ?? null;
         if (!is_string($authenticatorId) || $authenticatorId === '') {
@@ -347,8 +387,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $container->setDefinition(NullVaultScopeAccessResolver::class, new Definition(NullVaultScopeAccessResolver::class));
         }
         $container->setAlias(VaultScopeAccessResolverInterface::class, $resolverId);
+        $this->registerPort($container, 'scope_access', (string) $resolverId, !$scopes['enabled'], 'nowo_vault.scopes.access_resolver');
         $container->setDefinition(RequestScopedScopeAccessCache::class, (new Definition(RequestScopedScopeAccessCache::class))
-            ->setArgument('$resolver', new Reference(VaultScopeAccessResolverInterface::class))
+            ->setArgument('$resolver', new Reference(VaultPortsPass::GATE_PREFIX . 'scope_access'))
             ->addTag('kernel.reset', ['method' => 'reset']));
         // 1.17.1 (REQ-RUNTIME-002): kernel.reset alone is not enough with FRANKENPHP_RESET_KERNEL=false; the bundle
         // clears the memo itself at the main request, terminate, console and Messenger worker boundaries.
@@ -398,6 +439,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$minIntervalSeconds', $health['min_interval_seconds'])
             ->setArgument('$breachCacheTtl', $health['breach_cache_ttl']);
         $container->setAlias(VaultHealthReporterInterface::class, VaultHealthReporter::class);
+        $this->registerPort($container, 'health_reporter', VaultHealthReporter::class, true, 'the health reporter (VaultHealthReportProviderInterface)');
     }
 
     /**
@@ -414,6 +456,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                 throw new LogicException('nowo_vault.export.enabled requires nowo_vault.export.reauth_checker (a service implementing VaultReauthenticationCheckerInterface); there is no default.');
             }
             $container->setAlias(VaultReauthenticationCheckerInterface::class, $checkerId);
+            $this->registerPort($container, 'reauthentication', $checkerId, false, 'nowo_vault.export.reauth_checker');
             /** @var list<string> $enabled */
             $enabled = $container->getParameter('nowo_vault.enabled_optional_route_keys');
             $container->setParameter('nowo_vault.enabled_optional_route_keys', [...$enabled, 'personal_export', 'personal_export_download']);
@@ -431,7 +474,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE)));
         $container->getDefinition(VaultExportController::class)
             ->setArgument('$cooldownPool', $pool)
-            ->setArgument('$reauthChecker', new Reference(VaultReauthenticationCheckerInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$reauthChecker', new Reference(VaultPortsPass::GATE_PREFIX . 'reauthentication', ContainerInterface::NULL_ON_INVALID_REFERENCE))
             ->setArgument('$formats', $export['formats'])
             ->setArgument('$maxItems', $export['max_items'])
             ->setArgument('$maxBytes', $export['max_bytes'])
@@ -460,6 +503,57 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE)));
         $container->setParameter('nowo_vault.reveal.auto_hide_seconds', $reveal['auto_hide_seconds']);
         $container->setParameter('nowo_vault.reveal.revealable_fields', $reveal['revealable_fields'] === [] ? null : $reveal['revealable_fields']);
+    }
+
+    /**
+     * The vault's private entity manager (1.19.0, REQ-ARCH-001 rule 6): the repositories and the services that read or
+     * write vault rows ({@see VaultManagerRegistry}) use {@see VaultEntityManager}, created on the connection,
+     * configuration and event manager of `database.entity_manager`, so a vault write never flushes, clears or resets an
+     * application manager. The manager is dropped at every unit-of-work boundary ({@see VaultUnitOfWorkSubscriber}) and
+     * at `kernel.reset`; the rollback middleware is attached to its connection by {@see PrivateEntityManagerPass}
+     * (doctrine/dbal 4 only).
+     */
+    private function registerPrivateEntityManager(ContainerBuilder $container, string $emName): void
+    {
+        $container->register(VaultEntityManager::class, VaultEntityManager::class)
+            ->setArguments([new Reference('doctrine'), $emName, new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE)])
+            ->addTag('kernel.reset', ['method' => 'reset'])
+            // Audit NJV-1: loads of the private manager inside a transaction are tracked like its writes.
+            ->addTag('doctrine.event_listener', ['event' => 'postLoad', 'method' => 'postLoad', 'lazy' => true]);
+        $container->register(VaultManagerRegistry::class, VaultManagerRegistry::class)
+            ->setArguments([new Reference('doctrine'), new Reference(VaultEntityManager::class), $emName]);
+
+        foreach ([VaultPersonalDataEraser::class, VaultPersonalDataExporter::class, VaultPersonalExportStreamer::class, VaultCatalogue::class, CheckDowngradeCommand::class] as $service) {
+            $container->getDefinition($service)->setArgument('$registry', new Reference(VaultManagerRegistry::class));
+        }
+        // The folder choices come from the private manager: the form reads their ids through it.
+        $container->getDefinition(VaultItemFormType::class)->setArgument('$folderManager', new Reference(VaultEntityManager::class));
+
+        if (PrivateEntityManagerPass::supportsRollbackMiddleware()) {
+            $container->register(PrivateEntityManagerMiddleware::class, PrivateEntityManagerMiddleware::class)
+                ->setArguments([new Reference(VaultEntityManager::class)])
+                ->addTag('doctrine.middleware');
+        }
+
+        $container->getDefinition(VaultUnitOfWorkSubscriber::class)
+            ->setArgument('$resettables', new IteratorArgument([
+                new Reference(VaultEntityManager::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE),
+            ]));
+    }
+
+    /**
+     * One host port with a 1.19 framework-free twin (REQ-ARCH-001 rule 3): the service the configuration names (or the
+     * built-in) and the internal gate the vault services use; {@see VaultPortsPass} picks the interface(s) to ask.
+     */
+    private function registerPort(ContainerBuilder $container, string $name, string $serviceId, bool $builtIn, string $option): void
+    {
+        $container->setParameter(VaultPortsPass::PARAMETER_PREFIX . $name . '.service', $serviceId);
+        $container->setParameter(VaultPortsPass::PARAMETER_PREFIX . $name . '.built_in', $builtIn);
+        $container->setParameter(VaultPortsPass::PARAMETER_PREFIX . $name . '.option', $option);
+        $container->setDefinition(VaultPortsPass::GATE_PREFIX . $name, (new Definition(VaultPortsPass::PORTS[$name]['gate']))
+            ->setAutowired(false)
+            ->setPublic(false)
+            ->setArguments([VaultPortMode::LEGACY, new Reference(VaultPortsPass::PORTS[$name]['legacy']), null]));
     }
 
     /**
@@ -531,7 +625,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
      *
      * @param array<string, mixed> $config
      */
-    private function registerUserMapping(array $config, string $emName, ContainerBuilder $container): void
+    private function registerUserMapping(array $config, string $emName, ContainerBuilder $container, Reference $registry): void
     {
         $container->setDefinition(VaultUserClassPolicy::class, (new Definition(VaultUserClassPolicy::class))
             ->setAutowired(false)
@@ -544,7 +638,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$userClass', $config['user_class'])
             ->setArgument('$classes', new Reference(VaultUserClassPolicy::class))
             ->setArgument('$userMapping', $config['user_mapping'])
-            ->setArgument('$registry', new Reference('doctrine', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$registry', $registry)
             ->setArgument('$managerName', $emName));
         $container->setAlias(VaultUserReferenceResolverInterface::class, DoctrineVaultUserReferenceResolver::class);
 
@@ -578,14 +672,15 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ]);
         }
 
-        if ($container->hasExtension('doctrine')) {
+        [$registerMapping, $mappingType] = $this->rawMappingOptions($container);
+        if ($registerMapping && $container->hasExtension('doctrine')) {
+            // 1.19.0: database.mapping_type xml maps the same tables from src/Resources/config/doctrine/*.orm.xml.
             $container->prependExtensionConfig('doctrine', [
                 'orm' => [
                     'mappings' => [
-                        'VaultBundle' => [
-                            'type'      => 'attribute',
-                            'is_bundle' => true,
-                        ],
+                        'VaultBundle' => $mappingType === 'xml'
+                            ? ['type' => 'xml', 'is_bundle' => false, 'dir' => self::XML_MAPPING_DIR, 'prefix' => 'Nowo\\VaultBundle\\Entity']
+                            : ['type' => 'attribute', 'is_bundle' => true],
                     ],
                 ],
             ]);
@@ -600,6 +695,29 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                 'theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => ['row_actions' => VaultPages::ROW_ACTIONS_PARTIAL]]]],
             ]);
         }
+    }
+
+    /**
+     * `database.register_mapping` and `database.mapping_type` from the raw configuration (prepend() runs before the
+     * configuration is processed; the last value wins).
+     *
+     * @return array{0: bool, 1: string}
+     */
+    private function rawMappingOptions(ContainerBuilder $container): array
+    {
+        $register = true;
+        $type     = 'attribute';
+        foreach ($container->getExtensionConfig(Configuration::ALIAS) as $cfg) {
+            $database = is_array($cfg['database'] ?? null) ? $cfg['database'] : [];
+            if (is_bool($database['register_mapping'] ?? null)) {
+                $register = $database['register_mapping'];
+            }
+            if (in_array($database['mapping_type'] ?? null, ['attribute', 'xml'], true)) {
+                $type = $database['mapping_type'];
+            }
+        }
+
+        return [$register, $type];
     }
 
     /**

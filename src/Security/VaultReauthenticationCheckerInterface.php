@@ -15,6 +15,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * login, never through remember-me or an SSO session reuse); `mfaEnrolled` is read from the store; the re-auth page is
  * CSRF-protected and rate-limited and regenerates the session id before recording the session binding; `returnTo` is
  * followed only when it is a same-origin path.
+ *
+ * @deprecated since 1.19.0, implement {@see VaultReauthenticationProviderInterface} instead (framework-free, REQ-ARCH-001 rule 3); removed in 2.0.
  */
 interface VaultReauthenticationCheckerInterface
 {

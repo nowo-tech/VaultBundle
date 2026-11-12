@@ -32,9 +32,13 @@ use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
+use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use Nowo\VaultBundle\Support\VaultUserRefResolver;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\Tests\Stub\InMemoryGrantRepository;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Tests\Support\RecordingLogger;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
@@ -277,6 +281,33 @@ final class VaultHealthReporterTest extends TestCase
 
         $this->expectException(LogicException::class);
         $reporter->forScope(new TestUser('1'), self::SCOPE);
+    }
+
+    public function testThe119PortTakesFrameworkFreeReferences(): void
+    {
+        $owner                              = new TestUser('5');
+        $items                              = [new VaultItem(VaultItemType::Login, 'Mine', $owner, 'c-personal')];
+        $this->payloads[$items[0]->getId()] = ['password' => 'short'];
+        $repository                         = $this->createStub(VaultItemRepositoryInterface::class);
+        $repository->method('findByCreatorAndItemType')->willReturn($items);
+        $locator = $this->createStub(VaultUserLocatorInterface::class);
+        $locator->method('find')->willReturnCallback(static fn (string $id): ?TestUser => $id === '5' ? $owner : null);
+        $reporter = new VaultHealthReporter($repository, $this->guard(), $this->crypto(), $this->dispatcher, new ConfigVaultPasswordPolicyResolver(), clock: $this->clock, refs: new VaultUserRefResolver($locator));
+
+        self::assertSame('user:5', $reporter->reportForPersonalVault(VaultUserRefs::fromUser($owner))->owner->key());
+        self::assertSame('user:5', $reporter->reportForPersonalVault(VaultUserRef::ofId('5'))->owner->key(), 'a reference by id, resolved through the locator');
+        try {
+            $reporter->reportForPersonalVault(VaultUserRef::ofId('6'));
+            self::fail('an id the locator does not know is refused');
+        } catch (VaultAccessDeniedException) {
+        }
+
+        $this->item('Scoped', $this->marker);
+        $scoped = new VaultHealthReporter($this->scopeRepository(), $this->guard(), $this->crypto(), $this->dispatcher, new ConfigVaultPasswordPolicyResolver(), clock: $this->clock);
+        self::assertSame(1, $scoped->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE)->examined);
+
+        $this->expectException(VaultAccessDeniedException::class);
+        $reporter->reportForPersonalVault(new VaultUserRef(null));
     }
 
     #[RunInSeparateProcess]

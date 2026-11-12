@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Form;
 
+use Doctrine\Persistence\ObjectManager;
 use Nowo\FormKitBundle\Attribute\FormKitConfig;
 use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
@@ -58,9 +59,14 @@ final class VaultItemFormType extends AbstractType
     /**
      * Creates the form type with the runtime configuration provider and the translator.
      */
+    /**
+     * @param ObjectManager|null $folderManager the vault's private entity manager (1.19.0), which manages the folder
+     *                                          choices; null = the manager Doctrine maps VaultFolder on (1.18)
+     */
     public function __construct(
         private readonly VaultRuntimeConfigProvider $runtimeConfig,
         private readonly TranslatorInterface $translator,
+        private readonly ?ObjectManager $folderManager = null,
     ) {
     }
 
@@ -136,6 +142,7 @@ final class VaultItemFormType extends AbstractType
 
             $this->addTypedField('folder', EntityType::class, [
                 'class'        => VaultFolder::class,
+                'em'           => $this->folderManager,
                 'choices'      => $options['folders'],
                 'choice_label' => 'name',
                 'required'     => false,
