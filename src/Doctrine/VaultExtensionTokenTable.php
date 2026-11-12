@@ -112,7 +112,8 @@ final readonly class VaultExtensionTokenTable
         $ids   = array_column($this->rowsForUser($em, $userId, $mapsById), 'id');
         $total = 0;
         foreach (array_chunk($ids, max(1, $batchSize)) as $chunk) {
-            $total += (int) $em->getConnection()->executeStatement('DELETE FROM ' . $this->tableName . ' WHERE id IN (?)', [$chunk], [ArrayParameterType::STRING]);
+            $connection = $em->getConnection();
+            $total += (int) VaultSavepoint::write($connection, fn (): int|string => $connection->executeStatement('DELETE FROM ' . $this->tableName . ' WHERE id IN (?)', [$chunk], [ArrayParameterType::STRING]));
         }
 
         return $total;
@@ -128,7 +129,7 @@ final readonly class VaultExtensionTokenTable
             return 0;
         }
 
-        return (int) $connection->executeStatement('DELETE FROM ' . $this->tableName . ' WHERE expires_at <= ?', [$now], [Types::DATETIME_IMMUTABLE]);
+        return (int) VaultSavepoint::write($connection, fn (): int|string => $connection->executeStatement('DELETE FROM ' . $this->tableName . ' WHERE expires_at <= ?', [$now], [Types::DATETIME_IMMUTABLE]));
     }
 
     /**

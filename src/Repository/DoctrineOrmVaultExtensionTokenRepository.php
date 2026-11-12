@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
+use Nowo\VaultBundle\Doctrine\VaultSavepoint;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
@@ -108,12 +109,13 @@ final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultEx
             return ($this->tokenTable ?? new VaultExtensionTokenTable())->deleteExpired($this->em(), $this->now());
         }
 
-        return $this->em()->createQueryBuilder()
+        $query = $this->em()->createQueryBuilder()
             ->delete(VaultExtensionToken::class, 't')
             ->where('t.expiresAt <= :now')
             ->setParameter('now', $this->now())
-            ->getQuery()
-            ->execute();
+            ->getQuery();
+
+        return (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute());
     }
 
     /**
