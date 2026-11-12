@@ -131,7 +131,7 @@ final class VaultPortsPassTest extends TestCase
         (new VaultPortsPass())->process($container);
 
         self::assertSame(VaultPortMode::LEGACY, $this->mode($container, 'access_checker'));
-        self::assertFalse($container->hasAlias(VaultAccessPolicyInterface::class), 'the 1.19 interface would resolve to the decorator');
+        self::assertSame('nowo_vault.access_checker.default', (string) $container->getAlias(VaultAccessPolicyInterface::class), 'kept for decorators, never asked');
         self::assertSame('nowo_vault.access_checker.default', (string) $container->getAlias(VaultAccessCheckerInterface::class));
         self::assertStringContainsString('app.audit', $this->deprecations[0] ?? '');
 
@@ -140,6 +140,31 @@ final class VaultPortsPassTest extends TestCase
         $both->register('app.both_audit', BothHostPorts::class)->setDecoratedService('app.ports');
         (new VaultPortsPass())->process($both);
         self::assertSame(VaultPortMode::POLICY, $this->mode($both, 'access_checker'));
+    }
+
+    #[Test]
+    public function aLegacyOnlyDecoratorOfADecoratorOrAFactoryDecoratorKeepsThe118Wiring(): void
+    {
+        // Audit NJV-2: D1 implements both interfaces, D2 (over D1) only the deprecated one.
+        $chain = $this->container('access_checker', 'app.ports', BothHostPorts::class);
+        $chain->register('app.d1', BothHostPorts::class)->setDecoratedService('app.ports');
+        $chain->register('app.d2', PassThroughLegacyDecorators::class)->setDecoratedService('app.d1')->setArguments([new Reference('app.d2.inner')]);
+        (new VaultPortsPass())->process($chain);
+        self::assertSame(VaultPortMode::LEGACY, $this->mode($chain, 'access_checker'));
+        self::assertStringContainsString('app.d2', $this->deprecations[0] ?? '');
+
+        // A decorator built by a factory: its class is unknown before compilation.
+        $factory = $this->container('team_membership', 'app.ports', BothHostPorts::class);
+        $factory->register('app.factory_audit', PassThroughLegacyDecorators::class)->setFactory([PassThroughLegacyDecorators::class, 'create'])->setDecoratedService('app.ports');
+        (new VaultPortsPass())->process($factory);
+        self::assertSame(VaultPortMode::LEGACY, $this->mode($factory, 'team_membership'));
+
+        // A decorator of the 1.19 interface that lacks it.
+        $policy = $this->container('scope_access', 'app.ports', BothHostPorts::class);
+        $policy->register('app.policy_audit', PassThroughLegacyDecorators::class)->setDecoratedService(VaultScopeAccessProviderInterface::class)->setArguments([new Reference('app.policy_audit.inner')]);
+        (new VaultPortsPass())->process($policy);
+        self::assertSame(VaultPortMode::LEGACY, $this->mode($policy, 'scope_access'));
+        self::assertTrue($policy->hasAlias(VaultScopeAccessProviderInterface::class), 'the decorator still has something to decorate');
     }
 
     #[Test]
