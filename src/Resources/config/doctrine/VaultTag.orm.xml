@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Since 1.19.0: XML mapping of the vault entity (same tables, columns, indexes and constraints as its attributes).
+     Used with nowo_vault.database.mapping_type: xml, or by a host that maps the vault entities itself. The table name
+     prefix (table_prefix) and the host user associations (user_class / user_mapping) are applied at runtime by the
+     bundle's metadata listener, exactly as for the attributes. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\VaultBundle\Entity\VaultTag" table="vault_tags">
+        <unique-constraints>
+            <unique-constraint name="vault_tags_creator_name_unique" columns="creator_id,name"/>
+            <unique-constraint name="vault_tags_scope_name_unique" columns="owner_scope,name"/>
+        </unique-constraints>
+        <id name="id" type="string" length="36"/>
+        <field name="createdAt" column="created_at" type="datetime_immutable"/>
+        <field name="ownerScope" column="owner_scope" type="string" length="128" nullable="true"/>
+        <field name="name" type="string" length="64"/>
+        <many-to-one field="creator" target-entity="Symfony\Component\Security\Core\User\UserInterface">
+            <join-column nullable="true" on-delete="CASCADE"/>
+        </many-to-one>
+        <many-to-many field="items" target-entity="Nowo\VaultBundle\Entity\VaultItem" mapped-by="tags"/>
+    </entity>
+</doctrine-mapping>

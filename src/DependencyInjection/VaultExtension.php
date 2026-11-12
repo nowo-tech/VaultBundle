@@ -87,6 +87,8 @@ use Symfony\Component\Security\Core\User\UserCheckerInterface;
 
 use function array_key_exists;
 use function is_array;
+use function in_array;
+use function is_bool;
 use function is_string;
 use function rtrim;
 use function sprintf;
@@ -96,6 +98,9 @@ use function sprintf;
  */
 final class VaultExtension extends Extension implements PrependExtensionInterface
 {
+    /** Directory of the XML mapping of the vault entities (1.19.0, same tables and columns as the attributes). */
+    public const XML_MAPPING_DIR = __DIR__ . '/../Resources/config/doctrine';
+
     /** Server-side evaluator of nowo-tech/password-strength-bundle, used by the health report when installed. */
     public const STRENGTH_EVALUATOR = 'Nowo\\PasswordStrengthBundle\\Service\\PasswordStrengthEvaluator';
 
@@ -665,14 +670,15 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ]);
         }
 
-        if ($container->hasExtension('doctrine')) {
+        [$registerMapping, $mappingType] = $this->rawMappingOptions($container);
+        if ($registerMapping && $container->hasExtension('doctrine')) {
+            // 1.19.0: database.mapping_type xml maps the same tables from src/Resources/config/doctrine/*.orm.xml.
             $container->prependExtensionConfig('doctrine', [
                 'orm' => [
                     'mappings' => [
-                        'VaultBundle' => [
-                            'type'      => 'attribute',
-                            'is_bundle' => true,
-                        ],
+                        'VaultBundle' => $mappingType === 'xml'
+                            ? ['type' => 'xml', 'is_bundle' => false, 'dir' => self::XML_MAPPING_DIR, 'prefix' => 'Nowo\\VaultBundle\\Entity']
+                            : ['type' => 'attribute', 'is_bundle' => true],
                     ],
                 ],
             ]);
@@ -687,6 +693,29 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                 'theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => ['row_actions' => VaultPages::ROW_ACTIONS_PARTIAL]]]],
             ]);
         }
+    }
+
+    /**
+     * `database.register_mapping` and `database.mapping_type` from the raw configuration (prepend() runs before the
+     * configuration is processed; the last value wins).
+     *
+     * @return array{0: bool, 1: string}
+     */
+    private function rawMappingOptions(ContainerBuilder $container): array
+    {
+        $register = true;
+        $type     = 'attribute';
+        foreach ($container->getExtensionConfig(Configuration::ALIAS) as $cfg) {
+            $database = is_array($cfg['database'] ?? null) ? $cfg['database'] : [];
+            if (is_bool($database['register_mapping'] ?? null)) {
+                $register = $database['register_mapping'];
+            }
+            if (in_array($database['mapping_type'] ?? null, ['attribute', 'xml'], true)) {
+                $type = $database['mapping_type'];
+            }
+        }
+
+        return [$register, $type];
     }
 
     /**
