@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.18.0] - 2026-11-12](#1180---2026-11-12)
 - [[1.17.1] - 2026-11-11](#1171---2026-11-11)
 - [[1.17.0] - 2026-11-11](#1170---2026-11-11)
 - [[1.16.0] - 2026-11-05](#1160---2026-11-05)
@@ -48,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-07-04](#100---2026-07-04)
 
 ## [Unreleased]
+
+## [1.18.0] - 2026-11-12
 
 Target: **1.18.0** (minor). Closes the seven gaps the Symfony Beacon app found while adopting the personal vault
 (A1–A7). Every option that changes what users see is off by default; the defaults keep the 1.17 behaviour except for
@@ -105,6 +108,8 @@ the fixes listed under *Fixed* and *Changed*. See [UPGRADING](UPGRADING.md#to-11
   reveal script fires `input` so the meter re-evaluates it in the browser; the value is sent nowhere new).
 - **Developer text on the *Shared* page (A6).** `vault.shared.hint` no longer mentions `VaultGrantService` and
   `ITEM_LIST_QUERY`; it is user-facing copy in every catalogue.
+
+[1.18.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.18.0
 
 ## [1.17.1] - 2026-11-11
 
@@ -1004,7 +1009,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.17.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.18.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
