@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PostLoadEventArgs;
 use Doctrine\ORM\Query\Filter\Parameter;
 use Doctrine\ORM\Query\Filter\SQLFilter;
+use Doctrine\ORM\Repository\DefaultRepositoryFactory;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -115,8 +116,13 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
             }
             // DoctrineBundle's ContainerAwareEventManager extends EventManager; any other implementation gets a fresh one.
             $eventManager = $source->getEventManager();
+            // Same mapping, caches and proxies, but a repository factory owned by this manager (audit NX): the shared
+            // factory (DoctrineBundle's ContainerRepositoryFactory) keeps one repository per manager instance for the
+            // life of the process, so every replaced private manager would stay in memory in worker mode.
+            $configuration = clone $source->getConfiguration();
+            $configuration->setRepositoryFactory(new DefaultRepositoryFactory());
             // @igor-ignore - Bundle-owned unit of work: dropped at every boundary, replaced when closed, stale or on another connection.
-            $current = $this->current = new EntityManager($source->getConnection(), $source->getConfiguration(), $eventManager instanceof EventManager ? $eventManager : null);
+            $current = $this->current = new EntityManager($source->getConnection(), $configuration, $eventManager instanceof EventManager ? $eventManager : null);
             // @igor-ignore - Bundle-owned flag of the private manager, reset when the manager is replaced.
             $this->stale = false;
             // @igor-ignore - Bundle-owned bookkeeping, reset when the manager is replaced.
@@ -386,6 +392,11 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
                     continue;
                 }
                 $filters->disable($name);
+            }
+            // A filter registered on the source configuration after this manager was created is unknown to its copy.
+            $class = $source->getConfiguration()->getFilterClassName($name);
+            if ($class !== null && $target->getConfiguration()->getFilterClassName($name) === null) {
+                $target->getConfiguration()->addFilter($name, $class);
             }
             $copy = $filters->enable($name);
             foreach ($this->filterParameters($filter) as $parameter => $value) {

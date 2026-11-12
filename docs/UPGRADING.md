@@ -80,6 +80,9 @@
 
 ## Unreleased
 
+- A `repository_factory` you configured on the Doctrine entity manager is not used for the bundle's private manager:
+  it has its own `DefaultRepositoryFactory` (your `default_repository_class` is still honoured). Nothing else changes.
+
 ## To 1.19.1
 
 From **1.19.0** (patch):
