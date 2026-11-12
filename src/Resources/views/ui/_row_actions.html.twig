@@ -1,0 +1,42 @@
+{#
+  Row actions of the vault pages (1.18.0): UiKit `row_actions` partial for NowoVaultBundle
+  (nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.row_actions, prepended by the bundle; a host value wins).
+
+  Actions carrying the data-vault-row-menu attribute (VaultPages::ROW_MENU_ATTRIBUTE, set on "Move to trash" with
+  nowo_vault.web_ui.destructive_actions_in_menu) are drawn as items of a kebab menu (the UiKit `menu` partial, icon
+  "more") after the other actions; they keep their POST form and confirm dialog. Without such actions every variable
+  is passed unchanged to the host / kit `row_actions` partial, so the output is the kit's.
+#}
+{% set _t = nowo_ui_theme|default(null) %}
+{% set _kit_partial = _t ? _t.partial('row_actions') : '@NowoUiKitBundle/partials/_row_actions.html.twig' %}
+{% set _inline = [] %}
+{% set _menu = [] %}
+{% for _action in actions|default([]) %}
+    {% set _view = _action is not iterable ? _action : (_action.view is defined ? _action.view : null) %}
+    {% if _view and _view.attributes['data-vault-row-menu'] is defined and _view.visible %}
+        {% set _menu = _menu|merge([_view]) %}
+    {% else %}
+        {% set _inline = _inline|merge([_action]) %}
+    {% endif %}
+{% endfor %}
+{% if _menu is empty %}
+    {{ include(_kit_partial) }}
+{% else %}
+    <div class="vault-row-actions" data-testid="vault-row-actions">
+        {% if _inline is not empty %}
+            {{ include(_kit_partial, {actions: _inline}) }}
+        {% endif %}
+        {{ include(_t ? _t.partial('menu', bundle|default(null)) : '@NowoUiKitBundle/partials/_menu.html.twig', {
+            items: _menu,
+            icon: 'more',
+            display: 'icon',
+            square: true,
+            menu_items: true,
+            align: 'end',
+            confirm_external: confirm_external|default(false),
+            attr: {'data-testid': 'vault-row-menu'},
+            bundle: bundle|default(null),
+            nowo_ui_page_type: nowo_ui_page_type|default(null),
+        }, false) }}
+    </div>
+{% endif %}

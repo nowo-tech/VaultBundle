@@ -17,9 +17,12 @@ use ReflectionProperty;
 use stdClass;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
@@ -79,6 +82,33 @@ final class VaultControllerGuardsTest extends WebTestCase
 
         $this->expectException(AccessDeniedException::class);
         $controller->shareFolder($request, $folder->getId());
+    }
+
+    public function testDisabledSharingAnswers404OnEveryShareAction(): void
+    {
+        // 1.18.0 sharing.enabled false: even through a host route, the share and revoke actions answer 404.
+        $this->bootClient();
+        $alice      = $this->createUser('alice@example.com');
+        $item       = $this->createItem($alice, 'Item');
+        $folder     = $this->createFolder($alice, 'Folder');
+        $controller = $this->controller(['sharingEnabled' => false]);
+        $request    = $this->pushRequest($alice);
+
+        foreach ([
+            static fn (): Response => $controller->shareItem($request, $item->getId()),
+            static fn (): Response => $controller->shareFolder($request, $folder->getId()),
+            static fn (): RedirectResponse => $controller->revokeItemGrant($request, $item->getId(), $item->getId()),
+            static fn (): RedirectResponse => $controller->revokeFolderGrant($request, $folder->getId(), $folder->getId()),
+        ] as $i => $call) {
+            try {
+                $call();
+                self::fail('Share action ' . $i . ' must answer 404.');
+            } catch (NotFoundHttpException $exception) {
+                self::assertSame('Sharing is disabled.', $exception->getMessage());
+            }
+        }
+
+        self::assertSame(200, $this->controller([])->shareItem($request, $item->getId())->getStatusCode(), 'Enabled by default.');
     }
 
     public function testRuntimeConfigLinkNeedsAnAdminRole(): void

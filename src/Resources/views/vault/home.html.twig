@@ -4,12 +4,24 @@
   is enabled, a back link to web_ui dashboard_route when set). Also: routes (nowo_vault.routes), itemTypes
   (list<VaultItemType>), generatorForm (VaultPasswordGeneratorType FormView).
   Data block filled: nowo_ui_dashboard_cards (My items / Shared / Trash, create an entry per type, password generator).
+  1.18.0: block vault_host_note under the page header (includes web_ui.host_note_template with page and routes).
+  The Shared card stays with sharing.enabled false: it is the receiving side, and existing grants keep working.
   The generator <dialog> is printed in nowo_ui_modals (_password_generator.html.twig).
 #}
 {% extends '@NowoUiKit/page/dashboard.html.twig' %}
 {% trans_default_domain 'NowoVaultBundle' %}
 
 {% block nowo_ui_styles %}{{ parent() }}<link rel="stylesheet" href="{{ asset('vault.css', 'nowo_vault') }}">{% endblock %}
+
+{#- 1.18.0 host slot: one host line under the page header (web_ui.host_note_template, or override vault_host_note) -#}
+{% block nowo_ui_page_header %}
+    {{ parent() }}
+    {% block vault_host_note %}
+        {% if nowo_vault_host_note_template|default(null) %}
+            <div class="vault-host-note" data-testid="vault-host-note">{{ include(nowo_vault_host_note_template, {page: page, routes: routes|default({})}) }}</div>
+        {% endif %}
+    {% endblock %}
+{% endblock %}
 
 {% block nowo_ui_dashboard_cards %}
     {% set _b = page.bundle %}

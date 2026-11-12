@@ -10,6 +10,7 @@ use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
+use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
@@ -51,6 +52,8 @@ final readonly class VaultPersonalDataExporter
         private ?VaultFolderRepositoryInterface $folderRepository = null,
         private ?string $managerName = null,
         private ?VaultUserReferenceResolverInterface $users = null,
+        /** 1.18.0 (NC-1): token rows through raw SQL while the entity is not mapped. */
+        private ?VaultExtensionTokenTable $tokenTable = null,
     ) {
     }
 
@@ -75,7 +78,9 @@ final readonly class VaultPersonalDataExporter
             'grants_received'     => $this->grantsReceived($em, $userId, $user),
             'grants_given'        => $this->rows($em, 'SELECT g.resourceType AS resource_type, g.resourceId AS resource_id, g.granteeType AS grantee_type, g.granteeId AS grantee_id, g.permission AS permission, g.expiresAt AS expires_at, g.createdAt AS created_at FROM ' . VaultGrant::class . ' g WHERE g.createdBy = :user ORDER BY g.createdAt ASC, g.id ASC', ['user' => $who], 'g.createdBy', $userId),
             'scope_items_created' => $this->rows($em, 'SELECT i.id AS id, i.ownerScope AS owner_scope, i.createdAt AS created_at FROM ' . VaultItem::class . ' i WHERE i.createdBy = :user AND i.ownerScope IS NOT NULL ORDER BY i.createdAt ASC, i.id ASC', ['user' => $who], 'i.createdBy', $userId),
-            'extension_tokens'    => $this->rows($em, 'SELECT t.createdAt AS created_at, t.expiresAt AS expires_at, t.lastUsedAt AS last_used_at FROM ' . VaultExtensionToken::class . ' t WHERE t.user = :user ORDER BY t.createdAt ASC', ['user' => $who], 't.user', $userId),
+            // 1.18.0 (NC-1): when the entity is not mapped (database.conditional_mapping, extension off), the rows an
+            // earlier release left are read from the table.
+            'extension_tokens' => $em->getMetadataFactory()->isTransient(VaultExtensionToken::class) ? $this->unmappedTokens($em, $userId) : $this->rows($em, 'SELECT t.createdAt AS created_at, t.expiresAt AS expires_at, t.lastUsedAt AS last_used_at FROM ' . VaultExtensionToken::class . ' t WHERE t.user = :user ORDER BY t.createdAt ASC', ['user' => $who], 't.user', $userId),
         ];
     }
 
@@ -177,6 +182,21 @@ final readonly class VaultPersonalDataExporter
                 unset($row['vault_owner']);
             }
             $out[] = array_map($this->normalise(...), $row);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Token rows read from the table while the entity is not mapped (same columns as the mapped export).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function unmappedTokens(EntityManagerInterface $em, string $userId): array
+    {
+        $out = [];
+        foreach (($this->tokenTable ?? new VaultExtensionTokenTable())->rowsForUser($em, $userId, $this->users?->mapsById() === true) as $row) {
+            $out[] = array_map($this->normalise(...), ['created_at' => $row['created_at'], 'expires_at' => $row['expires_at'], 'last_used_at' => $row['last_used_at']]);
         }
 
         return $out;

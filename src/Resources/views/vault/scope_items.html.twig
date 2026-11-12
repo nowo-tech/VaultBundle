@@ -2,7 +2,7 @@
   Scope vault (1.16.0, REQ-UI-003): UiKit list scaffold. Variable: page (View\ListPage from
   VaultPageFactory::scopeItems(): header vault.scope.items.title (intro = the scope key) with one create action per item
   type when the member may create; filters = VaultItemSearchType; columns type, title, tags, folder; row actions View /
-  Edit (write) / Access + Trash (admin, POST + CSRF FormView behind a Confirm); Pagination; EmptyState).
+  Edit (write) / Share (sharing.enabled) + Trash (admin, POST + CSRF FormView behind a Confirm); Pagination; EmptyState).
   Also: scope, access (VaultScopeAccess), items, permissions (item id => VaultPermission|null), folders, tags,
   folderForm (VaultFolderCreateType, null without create), activeFolder, activeTag, searchQuery, routes.
   Data blocks filled: nowo_ui_list_filters (folders and tags panels, then the default search region),

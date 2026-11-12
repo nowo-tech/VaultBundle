@@ -1,10 +1,10 @@
 vault:
-    title: Vault
+    title: Kluis
     home:
         intro: Veilige opslag voor inloggegevens, kaarten, documenten en notities. Kies een sectie om te beginnen.
         items:
             title: Mijn items
-            description: Blader door, zoek en organiseer uw vault-items.
+            description: Blader door, zoek en organiseer uw kluisitems.
         shared:
             description: Items gedeeld met u of uw teams.
         trash:
@@ -13,12 +13,12 @@ vault:
             title: Nieuw item aanmaken
             description: Kies het type geheim dat u wilt opslaan.
         generator:
-            description: Genereer een sterk wachtwoord zonder de vault te verlaten.
+            description: Genereer een sterk wachtwoord zonder de kluis te verlaten.
         runtime_config:
             title: Runtimeconfiguratie (database)
             description: 'Beheer encryptiesleutel, bijlagenlimiet en wachtwoordsterkte in vault_settings.'
     nav:
-        vault: Vault
+        vault: Kluis
         shared: Gedeelde items
         trash: Prullenbak
         folders: Mappen
@@ -131,7 +131,8 @@ vault:
         search: Zoeken
         view: Bekijken
         edit: Bewerken
-        access: Toegang
+        access: Delen
+        share: Delen
         delete_tag: Tag verwijderen
         open_settings: Instellingen openen
         trash: Naar prullenbak
@@ -161,7 +162,7 @@ vault:
         folder: Map
         actions: Acties
     shared:
-        hint: Items gedeeld met u of uw teams verschijnen hier. Breid toegang uit via VaultGrantService en ITEM_LIST_QUERY-events.
+        hint: Hier verschijnen items die andere personen of uw teams met u hebben gedeeld.
     confirm:
         trash_title: '"%name%" naar de prullenbak verplaatsen?'
         trash_folder_title: 'Map "%name%" naar de prullenbak verplaatsen?'
@@ -189,19 +190,19 @@ vault:
         runtime_config:
             saved: Instellingen opgeslagen in de database.
             key_stored: Instellingen opgeslagen in de database. Encryptiesleutel opgeslagen.
-            key_generated: Vault-encryptiesleutel gegenereerd en opgeslagen in de database (versleuteld at rest).
-            key_exists: Er is al een vault-encryptiesleutel opgeslagen in de database.
-            key_exists_yaml: "Er is al een vault-encryptiesleutel geconfigureerd in YAML/env (nowo_vault.encryption_key). Versleutel bestaande items opnieuw met bin/console nowo:vault:reencrypt --persist-new-key om hem te wijzigen."
+            key_generated: Kluis-encryptiesleutel gegenereerd en opgeslagen in de database (versleuteld at rest).
+            key_exists: Er is al een kluis-encryptiesleutel opgeslagen in de database.
+            key_exists_yaml: "Er is al een kluis-encryptiesleutel geconfigureerd in YAML/env (nowo_vault.encryption_key). Versleutel bestaande items opnieuw met bin/console nowo:vault:reencrypt --persist-new-key om hem te wijzigen."
             key_invalid: "De encryptiesleutel moet een base64-gecodeerde libsodium-sleutel van 32 bytes zijn. Er is niets opgeslagen."
             key_storage_unavailable: "De encryptiesleutel kan niet in de database worden opgeslagen: installeer nowo-tech/doctrine-encrypt-bundle zodat hij at rest versleuteld is, of configureer nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes moet nul of groter zijn.
         grant_refused: De toegang kon niet worden verleend.
     runtime_config:
         title: Runtimeconfiguratie
-        intro: Database-instellingen voor vault-encryptiesleutel, bijlagenlimiet en wachtwoordsterkte.
+        intro: Database-instellingen voor kluis-encryptiesleutel, bijlagenlimiet en wachtwoordsterkte.
         section: Database-instellingen
         last_update: 'Laatste update: %datetime%'
-        encryption_key: Vault-encryptiesleutel
+        encryption_key: Kluis-encryptiesleutel
         encryption_key_stored_help: Opgeslagen in vault_settings.encryption_key (versleuteld at rest). Deze waarde kan niet vanaf dit scherm worden gewijzigd.
         encryption_key_yaml_help: "Geconfigureerd in YAML/env (nowo_vault.encryption_key). Kan niet vanaf dit scherm worden vervangen; gebruik bin/console nowo:vault:reencrypt --persist-new-key om hem te roteren."
         encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle is niet geïnstalleerd, dus een sleutel in vault_settings zou niet at rest versleuteld zijn. Configureer nowo_vault.encryption_key in plaats daarvan via YAML/env."

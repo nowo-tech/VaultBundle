@@ -10,12 +10,15 @@ use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterfac
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
+use Nowo\VaultBundle\Entity\VaultExtensionToken;
+use Nowo\VaultBundle\Entity\VaultSettings;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
 use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
+use Nowo\VaultBundle\Ui\VaultPages;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
@@ -321,6 +324,63 @@ final class VaultExtensionTest extends TestCase
         (new VaultExtension())->prepend($container);
 
         self::assertCount(2, $container->getExtensionConfig('nowo_ui_kit'));
+    }
+
+    public function testPrependRegistersTheRowActionsPartialOnlyWithTheMenuOption(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension($this->fakeExtension('nowo_ui_kit'));
+        $container->registerExtension($this->fakeExtension('nowo_vault'));
+        $container->prependExtensionConfig('nowo_vault', ['web_ui' => ['destructive_actions_in_menu' => false]]);
+        $container->prependExtensionConfig('nowo_vault', ['web_ui' => ['destructive_actions_in_menu' => true]]);
+        $container->prependExtensionConfig('nowo_vault', ['web_ui' => []]);
+
+        (new VaultExtension())->prepend($container);
+        self::assertSame([], $container->getExtensionConfig('nowo_ui_kit'), 'The last value (false) wins.');
+
+        $on = new ContainerBuilder();
+        $on->registerExtension($this->fakeExtension('nowo_ui_kit'));
+        $on->registerExtension($this->fakeExtension('nowo_vault'));
+        $on->prependExtensionConfig('nowo_vault', ['web_ui' => ['destructive_actions_in_menu' => true]]);
+
+        (new VaultExtension())->prepend($on);
+        self::assertSame(
+            ['theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => ['row_actions' => VaultPages::ROW_ACTIONS_PARTIAL]]]]],
+            $on->getExtensionConfig('nowo_ui_kit')[0],
+        );
+    }
+
+    public function testBeaconAdoptionParameters(): void
+    {
+        $default = $this->securedContainer();
+        (new VaultExtension())->load([self::BASE_CONFIG], $default);
+        self::assertTrue($default->getParameter('nowo_vault.sharing.enabled'));
+        self::assertNull($default->getParameter('nowo_vault.web_ui.host_note_template'));
+        self::assertFalse($default->getParameter('nowo_vault.web_ui.destructive_actions_in_menu'));
+        self::assertSame([], $default->getParameter('nowo_vault.unmapped_entity_classes'));
+        self::assertSame([], $default->getParameter('nowo_vault.unmapped_tables'));
+
+        $container = $this->securedContainer();
+        (new VaultExtension())->load([self::BASE_CONFIG + [
+            'table_prefix' => 'pw_',
+            'sharing'      => ['enabled' => false],
+            'web_ui'       => ['host_note_template' => 'vault/_note.html.twig', 'destructive_actions_in_menu' => true],
+            'database'     => ['conditional_mapping' => true],
+        ]], $container);
+        self::assertFalse($container->getParameter('nowo_vault.sharing.enabled'));
+        self::assertSame('vault/_note.html.twig', $container->getParameter('nowo_vault.web_ui.host_note_template'));
+        self::assertTrue($container->getParameter('nowo_vault.web_ui.destructive_actions_in_menu'));
+        self::assertSame([VaultSettings::class, VaultExtensionToken::class], $container->getParameter('nowo_vault.unmapped_entity_classes'));
+        self::assertSame(['pw_settings', 'pw_extension_tokens'], $container->getParameter('nowo_vault.unmapped_tables'));
+
+        $featuresOn = $this->securedContainer();
+        (new VaultExtension())->load([self::BASE_CONFIG + [
+            'database'          => ['conditional_mapping' => true],
+            'config_storage'    => ['enabled' => true],
+            'browser_extension' => ['enabled' => true],
+        ]], $featuresOn);
+        self::assertSame([], $featuresOn->getParameter('nowo_vault.unmapped_entity_classes'));
+        self::assertSame([], $featuresOn->getParameter('nowo_vault.unmapped_tables'));
     }
 
     /**

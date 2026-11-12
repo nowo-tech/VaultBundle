@@ -1,10 +1,10 @@
 vault:
-    title: Vault
+    title: Cassaforte
     home:
         intro: Archiviazione sicura per accessi, carte, documenti e note. Scegli una sezione per iniziare.
         items:
             title: I miei elementi
-            description: Sfoglia, cerca e organizza le voci del tuo vault.
+            description: Sfoglia, cerca e organizza le voci della tua cassaforte.
         shared:
             description: Elementi condivisi con te o con i tuoi team.
         trash:
@@ -13,12 +13,12 @@ vault:
             title: Crea nuova voce
             description: Scegli il tipo di segreto da archiviare.
         generator:
-            description: Genera una password sicura senza uscire dal vault.
+            description: Genera una password sicura senza uscire dalla cassaforte.
         runtime_config:
             title: Configurazione runtime (database)
             description: 'Gestisci chiave di crittografia, limite allegati e livello password in vault_settings.'
     nav:
-        vault: Vault
+        vault: Cassaforte
         shared: Elementi condivisi
         trash: Cestino
         folders: Cartelle
@@ -131,7 +131,8 @@ vault:
         search: Cerca
         view: Visualizza
         edit: Modifica
-        access: Accesso
+        access: Condividi
+        share: Condividi
         delete_tag: Elimina tag
         open_settings: Apri impostazioni
         trash: Sposta nel cestino
@@ -161,7 +162,7 @@ vault:
         folder: Cartella
         actions: Azioni
     shared:
-        hint: Gli elementi condivisi con te o con i tuoi team compaiono qui. Estendi l'accesso con VaultGrantService e eventi ITEM_LIST_QUERY.
+        hint: Qui compaiono le voci che altre persone o i tuoi team hanno condiviso con te.
     confirm:
         trash_title: 'Spostare "%name%" nel cestino?'
         trash_folder_title: 'Spostare la cartella "%name%" nel cestino?'
@@ -190,8 +191,8 @@ vault:
             saved: Impostazioni salvate nel database.
             key_stored: Impostazioni salvate nel database. Chiave di crittografia memorizzata.
             key_generated: Chiave di crittografia generata e salvata nel database (crittografata a riposo).
-            key_exists: Una chiave di crittografia del vault è già memorizzata nel database.
-            key_exists_yaml: "Una chiave di crittografia del vault è già configurata in YAML/env (nowo_vault.encryption_key). Per cambiarla, ricifra gli elementi con bin/console nowo:vault:reencrypt --persist-new-key."
+            key_exists: Una chiave di crittografia della cassaforte è già memorizzata nel database.
+            key_exists_yaml: "Una chiave di crittografia della cassaforte è già configurata in YAML/env (nowo_vault.encryption_key). Per cambiarla, ricifra gli elementi con bin/console nowo:vault:reencrypt --persist-new-key."
             key_invalid: "La chiave di crittografia deve essere una chiave libsodium di 32 byte codificata in base64. Non è stato salvato nulla."
             key_storage_unavailable: "La chiave di crittografia non può essere memorizzata nel database: installa nowo-tech/doctrine-encrypt-bundle per crittografarla a riposo, oppure configura nowo_vault.encryption_key tramite YAML/env."
             max_attachment_invalid: max_attachment_bytes deve essere zero o maggiore.
@@ -201,7 +202,7 @@ vault:
         intro: Impostazioni database per chiave di crittografia, limite allegati e livello password.
         section: Impostazioni database
         last_update: 'Ultimo aggiornamento: %datetime%'
-        encryption_key: Chiave di crittografia vault
+        encryption_key: Chiave di crittografia della cassaforte
         encryption_key_stored_help: Memorizzata in vault_settings.encryption_key (crittografata a riposo). Non può essere modificata da questa schermata.
         encryption_key_yaml_help: "Configurata in YAML/env (nowo_vault.encryption_key). Non può essere sostituita da questa schermata; usa bin/console nowo:vault:reencrypt --persist-new-key per ruotarla."
         encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle non è installato, quindi una chiave memorizzata in vault_settings non sarebbe crittografata a riposo. Configura invece nowo_vault.encryption_key tramite YAML/env."

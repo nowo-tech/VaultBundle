@@ -131,7 +131,8 @@ vault:
         search: Search
         view: View
         edit: Edit
-        access: Access
+        access: Share
+        share: Share
         delete_tag: Delete tag
         open_settings: Open settings
         trash: Move to trash
@@ -161,7 +162,7 @@ vault:
         folder: Folder
         actions: Actions
     shared:
-        hint: Items shared with you or your teams appear here. Extend access via VaultGrantService and ITEM_LIST_QUERY events.
+        hint: Entries that other people or your teams have shared with you appear here.
     confirm:
         trash_title: 'Move "%name%" to trash?'
         trash_folder_title: 'Move folder "%name%" to trash?'

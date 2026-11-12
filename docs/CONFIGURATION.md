@@ -6,6 +6,7 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 
 - [Required](#required)
 - [Database](#database)
+- [Sharing (`sharing`)](#sharing-sharing)
 - [Security](#security)
 - [Teams](#teams)
 - [Attachments](#attachments)
@@ -61,6 +62,32 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 | `database.driver` | `doctrine_orm` | Persistence driver (`doctrine_mongodb` is reserved — **not implemented yet**) |
 | `database.platform` | `postgresql` | Documented platform (`mongodb` is **planned**; only PostgreSQL/MySQL/SQLite are supported today) |
 | `database.entity_manager` | `default` | Doctrine ORM entity manager |
+| `database.conditional_mapping` | `false` | 1.18.0: `true` maps `{table_prefix}_settings` only with `config_storage.enabled` and `{table_prefix}_extension_tokens` only with `browser_extension.enabled`; the tables of a disabled feature are hidden from the schema tools (never created, never dropped). See [UPGRADING](UPGRADING.md#existing-settings-and-token-tables-conditional-mapping) |
+
+```yaml
+nowo_vault:
+    database:
+        conditional_mapping: true   # no vault_settings / vault_extension_tokens while their features are off
+```
+
+## Sharing (`sharing`)
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `sharing.enabled` | `true` | 1.18.0: `false` hides every share UI (item and folder *Share* actions, the *Shared* badge) and does not register the share / revoke routes (`item_share`, `item_grant_revoke`, `folder_share`, `folder_grant_revoke`): they answer 404, also through a host route. Existing grants and grants created with `VaultGrantService` keep giving access; the *Shared with me* list and its home card stay (the receiving side) |
+
+```yaml
+nowo_vault:
+    sharing:
+        enabled: false   # e.g. until the host lists grantees (GRANT_LIST_QUERY)
+```
+
+Templates read the switch as `nowo_vault_sharing_enabled`.
+
+**Existing grants stay active.** With `sharing.enabled: false` owners no longer see which items are shared (no badge)
+and cannot revoke a grant from the UI, yet every existing grant keeps giving access. Revoke the grants you do not want
+**before** turning sharing off, or revoke them from your code with `VaultGrantService::revokeAs()` (or
+`VaultGrantService::revoke()`).
 
 ## Security
 
@@ -153,6 +180,8 @@ The manage pages follow the UiKit page contract (REQ-UI-003): each page extends 
 | `web_ui.enabled` | `true` | Register the manage UI routes (home, items, shared, trash, item forms, sharing, runtime config). `false` keeps only the browser-extension API |
 | `web_ui.path_prefix` | `''` | Prefix prepended to every vault route path (manage UI and browser-extension API), e.g. `/admin` |
 | `web_ui.layout_template` | `null` | Layout the pages extend. `null` = `nowo_ui_kit.layouts.admin` (recommended). A 1.x layout without the UiKit canonical blocks is wrapped in a deprecated bridge |
+| `web_ui.host_note_template` | `null` | 1.18.0: Twig template included under the page header of the home and the items list (block `vault_host_note`; variables `page`, `routes`), e.g. a link to another tool. No `templates` override needed |
+| `web_ui.destructive_actions_in_menu` | `false` | 1.18.0: *Move to trash* of the item rows becomes the last (danger) item of a UiKit kebab menu after the inline actions; same confirm dialog |
 | `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`, `scope_items`, `catalogue` (1.16.0). Unknown page ids are rejected |
 
 ```yaml
@@ -160,6 +189,16 @@ nowo_vault:
     web_ui:
         path_prefix: ''             # e.g. /admin
         layout_template: ~          # null = nowo_ui_kit.layouts.admin
+        host_note_template: ~       # 1.18.0, e.g. 'vault/_host_note.html.twig'
+        destructive_actions_in_menu: false   # 1.18.0
+```
+
+Host note template example (`templates/vault/_host_note.html.twig`):
+
+```twig
+<p class="{{ nowo_ui_class('muted', page.bundle) }}">
+    {{ 'app.vault.secret_hint'|trans }} <a href="{{ path('app_secret_new') }}">{{ 'app.vault.share_a_secret'|trans }}</a>
+</p>
 ```
 
 All `web_ui` keys are YAML-only (never stored in the runtime DB settings).

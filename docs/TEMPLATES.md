@@ -23,8 +23,8 @@ missing-translation rule), which renders every page below in its significant sta
 
 | Page | Template | Scaffold | View model | Data blocks filled |
 | --- | --- | --- | --- | --- |
-| Vault home | `vault/home.html.twig` | `page/dashboard` | `DashboardPage` (header `vault.title`; action Open settings for admins when `config_storage.enabled`; back link to `dashboard_route`) | `nowo_ui_dashboard_cards` (My items / Shared / Trash, create an entry per item type, password generator), `nowo_ui_modals` (generator dialog) |
-| My items | `vault/items.html.twig` | `page/list` | `ListPage` (header actions: one create action per item type; filters: `VaultItemSearchType`; columns: type, title, tags, folder; rowActions: view, share, edit, delete = trash; `Pagination`; `EmptyState`) | `nowo_ui_list_filters` (folders and tags panels, then the default search region), `nowo_ui_list_row` |
+| Vault home | `vault/home.html.twig` | `page/dashboard` | `DashboardPage` (header `vault.title`; action Open settings for admins when `config_storage.enabled`; back link to `dashboard_route`) | `nowo_ui_dashboard_cards` (My items / Shared (kept with `sharing.enabled: false`: the receiving side) / Trash, create an entry per item type, password generator), `nowo_ui_modals` (generator dialog); 1.18.0 block `vault_host_note` under the page header (`web_ui.host_note_template`) |
+| My items | `vault/items.html.twig` | `page/list` | `ListPage` (header actions: one create action per item type; filters: `VaultItemSearchType`; columns: type, title, tags, folder; rowActions: view, share (with `sharing.enabled`), edit, delete = trash (1.18.0: in the row kebab menu with `web_ui.destructive_actions_in_menu`); `Pagination`; `EmptyState`) | `nowo_ui_list_filters` (folders and tags panels, then the default search region), `nowo_ui_list_row`; 1.18.0 block `vault_host_note` under the page header |
 | Shared items | `vault/shared.html.twig` | `page/list` | `ListPage` (columns: type, title; rowActions as My items; `Pagination`; `EmptyState`) | `nowo_ui_list_row` |
 | Trash | `vault/trash.html.twig` | `page/list` | `ListPage` (column: title; rowActions: restore, delete = purge behind a `Confirm`; `Pagination`; `EmptyState`) | — (default cells) |
 | Item create / edit / view | `vault/item_form.html.twig` | `page/form` | `FormPage` (header: item type, intro = title; `VaultItemFormType`; submit `vault.action.save`; cancel = items list; read-only items: `formTag` false) | `nowo_ui_form_body` (per-item-type layout + child loop) |
@@ -56,7 +56,7 @@ the generator dialog).
 | Decrypted export | `count`, `formats`, `includeAttachments`, `routes` |
 | Runtime configuration | `routes`, `runtimeConfigRoute`, `dbUpdatedAt`, `hasDbEncryptionKey`, `hasYamlEncryptionKey`, `canStoreEncryptionKey`, `showOneTimeKeyWarning`, `form` |
 
-Every page also receives `nowo_vault_legacy_layout` / `nowo_vault_legacy_blocks` (the deprecated 1.x layout bridge).
+Every page also receives `nowo_vault_legacy_layout` / `nowo_vault_legacy_blocks` (the deprecated 1.x layout bridge) and, since 1.18.0, `nowo_vault_sharing_enabled` (`sharing.enabled`) and `nowo_vault_host_note_template` (`web_ui.host_note_template`).
 
 ## Unique pages
 
@@ -68,6 +68,7 @@ None: every page extends a scaffold.
 | --- | --- |
 | `vault/_password_generator.html.twig` | Password generator body, rendered through the UiKit `dialog` partial (`<dialog id="vault-password-generator">`) |
 | `vault/_legacy_layout.html.twig` | Deprecated bridge around a 1.x layout without the UiKit canonical blocks (removed in 2.0) |
+| `ui/_row_actions.html.twig` | 1.18.0: UiKit `row_actions` partial of `NowoVaultBundle` (registered only with `web_ui.destructive_actions_in_menu`): delegates to the host / kit partial and draws the actions marked `data-vault-row-menu` (Move to trash) in a kebab menu (`menu` partial, icon `more`) |
 | `Form/vault_item_form_theme.html.twig` | Tag container of the item form when `nowo-tech/tag-input-bundle` is installed (`FormPage::formThemes`) |
 
 ## Layout

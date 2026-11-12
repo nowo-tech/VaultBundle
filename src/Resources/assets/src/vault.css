@@ -119,6 +119,44 @@
 .vault-grants .nowo-ui-table-wrap {
     margin: 0;
 }
+
 .vault-reveal-button {
     margin-top: 0.25rem;
+}
+
+/* 1.18.0 (A2): Show / Copy icon buttons in their own row under the secret input, so the input keeps its width. */
+.vault-secret-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.vault-secret-actions .vault-reveal-button {
+    margin-top: 0;
+}
+
+/* PasswordStrength + PasswordToggle row: on a phone the generate button wraps under the input instead of squeezing it. */
+.vault-form .password-strength-input-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.vault-form .password-strength-input-grow {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+/* 1.18.0 (A4): inline row actions followed by the kebab menu. */
+.vault-row-actions {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* 1.18.0 (A1): host note under the page header. */
+.vault-host-note {
+    margin-bottom: 1rem;
 }

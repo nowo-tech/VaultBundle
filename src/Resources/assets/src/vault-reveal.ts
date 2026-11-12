@@ -134,18 +134,127 @@ export async function downloadAttachment(config: RevealConfig, url: string, root
     URL.revokeObjectURL(objectUrl);
 }
 
+/**
+ * 1.18.0: icon buttons rendered by the page (`<template data-vault-reveal-template="view|hide|copy">`, UiKit
+ * btn_secondary + btn_icon slots and kind icons). Null when the page has none: the buttons are text buttons (1.16).
+ */
+export interface RevealButtonTemplates {
+    view: HTMLButtonElement;
+    hide: HTMLButtonElement;
+    copy: HTMLButtonElement;
+}
+
+/**
+ * Read the icon button templates of the reveal element (null unless all three exist).
+ */
+export function readRevealTemplates(root: ParentNode): RevealButtonTemplates | null {
+    const button = (kind: string): HTMLButtonElement | null => {
+        const template = root.querySelector(`template[data-vault-reveal-template="${kind}"]`) as HTMLTemplateElement | null;
+        const element = template?.content.firstElementChild;
+
+        return element instanceof HTMLButtonElement ? element : null;
+    };
+    const view = button('view');
+    const hide = button('hide');
+    const copy = button('copy');
+
+    return view && hide && copy ? { view, hide, copy } : null;
+}
+
+/**
+ * Give a button its label: the text (text buttons) or the accessible name, tooltip and visually hidden text (icon
+ * buttons, whose glyph is replaced by the one of `glyph` when given).
+ */
+export function setButtonLabel(button: HTMLButtonElement, label: string, glyph: HTMLButtonElement | null = null): void {
+    if (button.dataset.vaultIconButton !== '1') {
+        button.textContent = label;
+
+        return;
+    }
+    if (glyph) {
+        button.replaceChildren(...Array.from(glyph.cloneNode(true).childNodes));
+    }
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    const hidden = button.querySelector('.visually-hidden');
+    if (hidden) {
+        hidden.textContent = label;
+    }
+}
+
+/** A Show / Copy button: a clone of the page's icon button, else a 1.16 text button. */
+function createButton(root: Document, template: HTMLButtonElement | undefined, label: string): HTMLButtonElement {
+    if (template) {
+        const button = template.cloneNode(true) as HTMLButtonElement;
+        button.dataset.vaultIconButton = '1';
+        setButtonLabel(button, label);
+
+        return button;
+    }
+    const button = root.createElement('button');
+    button.type = 'button';
+    button.className = 'vault-reveal-button';
+    button.textContent = label;
+
+    return button;
+}
+
+/**
+ * 1.18.0 (A3): the PasswordStrength requirements of a password field are shown only while it holds a value (typed or
+ * revealed); with an empty input (a stored password that is not on the page) they would all read as unmet.
+ */
+export function syncStrengthFeedback(input: HTMLInputElement | HTMLTextAreaElement): void {
+    const feedback = input.closest('[data-password-strength-field]')?.querySelector('[data-password-strength-feedback]') as HTMLElement | null | undefined;
+    if (feedback) {
+        feedback.hidden = input.value === '';
+    }
+}
+
+/**
+ * Re-evaluate a field whose value was set by script: PasswordStrength listens to `input` (the value stays in the page),
+ * then sync the requirements' visibility.
+ */
+function notifyValueChange(input: SecretInput): void {
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    syncStrengthFeedback(input);
+}
+
+/**
+ * Bind the strength feedback visibility of every PasswordStrength field of the vault item form.
+ */
+export function bindStrengthFeedback(root: Document = document): void {
+    root.querySelectorAll('.vault-form [data-password-strength-field] input').forEach((element) => {
+        const input = element as HTMLInputElement;
+        if (input.type === 'hidden') {
+            return;
+        }
+        syncStrengthFeedback(input);
+        input.addEventListener('input', () => syncStrengthFeedback(input));
+    });
+}
+
+/**
+ * Where the Show / Copy row goes: after the PasswordStrength input row or the PasswordToggle group around the input, so
+ * the buttons never squeeze the input (1.18.0); else right after the input.
+ */
+function actionsAnchor(input: SecretInput): Element {
+    return input.closest('.password-strength-input-row') ?? input.closest('.form-password-toggle') ?? input;
+}
+
 /** Put the input back to its masked, empty state. */
-function conceal(input: SecretInput, button: HTMLButtonElement, config: RevealConfig): void {
+function conceal(input: SecretInput, button: HTMLButtonElement, config: RevealConfig, templates: RevealButtonTemplates | null = null): void {
     input.value = '';
     if (input instanceof HTMLInputElement && input.dataset.vaultRevealType) {
         input.type = input.dataset.vaultRevealType;
     }
-    button.textContent = config.showLabel;
+    setButtonLabel(button, config.showLabel, templates?.view ?? null);
     button.setAttribute('aria-pressed', 'false');
+    notifyValueChange(input);
 }
 
 /**
- * Add a Show / Hide button after every secret input of the page.
+ * Add a Show / Hide button and a Copy button for every secret input of the page (1.18.0: icon buttons in a row under
+ * the input when the page provides the templates).
  *
  * @returns the bound inputs
  */
@@ -156,15 +265,13 @@ export function bindRevealButtons(root: Document = document): SecretInput[] {
     }
 
     const extras = readRevealExtras(root);
+    const templates = readRevealTemplates(root);
     const timers = new Map<SecretInput, ReturnType<typeof setTimeout>>();
     const inputs = Array.from(root.querySelectorAll('[data-vault-secret-field]')) as SecretInput[];
     inputs.forEach((input) => {
         const field = input.dataset.vaultSecretField as string;
-        const button = root.createElement('button');
-        button.type = 'button';
-        button.className = 'vault-reveal-button';
+        const button = createButton(root, templates?.view, config.showLabel);
         button.dataset.vaultRevealButton = field;
-        button.textContent = config.showLabel;
         button.setAttribute('aria-pressed', 'false');
         if (input instanceof HTMLInputElement) {
             input.dataset.vaultRevealType = input.type;
@@ -172,7 +279,7 @@ export function bindRevealButtons(root: Document = document): SecretInput[] {
 
         button.addEventListener('click', async () => {
             if (button.getAttribute('aria-pressed') === 'true') {
-                conceal(input, button, config);
+                conceal(input, button, config, templates);
 
                 return;
             }
@@ -183,34 +290,39 @@ export function bindRevealButtons(root: Document = document): SecretInput[] {
                 if (input instanceof HTMLInputElement && input.type === 'password') {
                     input.type = 'text';
                 }
-                button.textContent = config.hideLabel;
+                setButtonLabel(button, config.hideLabel, templates?.hide ?? null);
                 button.setAttribute('aria-pressed', 'true');
+                notifyValueChange(input);
                 if (extras.autoHideSeconds > 0) {
                     clearTimeout(timers.get(input));
-                    timers.set(input, setTimeout(() => conceal(input, button, config), extras.autoHideSeconds * 1000));
+                    timers.set(input, setTimeout(() => conceal(input, button, config, templates), extras.autoHideSeconds * 1000));
                 }
             } catch {
-                button.textContent = config.errorLabel;
+                setButtonLabel(button, config.errorLabel);
             }
         });
 
         // 1.16.0: Copy writes to the clipboard without putting the value in the page.
-        const copy = root.createElement('button');
-        copy.type = 'button';
-        copy.className = 'vault-reveal-button';
+        const copy = createButton(root, templates?.copy, extras.copyLabel);
         copy.dataset.vaultCopyButton = field;
-        copy.textContent = extras.copyLabel;
         copy.addEventListener('click', async () => {
             try {
                 await navigator.clipboard.writeText(await fetchSecretField(config, field, 'copy'));
-                copy.textContent = extras.copiedLabel;
+                setButtonLabel(copy, extras.copiedLabel);
             } catch {
-                copy.textContent = config.errorLabel;
+                setButtonLabel(copy, config.errorLabel);
             }
         });
 
-        input.insertAdjacentElement('afterend', button);
-        button.insertAdjacentElement('afterend', copy);
+        if (templates) {
+            const row = root.createElement('div');
+            row.className = 'vault-secret-actions';
+            row.append(button, copy);
+            actionsAnchor(input).insertAdjacentElement('afterend', row);
+        } else {
+            input.insertAdjacentElement('afterend', button);
+            button.insertAdjacentElement('afterend', copy);
+        }
     });
 
     const attachment = root.querySelector('[data-vault-attachment-download]') as HTMLButtonElement | null;
@@ -229,7 +341,7 @@ export function bindRevealButtons(root: Document = document): SecretInput[] {
         root.querySelectorAll('[data-vault-reveal-button]').forEach((button) => {
             const input = root.querySelector(`[data-vault-secret-field="${(button as HTMLElement).dataset.vaultRevealButton}"]`) as SecretInput | null;
             if (input) {
-                conceal(input, button as HTMLButtonElement, config);
+                conceal(input, button as HTMLButtonElement, config, templates);
             }
         });
     };

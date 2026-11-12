@@ -22,7 +22,10 @@ final class ConfigurationTest extends TestCase
         self::assertSame('App\\Entity\\User', $config['user_class']);
         self::assertSame('vault_', $config['table_prefix']);
         self::assertNull($config['css_framework']);
-        self::assertSame(['enabled' => true, 'path_prefix' => '', 'layout_template' => null, 'templates' => []], $config['web_ui']);
+        self::assertSame(['enabled' => true, 'path_prefix' => '', 'layout_template' => null, 'destructive_actions_in_menu' => false, 'host_note_template' => null, 'templates' => []], $config['web_ui']);
+        // 1.18.0 defaults keep the 1.17 behaviour.
+        self::assertSame(['enabled' => true], $config['sharing']);
+        self::assertFalse($config['database']['conditional_mapping']);
         self::assertFalse($config['config_storage']['enabled']);
         self::assertFalse($config['browser_extension']['enabled']);
         self::assertSame(86_400, $config['browser_extension']['token_ttl']);

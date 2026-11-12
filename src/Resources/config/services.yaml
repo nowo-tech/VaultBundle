@@ -35,6 +35,7 @@ services:
             $browserExtensionEnabled: '%nowo_vault.browser_extension.enabled%'
             $browserExtensionRoutes: '%nowo_vault.browser_extension.routes%'
             $enabledOptionalRouteKeys: '%nowo_vault.enabled_optional_route_keys%'
+            $sharingEnabled: '%nowo_vault.sharing.enabled%'
         tags:
             - { name: routing.loader }
 
@@ -68,6 +69,7 @@ services:
             $temporaryGrantsUi: '%nowo_vault.grants.temporary.ui%'
             $profiler: '@?profiler'
             $revealAutoHideSeconds: '%nowo_vault.reveal.auto_hide_seconds%'
+            $sharingEnabled: '%nowo_vault.sharing.enabled%'
 
     # 1.16.0 scope vaults (routes registered only with nowo_vault.scopes.enabled).
     Nowo\VaultBundle\Controller\VaultScopeController:
@@ -156,6 +158,9 @@ services:
         arguments:
             $layoutTemplate: '%nowo_vault.web_ui.layout_template%'
             $twig: '@twig'
+            $sharingEnabled: '%nowo_vault.sharing.enabled%'
+            $hostNoteTemplate: '%nowo_vault.web_ui.host_note_template%'
+            $destructiveActionsInMenu: '%nowo_vault.web_ui.destructive_actions_in_menu%'
 
     # Deprecated since 1.15: the nowo_vault_css_framework Twig global (the pages read nowo_ui_kit).
     Nowo\VaultBundle\Twig\VaultExtension:

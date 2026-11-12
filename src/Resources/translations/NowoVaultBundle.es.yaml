@@ -1,10 +1,10 @@
 vault:
-    title: Vault
+    title: Bóveda
     home:
         intro: Almacenamiento seguro para accesos, tarjetas, documentos y notas. Elige una sección para empezar.
         items:
             title: Mis elementos
-            description: Consulta, busca y organiza las entradas de tu vault.
+            description: Consulta, busca y organiza las entradas de tu bóveda.
         shared:
             description: Elementos compartidos contigo o con tus equipos.
         trash:
@@ -13,12 +13,12 @@ vault:
             title: Crear nueva entrada
             description: Elige el tipo de secreto que quieres guardar.
         generator:
-            description: Genera una contraseña segura sin salir del vault.
+            description: Genera una contraseña segura sin salir de la bóveda.
         runtime_config:
             title: Configuración en tiempo de ejecución (base de datos)
             description: 'Gestiona clave de cifrado, límite de adjuntos y nivel de contraseña en vault_settings.'
     nav:
-        vault: Vault
+        vault: Bóveda
         shared: Elementos compartidos
         trash: Papelera
         folders: Carpetas
@@ -131,7 +131,8 @@ vault:
         search: Buscar
         view: Ver
         edit: Editar
-        access: Acceso
+        access: Compartir
+        share: Compartir
         delete_tag: Eliminar etiqueta
         open_settings: Abrir ajustes
         trash: Mover a la papelera
@@ -161,7 +162,7 @@ vault:
         folder: Carpeta
         actions: Acciones
     shared:
-        hint: Los elementos compartidos contigo o con tus equipos aparecen aquí. Extiende el acceso con VaultGrantService y eventos ITEM_LIST_QUERY.
+        hint: Aquí aparecen las entradas que otras personas o tus equipos han compartido contigo.
     confirm:
         trash_title: '¿Mover "%name%" a la papelera?'
         trash_folder_title: '¿Mover la carpeta "%name%" a la papelera?'
@@ -201,7 +202,7 @@ vault:
         intro: Ajustes en base de datos para clave de cifrado, límite de adjuntos y nivel de contraseña.
         section: Ajustes en base de datos
         last_update: 'Última actualización: %datetime%'
-        encryption_key: Clave de cifrado del vault
+        encryption_key: Clave de cifrado de la bóveda
         encryption_key_stored_help: Almacenada en vault_settings.encryption_key (cifrada en reposo). No se puede cambiar desde esta pantalla.
         encryption_key_yaml_help: "Configurada en YAML/env (nowo_vault.encryption_key). No se puede sustituir desde esta pantalla; usa bin/console nowo:vault:reencrypt --persist-new-key para rotarla."
         encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle no está instalado, así que una clave guardada en vault_settings no estaría cifrada en reposo. Configura nowo_vault.encryption_key vía YAML/env."

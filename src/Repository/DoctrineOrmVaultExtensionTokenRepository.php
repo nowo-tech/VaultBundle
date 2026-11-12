@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Repository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
@@ -33,6 +34,8 @@ final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultEx
         private ?string $managerName = null,
         private ?ClockInterface $clock = null,
         private ?VaultUserReferenceResolverInterface $users = null,
+        /** 1.18.0 (NC-1): purge through raw SQL while the entity is not mapped. */
+        private ?VaultExtensionTokenTable $tokenTable = null,
     ) {
     }
 
@@ -99,6 +102,12 @@ final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultEx
      */
     public function removeExpired(): int
     {
+        // 1.18.0 (NC-1): the entity is not mapped (database.conditional_mapping, extension off), but rows of an earlier
+        // release may remain: purge them through the table itself.
+        if ($this->em()->getMetadataFactory()->isTransient(VaultExtensionToken::class)) {
+            return ($this->tokenTable ?? new VaultExtensionTokenTable())->deleteExpired($this->em(), $this->now());
+        }
+
         return $this->em()->createQueryBuilder()
             ->delete(VaultExtensionToken::class, 't')
             ->where('t.expiresAt <= :now')

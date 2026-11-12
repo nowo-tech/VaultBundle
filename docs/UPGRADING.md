@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.18.0](#to-1180)
+  - [Existing settings and token tables (conditional mapping)](#existing-settings-and-token-tables-conditional-mapping)
 - [To 1.17.1](#to-1171)
 - [To 1.17.0](#to-1170)
 - [To 1.16.0](#to-1160)
@@ -70,6 +72,82 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.18.0
+
+From **1.17.x** (minor):
+
+```bash
+composer update nowo-tech/vault-bundle
+php bin/console assets:install   # vault.js / vault.css changed
+```
+
+**Nothing to do to keep today's behaviour.** The new options are off by default (`sharing.enabled` defaults to `true`).
+What changes without configuration:
+
+- **Show / Copy** on the item page are icon buttons in a row under the input (UiKit `btn_secondary` + `btn_icon`,
+  icons `view` / `hide` / `copy`). An overridden `item_form` template that does not print the new
+  `<template data-vault-reveal-template>` elements keeps the old text buttons; copy them from the bundle template to
+  get the icons. Host CSS for `.vault-reveal-button` still applies.
+- **View page:** the password field is a plain password input without the PasswordStrength meter (view mode and
+  read-only items). On the edit page the requirement list is hidden while the input is empty.
+- **Translations:** the share row action uses `vault.action.share` (*Share* / *Compartir* / …); "Vault" is translated in
+  the non-English catalogues; `vault.shared.hint` is user-facing copy. Host overrides of `vault.action.access` no
+  longer reach the row action: override `vault.action.share` instead. Host translation overrides of these keys can be
+  removed.
+
+Opt-in options (see [CONFIGURATION](CONFIGURATION.md)):
+
+```yaml
+nowo_vault:
+    web_ui:
+        host_note_template: 'vault/_host_note.html.twig'   # A1: one host line under the home / items header
+        destructive_actions_in_menu: true                  # A4: Move to trash at the end of the row kebab menu
+    sharing:
+        enabled: false                                     # A5: no share UI, share / revoke routes answer 404
+    database:
+        conditional_mapping: true                          # A7: settings / token tables only with their feature
+```
+
+- `web_ui.host_note_template` replaces a `web_ui.templates.home` / `.items` override that only added a line: drop the
+  override. The template gets `page` and `routes`; the `vault_host_note` block can be overridden instead.
+- `sharing.enabled: false` removes four routes: links to `nowo_vault_item_share`, `nowo_vault_item_grant_revoke`,
+  `nowo_vault_folder_share` or `nowo_vault_folder_grant_revoke` in host templates must go (or be guarded by
+  `nowo_vault_sharing_enabled`, a variable of every vault page). Existing grants are kept and **still give access**,
+  but owners can neither see the *Shared* badge nor revoke them from the UI any more: revoke the unwanted grants
+  before turning sharing off, or call `VaultGrantService::revokeAs()` from your code. The *Shared with me* list and
+  its home card stay. `VaultGrantService` still creates and revokes grants.
+- `web_ui.destructive_actions_in_menu: true` prepends `nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.row_actions`
+  (`@NowoVaultBundle/ui/_row_actions.html.twig`). A host that already sets that bundle partial keeps its own.
+
+### Existing settings and token tables (conditional mapping)
+
+`database.conditional_mapping: true` leaves `{table_prefix}_settings` out of the mapping while
+`config_storage.enabled` is `false`, and `{table_prefix}_extension_tokens` while `browser_extension.enabled` is
+`false`. **No table is ever dropped automatically:**
+
+- The bundle registers a DBAL schema asset filter on the connection of the vault entity manager that hides those
+  tables from `doctrine:schema:update`, `doctrine:schema:validate` and `doctrine:migrations:diff`. A host that already
+  has the tables gets **no** `DROP TABLE` in its next migration and `doctrine:schema:validate` stays in sync. A new
+  host does not get them created.
+- The rows stay where they are. Turning the feature back on maps the table again (it must still match the 1.17
+  schema; run `doctrine:migrations:diff` after enabling it).
+- To remove the tables, write the migration yourself (for example `DROP TABLE vault_settings` and
+  `DROP TABLE vault_extension_tokens`) once you are sure you do not need the data: with the filter in place, the
+  diff tool will not generate it.
+- With the option on and the browser extension off, rows left in an old token table are still handled, with plain SQL
+  on the vault connection (the schema tools do not see the table): the personal data exporter lists them, the eraser
+  deletes the user's rows (byte-exact user id with `user_mapping: id`, as in 1.17.0) and
+  `nowo:vault:extension-tokens:purge` deletes the expired ones. A token still inside its TTL would work again if the
+  extension is re-enabled, so keep running the purge (or drop the table). A missing table counts as empty: its
+  existence is checked first with a catalogue query that cannot fail (`to_regclass()` on PostgreSQL,
+  `information_schema.tables` on MySQL / MariaDB), so an erasure inside the host's own transaction still commits.
+- The plain SQL fallback assumes the default column names of the 1.17 token table (`id`, `user_id`, `created_at`,
+  `expires_at`, `last_used_at`); a host that renamed them (naming strategy, mapping override) must migrate or drop the
+  table itself.
+- The fallback looks for the table under the **current** `table_prefix` (`{table_prefix}_extension_tokens`): if the
+  prefix changed since the rows were written, the old table is not found; drop or rename it yourself.
+- `database.conditional_mapping` defaults to `false` in 1.x (every table mapped, as before).
 
 ## To 1.17.1
 

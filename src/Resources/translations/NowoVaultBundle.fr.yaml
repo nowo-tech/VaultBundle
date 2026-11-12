@@ -1,10 +1,10 @@
 vault:
-    title: Vault
+    title: Coffre-fort
     home:
         intro: Stockage sécurisé pour identifiants, cartes, documents et notes. Choisissez une section pour commencer.
         items:
             title: Mes éléments
-            description: Parcourez, recherchez et organisez les entrées de votre vault.
+            description: Parcourez, recherchez et organisez les entrées de votre coffre-fort.
         shared:
             description: Éléments partagés avec vous ou vos équipes.
         trash:
@@ -13,12 +13,12 @@ vault:
             title: Créer une nouvelle entrée
             description: Choisissez le type de secret à stocker.
         generator:
-            description: Générez un mot de passe fort sans quitter le vault.
+            description: Générez un mot de passe fort sans quitter le coffre-fort.
         runtime_config:
             title: Configuration runtime (base de données)
             description: 'Gérez la clé de chiffrement, la limite de pièces jointes et le niveau de mot de passe dans vault_settings.'
     nav:
-        vault: Vault
+        vault: Coffre-fort
         shared: Éléments partagés
         trash: Corbeille
         folders: Dossiers
@@ -131,7 +131,8 @@ vault:
         search: Rechercher
         view: Voir
         edit: Modifier
-        access: Accès
+        access: Partager
+        share: Partager
         delete_tag: Supprimer le tag
         open_settings: Ouvrir les paramètres
         trash: Mettre à la corbeille
@@ -161,7 +162,7 @@ vault:
         folder: Dossier
         actions: Opérations
     shared:
-        hint: Les éléments partagés avec vous ou vos équipes apparaissent ici. Étendez l'accès via VaultGrantService et les événements ITEM_LIST_QUERY.
+        hint: Les entrées que d'autres personnes ou vos équipes ont partagées avec vous apparaissent ici.
     confirm:
         trash_title: 'Mettre « %name% » à la corbeille ?'
         trash_folder_title: 'Mettre le dossier « %name% » à la corbeille ?'
@@ -190,8 +191,8 @@ vault:
             saved: Paramètres enregistrés dans la base de données.
             key_stored: Paramètres enregistrés dans la base de données. Clé de chiffrement stockée.
             key_generated: Clé de chiffrement générée et enregistrée dans la base de données (chiffrée au repos).
-            key_exists: Une clé de chiffrement du vault est déjà stockée dans la base de données.
-            key_exists_yaml: "Une clé de chiffrement du vault est déjà configurée en YAML/env (nowo_vault.encryption_key). Pour la changer, rechiffrez les éléments avec bin/console nowo:vault:reencrypt --persist-new-key."
+            key_exists: Une clé de chiffrement du coffre-fort est déjà stockée dans la base de données.
+            key_exists_yaml: "Une clé de chiffrement du coffre-fort est déjà configurée en YAML/env (nowo_vault.encryption_key). Pour la changer, rechiffrez les éléments avec bin/console nowo:vault:reencrypt --persist-new-key."
             key_invalid: "La clé de chiffrement doit être une clé libsodium de 32 octets encodée en base64. Rien n’a été enregistré."
             key_storage_unavailable: "La clé de chiffrement ne peut pas être stockée en base de données : installez nowo-tech/doctrine-encrypt-bundle pour la chiffrer au repos, ou configurez nowo_vault.encryption_key via YAML/env."
             max_attachment_invalid: max_attachment_bytes doit être zéro ou supérieur.
@@ -201,7 +202,7 @@ vault:
         intro: Paramètres en base de données pour la clé de chiffrement, la limite de pièces jointes et le niveau de mot de passe.
         section: Paramètres base de données
         last_update: 'Dernière mise à jour : %datetime%'
-        encryption_key: Clé de chiffrement du vault
+        encryption_key: Clé de chiffrement du coffre-fort
         encryption_key_stored_help: Stockée dans vault_settings.encryption_key (chiffrée au repos). Cette valeur ne peut pas être modifiée depuis cet écran.
         encryption_key_yaml_help: "Configurée en YAML/env (nowo_vault.encryption_key). Elle ne peut pas être remplacée depuis cet écran ; utilisez bin/console nowo:vault:reencrypt --persist-new-key pour la faire tourner."
         encryption_key_storage_unavailable: "nowo-tech/doctrine-encrypt-bundle n’est pas installé : une clé stockée dans vault_settings ne serait pas chiffrée au repos. Configurez plutôt nowo_vault.encryption_key via YAML/env."
@@ -214,7 +215,7 @@ vault:
         password_level: Niveau de robustesse du mot de passe
     scope:
         items:
-            title: Coffre partagé
+            title: Coffre-fort partagé
             description: 'Entrées appartenant à %scope%. L''accès dépend de votre rôle et des accès qui vous ont été accordés.'
         health_link: Santé des mots de passe
     catalogue:
@@ -225,9 +226,9 @@ vault:
         has_access: Vous avez accès
         empty: Aucune entrée dans le catalogue.
     export:
-        title: 'Exporter mon coffre'
-        description: 'Téléchargez une copie déchiffrée de votre coffre personnel.'
-        warning: 'Le fichier contient vos mots de passe et autres secrets en clair. Gardez-le sur un appareil de confiance et supprimez-le dès que vous n''en avez plus besoin. Seules vos entrées personnelles sont exportées : ni les entrées partagées avec vous ni les coffres partagés.'
+        title: 'Exporter mon coffre-fort'
+        description: 'Téléchargez une copie déchiffrée de votre coffre-fort personnel.'
+        warning: 'Le fichier contient vos mots de passe et autres secrets en clair. Gardez-le sur un appareil de confiance et supprimez-le dès que vous n''en avez plus besoin. Seules vos entrées personnelles sont exportées : ni les entrées partagées avec vous ni les coffres-forts partagés.'
         count: '%count% entrées seront exportées.'
         csv_warning: 'Le CSV garde les valeurs telles quelles : un tableur peut exécuter comme formule une cellule qui commence par = + - ou @, et les personnes avec qui vous partagez une entrée peuvent la modifier. Préférez JSON pour passer à un autre gestionnaire.'
         csv_neutralised: 'En CSV, une valeur qui commence par = + - @ (ou une tabulation ou un retour chariot) est précédée d''un '' pour qu''un tableur ne l''exécute pas comme formule ; retirez-le à l''import. Le JSON garde toutes les valeurs exactes.'

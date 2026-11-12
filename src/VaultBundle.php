@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle;
 
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\ConditionalMappingPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\ExportLockFactoryPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
+use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
@@ -29,6 +31,8 @@ final class VaultBundle extends Bundle
         $container->addCompilerPass(new BrowserExtensionUserCheckerPass());
         $container->addCompilerPass(new CsrfProtectionPass());
         $container->addCompilerPass(new ExportLockFactoryPass());
+        // 1.18.0: before DoctrineBundle's DbalSchemaFilterPass (priority 0), which collects the schema filter tag.
+        $container->addCompilerPass(new ConditionalMappingPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
     }
 
     /**

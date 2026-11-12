@@ -7,6 +7,8 @@
   Also: itemType, item, readOnly, viewMode, folders, routes, tagInputEnabled, passwordStrengthEnabled, activeFolder,
   revealFields (secret payload keys with a stored value: the reveal hook; the values themselves are never rendered),
   revealAutoHideSeconds (1.16.0, reveal.auto_hide_seconds), hasAttachment (1.16.0: a stored attachment, downloaded on demand).
+  1.18.0: the Show / Hide / Copy icon buttons come from <template data-vault-reveal-template> (UiKit slots and icons);
+  passwordStrengthEnabled is false on the view page and for read-only items (no strength meter there).
   Data block filled: nowo_ui_form_body (per-item-type layout, then the REQ-TWIG-003 child loop for the remaining
   children; the type-specific fields of the other item types are skipped).
 #}
@@ -43,7 +45,16 @@
              data-vault-reveal-copy="{{ 'vault.reveal.copy'|trans }}"
              data-vault-reveal-copied="{{ 'vault.reveal.copied'|trans }}"
              data-vault-reveal-auto-hide="{{ revealAutoHideSeconds|default(30) }}"
-             {% if _attachment %}data-vault-attachment-url="{{ path(routes.item_attachment.name, {id: item.id}) }}"{% endif %}></div>
+             {% if _attachment %}data-vault-attachment-url="{{ path(routes.item_attachment.name, {id: item.id}) }}"{% endif %}>
+            {#
+              1.18.0 (A2): Show / Hide / Copy are UiKit icon buttons (btn_secondary + btn_icon slots, kind icons view /
+              hide / copy, which follow nowo_ui_kit.action_icons; visually hidden label + aria-label + title). vault.js
+              clones them next to each secret input, in a row under the input.
+            #}
+            {% for _kind, _label in {view: 'vault.reveal.show'|trans, hide: 'vault.reveal.hide'|trans, copy: 'vault.reveal.copy'|trans} %}
+                <template data-vault-reveal-template="{{ _kind }}"><button type="button" class="{{ nowo_ui_class('btn_secondary', _b) }} {{ nowo_ui_class('btn_icon', _b) }} nowo-ui-action--{{ _kind }} vault-reveal-button" title="{{ _label }}" aria-label="{{ _label }}">{{ include('@NowoUiKitBundle/components/_icon.html.twig', {name: _kind, label: _label}, false)|trim }}<span class="visually-hidden">{{ _label }}</span></button></template>
+            {% endfor %}
+        </div>
     {% endif %}
     {% if _attachment %}
         {# 1.16.0: the stored file is downloaded on demand (POST + CSRF), never embedded in the page. #}

@@ -155,6 +155,25 @@ final class VaultRouteLoaderTest extends TestCase
         self::assertSame(['nowo_vault_extension_login'], array_keys($collection->all()));
     }
 
+    public function testDisabledSharingLeavesOutTheShareAndRevokeRoutes(): void
+    {
+        $routes = VaultRuntimeConfigFactory::baseline()['routes'];
+        $loader = new VaultRouteLoader($this->createProvider($routes), false, false, [], true, [], false);
+
+        $collection = $loader->load('.', 'nowo_vault');
+
+        foreach (VaultRouteLoader::SHARING_ROUTE_KEYS as $key) {
+            self::assertNull($collection->get($routes[$key]['name']), $key);
+        }
+        self::assertNotNull($collection->get($routes['shared']['name']), 'The shared-with-me list stays.');
+        self::assertNotNull($collection->get($routes['item_trash']['name']));
+
+        $enabled = (new VaultRouteLoader($this->createProvider($routes), false, false, []))->load('.', 'nowo_vault');
+        foreach (VaultRouteLoader::SHARING_ROUTE_KEYS as $key) {
+            self::assertNotNull($enabled->get($routes[$key]['name']), $key . ' is registered by default');
+        }
+    }
+
     public function testCanLoadTwiceInTheSameProcess(): void
     {
         $loader = new VaultRouteLoader($this->createProvider([

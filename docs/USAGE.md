@@ -64,6 +64,10 @@ Use **Share** on an item (edit screen) or the folder share link. Grants support:
 
 Listen to `VaultEvents::GRANT_LIST_QUERY` to limit which users and teams appear in the share picker — see [Access control events](examples/AccessControl.md).
 
+1.18.0: `sharing.enabled: false` turns the share UI off (no *Share* action, share / revoke routes answer 404) for hosts
+that do not offer sharing yet, e.g. before a `GRANT_LIST_QUERY` listener exists. See
+[CONFIGURATION](CONFIGURATION.md#sharing-sharing).
+
 Team membership is resolved via `VaultTeamMembershipResolverInterface` (configure `nowo_vault.team_membership_resolver`).
 
 ## Scope vaults
@@ -145,6 +149,10 @@ curl -X POST -H "X-CSRF-Token: $TOKEN" -d purpose=copy https://app.example/tools
 ```
 
 Read `value` only when `encoding` is `plain`.
+
+1.18.0: Show / Hide and Copy are UiKit icon buttons (eye, eye-off, copy; `aria-label` and tooltip) in a row under the
+input. On the edit page the PasswordStrength rules show only while the password input holds a value (typed or
+revealed); the view page has no strength meter.
 
 In your own code, `VaultFieldRevealer::reveal()` / `attachment()` refuse users the vault does not accept but do not check
 ownership or grants: call `VaultAccessGuard::canAccessItem($user, $item, VaultAccessAction::View)` first, as the
@@ -275,6 +283,10 @@ The browser extension `/logins` lookup decrypts at most `browser_extension.max_l
 ## Twig overrides
 
 The bundle registers **`@NowoVaultBundle/`**. Application files under **`templates/bundles/NowoVaultBundle/`** win over vendor (`TwigPathsPass`).
+
+**Host note without an override (1.18.0):** set `web_ui.host_note_template` to a template of yours; it is included
+under the page header of the vault home and of the items list (block `vault_host_note`, variables `page` and
+`routes`).
 
 **Freeze rule:** an application file at the override path always wins and will **not** pick up vendor changes for that path until you remove or merge it. Prefer the UiKit theme (`nowo_ui_kit.layouts` / `css_framework` / `theme`, once for every bundle) and the per-page `web_ui.templates.*` keys ([CONFIGURATION.md](CONFIGURATION.md#manage-web-ui-web_ui)) over copying manage pages.
 
