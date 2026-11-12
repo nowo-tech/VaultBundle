@@ -58,8 +58,9 @@ use function trigger_deprecation;
  *   except for built-ins); a decorator of the 1.19 interface then fails the build (it would wrap nothing);
  * - its class implements neither: the build fails; a class unknown before compilation (factory, synthetic) is asked
  *   through the deprecated interface, as in 1.18, without a deprecation;
- * - the application aliased the 1.19 interface itself: its service wins over a built-in; with a configured
- *   (non built-in) service that is another one, the build fails (keep only one);
+ * - the application aliased the 1.19 interface itself: its service wins over a built-in (the deprecated alias then
+ *   points at it when it implements the deprecated interface, and is removed otherwise); with a configured (non
+ *   built-in) service that is another one, the build fails (keep only one);
  * - a decorator of the deprecated interface always runs: the deprecated interface stays asked. For the access ports
  *   (access checker, team membership, scope access) it is asked together with the 1.19 interface when that one is
  *   served by another implementation or decorated (the weaker answer wins, fail closed); for the other ports the build
@@ -221,13 +222,20 @@ final class VaultPortsPass implements CompilerPassInterface
         return VaultPortMode::BOTH;
     }
 
+    /**
+     * The application's own 1.19 service serves the port: the deprecated alias points at it when its class implements
+     * the deprecated interface too, and is removed otherwise (it would name another implementation than the one asked).
+     */
     private function keepLegacyAliasOnlyIfImplemented(ContainerBuilder $container, string $legacy, string $service): void
     {
         $class = $this->classOf($container, $service);
         if ($class !== null && is_a($class, $legacy, true)) {
             $container->setAlias($legacy, $service)->setPublic(false);
+
+            return;
         }
-        // Otherwise the deprecated alias keeps pointing at the built-in or configured service (it implements it).
+
+        $container->removeAlias($legacy);
     }
 
     private function aliasLegacy(ContainerBuilder $container, string $legacy, string $service, string $policy): void

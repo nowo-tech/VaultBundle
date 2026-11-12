@@ -11,8 +11,12 @@ use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
+use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
+use Nowo\VaultBundle\Service\VaultHealthReportProviderInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
+use Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
+use Nowo\VaultBundle\Service\VaultPersonalDataExporterInterface;
 use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
 use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
@@ -169,6 +173,16 @@ final class VariantKernel extends BaseKernel
             $container->register(VaultEventRecorderSubscriber::class, VaultEventRecorderSubscriber::class)->setAutoconfigured(true);
             $container->setAlias('test.personal_data_exporter', VaultPersonalDataExporter::class)->setPublic(true);
             $container->setAlias('test.personal_data_eraser', VaultPersonalDataEraser::class)->setPublic(true);
+            // The 1.19 ports a host calls, reachable by the tests.
+            foreach ([VaultPersonalDataEraserInterface::class, VaultPersonalDataExporterInterface::class, VaultHealthReportProviderInterface::class] as $port) {
+                $container->setAlias('test.port.' . $port, $port)->setPublic(true);
+            }
+            if (in_array($ports, ['new', 'both', 'decorator'], true)) {
+                $container->setAlias('test.port.' . VaultAccessPolicyInterface::class, VaultAccessPolicyInterface::class)->setPublic(true);
+            }
+            if ($byId && in_array($ports, ['new', 'both', 'decorator'], true)) {
+                $container->setAlias('test.port.' . VaultUserDirectoryInterface::class, VaultUserDirectoryInterface::class)->setPublic(true);
+            }
         });
     }
 
