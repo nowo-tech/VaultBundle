@@ -169,6 +169,8 @@ final class VaultPortsPass implements CompilerPassInterface
             $hostClass = $this->classOf($container, $hostService);
             if ($hostClass !== null && is_a($hostClass, $legacy, true)) {
                 $container->setAlias($legacy, $hostService)->setPublic(false);
+            } elseif (!$implementsLegacy) {
+                throw new LogicException(sprintf('"%s" decorates the deprecated "%s", but no service behind %s implements it: decorate "%s" instead.', implode('", "', $legacyDecorators), $legacy, $option, $policy));
             }
 
             return $this->both($port, $name, $legacyDecorators, $policy, $legacy);

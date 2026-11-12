@@ -68,7 +68,7 @@ final class VaultGatesTest extends TestCase
 
         $both = new VaultAccessCheckerGate(VaultPortMode::BOTH, $legacy, $policy);
         self::assertTrue($both->canAccess($user));
-        self::assertFalse($both->canAccess(null), 'the policy gets null for no user');
+        self::assertFalse($both->canAccess(), 'the policy gets null for no user');
         self::assertFalse($both->canCreate($user), 'the deprecated port denies');
         self::assertFalse($both->canList($user), 'the 1.19 port denies');
         self::assertTrue($both->canRevoke($user));
@@ -177,7 +177,7 @@ final class VaultGatesTest extends TestCase
             {
             }
 
-            public function proofFor(VaultReauthContext $context): ?VaultReauthProof
+            public function proofFor(VaultReauthContext $context): VaultReauthProof
             {
                 $this->seen = $context;
 

@@ -37,6 +37,7 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
 
 use function count;
@@ -67,11 +68,11 @@ final class VariantKernel extends BaseKernel
 
     private string $ports;
 
-    private bool $worker;
+    private readonly bool $worker;
 
-    private bool $server;
+    private readonly bool $server;
 
-    private int $denyStatus;
+    private readonly int $denyStatus;
 
     public function __construct(string $environment, bool $debug)
     {
@@ -119,7 +120,7 @@ final class VariantKernel extends BaseKernel
             $container->loadFromExtension('doctrine', ['dbal' => ['url' => $url], 'orm' => $orm]);
 
             $container->loadFromExtension('security', [
-                'password_hashers' => ['Symfony\\Component\\Security\\Core\\User\\PasswordAuthenticatedUserInterface' => ['algorithm' => 'auto', 'cost' => 4]],
+                'password_hashers' => [PasswordAuthenticatedUserInterface::class => ['algorithm' => 'auto', 'cost' => 4]],
                 'providers'        => $byId
                     ? ['app' => ['id' => PortsUserDirectory::class]]
                     : ['app' => ['entity' => ['class' => User::class, 'property' => 'email']]],

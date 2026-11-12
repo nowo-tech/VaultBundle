@@ -23,9 +23,9 @@ final class BothHostPorts implements VaultAccessCheckerInterface, VaultAccessPol
     /** @var array{legacy: int, policy: int} */
     public array $calls = ['legacy' => 0, 'policy' => 0];
 
-    private LegacyHostPorts $legacy;
+    private readonly LegacyHostPorts $legacy;
 
-    private PolicyHostPorts $policy;
+    private readonly PolicyHostPorts $policy;
 
     public function __construct()
     {

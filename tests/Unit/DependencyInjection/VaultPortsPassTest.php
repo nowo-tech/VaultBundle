@@ -12,6 +12,8 @@ use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
@@ -202,11 +204,11 @@ final class VaultPortsPassTest extends TestCase
     {
         $container = $this->container('scope_access', NullVaultScopeAccessResolver::class, NullVaultScopeAccessResolver::class, true);
         $container->register('app.scopes', BothHostPorts::class);
-        $container->setAlias('Nowo\\VaultBundle\\Security\\VaultScopeAccessProviderInterface', 'app.scopes');
-        $this->decorate($container, 'Nowo\\VaultBundle\\Security\\VaultScopeAccessResolverInterface');
+        $container->setAlias(VaultScopeAccessProviderInterface::class, 'app.scopes');
+        $this->decorate($container, VaultScopeAccessResolverInterface::class);
         (new VaultPortsPass())->process($container);
         self::assertSame(VaultPortMode::BOTH, $this->mode($container, 'scope_access'));
-        self::assertSame('app.scopes', (string) $container->getAlias('Nowo\\VaultBundle\\Security\\VaultScopeAccessResolverInterface'));
+        self::assertSame('app.scopes', (string) $container->getAlias(VaultScopeAccessResolverInterface::class));
 
         $locator = $this->container('user_locator', VaultUserLocator::class, VaultUserLocator::class, true);
         $locator->register('app.directory', PortsUserDirectoryV119::class);
@@ -215,6 +217,19 @@ final class VaultPortsPassTest extends TestCase
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('asks only one of them');
         (new VaultPortsPass())->process($locator);
+    }
+
+    #[Test]
+    public function aDeprecatedDecoratorWithNothingToWrapFailsTheBuild(): void
+    {
+        $container = $this->container('team_membership', 'app.ports', PolicyHostPorts::class);
+        $container->setParameter(VaultPortsPass::PARAMETER_PREFIX . 'team_membership.built_in', true);
+        $container->register('app.teams', PolicyHostPorts::class);
+        $container->setAlias(VaultTeamMembershipProviderInterface::class, 'app.teams');
+        $this->decorate($container, VaultTeamMembershipResolverInterface::class);
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('no service behind');
+        (new VaultPortsPass())->process($container);
     }
 
     #[Test]

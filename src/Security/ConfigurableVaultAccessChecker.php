@@ -76,28 +76,28 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicy
 
     public function allowsAccess(?VaultUserRef $user = null): bool
     {
-        return self::known($user) && $this->canAccess(self::user($user));
+        return $this->known($user) && $this->canAccess($this->user($user));
     }
 
     public function allowsCreate(?VaultUserRef $user = null): bool
     {
-        return self::known($user) && $this->canCreate(self::user($user));
+        return $this->known($user) && $this->canCreate($this->user($user));
     }
 
     public function allowsList(?VaultUserRef $user = null): bool
     {
-        return self::known($user) && $this->canList(self::user($user));
+        return $this->known($user) && $this->canList($this->user($user));
     }
 
     public function allowsRevoke(?VaultUserRef $user = null): bool
     {
-        return self::known($user) && $this->canRevoke(self::user($user));
+        return $this->known($user) && $this->canRevoke($this->user($user));
     }
 
     /**
      * False for a reference with neither a user object nor an id (fail closed: it never stands for the token user).
      */
-    private static function known(?VaultUserRef $user): bool
+    private function known(?VaultUserRef $user): bool
     {
         return !$user instanceof VaultUserRef || VaultUserRefs::toUser($user) instanceof UserInterface;
     }
@@ -105,7 +105,7 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicy
     /**
      * The user a reference stands for (null for null: the request's own token is checked).
      */
-    private static function user(?VaultUserRef $user): ?UserInterface
+    private function user(?VaultUserRef $user): ?UserInterface
     {
         return $user instanceof VaultUserRef ? VaultUserRefs::toUser($user) : null;
     }

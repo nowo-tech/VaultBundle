@@ -492,7 +492,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
                     return null;
                 }
                 $rank     = ['read' => 1, 'write' => 2, 'admin' => 3];
-                $baseline = $a->baseline === null || $b->baseline === null ? null : ($rank[$a->baseline->value] <= $rank[$b->baseline->value] ? $a->baseline : $b->baseline);
+                $baseline = !$a->baseline instanceof VaultPermission || !$b->baseline instanceof VaultPermission ? null : ($rank[$a->baseline->value] <= $rank[$b->baseline->value] ? $a->baseline : $b->baseline);
 
                 return new VaultScopeAccess($baseline, $a->catalogue && $b->catalogue, $a->health && $b->health, $a->create && $b->create);
             }
@@ -509,18 +509,16 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
     private function hosts(): array
     {
         $teams  = static fn (?string $id): array => self::TEAMS[$id ?? ''] ?? [];
-        $scopes = static function (?string $id, string $scope): ?VaultScopeAccess {
-            return match ([$id, $scope]) {
-                ['u-dave', 'org-1']  => new VaultScopeAccess(VaultPermission::Read),
-                ['u-erin', 'org-1']  => new VaultScopeAccess(VaultPermission::Write, true, false, true),
-                ['u-carol', 'org-1'] => new VaultScopeAccess(null, true),
-                ['u-alice', 'org-1'] => new VaultScopeAccess(VaultPermission::Admin, true, true, true),
-                ['u-erin', 'org-2']  => new VaultScopeAccess(null),
-                ['u-carol', 'org-2'] => new VaultScopeAccess(VaultPermission::Read),
-                ['U-ALICE', 'org-2'] => new VaultScopeAccess(VaultPermission::Admin),
-                default              => null,
-            };
-        };
+        $scopes = (static fn (?string $id, string $scope): ?VaultScopeAccess => match ([$id, $scope]) {
+            ['u-dave', 'org-1']  => new VaultScopeAccess(VaultPermission::Read),
+            ['u-erin', 'org-1']  => new VaultScopeAccess(VaultPermission::Write, true, false, true),
+            ['u-carol', 'org-1'] => new VaultScopeAccess(null, true),
+            ['u-alice', 'org-1'] => new VaultScopeAccess(VaultPermission::Admin, true, true, true),
+            ['u-erin', 'org-2']  => new VaultScopeAccess(null),
+            ['u-carol', 'org-2'] => new VaultScopeAccess(VaultPermission::Read),
+            ['U-ALICE', 'org-2'] => new VaultScopeAccess(VaultPermission::Admin),
+            default              => null,
+        });
 
         $legacyTeam = new class($teams) implements VaultTeamMembershipResolverInterface {
             public function __construct(private readonly Closure $teams)

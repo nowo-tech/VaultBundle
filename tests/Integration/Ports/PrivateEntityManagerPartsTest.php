@@ -155,6 +155,8 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
 
         $source->getFilters()->enable('vault_owner_scope')->setParameter('scope', 'org-1');
         self::assertSame(['In org-1'], $this->titles($private));
+        $copy = $private->live()->getFilters()->getFilter('vault_owner_scope');
+        self::assertSame($copy, $private->live()->getFilters()->getFilter('vault_owner_scope'), 'an unchanged filter is kept');
         $source->getFilters()->getFilter('vault_owner_scope')->setParameter('scope', 'org-2');
         self::assertSame(['In org-2'], $this->titles($private), 'a changed parameter is copied');
         $source->getFilters()->getFilter('vault_owner_scope')->setParameterList('scopes', ['org-1', 'org-2'], 'string');
@@ -215,7 +217,7 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         self::assertSame($doctrine->getConnections(), $registry->getConnections());
         self::assertSame($doctrine->getConnectionNames(), $registry->getConnectionNames());
         self::assertSame($doctrine->getManagerForClass(User::class), $registry->getManagerForClass(User::class));
-        self::assertSame($private, $registry->getManagerForClass('Proxies\\__CG__\\Nowo\\VaultBundle\\Entity\\VaultItem'));
+        self::assertSame($private, $registry->getManagerForClass('Proxies\\__CG__\\' . VaultItem::class));
         self::assertSame($private->getRepository(VaultItem::class), $registry->getRepository(VaultItem::class));
         self::assertSame($doctrine->getRepository(User::class), $registry->getRepository(User::class));
 

@@ -51,14 +51,14 @@ final readonly class VaultScopeAccessGate implements VaultScopeAccessResolverInt
         }
 
         return new VaultScopeAccess(
-            self::lower($legacy->baseline, $access->baseline),
+            $this->lower($legacy->baseline, $access->baseline),
             $legacy->catalogue && $access->catalogue,
             $legacy->health && $access->health,
             $legacy->create && $access->create,
         );
     }
 
-    private static function lower(?VaultPermission $left, ?VaultPermission $right): ?VaultPermission
+    private function lower(?VaultPermission $left, ?VaultPermission $right): ?VaultPermission
     {
         if (!$left instanceof VaultPermission || !$right instanceof VaultPermission) {
             return null;
