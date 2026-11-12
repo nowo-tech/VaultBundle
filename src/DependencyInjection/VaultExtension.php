@@ -13,6 +13,7 @@ use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\Controller\VaultExportController;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
+use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\Doctrine\VaultUserColumnsListener;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
@@ -225,6 +226,13 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                 $container->getDefinition($repoClass)->setArgument('$users', new Reference(VaultUserReferenceResolverInterface::class));
             }
         }
+
+        // 1.18.0 (NC-1): raw access to the token table while its entity is not mapped (conditional_mapping).
+        $container->setDefinition(VaultExtensionTokenTable::class, (new Definition(VaultExtensionTokenTable::class))
+            ->setAutowired(false)
+            ->setArgument('$tableName', $extensionTokensTable));
+        $container->getDefinition(DoctrineOrmVaultExtensionTokenRepository::class)
+            ->setArgument('$tokenTable', new Reference(VaultExtensionTokenTable::class));
 
         // Token and grant expiry queries read the host clock when one is registered (REQ-DI-001).
         $container->getDefinition(DoctrineOrmVaultExtensionTokenRepository::class)

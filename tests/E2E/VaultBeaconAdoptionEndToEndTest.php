@@ -93,7 +93,8 @@ final class VaultBeaconAdoptionEndToEndTest extends WebTestCase
         $home = $client->request('GET', '/tools/vault');
         self::assertResponseIsSuccessful();
         self::assertCount(1, $home->filterXPath('//*[@data-testid="vault-host-note"]//*[@data-testid="host-share-a-secret"]'));
-        self::assertCount(0, $home->filterXPath('//*[@data-testid="vault-home-shared"]'));
+        // NC-3: the receiving side stays (existing grants still give access).
+        self::assertCount(1, $home->filterXPath('//*[@data-testid="vault-home-shared"]'));
         self::assertCount(1, $home->filterXPath('//*[@data-testid="vault-home-items"]'));
 
         $items = $client->request('GET', '/tools/vault/items');
@@ -152,9 +153,10 @@ final class VaultBeaconAdoptionEndToEndTest extends WebTestCase
         self::assertNotContains('vault_extension_tokens', $tables);
         self::assertContains('vault_items', $tables);
 
-        // A table left by an earlier release is hidden from the schema tools: never dropped, schema stays in sync.
+        // A table left by an earlier release (1.17 token schema) is hidden from the schema tools: never dropped, schema
+        // stays in sync.
         $connection->executeStatement('CREATE TABLE IF NOT EXISTS vault_settings (id VARCHAR(64) NOT NULL PRIMARY KEY)');
-        $connection->executeStatement('CREATE TABLE IF NOT EXISTS vault_extension_tokens (id VARCHAR(36) NOT NULL PRIMARY KEY)');
+        $connection->executeStatement('CREATE TABLE IF NOT EXISTS vault_extension_tokens (id VARCHAR(36) NOT NULL PRIMARY KEY, user_id INTEGER NOT NULL, token_hash VARCHAR(64) NOT NULL, created_at DATETIME NOT NULL, expires_at DATETIME NOT NULL, last_used_at DATETIME DEFAULT NULL)');
         self::assertNotContains('vault_settings', $connection->createSchemaManager()->listTableNames(), 'Hidden from the schema tools.');
         $tool = new SchemaTool($em);
         $sql  = $tool->getUpdateSchemaSql($factory->getAllMetadata());
@@ -162,17 +164,40 @@ final class VaultBeaconAdoptionEndToEndTest extends WebTestCase
         self::assertContains('vault_settings', $connection->fetchFirstColumn("SELECT name FROM sqlite_master WHERE type = 'table'"));
 
         $alice = $this->createUser('alice@example.com');
+        $bob   = $this->createUser('bob@example.com');
         $this->createItem($alice, 'Mail');
+        // NC-1: rows written by 1.17 (relation mapping: user_id = the host user's id) are still exported, purged, erased.
+        $hash = 'REDACTED-TEST-x';
+        foreach ([
+            ['00000000-0000-4000-8000-000000000001', $alice->getId(), '2020-01-01 00:00:00', '2020-01-02 00:00:00'],
+            ['00000000-0000-4000-8000-000000000002', $alice->getId(), '2026-01-01 00:00:00', '2999-01-01 00:00:00'],
+            ['00000000-0000-4000-8000-000000000003', $bob->getId(), '2026-01-01 00:00:00', '2999-01-01 00:00:00'],
+        ] as [$id, $user, $created, $expires]) {
+            $connection->insert('vault_extension_tokens', ['id' => $id, 'user_id' => $user, 'token_hash' => $hash . $id, 'created_at' => $created, 'expires_at' => $expires]);
+        }
+
         $export = self::getContainer()->get('test.personal_data_exporter')->export((string) $alice->getId());
-        self::assertSame([], $export['extension_tokens']);
         self::assertCount(1, $export['items']);
-        $result = self::getContainer()->get('test.personal_data_eraser')->erase((string) $alice->getId());
-        self::assertSame(0, $result->toArray()['extension_tokens']);
-        self::assertSame(1, $result->toArray()['items']);
+        self::assertSame([
+            ['created_at' => '2020-01-01T00:00:00+00:00', 'expires_at' => '2020-01-02T00:00:00+00:00', 'last_used_at' => null],
+            ['created_at' => '2026-01-01T00:00:00+00:00', 'expires_at' => '2999-01-01T00:00:00+00:00', 'last_used_at' => null],
+        ], $export['extension_tokens']);
 
         $kernel = self::$kernel;
         self::assertNotNull($kernel);
         $tester = new CommandTester((new Application($kernel))->find('nowo:vault:extension-tokens:purge'));
+        self::assertSame(0, $tester->execute([]));
+        self::assertStringContainsString('Removed 1 expired', $tester->getDisplay());
+
+        $result = self::getContainer()->get('test.personal_data_eraser')->erase((string) $alice->getId());
+        self::assertSame(1, $result->toArray()['extension_tokens'], 'The token still inside its TTL is erased.');
+        self::assertSame(1, $result->toArray()['items']);
+        self::assertSame(['00000000-0000-4000-8000-000000000003'], $connection->fetchFirstColumn('SELECT id FROM vault_extension_tokens'), "Bob's token stays.");
+
+        // Without the table (a host that never had it): empty, nothing fails.
+        $connection->executeStatement('DROP TABLE vault_extension_tokens');
+        self::assertSame([], self::getContainer()->get('test.personal_data_exporter')->export((string) $bob->getId())['extension_tokens']);
+        self::assertSame(0, self::getContainer()->get('test.personal_data_eraser')->erase((string) $bob->getId())->toArray()['extension_tokens']);
         self::assertSame(0, $tester->execute([]));
         self::assertStringContainsString('Removed 0 expired', $tester->getDisplay());
 

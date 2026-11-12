@@ -59,10 +59,11 @@ the fixes listed under *Fixed* and *Changed*. See [UPGRADING](UPGRADING.md#to-11
   header of the vault home and of the items list (with `page` and `routes`), inside the new `vault_host_note` block. A
   host can add a line such as a *Share a secret* link without overriding `web_ui.templates.home` / `.items`.
 - **`sharing.enabled` (A5, default `true`).** With `false`, every share UI is left out (item and folder *Share*
-  actions, the *Shared* card on the home page, the *Shared* badge) and the share and revoke routes
-  (`item_share`, `item_grant_revoke`, `folder_share`, `folder_grant_revoke`) are not registered, so they answer 404.
-  The controller actions also answer 404 when a host route reaches them. Grants created through `VaultGrantService`
-  keep working, and the *Shared with me* list stays.
+  actions, the *Shared* badge) and the share and revoke routes (`item_share`, `item_grant_revoke`, `folder_share`,
+  `folder_grant_revoke`) are not registered, so they answer 404. The controller actions also answer 404 when a host
+  route reaches them. Existing grants and grants created through `VaultGrantService` keep giving access, and the
+  *Shared with me* list and its home card stay (the receiving side). Revoke unwanted grants before turning sharing
+  off: owners cannot revoke them from the UI afterwards.
 - **`web_ui.destructive_actions_in_menu` (A4, default `false`).** Draws *Move to trash* of the item rows (items,
   shared and scope lists) as the last item of a UiKit kebab menu (danger style), after the inline View / Share / Edit
   actions that follow `nowo_ui_kit.row_actions_display`. The confirm dialog and the POST + CSRF form are unchanged. The
@@ -72,8 +73,10 @@ the fixes listed under *Fixed* and *Changed*. See [UPGRADING](UPGRADING.md#to-11
   is mapped only with `config_storage.enabled` and `VaultExtensionToken` (`{table_prefix}_extension_tokens`) only with
   `browser_extension.enabled`: the schema tool, `doctrine:schema:validate` and `doctrine:migrations:diff` no longer see
   them. The tables of a disabled feature are hidden from the schema tools of the vault connection (DBAL schema asset
-  filter), so an existing table is never dropped automatically. The personal data exporter / eraser and
-  `nowo:vault:extension-tokens:purge` skip the unmapped token entity.
+  filter), so an existing table is never dropped automatically. While the token entity is not mapped, the
+  personal data exporter / eraser and `nowo:vault:extension-tokens:purge` read, erase and purge the rows an earlier
+  release left in the token table with plain SQL on the vault connection (byte-exact user id with the id mapping; a
+  missing table counts as empty).
 - `VaultItemFormType` option `strength_meter` (default `true`).
 - Translation key `vault.action.share` in every catalogue.
 

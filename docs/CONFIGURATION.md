@@ -74,7 +74,7 @@ nowo_vault:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `sharing.enabled` | `true` | 1.18.0: `false` hides every share UI (item and folder *Share* actions, the *Shared* home card and badge) and does not register the share / revoke routes (`item_share`, `item_grant_revoke`, `folder_share`, `folder_grant_revoke`): they answer 404, also through a host route. Grants created with `VaultGrantService` keep working; the *Shared with me* list stays |
+| `sharing.enabled` | `true` | 1.18.0: `false` hides every share UI (item and folder *Share* actions, the *Shared* badge) and does not register the share / revoke routes (`item_share`, `item_grant_revoke`, `folder_share`, `folder_grant_revoke`): they answer 404, also through a host route. Existing grants and grants created with `VaultGrantService` keep giving access; the *Shared with me* list and its home card stay (the receiving side) |
 
 ```yaml
 nowo_vault:
@@ -83,6 +83,11 @@ nowo_vault:
 ```
 
 Templates read the switch as `nowo_vault_sharing_enabled`.
+
+**Existing grants stay active.** With `sharing.enabled: false` owners no longer see which items are shared (no badge)
+and cannot revoke a grant from the UI, yet every existing grant keeps giving access. Revoke the grants you do not want
+**before** turning sharing off, or revoke them from your code with `VaultGrantService::revokeAs()` (or
+`VaultGrantService::revoke()`).
 
 ## Security
 

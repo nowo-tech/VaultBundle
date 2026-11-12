@@ -113,8 +113,10 @@ nowo_vault:
   override. The template gets `page` and `routes`; the `vault_host_note` block can be overridden instead.
 - `sharing.enabled: false` removes four routes: links to `nowo_vault_item_share`, `nowo_vault_item_grant_revoke`,
   `nowo_vault_folder_share` or `nowo_vault_folder_grant_revoke` in host templates must go (or be guarded by
-  `nowo_vault_sharing_enabled`, a variable of every vault page). Existing grants are kept and still give access;
-  `VaultGrantService` still creates and revokes grants.
+  `nowo_vault_sharing_enabled`, a variable of every vault page). Existing grants are kept and **still give access**,
+  but owners can neither see the *Shared* badge nor revoke them from the UI any more: revoke the unwanted grants
+  before turning sharing off, or call `VaultGrantService::revokeAs()` from your code. The *Shared with me* list and
+  its home card stay. `VaultGrantService` still creates and revokes grants.
 - `web_ui.destructive_actions_in_menu: true` prepends `nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.row_actions`
   (`@NowoVaultBundle/ui/_row_actions.html.twig`). A host that already sets that bundle partial keeps its own.
 
@@ -133,9 +135,11 @@ nowo_vault:
 - To remove the tables, write the migration yourself (for example `DROP TABLE vault_settings` and
   `DROP TABLE vault_extension_tokens`) once you are sure you do not need the data: with the filter in place, the
   diff tool will not generate it.
-- With the option on and the browser extension off, the personal data exporter returns no `extension_tokens` rows, the
-  eraser deletes none (`extension_tokens: 0`) and `nowo:vault:extension-tokens:purge` removes none: rows left in an
-  old token table are not touched. Drop the table if it still holds tokens of erased users.
+- With the option on and the browser extension off, rows left in an old token table are still handled, with plain SQL
+  on the vault connection (the schema tools do not see the table): the personal data exporter lists them, the eraser
+  deletes the user's rows (byte-exact user id with `user_mapping: id`, as in 1.17.0) and
+  `nowo:vault:extension-tokens:purge` deletes the expired ones. A token still inside its TTL would work again if the
+  extension is re-enabled, so keep running the purge (or drop the table). A missing table counts as empty.
 - `database.conditional_mapping` defaults to `false` in 1.x (every table mapped, as before).
 
 ## To 1.17.1

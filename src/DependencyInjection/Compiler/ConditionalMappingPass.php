@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\DependencyInjection\Compiler;
 
+use LogicException;
 use Nowo\VaultBundle\Doctrine\VaultFeatureMappingDriver;
 use Nowo\VaultBundle\Doctrine\VaultUnmappedTablesSchemaFilter;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
@@ -21,7 +22,8 @@ use function sprintf;
  * manager (decorates `doctrine.orm.<em>_metadata_driver` with {@see VaultFeatureMappingDriver}) and hides their tables
  * from the schema tools of the entity manager's connection ({@see VaultUnmappedTablesSchemaFilter}, tag
  * `doctrine.dbal.schema_filter`), so an existing table is never dropped automatically. Registered before DoctrineBundle's
- * DbalSchemaFilterPass (priority 10). No-op without DoctrineBundle or when nothing is unmapped.
+ * DbalSchemaFilterPass (priority 10). No-op when nothing is unmapped; the schema filter is registered only together with
+ * the driver decoration, and a missing metadata driver fails the compile (NC-4).
  */
 final class ConditionalMappingPass implements CompilerPassInterface
 {
@@ -39,11 +41,14 @@ final class ConditionalMappingPass implements CompilerPassInterface
         }
 
         $driverId = sprintf('doctrine.orm.%s_metadata_driver', $em);
-        if ($container->hasDefinition($driverId)) {
-            $container->setDefinition(self::DRIVER_ID, (new Definition(VaultFeatureMappingDriver::class))
-                ->setDecoratedService($driverId)
-                ->setArguments([new Reference(self::DRIVER_ID . '.inner'), $classes]));
+        if (!$container->hasDefinition($driverId) && !$container->hasAlias($driverId)) {
+            // NC-4: hiding the tables without unmapping the entities would let the ORM write to tables the schema tools
+            // no longer manage; fail the compile instead.
+            throw new LogicException(sprintf('nowo_vault.database.conditional_mapping is on, but the metadata driver "%s" of the vault entity manager "%s" does not exist, so the disabled-feature entities cannot be unmapped. Check nowo_vault.database.entity_manager (and that DoctrineBundle maps the vault entities in that entity manager), or set conditional_mapping to false.', $driverId, $em));
         }
+        $container->setDefinition(self::DRIVER_ID, (new Definition(VaultFeatureMappingDriver::class))
+            ->setDecoratedService($driverId)
+            ->setArguments([new Reference(self::DRIVER_ID . '.inner'), $classes]));
 
         if (!is_array($tables) || $tables === []) {
             return;

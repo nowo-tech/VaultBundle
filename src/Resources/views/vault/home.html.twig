@@ -4,8 +4,8 @@
   is enabled, a back link to web_ui dashboard_route when set). Also: routes (nowo_vault.routes), itemTypes
   (list<VaultItemType>), generatorForm (VaultPasswordGeneratorType FormView).
   Data block filled: nowo_ui_dashboard_cards (My items / Shared / Trash, create an entry per type, password generator).
-  1.18.0: block vault_host_note under the page header (includes web_ui.host_note_template with page and routes);
-  the Shared card is left out with sharing.enabled false.
+  1.18.0: block vault_host_note under the page header (includes web_ui.host_note_template with page and routes).
+  The Shared card stays with sharing.enabled false: it is the receiving side, and existing grants keep working.
   The generator <dialog> is printed in nowo_ui_modals (_password_generator.html.twig).
 #}
 {% extends '@NowoUiKit/page/dashboard.html.twig' %}
@@ -29,7 +29,7 @@
         {key: 'items', title: 'vault.home.items.title', description: 'vault.home.items.description', route: routes.items.name},
         {key: 'shared', title: 'vault.nav.shared', description: 'vault.home.shared.description', route: routes.shared.name},
         {key: 'trash', title: 'vault.nav.trash', description: 'vault.home.trash.description', route: routes.trash.name},
-    ]|filter(section => section.key != 'shared' or nowo_vault_sharing_enabled ?? true) %}
+    ] %}
         <section class="{{ nowo_ui_class('card', _b) }} vault-home-card" data-testid="vault-home-{{ section.key }}"{{ nowo_ui_attrs('card', _b) }}>
             <header class="{{ nowo_ui_class('card_header', _b) }}">
                 <h2 class="{{ nowo_ui_class('card_title', _b) }}">{{ section.title|trans }}</h2>

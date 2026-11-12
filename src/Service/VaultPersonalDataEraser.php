@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ManyToManyOwningSideMapping;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
+use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
 use Nowo\VaultBundle\Dto\VaultErasureResult;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultFolder;
@@ -70,6 +71,8 @@ final readonly class VaultPersonalDataEraser
         private ?LoggerInterface $logger = null,
         private ?string $managerName = null,
         private ?VaultUserReferenceResolverInterface $users = null,
+        /** 1.18.0 (NC-1): token rows through raw SQL while the entity is not mapped. */
+        private ?VaultExtensionTokenTable $tokenTable = null,
     ) {
     }
 
@@ -107,8 +110,11 @@ final readonly class VaultPersonalDataEraser
 
         $scopeItems   = $this->updateByIds($em, VaultItem::class, 'createdBy', $this->ownedIds($em, VaultItem::class, 'createdBy', $who, $userId), $batchSize);
         $scopeFolders = $this->updateByIds($em, VaultFolder::class, 'createdBy', $this->ownedIds($em, VaultFolder::class, 'createdBy', $who, $userId), $batchSize);
-        // 1.18.0: with database.conditional_mapping and the browser extension off, the token entity is not mapped.
-        $tokens = $em->getMetadataFactory()->isTransient(VaultExtensionToken::class) ? 0 : $this->deleteByIds($em, VaultExtensionToken::class, $this->ownedIds($em, VaultExtensionToken::class, 'user', $who, $userId), $batchSize);
+        // 1.18.0 (NC-1): with database.conditional_mapping and the browser extension off the token entity is not mapped;
+        // rows of an earlier release are still erased through the table (byte-exact id with the id mapping).
+        $tokens = $em->getMetadataFactory()->isTransient(VaultExtensionToken::class)
+            ? ($this->tokenTable ?? new VaultExtensionTokenTable())->deleteForUser($em, $userId, $this->users?->mapsById() === true, $batchSize)
+            : $this->deleteByIds($em, VaultExtensionToken::class, $this->ownedIds($em, VaultExtensionToken::class, 'user', $who, $userId), $batchSize);
 
         $result = new VaultErasureResult($received, $personal, $grantsCreated, $itemTags + $tagLinks, $items, $folders, $tags, $scopeItems, $scopeFolders, $tokens);
         $this->eventDispatcher?->dispatch(new VaultPersonalDataErasedEvent($userId, $result->toArray(), $this->now()), VaultEvents::PERSONAL_DATA_ERASED);

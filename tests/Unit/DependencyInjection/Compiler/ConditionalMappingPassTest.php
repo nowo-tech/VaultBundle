@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Unit\DependencyInjection\Compiler;
 
+use LogicException;
 use Nowo\VaultBundle\DependencyInjection\Compiler\ConditionalMappingPass;
 use Nowo\VaultBundle\Doctrine\VaultFeatureMappingDriver;
 use Nowo\VaultBundle\Doctrine\VaultUnmappedTablesSchemaFilter;
@@ -50,22 +51,44 @@ final class ConditionalMappingPassTest extends TestCase
         self::assertSame([['vault_settings']], $filter->getArguments());
     }
 
-    public function testFallsBackToTheDefaultConnectionAndSkipsAMissingDriver(): void
+    public function testFallsBackToTheDefaultConnection(): void
     {
-        $container = new ContainerBuilder();
-        $container->setParameter('nowo_vault.entity_manager', 'default');
-        $container->setParameter('nowo_vault.unmapped_entity_classes', [VaultSettings::class]);
-        $container->setParameter('nowo_vault.unmapped_tables', ['vault_settings']);
+        $container = $this->container('default', [VaultSettings::class], ['vault_settings']);
         $container->setDefinition('doctrine.orm.default_entity_manager', new Definition(stdClass::class, ['not-a-reference']));
 
         (new ConditionalMappingPass())->process($container);
 
-        self::assertFalse($container->hasDefinition(ConditionalMappingPass::DRIVER_ID));
+        self::assertTrue($container->hasDefinition(ConditionalMappingPass::DRIVER_ID));
         self::assertSame([[]], $container->getDefinition(ConditionalMappingPass::SCHEMA_FILTER_ID)->getTag('doctrine.dbal.schema_filter'));
 
         $noEm = $this->container('default', [VaultSettings::class], ['vault_settings']);
         (new ConditionalMappingPass())->process($noEm);
         self::assertSame([[]], $noEm->getDefinition(ConditionalMappingPass::SCHEMA_FILTER_ID)->getTag('doctrine.dbal.schema_filter'));
+
+        $aliased = new ContainerBuilder();
+        $aliased->setParameter('nowo_vault.entity_manager', 'default');
+        $aliased->setParameter('nowo_vault.unmapped_entity_classes', [VaultSettings::class]);
+        $aliased->setParameter('nowo_vault.unmapped_tables', []);
+        $aliased->setDefinition('app.driver', new Definition(stdClass::class));
+        $aliased->setAlias('doctrine.orm.default_metadata_driver', 'app.driver');
+        (new ConditionalMappingPass())->process($aliased);
+        self::assertTrue($aliased->hasDefinition(ConditionalMappingPass::DRIVER_ID));
+    }
+
+    public function testAMissingMetadataDriverFailsTheCompileInsteadOfOnlyHidingTables(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('nowo_vault.entity_manager', 'vault');
+        $container->setParameter('nowo_vault.unmapped_entity_classes', [VaultSettings::class]);
+        $container->setParameter('nowo_vault.unmapped_tables', ['vault_settings']);
+
+        try {
+            (new ConditionalMappingPass())->process($container);
+            self::fail('A missing metadata driver must fail the compile.');
+        } catch (LogicException $exception) {
+            self::assertStringContainsString('doctrine.orm.vault_metadata_driver', $exception->getMessage());
+        }
+        self::assertFalse($container->hasDefinition(ConditionalMappingPass::SCHEMA_FILTER_ID));
     }
 
     public function testNoFilterWithoutTables(): void
