@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.19.2](#to-1192)
 - [To 1.19.1](#to-1191)
 - [To 1.19.0](#to-1190)
   - [What changes for you](#what-changes-for-you)
@@ -79,6 +80,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.19.2
+
+From **1.19.1**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 - The bundle's private entity manager has its own repository factory. A `repository_factory` you configured on the
   Doctrine entity manager is used by it only for service repositories (repositories implementing
