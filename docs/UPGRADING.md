@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.19.1](#to-1191)
 - [To 1.19.0](#to-1190)
   - [What changes for you](#what-changes-for-you)
   - [Framework-free ports](#framework-free-ports)
@@ -78,6 +79,18 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.19.1
+
+From **1.19.0** (patch):
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+No configuration change, no schema change, no asset change. `VaultUnitOfWorkSubscriber` now tracks console runs as
+frames (audit NM), so a listener that throws or stops the propagation no longer leaves the unit-of-work tracking
+behind in a long-running process. Nothing to do on your side.
 
 ## To 1.19.0
 
