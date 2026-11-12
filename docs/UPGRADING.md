@@ -80,8 +80,10 @@
 
 ## Unreleased
 
-- A `repository_factory` you configured on the Doctrine entity manager is not used for the bundle's private manager:
-  it has its own `DefaultRepositoryFactory` (your `default_repository_class` is still honoured). Nothing else changes.
+- The bundle's private entity manager has its own repository factory. A `repository_factory` you configured on the
+  Doctrine entity manager is used by it only for service repositories (repositories implementing
+  `ServiceEntityRepositoryInterface`); every other repository of the private manager is built by the bundle, from the
+  mapped `repositoryClass` or your `default_repository_class`.
 
 ## To 1.19.1
 
