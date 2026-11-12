@@ -7,8 +7,8 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
+use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\User\UserInterface;
 

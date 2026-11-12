@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Port;
 
+use LogicException;
 use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
 use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
 use Nowo\VaultBundle\Security\VaultReauthProof;
@@ -81,7 +82,6 @@ final readonly class VaultReauthenticationGate implements VaultReauthenticationC
 
     private function provider(): VaultReauthenticationProviderInterface
     {
-        /** @var VaultReauthenticationProviderInterface asserted in the constructor */
-        return $this->policy;
+        return $this->policy ?? throw new LogicException('No 1.19 re-authentication provider is wired.'); // @codeCoverageIgnore
     }
 }

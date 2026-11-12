@@ -9,7 +9,6 @@ use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Support\VaultUserRefs;
 use Symfony\Component\Security\Core\User\UserInterface;
 
-use function array_values;
 use function in_array;
 
 /**
@@ -54,6 +53,6 @@ final readonly class VaultTeamMembershipGate implements VaultTeamMembershipResol
             }
         }
 
-        return array_values($both);
+        return $both;
     }
 }

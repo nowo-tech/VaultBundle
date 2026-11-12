@@ -72,6 +72,9 @@ final class EventRefAccessorsTest extends TestCase
 
         self::assertSame('u-1', (new VaultCatalogueAccessCheckEvent($user, 'org-1', true))->getUserId());
         self::assertSame('u-1', (new VaultHealthAccessCheckEvent($user, 'scope:org-1', true))->getUserRef()->id);
+        self::assertSame('u-1', (new VaultHealthAccessCheckEvent($user, 'scope:org-1', true))->getUserId());
+        self::assertSame($user, (new VaultCatalogueAccessCheckEvent($user, 'org-1', true))->getUserRef()->user());
+        self::assertSame($user, (new VaultGrantPolicyCheckEvent($user, VaultResourceType::Item, 'i', GranteeType::User, 'g', VaultPermission::Read, null))->getActorRef()->user());
         self::assertSame('u-1', (new VaultGrantPolicyCheckEvent($user, VaultResourceType::Item, 'i', GranteeType::User, 'g', VaultPermission::Read, null))->getActorId());
         self::assertSame('u-1', (new VaultGrantListQueryEvent($user, VaultResourceType::Item, $item->getId(), $item))->getGrantedById());
         self::assertSame($user, (new VaultGrantListQueryEvent($user, VaultResourceType::Item, $item->getId(), $item))->getGrantedByRef()->user());

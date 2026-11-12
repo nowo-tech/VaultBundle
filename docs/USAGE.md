@@ -20,7 +20,8 @@
 - [Twig overrides](#twig-overrides)
   - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
 - [Translations](#translations)
-- [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
+- [Standard Symfony host](#standard-symfony-host)
+- [DDD / hexagonal host](#ddd--hexagonal-host)
 
 ## Manage UI
 
@@ -273,6 +274,13 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 | `GRANT_POLICY_CHECK` | Veto a grant in `grantAs()` with a reason code (1.16.0) |
 | `GRANT_CREATED`, `GRANT_UPDATED`, `GRANT_REVOKED`, `GRANT_EXPIRED` | Grant audit trail (`VaultGrantChangeEvent`: ids, permission, expiry, actor, reason; after the flush) |
 | `ITEM_CHANGED` | Item activity (`VaultItemChangeEvent`: created, updated, trashed, restored, purged, moved; `secretChanged`) |
+| `FOLDER_CHANGED` | Folder activity (`VaultFolderChangeEvent`: created, renamed, trashed, restored, purged; ids only, 1.19.0) |
+| `TAG_CHANGED` | Tag activity (`VaultTagChangeEvent`: created, deleted; ids only, 1.19.0) |
+
+Since 1.19.0 every hook event that carries the user also gives it as a framework-free `VaultUserRef`
+(`getUserRef()` / `getUserId()`; `getViewerRef()`, `getActorRef()`, `getGrantedByRef()`, `getListSubjectRef()` on the
+list, policy and share events) and the ids of its resources (`getItemId()`, `getFolderId()`, `getOwnerKey()`,
+`VaultItemListResultEvent::getItemIds()`). The `UserInterface` getters are deprecated (removed in 2.0).
 
 ## Lists and pagination
 
@@ -380,20 +388,19 @@ Template overrides and demos **must not** reintroduce raw `<form>`, `<input>`, `
 
 Domain: `NowoVaultBundle`. Override in `translations/NowoVaultBundle.es.yaml`.
 
-## Using it from a DDD / hexagonal application
+## Standard Symfony host
 
-The vault is its own bounded context: it owns its entities (items, folders, tags, grants, settings, extension tokens),
-its crypto and its pages. Your application never extends a vault class or uses a vault trait; it only tells the vault
-who the user is. Two paths are supported (1.17.0).
-
-**Standard Symfony project (default, zero config).** `user_class` is your Doctrine user entity (attributes or XML) in
-the vault's entity manager. The vault rows hold Doctrine relations (`ManyToOne`) to it: `creator_id`, `created_by_id`
-and `user_id` are foreign keys to your users table.
+The default, zero configuration path: `user_class` is your Doctrine user entity (attributes or XML) in the vault's
+entity manager, the vault rows hold Doctrine relations (`ManyToOne`) to it (`creator_id`, `created_by_id` and `user_id`
+are foreign keys to your users table), the vault entities are mapped from their attributes, and your security user is
+the vault user.
 
 ```yaml
 nowo_vault:
     user_class: App\Entity\User
     encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
+    database:
+        private_entity_manager: true   # 1.19.0, recommended: the vault never flushes your entity manager
 ```
 
 If your security user is not that entity (a JWT user, a wrapper, a read model carrying the entity id), list its class:
@@ -405,33 +412,101 @@ nowo_vault:
     accepted_user_classes: [App\Security\SecurityUser]
 ```
 
-**Strict DDD / hexagonal host (opt-in).** Your domain users are plain PHP objects, mapped in XML in another entity
-manager or not in Doctrine at all, possibly with UUID ids. Store ids instead of relations:
+Customise access with services named in the configuration (`security.access_checker`, `team_membership_resolver`,
+`scopes.access_resolver`, `export.reauth_checker`, `health.policy_resolver`, `health.breach_checker`). Since 1.19.0
+implement the framework-free interfaces (`VaultAccessPolicyInterface`, `VaultTeamMembershipProviderInterface`,
+`VaultScopeAccessProviderInterface`, `VaultReauthenticationProviderInterface`); a service implementing only the
+deprecated 1.18 interface keeps working with a deprecation. Inside your adapter `$ref->user()` is your security user.
+
+```php
+final readonly class TeamsFromMyDirectory implements VaultTeamMembershipProviderInterface
+{
+    public function __construct(private TeamRepository $teams) {}
+
+    public function teamIdsOf(VaultUserRef $user): array
+    {
+        return $user->id === null ? [] : $this->teams->idsOfMember($user->id);
+    }
+}
+```
+
+**Writes and your unit of work.** With `database.private_entity_manager: true` the vault reads and writes its rows
+through its own entity manager on the connection of `database.entity_manager`: a vault write never flushes your
+pending changes and a failed vault write never closes your manager. Load vault rows through the vault repositories and
+services (not through your own manager), change them through the vault services, and reference them by id from your
+entities (see [UPGRADING](UPGRADING.md#private-entity-manager-opt-in)). A transaction you open on the connection
+includes the vault's rows. Unset, the vault keeps the 1.18 behaviour (it flushes `database.entity_manager`, a
+deprecation tells you so).
+
+React to vault activity through the id-only events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`,
+`ITEM_REVEALED`, `PERSONAL_DATA_ERASED`; see [Events](#events)).
+
+## DDD / hexagonal host
+
+The vault is its own bounded context: it owns its entities (items, folders, tags, grants, settings, extension tokens),
+its crypto and its pages. Your domain never extends a vault class or uses a vault trait; it only tells the vault who
+the user is, through ports that take framework-free value objects (no Symfony or Doctrine type in what you
+implement). Opt-in:
 
 ```yaml
 nowo_vault:
     user_class: App\Infrastructure\Security\SecurityUser   # its getId() is stored
-    user_mapping: id
+    user_mapping: id                                         # string user columns, no relation, no foreign key
+    database:
+        private_entity_manager: true                         # the vault's own unit of work
+        mapping_type: xml                                    # the shipped XML mapping (or register_mapping: false)
+    security:
+        access_checker: App\Infrastructure\Vault\VaultAccess
+    team_membership_resolver: App\Infrastructure\Vault\VaultTeams
+    scopes:
+        enabled: true
+        access_resolver: App\Infrastructure\Vault\VaultScopes
 ```
 
 ```yaml
-# config/services.yaml: how the vault loads a user by id (browser extension tokens, scope grantee checks)
-Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@App\Infrastructure\Vault\VaultUserLocator'
+# config/services.yaml: how the vault loads a user by id (extension tokens, scope grantee checks, GDPR)
+Nowo\VaultBundle\Support\VaultUserDirectoryInterface: '@App\Infrastructure\Vault\VaultUserDirectory'
 ```
 
 ```php
-final readonly class VaultUserLocator implements VaultUserLocatorInterface
+final readonly class VaultUserDirectory implements VaultUserDirectoryInterface
 {
     public function __construct(private UserRepository $users) {}
 
-    public function find(string $id): ?UserInterface
+    public function findUser(string $id): ?VaultUserRef
     {
         $user = $this->users->ofId(UserId::fromString($id));
 
-        return $user !== null ? SecurityUser::fromDomain($user) : null;
+        return $user !== null ? VaultUserRef::ofId($id, $user->email(), $user->roleNames()) : null;
     }
 }
+
+final readonly class VaultAccess implements VaultAccessPolicyInterface
+{
+    public function allowsAccess(?VaultUserRef $user = null): bool { return $user?->hasRole('ROLE_USER') ?? false; }
+    public function allowsCreate(?VaultUserRef $user = null): bool { return $user?->hasRole('ROLE_USER') ?? false; }
+    public function allowsList(?VaultUserRef $user = null): bool { return $user?->hasRole('ROLE_USER') ?? false; }
+    public function allowsRevoke(?VaultUserRef $user = null): bool { return $user?->hasRole('ROLE_USER') ?? false; }
+}
 ```
+
+The ports you implement or call:
+
+| Port | Receives / returns | Config key or alias |
+|---|---|---|
+| `Security\VaultAccessPolicyInterface` | `?VaultUserRef` | `security.access_checker` |
+| `Security\VaultTeamMembershipProviderInterface` | `VaultUserRef` → team ids | `team_membership_resolver` |
+| `Security\VaultScopeAccessProviderInterface` | `VaultUserRef`, scope key → `?VaultScopeAccess` | `scopes.access_resolver` |
+| `Security\VaultReauthenticationProviderInterface` | `VaultReauthContext` → `?VaultReauthProof` | `export.reauth_checker` |
+| `Security\VaultPasswordPolicyResolverInterface` | `VaultOwner` → `?VaultPasswordPolicy` | `health.policy_resolver` |
+| `Security\VaultBreachCheckerInterface` | password → `?bool` | `health.breach_checker` |
+| `Support\VaultUserDirectoryInterface` | user id → `?VaultUserRef` | alias |
+| `Service\VaultHealthReportProviderInterface` | `VaultUserRef` → `VaultHealthReport` | you call it |
+| `Service\VaultPersonalDataEraserInterface` / `…ExporterInterface` | user id | you call them |
+
+Call the vault from your application layer with a reference by id (`VaultUserRef::ofId($userId)`): it stands for that
+vault user. Grantees are string ids (`GranteeType` + id), so sharing with your teams needs no relation to your team
+entity.
 
 With `user_mapping: id`:
 
@@ -448,23 +523,16 @@ With `user_mapping: id`:
   `"UserA"` / `"usera"` are not. Normalise ids in your own user model if you need case-insensitive identities;
 - the entities return a `VaultUserId` (`getId()`) for `getCreator()`, `getCreatedBy()` and `VaultExtensionToken::getUser()`;
   prefer the id accessors (`getCreatorId()`, `getCreatedById()`, `getUserId()`) in your code;
-- deleting a user deletes nothing in the vault: call `VaultPersonalDataEraser::erase($userId)` from your "user
-  deleted" handler (see [Personal data](#personal-data));
-- nothing ties the vault entities to your user class any more, which is the prerequisite for giving the vault its own
-  entity manager.
+- deleting a user deletes nothing in the vault: call `VaultPersonalDataEraserInterface::erase($userId)` from your
+  "user deleted" handler (see [Personal data](#personal-data)).
 
 **In both paths:**
 
-- only `user_class` instances, `VaultUserId`s and `accepted_user_classes` instances (with a usable `getId()`) are vault
-  users; any other signed-in user is refused on the vault pages (403), by the repositories, the access guard (`VaultAccessGuard`: no ownership, grant or scope membership), the field revealer, grants (`grantAs()`), the personal export and the browser extension login, also when your own code calls those services, so an
-  `Admin#5` never matches a `Customer#5`;
-- react to vault activity through the id-only events (`ITEM_CHANGED`, `GRANT_*`, `ITEM_REVEALED`,
-  `PERSONAL_DATA_ERASED`; see [Events](#events)) and decide access through the ports (`VaultAccessCheckerInterface`,
-  `VaultScopeAccessResolverInterface`, `VaultTeamMembershipResolverInterface`, `VaultPasswordPolicyResolverInterface`,
-  `VaultReauthenticationCheckerInterface`);
+- only `user_class` instances, `VaultUserId`s, references your code gives by id and `accepted_user_classes` instances
+  (with a usable `getId()`) are vault users; any other signed-in user is refused on the vault pages (403), by the
+  repositories, the access guard (`VaultAccessGuard`: no ownership, grant or scope membership), the field revealer,
+  grants (`grantAs()`), the personal export and the browser extension login, also when your own code calls those
+  services, so an `Admin#5` never matches a `Customer#5`;
 - replace how users are turned into stored values by aliasing `VaultUserReferenceResolverInterface`;
-- the services are stateless and work in FrankenPHP worker mode with the kernel kept alive and not reset.
-
-Known limitation: the vault's repositories still flush the entity manager configured in `database.entity_manager`
-(default `default`) on their own writes. Call the vault services outside your own pending unit of work (or inside
-`EntityManagerInterface::wrapInTransaction()`) until the dedicated vault entity manager lands in a later minor.
+- the services are stateless and work in FrankenPHP worker mode with the kernel kept alive and not reset (see
+  [FRANKENPHP-WORKER-AUDIT](FRANKENPHP-WORKER-AUDIT.md)).

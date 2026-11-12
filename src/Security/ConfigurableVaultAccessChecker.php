@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Security;
 
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
-use Symfony\Bundle\SecurityBundle\Security;
 use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**

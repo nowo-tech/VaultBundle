@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Port;
 
+use LogicException;
 use Nowo\VaultBundle\Dto\VaultHealthReport;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
 use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
@@ -48,7 +49,6 @@ final readonly class VaultHealthReporterGate implements VaultHealthReporterInter
 
     private function provider(): VaultHealthReportProviderInterface
     {
-        /** @var VaultHealthReportProviderInterface asserted in the constructor */
-        return $this->policy;
+        return $this->policy ?? throw new LogicException('No 1.19 health report provider is wired.'); // @codeCoverageIgnore
     }
 }

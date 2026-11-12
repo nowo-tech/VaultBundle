@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Tests\Integration\Ports;
 
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception;
 use Nowo\VaultBundle\Doctrine\VaultSavepoint;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -29,6 +30,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 use function assert;
 use function count;
@@ -83,7 +85,7 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         $server = getenv('VAULT_TEST_DATABASE_URL');
         $suffix = is_string($server) && $server !== '' ? '_db' : '';
 
-        [$expected, $exports] = $this->scenario($reference . $suffix);
+        [$expected, $exports]     = $this->scenario($reference . $suffix);
         [$actual, $actualExports] = $this->scenario($variant . $suffix);
 
         self::assertCount(2, $expected['written']['vault_items']);
@@ -108,7 +110,7 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         try {
             VaultSavepoint::write($connection, static fn (): int|string => $connection->executeStatement('DELETE FROM nowo_vault_missing_table WHERE id = 1'));
             self::fail('the statement fails');
-        } catch (\Doctrine\DBAL\Exception) {
+        } catch (Exception) {
         }
         // Without the savepoint, PostgreSQL refuses every statement until the end of the transaction.
         $connection->insert('users', ['email' => 'after@example.com', 'password' => 'x']);
@@ -132,13 +134,13 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         $id    = static fn (string $name): string => (string) UserIdResolver::getId($users[$name]);
         $alice = $users['alice'];
 
-        $items   = $container->get(VaultItemRepositoryInterface::class);
-        $updater = $container->get(VaultItemUpdater::class);
-        $folders = $container->get(VaultFolderService::class);
-        $trash   = $container->get(VaultTrashService::class);
-        $grants  = $container->get(VaultGrantService::class);
+        $items           = $container->get(VaultItemRepositoryInterface::class);
+        $updater         = $container->get(VaultItemUpdater::class);
+        $folders         = $container->get(VaultFolderService::class);
+        $trash           = $container->get(VaultTrashService::class);
+        $grants          = $container->get(VaultGrantService::class);
         $grantRepository = $container->get(VaultGrantRepositoryInterface::class);
-        $tags    = $container->get(VaultTagService::class);
+        $tags            = $container->get(VaultTagService::class);
         assert($items instanceof VaultItemRepositoryInterface && $updater instanceof VaultItemUpdater && $folders instanceof VaultFolderService && $trash instanceof VaultTrashService && $grants instanceof VaultGrantService && $grantRepository instanceof VaultGrantRepositoryInterface && $tags instanceof VaultTagService);
 
         $personal = $items->findById($ids['personal']);
@@ -162,7 +164,7 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
 
         $beforeErasure = $this->dump($container, $users);
         $exporter      = $container->get('test.personal_data_exporter');
-        $eraser   = $container->get('test.personal_data_eraser');
+        $eraser        = $container->get('test.personal_data_eraser');
         assert($exporter instanceof VaultPersonalDataExporter && $eraser instanceof VaultPersonalDataEraser);
         $export = $exporter->export($id('alice'));
         $eraser->erase($id('frank'));
@@ -174,7 +176,7 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
     /**
      * Every vault table, rows normalised and sorted.
      *
-     * @param array<string, \Symfony\Component\Security\Core\User\UserInterface> $users
+     * @param array<string, UserInterface> $users
      *
      * @return array<string, list<string>>
      */
@@ -196,13 +198,13 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
                 ksort($row);
                 foreach ($row as $column => $value) {
                     $row[$column] = match (true) {
-                        $value === null                                                 => null,
-                        $column === 'ciphertext'                                        => $crypto->decrypt((string) $value),
-                        str_ends_with((string) $column, '_at')                          => '<time>',
-                        isset($names[(string) $value]) && $column !== 'title'           => $names[(string) $value],
-                        isset($labels[(string) $value])                                 => $labels[(string) $value],
+                        $value === null                                                    => null,
+                        $column === 'ciphertext'                                           => $crypto->decrypt((string) $value),
+                        str_ends_with((string) $column, '_at')                             => '<time>',
+                        isset($names[(string) $value]) && $column !== 'title'              => $names[(string) $value],
+                        isset($labels[(string) $value])                                    => $labels[(string) $value],
                         is_string($value) && preg_match('/^[0-9a-f-]{36}$/', $value) === 1 => '<unknown uuid>',
-                        default                                                         => (string) $value,
+                        default                                                            => (string) $value,
                     };
                 }
                 $rows[] = json_encode($row, JSON_THROW_ON_ERROR);

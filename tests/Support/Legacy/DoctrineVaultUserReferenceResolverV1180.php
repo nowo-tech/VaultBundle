@@ -8,8 +8,8 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
 use Doctrine\Persistence\ManagerRegistry;
-use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 use function get_debug_type;

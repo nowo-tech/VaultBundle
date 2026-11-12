@@ -8,8 +8,6 @@ use Nowo\VaultBundle\ValueObject\VaultReauthContext;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use WeakMap;
 
-use function array_key_exists;
-
 /**
  * Keeps the sensitive values of the framework-free port VOs ({@see VaultUserRef}, {@see VaultReauthContext}, 1.19.0)
  * outside their properties, so no dump of a VO (VarDumper / `dump()`, `var_dump()`, `var_export()`, `print_r()`,
@@ -39,25 +37,9 @@ final class HiddenValues
         self::$values[$owner] = $bags; // @phpstan-ignore frankenphp.worker.noMutableStaticProperty
     }
 
-    /** True when the VO's bag holds this name (even with a null value). */
-    public static function has(object $owner, string $bag, string $name): bool
-    {
-        return isset(self::$values[$owner][$bag]) && array_key_exists($name, self::$values[$owner][$bag]);
-    }
-
     /** One value of a bag, or null when it is absent (or after `clone` / `unserialize()`). */
     public static function get(object $owner, string $bag, string $name): mixed
     {
         return self::$values[$owner][$bag][$name] ?? null;
-    }
-
-    /**
-     * Every value of a bag ([] when absent).
-     *
-     * @return array<string, mixed>
-     */
-    public static function all(object $owner, string $bag): array
-    {
-        return self::$values[$owner][$bag] ?? [];
     }
 }

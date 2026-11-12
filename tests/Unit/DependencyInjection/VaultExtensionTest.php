@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Unit\DependencyInjection;
 
-use Nowo\VaultBundle\Form\VaultItemFormType;
-use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
-use Nowo\VaultBundle\Repository\DoctrineOrmVaultItemRepository;
-use Nowo\VaultBundle\Doctrine\VaultManagerRegistry;
-use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use LogicException;
 use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterface;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
+use Nowo\VaultBundle\Doctrine\VaultManagerRegistry;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultSettings;
+use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
+use Nowo\VaultBundle\Repository\DoctrineOrmVaultItemRepository;
 use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
+use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Ui\VaultPages;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
@@ -33,9 +33,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 
+use function json_encode;
 use function restore_error_handler;
 use function set_error_handler;
-use function json_encode;
 
 use const E_USER_DEPRECATED;
 

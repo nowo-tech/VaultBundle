@@ -9,9 +9,9 @@ use InvalidArgumentException;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
-use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
 use Nowo\VaultBundle\Service\VaultHealthReportProviderInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface;
@@ -104,13 +104,13 @@ final class VariantKernel extends BaseKernel
             $loader->load($this->getProjectDir() . '/config/packages/' . $file . '.yaml');
         }
 
-        $byId     = $this->mapping === 'id' || $this->mapping === 'idxml';
-        $xml      = $this->mapping === 'relxml' || $this->mapping === 'idxml';
-        $private  = $this->persistence === 'private';
-        $ports    = $this->ports;
-        $worker   = $this->worker;
-        $deny     = $this->denyStatus;
-        $url      = $this->server ? '%env(VAULT_TEST_DATABASE_URL)%' : 'sqlite:///%kernel.cache_dir%/variant.db';
+        $byId    = $this->mapping === 'id' || $this->mapping === 'idxml';
+        $xml     = $this->mapping === 'relxml' || $this->mapping === 'idxml';
+        $private = $this->persistence === 'private';
+        $ports   = $this->ports;
+        $worker  = $this->worker;
+        $deny    = $this->denyStatus;
+        $url     = $this->server ? '%env(VAULT_TEST_DATABASE_URL)%' : 'sqlite:///%kernel.cache_dir%/variant.db';
         $loader->load(static function (ContainerBuilder $container) use ($byId, $xml, $private, $ports, $worker, $url, $deny): void {
             $orm = ['naming_strategy' => 'doctrine.orm.naming_strategy.underscore_number_aware'] + (PHP_VERSION_ID >= 80400 ? ['enable_native_lazy_objects' => true] : []);
             if (!$byId) {

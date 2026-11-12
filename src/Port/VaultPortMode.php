@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Port;
 
 use LogicException;
+use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
 
 use function in_array;
 use function sprintf;
 
 /**
  * Which interface(s) of a host port the bundle asks (1.19.0, chosen at build time by
- * {@see \Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass}).
+ * {@see VaultPortsPass}).
  *
  * @internal
  */

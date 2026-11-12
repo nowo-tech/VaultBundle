@@ -10,6 +10,8 @@ use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function assert;
+
 /**
  * A host decorator of the three deprecated access ports (an audit log): passes every call through and counts it. One
  * class decorates the three interfaces; the kernel registers one instance per decorated port.
@@ -54,7 +56,7 @@ final class PassThroughLegacyDecorators implements VaultAccessCheckerInterface, 
     public function getTeamIdsForUser(UserInterface $user): array
     {
         ++$this->calls;
-        \assert($this->inner instanceof VaultTeamMembershipResolverInterface);
+        assert($this->inner instanceof VaultTeamMembershipResolverInterface);
 
         return $this->inner->getTeamIdsForUser($user);
     }
@@ -62,14 +64,14 @@ final class PassThroughLegacyDecorators implements VaultAccessCheckerInterface, 
     public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
     {
         ++$this->calls;
-        \assert($this->inner instanceof VaultScopeAccessResolverInterface);
+        assert($this->inner instanceof VaultScopeAccessResolverInterface);
 
         return $this->inner->resolve($user, $scope);
     }
 
     private function access(): VaultAccessCheckerInterface
     {
-        \assert($this->inner instanceof VaultAccessCheckerInterface);
+        assert($this->inner instanceof VaultAccessCheckerInterface);
 
         return $this->inner;
     }

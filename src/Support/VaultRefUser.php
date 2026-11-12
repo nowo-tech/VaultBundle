@@ -50,7 +50,12 @@ final readonly class VaultRefUser implements UserInterface
 
     public function getUserIdentifier(): string
     {
-        return $this->ref->identifier !== '' ? $this->ref->identifier : $this->id;
+        if ($this->ref->identifier !== '') {
+            return $this->ref->identifier;
+        }
+
+        // A reference id is never blank (VaultUserRef refuses it).
+        return $this->id !== '' ? $this->id : 'vault-user';
     }
 
     /**

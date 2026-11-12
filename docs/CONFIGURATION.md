@@ -33,6 +33,8 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 - [Reveal (`reveal`)](#reveal-reveal)
 - [Password health (`health`)](#password-health-health)
 - [Decrypted personal export (`export`)](#decrypted-personal-export-export)
+- [Standard Symfony host](#standard-symfony-host)
+- [DDD / hexagonal host](#ddd--hexagonal-host)
 
 ## Required
 
@@ -61,14 +63,25 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 | `table_prefix` | `vault_` | Prefix for vault tables (`vault_items`, `vault_folders`, `vault_grants`, `vault_tags`, `vault_item_tag`, `vault_settings`) |
 | `database.driver` | `doctrine_orm` | Persistence driver (`doctrine_mongodb` is reserved — **not implemented yet**) |
 | `database.platform` | `postgresql` | Documented platform (`mongodb` is **planned**; only PostgreSQL/MySQL/SQLite are supported today) |
-| `database.entity_manager` | `default` | Doctrine ORM entity manager |
+| `database.entity_manager` | `default` | Doctrine ORM entity manager that maps the vault entities. Since 1.19.0 with `private_entity_manager: true`, the source of the vault's private manager (its connection, mapping configuration, event manager and SQL filters); the vault never flushes, clears or resets it. A name Doctrine does not know fails the build |
+| `database.private_entity_manager` | unset (= `false`, deprecated) | 1.19.0. `true` (recommended, the only mode in 2.0): the vault reads and writes its rows through its own private entity manager on the connection of `entity_manager`, so a vault write never flushes your pending changes and a failed vault write never closes your manager (REQ-ARCH-001 rule 6). Unset or `false`: the 1.18 behaviour (the vault flushes `entity_manager` on its own writes), with a deprecation. See [UPGRADING](UPGRADING.md#private-entity-manager-opt-in) before turning it on |
+| `database.mapping_type` | `attribute` | 1.19.0. `xml` maps the entities from `src/Resources/config/doctrine/*.orm.xml` (same tables, columns, indexes and constraints) |
+| `database.register_mapping` | `true` | 1.19.0. `false`: the bundle does not prepend its mapping; map `Nowo\VaultBundle\Entity` yourself (e.g. from the shipped XML on a dedicated manager, then set `entity_manager` to it) |
 | `database.conditional_mapping` | `false` | 1.18.0: `true` maps `{table_prefix}_settings` only with `config_storage.enabled` and `{table_prefix}_extension_tokens` only with `browser_extension.enabled`; the tables of a disabled feature are hidden from the schema tools (never created, never dropped). See [UPGRADING](UPGRADING.md#existing-settings-and-token-tables-conditional-mapping) |
 
 ```yaml
 nowo_vault:
     database:
-        conditional_mapping: true   # no vault_settings / vault_extension_tokens while their features are off
+        private_entity_manager: true   # 1.19.0: the vault never flushes your entity manager
+        conditional_mapping: true      # no vault_settings / vault_extension_tokens while their features are off
 ```
+
+With the private entity manager on, the manager is created on demand, replaced when a failed vault write closed it or
+after a rollback on its connection (doctrine/dbal 4: a DBAL middleware is attached to the connection of
+`entity_manager` only; with DBAL 3 it is replaced at the next boundary), and dropped at every unit-of-work boundary
+(start and end of the main request, of a Messenger message and of the outermost console command). Vault changes still
+pending at a boundary are dropped and logged as a warning. The vault's bulk and DBAL writes run inside a savepoint
+when your code opened a transaction on the connection (both modes).
 
 ## Sharing (`sharing`)
 
@@ -93,7 +106,7 @@ and cannot revoke a grant from the UI, yet every existing grant keeps giving acc
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `security.access_checker` | null | Custom `VaultAccessCheckerInterface` service id |
+| `security.access_checker` | null | Custom service id implementing `VaultAccessPolicyInterface` (1.19.0, framework-free) or the deprecated `VaultAccessCheckerInterface` (asked as in 1.18, deprecation); a service implementing neither fails the build. See [Standard Symfony host](#standard-symfony-host) |
 | `security.admin_roles` | `[ROLE_ADMIN]` | Bypass feature checks |
 | `security.access_roles` | `[ROLE_USER]` | Open manage UI (hosts may set `ROLE_ADMIN` for admin-only) |
 | `security.create_roles` | `[ROLE_USER]` | Create items/folders |
@@ -114,7 +127,7 @@ An empty role list never grants access (the default checker denies it). When **e
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `team_membership_resolver` | null | Service implementing `VaultTeamMembershipResolverInterface`; null = no teams |
+| `team_membership_resolver` | null | Service implementing `VaultTeamMembershipProviderInterface` (1.19.0) or the deprecated `VaultTeamMembershipResolverInterface`; null = no teams |
 
 ## Attachments
 
@@ -540,4 +553,50 @@ nowo_vault:
 
 See [USAGE](USAGE.md#decrypted-export) for the hook and [SECURITY](SECURITY.md#personal-data-and-decrypted-export-1160)
 for the host obligations.
+
+## Standard Symfony host
+
+Zero configuration beyond `user_class` (your Doctrine user entity) and `encryption_key`: attribute mapping, Doctrine
+relations to your users table, your security user as the vault user. Recommended since 1.19.0:
+
+```yaml
+nowo_vault:
+    user_class: App\Entity\User
+    encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
+    database:
+        private_entity_manager: true
+```
+
+The host services named by `security.access_checker`, `team_membership_resolver`, `scopes.access_resolver` and
+`export.reauth_checker` may implement the 1.19 framework-free interfaces (`VaultAccessPolicyInterface`,
+`VaultTeamMembershipProviderInterface`, `VaultScopeAccessProviderInterface`, `VaultReauthenticationProviderInterface`)
+or, until 2.0, the deprecated ones. How the bundle picks one (and what a decorator of a deprecated interface does) is in
+[UPGRADING](UPGRADING.md#framework-free-ports); the mode chosen for each port is the container parameter
+`nowo_vault.port.<access_checker|team_membership|scope_access|reauthentication|user_locator|health_reporter>.mode`
+(`policy`, `legacy` or `both`).
+
+## DDD / hexagonal host
+
+Opt-in: plain PHP users referenced by id, the shipped XML mapping, the vault's own unit of work and only
+framework-free ports (see [USAGE](USAGE.md#ddd--hexagonal-host)).
+
+```yaml
+nowo_vault:
+    user_class: App\Infrastructure\Security\SecurityUser
+    user_mapping: id
+    database:
+        private_entity_manager: true
+        mapping_type: xml            # or register_mapping: false and map the XML yourself
+    security:
+        access_checker: App\Infrastructure\Vault\VaultAccess          # VaultAccessPolicyInterface
+    team_membership_resolver: App\Infrastructure\Vault\VaultTeams     # VaultTeamMembershipProviderInterface
+```
+
+```yaml
+# config/services.yaml
+Nowo\VaultBundle\Support\VaultUserDirectoryInterface: '@App\Infrastructure\Vault\VaultUserDirectory'
+```
+
+A host service that implements only the 1.19 interface gets no deprecated alias, so nothing of the 1.18 API appears in
+your container for that port.
 

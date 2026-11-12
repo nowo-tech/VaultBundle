@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Unit\Equivalence;
 
+use Closure;
 use DateTimeImmutable;
+use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
@@ -21,6 +23,7 @@ use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
 use Nowo\VaultBundle\Port\VaultPortMode;
 use Nowo\VaultBundle\Port\VaultScopeAccessGate;
 use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
+use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
 use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
@@ -42,11 +45,9 @@ use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Tests\Support\Legacy\AllowAllVaultAccessCheckerV1180;
 use Nowo\VaultBundle\Tests\Support\Legacy\ConfigurableVaultAccessCheckerV1180;
 use Nowo\VaultBundle\Tests\Support\Legacy\DoctrineVaultUserReferenceResolverV1180;
-use Nowo\VaultBundle\Tests\Support\Legacy\VaultUserClassPolicyV1180;
 use Nowo\VaultBundle\Tests\Support\Legacy\RequestScopedScopeAccessCacheV1180;
 use Nowo\VaultBundle\Tests\Support\Legacy\VaultAccessGuardV1180;
-use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
-use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
+use Nowo\VaultBundle\Tests\Support\Legacy\VaultUserClassPolicyV1180;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -60,9 +61,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_diff_assoc;
 use function array_filter;
+use function array_keys;
 use function array_values;
 use function count;
-use function array_keys;
 use function implode;
 use function in_array;
 use function is_string;
@@ -150,20 +151,20 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
     {
         $token = new TestUser('u-token', 'token@example.com', ['ROLE_VAULT_USER']);
         $users = [
-            'anonymous'   => null,
-            'token user'  => $token,
-            'other user'  => new TestUser('u-other', 'other@example.com', ['ROLE_VAULT_ADMIN']),
-            'creator'     => new TestUser('u-creator', 'creator@example.com', ['ROLE_VAULT_CREATE', 'ROLE_VAULT_USER']),
-            'no roles'    => new TestUser('u-none', 'none@example.com', []),
-            'same id'     => new TestUser('u-token', 'token@example.com', ['ROLE_VAULT_DELETE']),
+            'anonymous'  => null,
+            'token user' => $token,
+            'other user' => new TestUser('u-other', 'other@example.com', ['ROLE_VAULT_ADMIN']),
+            'creator'    => new TestUser('u-creator', 'creator@example.com', ['ROLE_VAULT_CREATE', 'ROLE_VAULT_USER']),
+            'no roles'   => new TestUser('u-none', 'none@example.com', []),
+            'same id'    => new TestUser('u-token', 'token@example.com', ['ROLE_VAULT_DELETE']),
         ];
         $roleSets = [
-            'admin only'   => ['admin_roles' => ['ROLE_VAULT_ADMIN'], 'access_roles' => [], 'create_roles' => [], 'list_roles' => [], 'delete_roles' => []],
-            'split roles'  => ['admin_roles' => ['ROLE_VAULT_ADMIN'], 'access_roles' => ['ROLE_VAULT_USER'], 'create_roles' => ['ROLE_VAULT_CREATE'], 'list_roles' => ['ROLE_VAULT_USER'], 'delete_roles' => ['ROLE_VAULT_DELETE']],
-            'delete only'  => ['admin_roles' => [], 'access_roles' => [], 'create_roles' => [], 'list_roles' => [], 'delete_roles' => ['ROLE_VAULT_DELETE']],
+            'admin only'  => ['admin_roles' => ['ROLE_VAULT_ADMIN'], 'access_roles' => [], 'create_roles' => [], 'list_roles' => [], 'delete_roles' => []],
+            'split roles' => ['admin_roles' => ['ROLE_VAULT_ADMIN'], 'access_roles' => ['ROLE_VAULT_USER'], 'create_roles' => ['ROLE_VAULT_CREATE'], 'list_roles' => ['ROLE_VAULT_USER'], 'delete_roles' => ['ROLE_VAULT_DELETE']],
+            'delete only' => ['admin_roles' => [], 'access_roles' => [], 'create_roles' => [], 'list_roles' => [], 'delete_roles' => ['ROLE_VAULT_DELETE']],
             // A role only the request token carries (e.g. added by an authenticator): the token user is checked through
             // the token, any other user through its own roles.
-            'token role'   => ['admin_roles' => [], 'access_roles' => ['ROLE_TOKEN_ONLY'], 'create_roles' => ['ROLE_VAULT_CREATE'], 'list_roles' => [], 'delete_roles' => []],
+            'token role' => ['admin_roles' => [], 'access_roles' => ['ROLE_TOKEN_ONLY'], 'create_roles' => ['ROLE_VAULT_CREATE'], 'list_roles' => [], 'delete_roles' => []],
         ];
 
         $reference = [];
@@ -216,12 +217,12 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
      */
     private function decisions(string $mapping, string $wiring, bool $reference): array
     {
-        $byId    = $mapping === VaultUserMapping::ID;
-        $users   = $this->users();
-        $world   = $this->world($users, $byId);
-        $grants  = $world['grants'];
-        $labels  = $world['labels'];
-        $clock   = new class(new DateTimeImmutable(self::NOW)) implements ClockInterface {
+        $byId   = $mapping === VaultUserMapping::ID;
+        $users  = $this->users();
+        $world  = $this->world($users, $byId);
+        $grants = $world['grants'];
+        $labels = $world['labels'];
+        $clock  = new class(new DateTimeImmutable(self::NOW)) implements ClockInterface {
             public function __construct(private readonly DateTimeImmutable $now)
             {
             }
@@ -236,15 +237,15 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             : new DoctrineVaultUserReferenceResolver(TestUser::class, new VaultUserClassPolicy(TestUser::class, [], $mapping), $mapping);
 
         [$legacyTeam, $newTeam, $bothTeam, $legacyScope, $newScope, $bothScope] = $this->hosts();
-        [$otherTeam, $otherScope, $weakerTeam, $weakerScope]                     = $this->divergingHosts();
+        [$otherTeam, $otherScope, $weakerTeam, $weakerScope]                    = $this->divergingHosts();
         if ($reference) {
             [$team, $scope] = match ($wiring) {
                 'built-in'         => [new NullVaultTeamMembershipResolver(), new NullVaultScopeAccessResolver()],
                 'weaker-reference' => [$weakerTeam, $weakerScope],
                 default            => [$legacyTeam, $legacyScope],
             };
-            $guard          = new VaultAccessGuardV1180($grants, $team, $this->dispatcher($labels), new RequestScopedScopeAccessCacheV1180($scope), $clock, $resolver);
-            $teamIds        = $team;
+            $guard   = new VaultAccessGuardV1180($grants, $team, $this->dispatcher($labels), new RequestScopedScopeAccessCacheV1180($scope), $clock, $resolver);
+            $teamIds = $team;
         } else {
             [$teamGate, $scopeGate] = match ($wiring) {
                 'legacy'                  => [new VaultTeamMembershipGate(VaultPortMode::LEGACY, $legacyTeam), new VaultScopeAccessGate(VaultPortMode::LEGACY, $legacyScope)],
@@ -281,7 +282,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
                 $out[sprintf('scope view %s / %s', $labels[(string) $itemId], $userName)] = var_export($view, true);
             }
             foreach (['org-1', 'org-2', 'org-3', 'Bad Scope!'] as $scope) {
-                $access                                                 = $guard->resolveScopeAccess($user, $scope);
+                $access                                                  = $guard->resolveScopeAccess($user, $scope);
                 $out[sprintf('scope access %s / %s', $scope, $userName)] = $access instanceof VaultScopeAccess
                     ? sprintf('%s,%d%d%d', $access->baseline?->value ?? 'none', $access->catalogue, $access->health, $access->create)
                     : 'not a member';
@@ -340,10 +341,10 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
         $owner = static fn (string $name): object|string => $byId ? (string) UserIdResolver::getId($users[$name]) : $users[$name];
 
         $folders = [
-            'alice folder'   => new VaultFolder('Work', $owner('alice')),
-            'bob folder'     => new VaultFolder('Bob', $owner('bob')),
-            'org-1 folder'   => VaultFolder::forScope('Payments', 'org-1', null),
-            'org-2 folder'   => VaultFolder::forScope('Ops', 'org-2', null),
+            'alice folder' => new VaultFolder('Work', $owner('alice')),
+            'bob folder'   => new VaultFolder('Bob', $owner('bob')),
+            'org-1 folder' => VaultFolder::forScope('Payments', 'org-1', null),
+            'org-2 folder' => VaultFolder::forScope('Ops', 'org-2', null),
         ];
         $items = [
             'alice personal'        => new VaultItem(VaultItemType::Login, 'A', $owner('alice'), 'c'),
@@ -356,9 +357,9 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             'org-2 item'            => VaultItem::forScope(VaultItemType::Login, 'H', 'org-2', null, 'c', $folders['org-2 folder']),
         ];
 
-        $now     = new DateTimeImmutable(self::NOW);
-        $grants  = new InMemoryGrantRepository($now);
-        $grant   = static function (VaultResourceType $type, string $id, GranteeType $granteeType, string $grantee, VaultPermission $permission, ?string $expires = null) use ($grants): void {
+        $now    = new DateTimeImmutable(self::NOW);
+        $grants = new InMemoryGrantRepository($now);
+        $grant  = static function (VaultResourceType $type, string $id, GranteeType $granteeType, string $grantee, VaultPermission $permission, ?string $expires = null) use ($grants): void {
             $grants->save(new VaultGrant($type, $id, $granteeType, $grantee, $permission, null, $expires !== null ? new DateTimeImmutable($expires) : null));
         };
         $grant(VaultResourceType::Item, $items['alice personal']->getId(), GranteeType::User, 'u-bob', VaultPermission::Read);
@@ -430,7 +431,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
      */
     private function divergingHosts(): array
     {
-        $other = ['u-carol' => ['team-1', 'team-2'], 'u-erin' => ['team-1'], 'u-bob' => ['team-1'], 'U-ALICE' => []];
+        $other      = ['u-carol' => ['team-1', 'team-2'], 'u-erin' => ['team-1'], 'u-bob' => ['team-1'], 'U-ALICE' => []];
         $otherScope = static fn (?string $id, string $scope): ?VaultScopeAccess => match ([$id, $scope]) {
             ['u-dave', 'org-1']  => new VaultScopeAccess(VaultPermission::Admin, true, true, true),
             ['u-erin', 'org-1']  => new VaultScopeAccess(VaultPermission::Read, false, true, true),
@@ -456,7 +457,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             }
         };
         $otherScopeHost = new class($otherScope) implements VaultScopeAccessResolverInterface {
-            public function __construct(private readonly \Closure $scopes)
+            public function __construct(private readonly Closure $scopes)
             {
             }
 
@@ -467,7 +468,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
         };
         $weakerTeam = new class($other, $mine) implements VaultTeamMembershipResolverInterface {
             /** @param array<string, list<string>> $other */
-            public function __construct(private readonly array $other, private readonly \Closure $mine)
+            public function __construct(private readonly array $other, private readonly Closure $mine)
             {
             }
 
@@ -503,7 +504,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
     /**
      * The same host answers behind each interface: deprecated only, 1.19 only, and a class implementing both.
      *
-     * @return array{VaultTeamMembershipResolverInterface, VaultTeamMembershipProviderInterface, VaultTeamMembershipResolverInterface&VaultTeamMembershipProviderInterface, VaultScopeAccessResolverInterface, VaultScopeAccessProviderInterface, VaultScopeAccessResolverInterface&VaultScopeAccessProviderInterface}
+     * @return array{VaultTeamMembershipResolverInterface, VaultTeamMembershipProviderInterface, VaultTeamMembershipProviderInterface&VaultTeamMembershipResolverInterface, VaultScopeAccessResolverInterface, VaultScopeAccessProviderInterface, VaultScopeAccessProviderInterface&VaultScopeAccessResolverInterface}
      */
     private function hosts(): array
     {
@@ -522,7 +523,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
         };
 
         $legacyTeam = new class($teams) implements VaultTeamMembershipResolverInterface {
-            public function __construct(private readonly \Closure $teams)
+            public function __construct(private readonly Closure $teams)
             {
             }
 
@@ -532,7 +533,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             }
         };
         $newTeam = new class($teams) implements VaultTeamMembershipProviderInterface {
-            public function __construct(private readonly \Closure $teams)
+            public function __construct(private readonly Closure $teams)
             {
             }
 
@@ -542,7 +543,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             }
         };
         $bothTeam = new class($teams) implements VaultTeamMembershipResolverInterface, VaultTeamMembershipProviderInterface {
-            public function __construct(private readonly \Closure $teams)
+            public function __construct(private readonly Closure $teams)
             {
             }
 
@@ -557,7 +558,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             }
         };
         $legacyScope = new class($scopes) implements VaultScopeAccessResolverInterface {
-            public function __construct(private readonly \Closure $scopes)
+            public function __construct(private readonly Closure $scopes)
             {
             }
 
@@ -567,7 +568,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             }
         };
         $newScope = new class($scopes) implements VaultScopeAccessProviderInterface {
-            public function __construct(private readonly \Closure $scopes)
+            public function __construct(private readonly Closure $scopes)
             {
             }
 
@@ -577,7 +578,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             }
         };
         $bothScope = new class($scopes) implements VaultScopeAccessResolverInterface, VaultScopeAccessProviderInterface {
-            public function __construct(private readonly \Closure $scopes)
+            public function __construct(private readonly Closure $scopes)
             {
             }
 

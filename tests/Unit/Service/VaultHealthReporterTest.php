@@ -32,11 +32,11 @@ use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
-use Nowo\VaultBundle\Tests\Stub\InMemoryGrantRepository;
 use Nowo\VaultBundle\Support\VaultUserRefs;
+use Nowo\VaultBundle\Tests\Stub\InMemoryGrantRepository;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
-use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Nowo\VaultBundle\Tests\Support\RecordingLogger;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
@@ -294,7 +294,7 @@ final class VaultHealthReporterTest extends TestCase
         self::assertSame('user:5', $reporter->reportForPersonalVault(VaultUserRef::ofId('5'))->owner->key(), 'a reference by id');
 
         $this->item('Scoped', $this->marker);
-        $scoped      = new VaultHealthReporter($this->scopeRepository(), $this->guard(), $this->crypto(), $this->dispatcher, new ConfigVaultPasswordPolicyResolver(), clock: $this->clock);
+        $scoped = new VaultHealthReporter($this->scopeRepository(), $this->guard(), $this->crypto(), $this->dispatcher, new ConfigVaultPasswordPolicyResolver(), clock: $this->clock);
         self::assertSame(1, $scoped->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE)->examined);
 
         $this->expectException(VaultAccessDeniedException::class);

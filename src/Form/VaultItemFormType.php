@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Form;
 
+use Doctrine\Persistence\ObjectManager;
 use Nowo\FormKitBundle\Attribute\FormKitConfig;
 use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
@@ -13,7 +14,6 @@ use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
 use Nowo\VaultBundle\Validator\VaultPasswordPolicyConstraint;
-use Doctrine\Persistence\ObjectManager;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;

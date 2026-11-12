@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
-use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\EventListener\VaultRequestBoundaryListener;
+use Nowo\VaultBundle\Security\VaultScopeAccess;
+use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Symfony\Component\Security\Core\User\UserInterface;

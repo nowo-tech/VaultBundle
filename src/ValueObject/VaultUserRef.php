@@ -6,8 +6,13 @@ namespace Nowo\VaultBundle\ValueObject;
 
 use InvalidArgumentException;
 use Nowo\VaultBundle\Internal\HiddenValues;
+use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
+use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
+use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
+use Nowo\VaultBundle\Service\VaultHealthReportProviderInterface;
+use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
 
-use function array_values;
 use function in_array;
 use function is_object;
 use function is_string;
@@ -15,9 +20,9 @@ use function trim;
 
 /**
  * Framework-free reference to a vault user (1.19.0, REQ-ARCH-001 rule 3): what the 1.19 ports
- * ({@see \Nowo\VaultBundle\Security\VaultAccessPolicyInterface}, {@see \Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface},
- * {@see \Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface}, {@see \Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface},
- * {@see \Nowo\VaultBundle\Support\VaultUserDirectoryInterface}, {@see \Nowo\VaultBundle\Service\VaultHealthReportProviderInterface})
+ * ({@see VaultAccessPolicyInterface}, {@see VaultTeamMembershipProviderInterface},
+ * {@see VaultScopeAccessProviderInterface}, {@see VaultReauthenticationProviderInterface},
+ * {@see VaultUserDirectoryInterface}, {@see VaultHealthReportProviderInterface})
  * and the event accessors give and take instead of the Symfony `UserInterface`.
  *
  * Its properties hold the user id (the string form of the host user's `getId()`, as is: never trimmed or normalised;
@@ -43,7 +48,7 @@ final readonly class VaultUserRef
     /**
      * @param string|null $id the vault user id (null: the user has no usable id); an empty or blank id is refused
      * @param string $identifier the user identifier (login), '' when unknown
-     * @param array<int, string> $roles the role names the user reports (no hierarchy)
+     * @param array<array-key, mixed> $roles the role names the user reports (no hierarchy; non-string values are dropped)
      * @param object|null $user the host's user object (hidden, see the class comment)
      *
      * @throws InvalidArgumentException when the id is empty or blank
@@ -64,7 +69,7 @@ final readonly class VaultUserRef
                 $kept[] = $role;
             }
         }
-        $this->roles = array_values($kept);
+        $this->roles = $kept;
         HiddenValues::put($this, [self::USER => [self::USER => $user]]);
     }
 

@@ -26,6 +26,7 @@ use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 use function assert;
 
@@ -190,13 +191,13 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
         assert($item instanceof VaultItem);
 
         $updater->update($item, 'Renamed', ['password' => 'REDACTED-TEST-2'], null, $users['alice']);
-        (self::vaultManager($container))->clear();
+        self::vaultManager($container)->clear();
 
         self::assertSame('Renamed', self::hostManager($container)->getConnection()->fetchOne('SELECT title FROM vault_items WHERE id = ?', [$ids['personal']]));
     }
 
     /**
-     * @return array{ContainerInterface, array<string, \Symfony\Component\Security\Core\User\UserInterface>}
+     * @return array{ContainerInterface, array<string, UserInterface>}
      */
     private function boot(string $variant): array
     {

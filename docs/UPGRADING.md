@@ -3,6 +3,12 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.19.0](#to-1190)
+  - [What changes for you](#what-changes-for-you)
+  - [Framework-free ports](#framework-free-ports)
+  - [Events](#events)
+  - [Private entity manager (opt-in)](#private-entity-manager-opt-in)
+  - [XML mapping](#xml-mapping)
 - [To 1.18.0](#to-1180)
   - [Existing settings and token tables (conditional mapping)](#existing-settings-and-token-tables-conditional-mapping)
 - [To 1.17.1](#to-1171)
@@ -72,6 +78,137 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.19.0
+
+From **1.18.x** (minor):
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+No schema change, no asset change.
+
+### What changes for you
+
+**Access decisions do not change.** With an unchanged configuration every grant, sharing, ownership, scope, reveal and
+`deny_status` decision is the one of 1.18.0, in the relation and id mappings (tested against literal 1.18.0 copies and
+through the same HTTP requests for every host shape). The vault still writes through `database.entity_manager` (it
+still flushes that manager) until you set `database.private_entity_manager: true`.
+
+What you will notice without changing anything:
+
+- **Deprecations when the container is built** (one per item; nothing breaks):
+  - `database.private_entity_manager` is not set: set it (`true` recommended, see below);
+  - a service you configured (`security.access_checker`, `team_membership_resolver`, `scopes.access_resolver`,
+    `export.reauth_checker`) or aliased (`VaultUserLocatorInterface`) implements only the deprecated interface:
+    implement the 1.19 twin;
+  - your code injects one of the deprecated interfaces while the bundle serves it (e.g. `VaultHealthReporterInterface`,
+    `VaultUserLocatorInterface`): inject the 1.19 twin;
+  - a decorator of a deprecated access interface: both interfaces are now asked (see below).
+- **A configured service that implements neither interface fails the build** (1.18 failed with a `TypeError` on the
+  first request).
+- **Writes inside your own transaction.** The vault's bulk and DBAL writes (grant expiry, revoke and update, token
+  purge, the raw token table) run in a savepoint when your code opened a transaction on the connection, so a failing
+  vault statement no longer aborts a PostgreSQL transaction.
+- **Relation mapping:** a `user_class` instance managed by another entity manager than the vault's is stored as a
+  reference of the same id (1.18 failed with *new entity found through the relationship*).
+- New events `FOLDER_CHANGED` and `TAG_CHANGED` are dispatched (ids only).
+- If you instantiate `VaultFolderService`, `VaultTagService` or `VaultItemFormType` yourself: they take new optional
+  constructor arguments at the end.
+
+### Framework-free ports
+
+Each port that took a Symfony `UserInterface` or `Request` has a 1.19 twin taking a `VaultUserRef` (or a
+`VaultReauthContext`); the old interfaces are **deprecated** and removed in 2.0.
+
+| Deprecated | 1.19 twin |
+|---|---|
+| `Security\VaultAccessCheckerInterface::canAccess/canCreate/canList/canRevoke(?UserInterface)` | `Security\VaultAccessPolicyInterface::allowsAccess/allowsCreate/allowsList/allowsRevoke(?VaultUserRef)` |
+| `Security\VaultTeamMembershipResolverInterface::getTeamIdsForUser(UserInterface)` | `Security\VaultTeamMembershipProviderInterface::teamIdsOf(VaultUserRef)` |
+| `Security\VaultScopeAccessResolverInterface::resolve(UserInterface, string)` | `Security\VaultScopeAccessProviderInterface::scopeAccessOf(VaultUserRef, string)` |
+| `Security\VaultReauthenticationCheckerInterface::getProof(UserInterface, Request, string)`, `consume()`, `getReauthenticationUrl(Request, …)` | `Security\VaultReauthenticationProviderInterface::proofFor(VaultReauthContext)`, `consumeProof()`, `reauthenticationUrl(VaultReauthContext, string)` |
+| `Support\VaultUserLocatorInterface::find(string): ?UserInterface` | `Support\VaultUserDirectoryInterface::findUser(string): ?VaultUserRef` |
+| `Service\VaultHealthReporterInterface::forScope/forPersonalVault(UserInterface, …)` | `Service\VaultHealthReportProviderInterface::reportForScope/reportForPersonalVault(VaultUserRef, …)` |
+
+`VaultUserRef` carries the user id (the string form of `getId()`, never trimmed or normalised; null when the user has
+none), the identifier and the role names the user object reports; `user()` returns the user object the bundle would
+have passed to the deprecated interface (never dumped, cast or serialized). `VaultReauthContext` carries the purpose,
+the user, the method and the route; `path()` and `sessionBinding()` (`hash('sha256', session id)`, the value your
+proof's `sessionBinding` must hold) are hidden the same way. Use them in your adapter; ask Symfony's own services
+(`Security`, `RequestStack`) when you need more.
+
+How the bundle picks the interface (same config keys as before):
+
+| Your 1.18 setup | 1.19 behaviour |
+|---|---|
+| Built-ins (no custom service) | Same answers, through the 1.19 interfaces. |
+| Service implementing only the deprecated interface | Asked exactly as in 1.18; deprecation at build time. |
+| Service implementing both | Asked through the 1.19 interface only. Implement both while code of yours still injects the deprecated one: the deprecated alias exists only for a class that implements it. |
+| Service implementing only the 1.19 interface | Asked through it; the deprecated alias is removed (code of yours that injects it fails to build). |
+| Service implementing neither | **The build fails.** |
+| Service whose class is unknown at build time (factory) | Asked as in 1.18, no deprecation. |
+| You alias the 1.19 interface yourself | Your service wins over the built-in; with a different configured (non built-in) service the build fails (keep one). |
+| A decorator of the deprecated access checker, team membership or scope access interface | It keeps running. When the 1.19 interface is served too, **both** are asked and the weaker answer wins: both must allow; only the team ids both return; not a member when either says so, the lower baseline, each flag only when both set it. Deprecation naming the decorator. |
+| A decorator of the deprecated user locator, re-authentication or health interface | It keeps running and that interface stays the one asked. Together with another service behind the 1.19 interface the build fails. |
+
+A `VaultUserRef` built by your code with an id and no user object (`VaultUserRef::ofId($id, $identifier, $roles)`)
+stands for that vault user id: the vault works with an internal stand-in user carrying the id and role names (with the
+relation mapping it is stored as `getReference(user_class, id)`; the strict id-mapping rules apply with
+`user_mapping: id`). Build it only for ids of your `user_class` identity domain. The built-in role checker checks such
+a reference with its own role names, and denies a reference with neither a user object nor an id.
+
+### Events
+
+The hook events keep their `UserInterface` and entity getters (the user getters are deprecated, removed in 2.0) and
+gain framework-free accessors: `getUserRef()` / `getUserId()` (or `getViewerRef()`, `getActorRef()`,
+`getGrantedByRef()`, `getListSubjectRef()` and their `…Id()`), `getItemId()`, `getFolderId()`, `getOwnerKey()`,
+`VaultItemListResultEvent::getItemIds()`, `VaultItemListQueryEvent::setListSubjectRef()`. New `FOLDER_CHANGED` and
+`TAG_CHANGED` carry ids only. `VaultBrowserExtensionAuthResult::success(UserInterface)` / `getUser()` are deprecated:
+use `authenticated(VaultUserRef)` / `getUserRef()`.
+
+### Private entity manager (opt-in)
+
+```yaml
+nowo_vault:
+    database:
+        entity_manager: default          # unchanged: the source manager (connection, mapping, event manager)
+        private_entity_manager: true     # recommended; the only mode in 2.0
+```
+
+Unset (or `false`) keeps the 1.18 behaviour with a deprecation: the vault flushes `database.entity_manager` on its own
+writes, which also commits **every change your code left pending in that manager**, and resets it after a failed
+vault write. With `true` the vault reads and writes its rows through a private manager on the same connection: your
+pending changes are never flushed by the vault and a failed vault write never closes your manager. **Check these code
+patterns before turning it on:**
+
+- **Vault entities from your own manager.** An item, folder, tag or grant loaded through your entity manager (your
+  repository, `$em->find(VaultItem::class, …)`, an association of one of your entities) and given to a vault service
+  (`VaultItemUpdater`, `VaultTrashService`, `VaultGrantService`, …) fails with Doctrine's *entity is not managed* /
+  *new entity found through the relationship*. Load vault rows through the vault repositories
+  (`VaultItemRepositoryInterface::findById()`, …) or by id.
+- **Changing a vault entity and flushing your manager** persists nothing: write through the vault services or
+  repositories. Changes still pending in the private manager at the end of a request, message or command are dropped
+  and logged as a warning (entity classes and counts).
+- **Your entities never reference vault entities** loaded by the vault (reference them by id).
+- **Doctrine listeners** on the vault entities receive the private manager (`$args->getObjectManager()`). A listener
+  that caches per entity manager sees one manager per unit of work.
+- **Forms:** an `EntityType` of vault entities in your own forms must use the same manager as the choices
+  (`'em' => <the vault's manager>` or plain ids).
+- With the relation mapping, `getCreator()` / `getCreatedBy()` return a reference loaded by the private manager (not
+  the security user instance): compare users by id, as the vault does.
+- In worker mode the private manager is dropped at every boundary; your own managers are still yours to clear
+  (REQ-RUNTIME-002 rule 7, see [FRANKENPHP-WORKER-AUDIT](FRANKENPHP-WORKER-AUDIT.md)).
+
+A transaction you open on the connection includes the vault's rows; a rollback of it makes the private manager start
+over (its identity map could describe rows that no longer exist).
+
+### XML mapping
+
+`database.mapping_type: xml` maps the six entities from `src/Resources/config/doctrine/*.orm.xml` (same tables,
+columns, indexes and constraints as the attributes: switching moves nothing). `database.register_mapping: false` lets
+you map `Nowo\VaultBundle\Entity` yourself, e.g. from that directory on a dedicated manager (then set
+`database.entity_manager` to it). `table_prefix`, `user_mapping` and `conditional_mapping` work with both.
 
 ## To 1.18.0
 

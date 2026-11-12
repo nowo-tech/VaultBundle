@@ -14,13 +14,13 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Throwable;
 
-use function is_bool;
 use function array_diff;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
 use function implode;
 use function is_array;
+use function is_bool;
 use function is_string;
 use function preg_match;
 use function sprintf;

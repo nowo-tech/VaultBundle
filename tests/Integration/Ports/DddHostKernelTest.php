@@ -65,8 +65,8 @@ final class DddHostKernelTest extends WebTestCase
         $ids   = self::seedVault($container, $users);
 
         // A host use case acting for a user known by id only.
-        $alice   = VaultUserRef::ofId(PortsUserDirectory::USERS['alice@example.com'], 'alice@example.com', ['ROLE_USER']);
-        $health  = $container->get('test.port.' . VaultHealthReportProviderInterface::class);
+        $alice  = VaultUserRef::ofId(PortsUserDirectory::USERS['alice@example.com'], 'alice@example.com', ['ROLE_USER']);
+        $health = $container->get('test.port.' . VaultHealthReportProviderInterface::class);
         assert($health instanceof VaultHealthReportProviderInterface);
         self::assertSame(2, $health->reportForPersonalVault($alice)->examined, 'the two personal login items of alice');
 

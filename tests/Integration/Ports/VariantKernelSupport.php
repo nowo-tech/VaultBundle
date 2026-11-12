@@ -22,6 +22,7 @@ use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\Ports\PortsUserDirectory;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
@@ -127,17 +128,17 @@ trait VariantKernelSupport
                 $client->loginUser($user);
             }
             $pages = [
-                'view personal'   => '/tools/vault/items/' . $ids['personal'],
-                'view in folder'  => '/tools/vault/items/' . $ids['in folder'],
-                'view scope'      => '/tools/vault/items/' . $ids['scope'],
-                'edit personal'   => '/tools/vault/items/' . $ids['personal'] . '/edit',
-                'edit scope'      => '/tools/vault/items/' . $ids['scope'] . '/edit',
-                'share personal'  => '/tools/vault/items/' . $ids['personal'] . '/share',
-                'share folder'    => '/tools/vault/folders/' . $ids['folder'] . '/share',
-                'new item'        => '/tools/vault/items/new/login',
-                'items list'      => '/tools/vault/items',
-                'shared list'     => '/tools/vault/shared',
-                'scope list'      => '/tools/vault/scopes/org-1',
+                'view personal'  => '/tools/vault/items/' . $ids['personal'],
+                'view in folder' => '/tools/vault/items/' . $ids['in folder'],
+                'view scope'     => '/tools/vault/items/' . $ids['scope'],
+                'edit personal'  => '/tools/vault/items/' . $ids['personal'] . '/edit',
+                'edit scope'     => '/tools/vault/items/' . $ids['scope'] . '/edit',
+                'share personal' => '/tools/vault/items/' . $ids['personal'] . '/share',
+                'share folder'   => '/tools/vault/folders/' . $ids['folder'] . '/share',
+                'new item'       => '/tools/vault/items/new/login',
+                'items list'     => '/tools/vault/items',
+                'shared list'    => '/tools/vault/shared',
+                'scope list'     => '/tools/vault/scopes/org-1',
             ];
             foreach ($pages as $page => $path) {
                 $client->request('GET', $path);
@@ -167,7 +168,7 @@ trait VariantKernelSupport
         $request   = $client->getRequest();
         $container = $client->getContainer();
         $stack     = $container->get('request_stack');
-        assert($stack instanceof \Symfony\Component\HttpFoundation\RequestStack);
+        assert($stack instanceof RequestStack);
         $stack->push($request);
         try {
             $manager = $container->get('security.csrf.token_manager');

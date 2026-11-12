@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\ValueObject;
 
 use Nowo\VaultBundle\Internal\HiddenValues;
+use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
+use Nowo\VaultBundle\Security\VaultReauthProof;
 
 use function is_string;
 
 /**
  * Framework-free view of a request that needs a fresh re-authentication (1.19.0, REQ-ARCH-001 rule 3), given to a
- * {@see \Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface} instead of the Symfony `Request`.
+ * {@see VaultReauthenticationProviderInterface} instead of the Symfony `Request`.
  *
- * Its properties hold the purpose (e.g. {@see \Nowo\VaultBundle\Security\VaultReauthProof::PURPOSE_PERSONAL_EXPORT}),
+ * Its properties hold the purpose (e.g. {@see VaultReauthProof::PURPOSE_PERSONAL_EXPORT}),
  * the user ({@see VaultUserRef}, null when the request has no user), the HTTP method and the matched route name. The
  * path ({@see path()}) and the session binding ({@see sessionBinding()}: `hash('sha256', session id)`, the value your
  * proof must carry in `sessionBinding`) are **not** properties: they live in an internal {@see \WeakMap} keyed by this

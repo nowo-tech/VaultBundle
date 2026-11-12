@@ -129,11 +129,12 @@ final class VaultPortsPass implements CompilerPassInterface
      */
     private function wire(ContainerBuilder $container, string $name, array $port, string $configured): string
     {
-        $legacy    = $port['legacy'];
-        $policy    = $port['policy'];
-        $option    = $container->hasParameter(self::PARAMETER_PREFIX . $name . '.option') ? (string) $container->getParameter(self::PARAMETER_PREFIX . $name . '.option') : $name;
-        $builtIn   = $container->hasParameter(self::PARAMETER_PREFIX . $name . '.built_in') && (bool) $container->getParameter(self::PARAMETER_PREFIX . $name . '.built_in');
-        $hostAlias = $container->hasAlias($policy) || $container->hasDefinition($policy);
+        $legacy           = $port['legacy'];
+        $policy           = $port['policy'];
+        $option           = $container->hasParameter(self::PARAMETER_PREFIX . $name . '.option') ? $container->getParameter(self::PARAMETER_PREFIX . $name . '.option') : $name;
+        $option           = is_string($option) ? $option : $name;
+        $builtIn          = $container->hasParameter(self::PARAMETER_PREFIX . $name . '.built_in') && (bool) $container->getParameter(self::PARAMETER_PREFIX . $name . '.built_in');
+        $hostAlias        = $container->hasAlias($policy) || $container->hasDefinition($policy);
         $legacyDecorators = $this->decoratorsOf($container, $legacy);
         $policyDecorators = $this->decoratorsOf($container, $policy);
 

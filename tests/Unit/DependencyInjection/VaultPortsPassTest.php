@@ -30,8 +30,8 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 
-use function set_error_handler;
 use function restore_error_handler;
+use function set_error_handler;
 
 use const E_USER_DEPRECATED;
 
@@ -115,6 +115,16 @@ final class VaultPortsPassTest extends TestCase
 
         self::assertSame(VaultPortMode::LEGACY, $this->mode($container, 'access_checker'));
         self::assertSame([], $this->deprecations);
+    }
+
+    #[Test]
+    public function aMissingServiceKeepsThe118WiringAndLetsTheContainerReportIt(): void
+    {
+        $container = $this->container('access_checker', 'app.ports', LegacyHostPorts::class);
+        $container->removeDefinition('app.ports');
+        (new VaultPortsPass())->process($container);
+
+        self::assertSame(VaultPortMode::LEGACY, $this->mode($container, 'access_checker'));
     }
 
     #[Test]

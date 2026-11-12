@@ -41,6 +41,7 @@ use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 use function hash;
 
@@ -129,7 +130,7 @@ final class VaultGatesTest extends TestCase
                 {
                 }
 
-                public function resolve(\Symfony\Component\Security\Core\User\UserInterface $user, string $scope): ?VaultScopeAccess
+                public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
                 {
                     return $this->answer;
                 }

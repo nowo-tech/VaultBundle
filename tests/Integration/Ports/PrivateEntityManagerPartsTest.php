@@ -8,6 +8,7 @@ use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\Connection as DriverConnection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
 use LogicException;
 use Nowo\VaultBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\VaultBundle\Doctrine\PrivateEntityManagerConnection;
@@ -19,6 +20,7 @@ use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\VariantKernel;
+use Nowo\VaultBundle\Tests\Support\OwnerScopeFilter;
 use Nowo\VaultBundle\Tests\Support\RecordingLogger;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\AbstractLogger;
@@ -133,10 +135,60 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
     public function theSourceMustBeTheConfiguredOrmManagerThatMapsTheVault(): void
     {
         $doctrine = $this->createMock(ManagerRegistry::class);
-        $doctrine->method('getManager')->willReturn($this->createMock(\Doctrine\Persistence\ObjectManager::class));
+        $doctrine->method('getManager')->willReturn($this->createMock(ObjectManager::class));
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('does not map');
         (new VaultEntityManager($doctrine, 'vault'))->source();
+    }
+
+    #[Test]
+    public function theSourceSqlFiltersAreMirroredWithTheirParameters(): void
+    {
+        $doctrine = $this->doctrine();
+        $source   = $doctrine->getManager();
+        assert($source instanceof EntityManagerInterface);
+        $private = new VaultEntityManager($doctrine);
+        $private->persist(VaultItem::forScope(VaultItemType::Login, 'In org-1', 'org-1', null, 'c'));
+        $private->persist(VaultItem::forScope(VaultItemType::Login, 'In org-2', 'org-2', null, 'c'));
+        $private->flush();
+        $source->getConfiguration()->addFilter('vault_owner_scope', OwnerScopeFilter::class);
+
+        $source->getFilters()->enable('vault_owner_scope')->setParameter('scope', 'org-1');
+        self::assertSame(['In org-1'], $this->titles($private));
+        $source->getFilters()->getFilter('vault_owner_scope')->setParameter('scope', 'org-2');
+        self::assertSame(['In org-2'], $this->titles($private), 'a changed parameter is copied');
+        $source->getFilters()->getFilter('vault_owner_scope')->setParameterList('scopes', ['org-1', 'org-2'], 'string');
+        self::assertSame(['In org-2'], $this->titles($private), 'a list parameter keeps its type');
+        $source->getFilters()->disable('vault_owner_scope');
+        self::assertSame(['In org-1', 'In org-2'], $this->titles($private), 'a filter the source disabled is disabled');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function titles(VaultEntityManager $private): array
+    {
+        $private->clear();
+        $titles = [];
+        /** @var list<VaultItem> $items */
+        $items = $private->createQueryBuilder()->select('i')->from(VaultItem::class, 'i')->orderBy('i.title')->getQuery()->getResult();
+        foreach ($items as $item) {
+            $titles[] = $item->getTitle();
+        }
+
+        return $titles;
+    }
+
+    #[Test]
+    public function anUnsavedUserIsLeftAsIsByTheListener(): void
+    {
+        $private = new VaultEntityManager($this->doctrine());
+        $user    = (new User())->setEmail('unsaved@example.com');
+        $item    = new VaultItem(VaultItemType::Login, 'Unsaved owner', $user, 'c');
+        $private->persist($item);
+
+        self::assertSame($user, $item->getCreator(), 'no id yet: no reference, Doctrine refuses it at flush as before');
+        $private->clear();
     }
 
     #[Test]
@@ -208,6 +260,10 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         self::assertSame([['connection' => 'main']], $container->getDefinition(PrivateEntityManagerMiddleware::class)->getTag('doctrine.middleware'));
 
         (new PrivateEntityManagerPass())->process(new ContainerBuilder());
+        $withoutMiddleware = new ContainerBuilder();
+        $withoutMiddleware->setDefinition(VaultEntityManager::class, new Definition(VaultEntityManager::class));
+        (new PrivateEntityManagerPass())->process($withoutMiddleware);
+        self::assertFalse($withoutMiddleware->hasDefinition(PrivateEntityManagerMiddleware::class), 'DBAL 3: no middleware to attach');
         $container->setParameter('nowo_vault.entity_manager', 'missing');
         $this->expectException(InvalidConfigurationException::class);
         (new PrivateEntityManagerPass())->process($container);
