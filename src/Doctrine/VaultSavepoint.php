@@ -25,14 +25,34 @@ final class VaultSavepoint
      * @template T
      *
      * @param Closure(): T $write
+     * @param object|null $manager the vault manager the statement belongs to: the private manager records the
+     *                             transaction level the write now waits in (audit NJV-1)
      *
      * @return T
      */
-    public static function write(Connection $connection, Closure $write): mixed
+    public static function write(Connection $connection, Closure $write, ?object $manager = null): mixed
     {
         if (!$connection->isTransactionActive()) {
             return $write();
         }
+
+        $result = self::inSavepoint($connection, $write);
+        if ($manager instanceof VaultEntityManager) {
+            $manager->noteWrite();
+        }
+
+        return $result;
+    }
+
+    /**
+     * @template T
+     *
+     * @param Closure(): T $write
+     *
+     * @return T
+     */
+    private static function inSavepoint(Connection $connection, Closure $write): mixed
+    {
 
         $platform = $connection->getDatabasePlatform();
         if (!$platform->supportsSavepoints()) {

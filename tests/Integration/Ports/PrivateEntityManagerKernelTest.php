@@ -10,10 +10,16 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use Nowo\VaultBundle\Doctrine\VaultManagerRegistry;
 use Nowo\VaultBundle\Doctrine\VaultSavepoint;
+use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Entity\VaultTag;
+use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Enum\VaultPermission;
+use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\EventListener\VaultUnitOfWorkSubscriber;
+use Nowo\VaultBundle\Repository\DoctrineOrmVaultGrantRepository;
+use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Service\VaultItemUpdater;
@@ -184,6 +190,38 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
         self::assertFalse($vault->isStale());
         $updater->update($item, 'Saved again', ['password' => 'REDACTED-TEST-4'], null, $users['alice']);
         self::assertSame('Saved again', $connection->fetchOne('SELECT title FROM vault_items WHERE id = ?', [$ids['personal']]));
+    }
+
+    #[Test]
+    public function aRollbackOfBulkWritesOrLoadsOfThePrivateManagerMakesItStale(): void
+    {
+        // Audit NJV-1: a grant upgrade is a bulk DQL update plus refresh(), outside flush().
+        [$container, $users] = $this->boot('private_relation_legacy');
+        $ids                 = self::seedVault($container, $users);
+        $connection          = self::hostManager($container)->getConnection();
+        $vault               = self::vaultManager($container);
+        assert($vault instanceof VaultEntityManager);
+        $grants = $container->get(VaultGrantRepositoryInterface::class);
+        assert($grants instanceof VaultGrantRepositoryInterface && $grants instanceof DoctrineOrmVaultGrantRepository);
+        $grant = $grants->findOne(VaultResourceType::Item, $ids['personal'], GranteeType::User, (string) UserIdResolver::getId($users['bob']));
+        assert($grant instanceof VaultGrant);
+
+        $connection->beginTransaction();
+        self::assertTrue($grants->updatePermissionAndExpiry($grant->getId(), VaultPermission::Admin, null));
+        self::assertSame(VaultPermission::Admin, $grant->getPermission(), 'refreshed in the identity map');
+        $connection->rollBack();
+        self::assertTrue($vault->isStale(), 'the rolled-back upgrade is not served from the identity map');
+        $reloaded = $grants->findOne(VaultResourceType::Item, $ids['personal'], GranteeType::User, (string) UserIdResolver::getId($users['bob']));
+        self::assertSame(VaultPermission::Read, $reloaded?->getPermission());
+
+        // A read-only load inside a level that is rolled back: the row may have been the application's uncommitted write.
+        $vault->reset();
+        $connection->beginTransaction();
+        $connection->executeStatement("UPDATE vault_items SET title = 'Uncommitted' WHERE id = ?", [$ids['personal']]);
+        self::assertSame('Uncommitted', $this->item($container, $ids['personal'])?->getTitle());
+        $connection->rollBack();
+        self::assertTrue($vault->isStale());
+        self::assertSame('Title-P', $this->item($container, $ids['personal'])?->getTitle());
     }
 
     #[Test]

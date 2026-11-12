@@ -517,7 +517,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
     {
         $container->register(VaultEntityManager::class, VaultEntityManager::class)
             ->setArguments([new Reference('doctrine'), $emName, new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE)])
-            ->addTag('kernel.reset', ['method' => 'reset']);
+            ->addTag('kernel.reset', ['method' => 'reset'])
+            // Audit NJV-1: loads of the private manager inside a transaction are tracked like its writes.
+            ->addTag('doctrine.event_listener', ['event' => 'postLoad', 'method' => 'postLoad', 'lazy' => true]);
         $container->register(VaultManagerRegistry::class, VaultManagerRegistry::class)
             ->setArguments([new Reference('doctrine'), new Reference(VaultEntityManager::class), $emName]);
 

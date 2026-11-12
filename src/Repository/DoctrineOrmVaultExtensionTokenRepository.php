@@ -115,7 +115,7 @@ final readonly class DoctrineOrmVaultExtensionTokenRepository implements VaultEx
             ->setParameter('now', $this->now())
             ->getQuery();
 
-        return (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute());
+        return (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute(), $this->em());
     }
 
     /**

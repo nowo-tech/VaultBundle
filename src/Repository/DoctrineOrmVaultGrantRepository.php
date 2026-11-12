@@ -292,7 +292,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             ->setParameter('id', $id)
             ->setParameter('now', $now)
             ->getQuery();
-        $deleted = (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute());
+        $deleted = (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute(), $this->em());
 
         return $this->afterDelete($id, $deleted);
     }
@@ -307,7 +307,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             ->where('g.id = :id')
             ->setParameter('id', $id)
             ->getQuery();
-        $deleted = (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute());
+        $deleted = (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute(), $this->em());
 
         return $this->afterDelete($id, $deleted);
     }
@@ -326,7 +326,7 @@ final readonly class DoctrineOrmVaultGrantRepository implements VaultGrantReposi
             ->setParameter('expiresAt', $expiresAt, 'datetime_immutable')
             ->setParameter('id', $id)
             ->getQuery();
-        $updated = (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute());
+        $updated = (int) VaultSavepoint::write($this->em()->getConnection(), static fn (): mixed => $query->execute(), $this->em());
 
         $managed = $this->em()->getUnitOfWork()->tryGetById($id, VaultGrant::class);
         if ($managed instanceof VaultGrant) {

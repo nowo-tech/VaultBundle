@@ -6,10 +6,12 @@ namespace Nowo\VaultBundle\Doctrine;
 
 use Closure;
 use Doctrine\Common\EventManager;
+use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Decorator\EntityManagerDecorator;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Event\PostLoadEventArgs;
 use Doctrine\ORM\Query\Filter\Parameter;
 use Doctrine\ORM\Query\Filter\SQLFilter;
 use Doctrine\Persistence\ManagerRegistry;
@@ -65,8 +67,9 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
     private bool $stale = false;
 
     /**
-     * Transaction nesting levels of the connection that hold rows the private manager wrote and nobody committed yet
-     * (audit NJ-2: only a rollback of one of these levels makes the identity map stale).
+     * Transaction nesting levels of the connection in which the private manager wrote (flush, bulk DQL / DBAL, refresh)
+     * or loaded rows that nobody committed yet (audits NJ-2, NJV-1: only a rollback of one of these levels makes the
+     * identity map stale).
      *
      * @var array<int, true>
      */
@@ -191,6 +194,32 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
     {
         $this->live()->flush();
         $this->wrote();
+    }
+
+    public function refresh(object $object, LockMode|int|null $lockMode = LockMode::NONE): void
+    {
+        $this->live()->refresh($object, $lockMode);
+        $this->wrote();
+    }
+
+    /**
+     * A vault statement that bypassed the unit of work (bulk DQL, DBAL) wrote at the current level (audit NJV-1).
+     */
+    public function noteWrite(): void
+    {
+        $this->wrote();
+    }
+
+    /**
+     * Rows loaded by the private manager inside a transaction may be the application's uncommitted writes: a rollback
+     * of that level makes the identity map stale too (audit NJV-1). Doctrine `postLoad` listener; other managers'
+     * loads are ignored.
+     */
+    public function postLoad(PostLoadEventArgs $args): void
+    {
+        if ($this->current instanceof EntityManagerInterface && $args->getObjectManager() === $this->current) {
+            $this->wrote();
+        }
     }
 
     public function wrapInTransaction(callable $func): mixed
