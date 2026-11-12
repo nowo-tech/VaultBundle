@@ -55,7 +55,7 @@ final class ConsoleBoundaryCounterKernelTest extends KernelTestCase
             throw new RuntimeException('terminate listener');
         }, 0);
 
-        $this->runCommand($application, 'app:touch');
+        $this->runConsole($application, 'app:touch');
         $this->assertNextOutermostCommandClears($application);
         $this->assertNextMainRequestClears();
     }
@@ -68,7 +68,7 @@ final class ConsoleBoundaryCounterKernelTest extends KernelTestCase
             throw new RuntimeException('error listener');
         }, 0);
 
-        $this->runCommand($application, 'app:fail');
+        $this->runConsole($application, 'app:fail');
         $this->assertNextOutermostCommandClears($application);
     }
 
@@ -96,7 +96,7 @@ final class ConsoleBoundaryCounterKernelTest extends KernelTestCase
             }
         });
 
-        $this->runCommand($application, 'app:outer-unknown');
+        $this->runConsole($application, 'app:outer-unknown');
         self::assertTrue($this->probe->kept, 'the outer unit was not discarded mid-run');
     }
 
@@ -125,7 +125,7 @@ final class ConsoleBoundaryCounterKernelTest extends KernelTestCase
             }
         });
 
-        $this->runCommand($application, 'app:outer-nested');
+        $this->runConsole($application, 'app:outer-nested');
         self::assertTrue($this->probe->kept, 'the nested terminate did not clear the outer unit');
         $this->assertNextOutermostCommandClears($application);
     }
@@ -165,7 +165,7 @@ final class ConsoleBoundaryCounterKernelTest extends KernelTestCase
             }
         });
 
-        $this->runCommand($application, 'app:rec');
+        $this->runConsole($application, 'app:rec');
         self::assertTrue($this->probe->kept, 'the failing inner run of the same command did not end the outer unit');
         $this->assertNextOutermostCommandClears($application);
     }
@@ -178,7 +178,7 @@ final class ConsoleBoundaryCounterKernelTest extends KernelTestCase
             throw new RuntimeException('late error listener');
         }, PHP_INT_MIN);
 
-        $this->runCommand($application, 'app:fail');
+        $this->runConsole($application, 'app:fail');
         $this->assertNextOutermostCommandClears($application);
         $this->assertNextMainRequestClears();
         $this->assertNextOutermostCommandClears($application);
@@ -198,7 +198,7 @@ final class ConsoleBoundaryCounterKernelTest extends KernelTestCase
 
         $dispatcher->dispatch(new stdClass(), VaultUnitOfWorkSubscriber::MESSENGER_WORKER_MESSAGE_RECEIVED);
         $dispatcher->addListener(ConsoleEvents::ERROR, $throw);
-        $this->runCommand($application, 'app:fail');
+        $this->runConsole($application, 'app:fail');
         $dispatcher->removeListener(ConsoleEvents::ERROR, $throw);
         $dispatcher->dispatch(new stdClass(), VaultUnitOfWorkSubscriber::MESSENGER_WORKER_MESSAGE_FAILED);
         $dispatcher->dispatch(new stdClass(), VaultUnitOfWorkSubscriber::MESSENGER_WORKER_STOPPED);
@@ -229,7 +229,7 @@ final class ConsoleBoundaryCounterKernelTest extends KernelTestCase
     {
         $this->probe->manager->live();
         self::assertTrue($this->probe->manager->isCreated());
-        $this->runCommand($application, 'app:noop');
+        $this->runConsole($application, 'app:noop');
         self::assertFalse($this->probe->manager->isCreated(), 'the outermost command cleared the private manager');
     }
 
@@ -280,7 +280,7 @@ final class ConsoleBoundaryCounterKernelTest extends KernelTestCase
         return [$application, $dispatcher];
     }
 
-    private function runCommand(Application $application, string $command): void
+    private function runConsole(Application $application, string $command): void
     {
         try {
             $application->run(new ArrayInput(['command' => $command]), new BufferedOutput());
