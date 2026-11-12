@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.19.0] - 2026-11-12](#1190---2026-11-12)
 - [[1.18.0] - 2026-11-12](#1180---2026-11-12)
 - [[1.17.1] - 2026-11-11](#1171---2026-11-11)
 - [[1.17.0] - 2026-11-11](#1170---2026-11-11)
@@ -49,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-07-04](#100---2026-07-04)
 
 ## [Unreleased]
+
+## [1.19.0] - 2026-11-12
 
 Target: **1.19.0** (minor). REQ-ARCH-001 batch B7: framework-free twins of the six host ports that took a Symfony
 `UserInterface` / `Request` (rule 3), id and reference accessors on the events plus folder and tag change events
@@ -141,6 +144,8 @@ With an unchanged configuration every access decision is the one of 1.18.0 (equi
   `getListSubject()` / `setListSubject()`) and `VaultBrowserExtensionAuthResult::success()` / `getUser()`.
 - Not setting `database.private_entity_manager`, and setting it to `false`: the private entity manager is the only
   mode in 2.0.
+
+[1.19.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.19.0
 
 ## [1.18.0] - 2026-11-12
 
@@ -1101,7 +1106,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.18.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.19.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
