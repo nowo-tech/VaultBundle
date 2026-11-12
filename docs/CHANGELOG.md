@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.19.1] - 2026-11-12](#1191---2026-11-12)
 - [[1.19.0] - 2026-11-12](#1190---2026-11-12)
 - [[1.18.0] - 2026-11-12](#1180---2026-11-12)
 - [[1.17.1] - 2026-11-11](#1171---2026-11-11)
@@ -51,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.1] - 2026-11-12
+
 ### Fixed
 
 - **Console boundary tracking (audit NM, B7):** `VaultUnitOfWorkSubscriber` counted console depth with `++` / `--`
@@ -62,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   top-level `kernel.terminate`); `WorkerMessageSkipEvent` (from `messenger:failed:retry`) ends the message unit; the
   subscriber implements `ResetInterface`. Precondition of the leak: a long-running process without the services
   resetter between units. Patch release, no configuration change.
+
+[1.19.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.19.1
 
 ## [1.19.0] - 2026-11-12
 
@@ -1118,7 +1123,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.19.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.19.1...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5

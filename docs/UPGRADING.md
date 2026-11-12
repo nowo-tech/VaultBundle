@@ -4,6 +4,7 @@
 
 - [Unreleased](#unreleased)
 - [To 1.19.1](#to-1191)
+- [To 1.19.1](#to-1191-1)
 - [To 1.19.0](#to-1190)
   - [What changes for you](#what-changes-for-you)
   - [Framework-free ports](#framework-free-ports)
@@ -79,6 +80,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.19.1
+
+From **1.19.0**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 ## To 1.19.1
 
