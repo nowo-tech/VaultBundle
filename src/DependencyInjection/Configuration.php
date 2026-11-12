@@ -14,6 +14,7 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Throwable;
 
+use function is_bool;
 use function array_diff;
 use function array_key_exists;
 use function array_keys;
@@ -187,7 +188,25 @@ final class Configuration implements ConfigurationInterface
                             ->defaultValue(DatabaseDriver::PLATFORM_POSTGRESQL)
                         ->end()
                         ->scalarNode('entity_manager')
+                            ->info('Doctrine entity manager that maps the vault entities (the source of the private entity manager since 1.19.0: its connection, mapping and event manager).')
                             ->defaultValue('default')
+                        ->end()
+                        ->scalarNode('private_entity_manager')
+                            ->info('1.19.0: true = the vault reads and writes its rows through its own private entity manager on the connection of database.entity_manager, so a vault write never flushes, clears or resets an application manager (REQ-ARCH-001 rule 6; recommended, the only mode in 2.0). false = the 1.18 behaviour (the vault flushes database.entity_manager itself). Unset = false with a deprecation; false is deprecated too.')
+                            ->defaultNull()
+                            ->validate()
+                                ->ifTrue(static fn (mixed $value): bool => !is_bool($value))
+                                ->thenInvalid('nowo_vault.database.private_entity_manager must be true or false, got %s.')
+                            ->end()
+                        ->end()
+                        ->enumNode('mapping_type')
+                            ->info('1.19.0: attribute (default) or xml (src/Resources/config/doctrine/*.orm.xml: the same tables, columns, indexes and constraints). Used when register_mapping is true.')
+                            ->values(['attribute', 'xml'])
+                            ->defaultValue('attribute')
+                        ->end()
+                        ->booleanNode('register_mapping')
+                            ->info('1.19.0: true (default) = the bundle maps its entities on the default entity manager. false = the application maps Nowo\\VaultBundle\\Entity itself (e.g. on a dedicated manager, from the shipped XML).')
+                            ->defaultTrue()
                         ->end()
                         ->booleanNode('conditional_mapping')
                             ->info('1.18.0: map {table_prefix}_settings only with config_storage.enabled and {table_prefix}_extension_tokens only with browser_extension.enabled; the tables of a disabled feature are hidden from the schema tools (never created, never dropped). False (default) maps every table, as before.')

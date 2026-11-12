@@ -13,7 +13,17 @@ use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\Controller\VaultExportController;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
+use Nowo\VaultBundle\Command\CheckDowngradeCommand;
+use Nowo\VaultBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
+use Nowo\VaultBundle\Doctrine\PrivateEntityManagerMiddleware;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
+use Nowo\VaultBundle\Doctrine\VaultManagerRegistry;
+use Nowo\VaultBundle\EventListener\VaultUnitOfWorkSubscriber;
+use Nowo\VaultBundle\Form\VaultItemFormType;
+use Nowo\VaultBundle\Service\VaultCatalogue;
+use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
+use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Port\VaultPortMode;
 use Nowo\VaultBundle\Support\VaultUserLocator;
 use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
@@ -215,9 +225,21 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $this->registerPort($container, 'team_membership', $teamResolverId, $teamBuiltIn, 'nowo_vault.team_membership_resolver');
         $this->registerPort($container, 'user_locator', VaultUserLocator::class, true, 'the user locator (VaultUserDirectoryInterface)');
 
-        $emRef     = new Reference(sprintf('doctrine.orm.%s_entity_manager', $emName));
+        // 1.19.0 (REQ-ARCH-001 rule 6): the private entity manager (default) or the 1.18 wiring (deprecated opt-out).
+        $private = $database['private_entity_manager'] === true;
+        if ($database['private_entity_manager'] === null) {
+            trigger_deprecation('nowo-tech/vault-bundle', '1.19', 'Not setting "nowo_vault.database.private_entity_manager" is deprecated: it keeps the 1.18 behaviour (the vault flushes the "%s" entity manager on its own writes, including your pending changes) and becomes true in 2.0. Set it to true (recommended, see UPGRADING.md "To 1.19.0").', $emName);
+        } elseif (!$private) {
+            trigger_deprecation('nowo-tech/vault-bundle', '1.19', '"nowo_vault.database.private_entity_manager: false" is deprecated: the private entity manager becomes the only mode in 2.0.');
+        }
+        $container->setParameter('nowo_vault.private_entity_manager', $private);
+        $emRef       = $private ? new Reference(VaultEntityManager::class) : new Reference(sprintf('doctrine.orm.%s_entity_manager', $emName));
+        $registryRef = $private ? new Reference(VaultManagerRegistry::class) : new Reference('doctrine');
+        if ($private) {
+            $this->registerPrivateEntityManager($container, $emName);
+        }
         $cachePool = (string) $configStorage['cache_pool'];
-        $this->registerUserMapping($config, $emName, $container);
+        $this->registerUserMapping($config, $emName, $container, $private ? $registryRef : new Reference('doctrine', ContainerInterface::NULL_ON_INVALID_REFERENCE));
 
         foreach ([
             DoctrineOrmVaultItemRepository::class           => VaultItemRepositoryInterface::class,
@@ -230,7 +252,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $container->setDefinition($repoClass, (new Definition($repoClass))
                 ->setAutowired(false)
                 ->setArgument('$entityManager', $emRef)
-                ->setArgument('$registry', new Reference('doctrine'))
+                ->setArgument('$registry', $registryRef)
                 ->setArgument('$managerName', $emName));
             $container->setAlias($interface, $repoClass);
             if ($repoClass !== DoctrineOrmVaultSettingsRepository::class) {
@@ -479,6 +501,40 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
     }
 
     /**
+     * The vault's private entity manager (1.19.0, REQ-ARCH-001 rule 6): the repositories and the services that read or
+     * write vault rows ({@see VaultManagerRegistry}) use {@see VaultEntityManager}, created on the connection,
+     * configuration and event manager of `database.entity_manager`, so a vault write never flushes, clears or resets an
+     * application manager. The manager is dropped at every unit-of-work boundary ({@see VaultUnitOfWorkSubscriber}) and
+     * at `kernel.reset`; the rollback middleware is attached to its connection by {@see PrivateEntityManagerPass}
+     * (doctrine/dbal 4 only).
+     */
+    private function registerPrivateEntityManager(ContainerBuilder $container, string $emName): void
+    {
+        $container->register(VaultEntityManager::class, VaultEntityManager::class)
+            ->setArguments([new Reference('doctrine'), $emName, new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE)])
+            ->addTag('kernel.reset', ['method' => 'reset']);
+        $container->register(VaultManagerRegistry::class, VaultManagerRegistry::class)
+            ->setArguments([new Reference('doctrine'), new Reference(VaultEntityManager::class), $emName]);
+
+        foreach ([VaultPersonalDataEraser::class, VaultPersonalDataExporter::class, VaultPersonalExportStreamer::class, VaultCatalogue::class, CheckDowngradeCommand::class] as $service) {
+            $container->getDefinition($service)->setArgument('$registry', new Reference(VaultManagerRegistry::class));
+        }
+        // The folder choices come from the private manager: the form reads their ids through it.
+        $container->getDefinition(VaultItemFormType::class)->setArgument('$folderManager', new Reference(VaultEntityManager::class));
+
+        if (PrivateEntityManagerPass::supportsRollbackMiddleware()) {
+            $container->register(PrivateEntityManagerMiddleware::class, PrivateEntityManagerMiddleware::class)
+                ->setArguments([new Reference(VaultEntityManager::class)])
+                ->addTag('doctrine.middleware');
+        }
+
+        $container->getDefinition(VaultUnitOfWorkSubscriber::class)
+            ->setArgument('$resettables', new IteratorArgument([
+                new Reference(VaultEntityManager::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE),
+            ]));
+    }
+
+    /**
      * One host port with a 1.19 framework-free twin (REQ-ARCH-001 rule 3): the service the configuration names (or the
      * built-in) and the internal gate the vault services use; {@see VaultPortsPass} picks the interface(s) to ask.
      */
@@ -562,7 +618,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
      *
      * @param array<string, mixed> $config
      */
-    private function registerUserMapping(array $config, string $emName, ContainerBuilder $container): void
+    private function registerUserMapping(array $config, string $emName, ContainerBuilder $container, Reference $registry): void
     {
         $container->setDefinition(VaultUserClassPolicy::class, (new Definition(VaultUserClassPolicy::class))
             ->setAutowired(false)
@@ -575,7 +631,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$userClass', $config['user_class'])
             ->setArgument('$classes', new Reference(VaultUserClassPolicy::class))
             ->setArgument('$userMapping', $config['user_mapping'])
-            ->setArgument('$registry', new Reference('doctrine', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$registry', $registry)
             ->setArgument('$managerName', $emName));
         $container->setAlias(VaultUserReferenceResolverInterface::class, DoctrineVaultUserReferenceResolver::class);
 

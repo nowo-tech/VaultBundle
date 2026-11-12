@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Doctrine;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PrePersistEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
@@ -58,12 +59,39 @@ final readonly class VaultUserColumnsListener
                 // A host passed the user id: turn it into a reference of user_class.
                 $value = new VaultUserId($value);
             }
-            if (!is_object($value) || $this->isRelatedUser($metadata, $field, $value)) {
+            if (!is_object($value)) {
+                continue;
+            }
+            if ($this->isRelatedUser($metadata, $field, $value)) {
+                // 1.19.0: a user_class instance managed by another entity manager (the application's, while the vault
+                // writes through its private manager) becomes a reference of this manager with the same id; Doctrine
+                // would otherwise refuse it as a new entity found through the relation. A managed one is left as is.
+                $this->referenceIfForeign($args->getObjectManager(), $metadata, $field, $entity, $value);
+
                 continue;
             }
 
             $metadata->setFieldValue($entity, $field, $this->users->reference($value));
         }
+    }
+
+    /**
+     * @param ClassMetadata<object> $metadata
+     */
+    private function referenceIfForeign(EntityManagerInterface $manager, ClassMetadata $metadata, string $field, object $entity, object $user): void
+    {
+        if ($manager->contains($user)) {
+            return;
+        }
+
+        $target = $metadata->getAssociationTargetClass($field);
+        $id     = $manager->getClassMetadata($target)->getIdentifierValues($user);
+        if ($id === [] || in_array(null, $id, true)) {
+            // No identifier yet (an unsaved user): left as is, as before.
+            return;
+        }
+
+        $metadata->setFieldValue($entity, $field, $manager->getReference($target, $id));
     }
 
     /**
