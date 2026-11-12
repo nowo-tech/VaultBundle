@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Tests\Integration\Ports;
 
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use Nowo\VaultBundle\Doctrine\VaultSavepoint;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\GranteeType;
@@ -90,6 +91,30 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         self::assertNotEmpty($expected['erased']['vault_grants']);
         self::assertSame($expected, $actual);
         self::assertSame($exports, $actualExports);
+    }
+
+    #[Test]
+    public function aFailingVaultStatementNeverAbortsTheHostTransaction(): void
+    {
+        $server = getenv('VAULT_TEST_DATABASE_URL');
+        self::ensureKernelShutdown();
+        self::bootKernel(['environment' => 'private_relation_new' . (is_string($server) && $server !== '' ? '_db' : ''), 'debug' => false]);
+        $container = self::getContainer();
+        self::resetSchema($container);
+        $connection = self::hostManager($container)->getConnection();
+
+        $connection->beginTransaction();
+        $connection->insert('users', ['email' => 'before@example.com', 'password' => 'x']);
+        try {
+            VaultSavepoint::write($connection, static fn (): int|string => $connection->executeStatement('DELETE FROM nowo_vault_missing_table WHERE id = 1'));
+            self::fail('the statement fails');
+        } catch (\Doctrine\DBAL\Exception) {
+        }
+        // Without the savepoint, PostgreSQL refuses every statement until the end of the transaction.
+        $connection->insert('users', ['email' => 'after@example.com', 'password' => 'x']);
+        $connection->commit();
+
+        self::assertSame(2, (int) $connection->fetchOne("SELECT COUNT(*) FROM users WHERE email IN ('before@example.com', 'after@example.com')"));
     }
 
     /**

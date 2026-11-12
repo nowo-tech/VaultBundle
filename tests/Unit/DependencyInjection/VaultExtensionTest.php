@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Unit\DependencyInjection;
 
+use Nowo\VaultBundle\Form\VaultItemFormType;
+use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
+use Nowo\VaultBundle\Repository\DoctrineOrmVaultItemRepository;
+use Nowo\VaultBundle\Doctrine\VaultManagerRegistry;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use LogicException;
 use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterface;
@@ -28,7 +33,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 
+use function restore_error_handler;
+use function set_error_handler;
 use function json_encode;
+
+use const E_USER_DEPRECATED;
 
 final class VaultExtensionTest extends TestCase
 {
@@ -260,6 +269,58 @@ final class VaultExtensionTest extends TestCase
         // REQ-UI-003: the CSS stack is inherited from nowo_ui_kit; nothing is seeded without the deprecated key.
         self::assertSame([], $container->getExtensionConfig('nowo_ui_kit'));
         self::assertSame(['class' => 'nowo-ui-input'], $formKit['profiles']['vault']['defaults']['attr']);
+    }
+
+    public function testPrivateEntityManagerIsOptInAndTheDefaultIsDeprecated(): void
+    {
+        $deprecations = [];
+        set_error_handler(static function (int $type, string $message) use (&$deprecations): bool {
+            $deprecations[] = $message;
+
+            return true;
+        }, E_USER_DEPRECATED);
+        try {
+            $default = $this->container(['SecurityBundle' => SecurityBundle::class]);
+            (new VaultExtension())->load([self::BASE_CONFIG], $default);
+            self::assertFalse($default->getParameter('nowo_vault.private_entity_manager'));
+            self::assertFalse($default->hasDefinition(VaultEntityManager::class), 'unset keeps the 1.18 wiring');
+            self::assertSame('doctrine.orm.default_entity_manager', (string) $default->getDefinition(DoctrineOrmVaultItemRepository::class)->getArgument('$entityManager'));
+            self::assertStringContainsString('Not setting "nowo_vault.database.private_entity_manager" is deprecated', $deprecations[0] ?? '');
+
+            $private = $this->container(['SecurityBundle' => SecurityBundle::class]);
+            (new VaultExtension())->load([self::BASE_CONFIG, ['database' => ['private_entity_manager' => true, 'entity_manager' => 'vault']]], $private);
+            self::assertTrue($private->hasDefinition(VaultEntityManager::class));
+            self::assertSame('vault', $private->getDefinition(VaultEntityManager::class)->getArgument(1));
+            self::assertSame(VaultEntityManager::class, (string) $private->getDefinition(DoctrineOrmVaultItemRepository::class)->getArgument('$entityManager'));
+            self::assertSame(VaultManagerRegistry::class, (string) $private->getDefinition(DoctrineOrmVaultItemRepository::class)->getArgument('$registry'));
+            self::assertSame(VaultManagerRegistry::class, (string) $private->getDefinition(VaultPersonalDataEraser::class)->getArgument('$registry'));
+            self::assertSame(VaultEntityManager::class, (string) $private->getDefinition(VaultItemFormType::class)->getArgument('$folderManager'));
+            self::assertCount(1, $deprecations, 'true: no deprecation');
+
+            (new VaultExtension())->load([self::BASE_CONFIG, ['database' => ['private_entity_manager' => false]]], $this->container(['SecurityBundle' => SecurityBundle::class]));
+            self::assertStringContainsString('private_entity_manager: false" is deprecated', $deprecations[1] ?? '');
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->expectException(InvalidConfigurationException::class);
+        (new VaultExtension())->load([self::BASE_CONFIG, ['database' => ['private_entity_manager' => 'yes']]], $this->container(['SecurityBundle' => SecurityBundle::class]));
+    }
+
+    public function testPrependMapsTheXmlMappingOrNothing(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension($this->fakeExtension('doctrine'));
+        $container->prependExtensionConfig('nowo_vault', ['database' => ['mapping_type' => 'xml']]);
+        (new VaultExtension())->prepend($container);
+        $mapping = $container->getExtensionConfig('doctrine')[0]['orm']['mappings']['VaultBundle'];
+        self::assertSame(['type' => 'xml', 'is_bundle' => false, 'dir' => VaultExtension::XML_MAPPING_DIR, 'prefix' => 'Nowo\\VaultBundle\\Entity'], $mapping);
+
+        $none = new ContainerBuilder();
+        $none->registerExtension($this->fakeExtension('doctrine'));
+        $none->prependExtensionConfig('nowo_vault', ['database' => ['register_mapping' => false]]);
+        (new VaultExtension())->prepend($none);
+        self::assertSame([], $none->getExtensionConfig('doctrine'));
     }
 
     public function testPrependRespectsHostFormKitSettings(): void
