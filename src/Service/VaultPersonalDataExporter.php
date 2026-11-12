@@ -39,7 +39,7 @@ use const DATE_ATOM;
  * The user id is a string so the export also works while an account is being deleted; when the user row is gone,
  * received-grant titles are left out.
  */
-final readonly class VaultPersonalDataExporter
+final readonly class VaultPersonalDataExporter implements VaultPersonalDataExporterInterface
 {
     /**
      * Stores the Doctrine registry and the optional collaborators of the received-grant titles.

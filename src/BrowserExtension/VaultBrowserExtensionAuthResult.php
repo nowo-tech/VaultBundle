@@ -4,10 +4,17 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\BrowserExtension;
 
+use InvalidArgumentException;
+use Nowo\VaultBundle\Support\VaultUserRefs;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * Immutable outcome of a browser extension login attempt (authenticated user or failure reason).
+ *
+ * 1.19.0 (REQ-ARCH-001 rule 3): a successful result can be built from a framework-free {@see VaultUserRef}
+ * ({@see self::authenticated()}) and read as one ({@see self::getUserRef()}). A reference without a user object stands
+ * for that vault user id (the vault's stand-in user, with the reference's role names).
  */
 final readonly class VaultBrowserExtensionAuthResult
 {
@@ -20,10 +27,22 @@ final readonly class VaultBrowserExtensionAuthResult
 
     /**
      * Builds a successful result carrying the authenticated user.
+     *
+     * @deprecated since 1.19.0, use authenticated() with a VaultUserRef (no Symfony type); removed in 2.0
      */
     public static function success(UserInterface $user): self
     {
         return new self(true, $user);
+    }
+
+    /**
+     * Builds a successful result for the referenced user (1.19.0): its user object, or the vault's stand-in for its id.
+     *
+     * @throws InvalidArgumentException when the reference has neither a user object nor an id
+     */
+    public static function authenticated(VaultUserRef $user): self
+    {
+        return new self(true, VaultUserRefs::toUser($user) ?? throw new InvalidArgumentException('An authenticated vault user needs a user object or an id.'));
     }
 
     /**
@@ -44,10 +63,20 @@ final readonly class VaultBrowserExtensionAuthResult
 
     /**
      * Returns the authenticated user, or null when the attempt failed.
+     *
+     * @deprecated since 1.19.0, use getUserRef(); removed in 2.0
      */
     public function getUser(): ?UserInterface
     {
         return $this->user;
+    }
+
+    /**
+     * The authenticated user as a framework-free reference, or null when the attempt failed (1.19.0).
+     */
+    public function getUserRef(): ?VaultUserRef
+    {
+        return VaultUserRefs::fromNullableUser($this->user);
     }
 
     /**

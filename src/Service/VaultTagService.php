@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Service;
 
+use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Entity\VaultTag;
+use Nowo\VaultBundle\Event\VaultEvents;
+use Nowo\VaultBundle\Event\VaultTagChangeEvent;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultScopeTagRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
+use Nowo\VaultBundle\Support\UserIdResolver;
+use Psr\Clock\ClockInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function mb_strlen;
 use function preg_replace;
@@ -29,6 +35,8 @@ final readonly class VaultTagService
     public function __construct(
         private VaultTagRepositoryInterface $tagRepository,
         private VaultItemRepositoryInterface $itemRepository,
+        private ?EventDispatcherInterface $eventDispatcher = null,
+        private ?ClockInterface $clock = null,
     ) {
     }
 
@@ -99,6 +107,7 @@ final readonly class VaultTagService
 
         $tag = new VaultTag($normalized, $creator);
         $this->tagRepository->save($tag);
+        $this->changed($tag, VaultTagChangeEvent::KIND_CREATED, $creator);
 
         return $tag;
     }
@@ -120,6 +129,7 @@ final readonly class VaultTagService
 
         $tag = VaultTag::forScope($normalized, $scope);
         $this->tagRepository->save($tag);
+        $this->changed($tag, VaultTagChangeEvent::KIND_CREATED, null);
 
         return $tag;
     }
@@ -134,8 +144,30 @@ final readonly class VaultTagService
             throw new InvalidArgumentException('Tag not found or not owned by the current user.');
         }
 
+        $tagId    = $tag->getId();
+        $ownerKey = $tag->getOwner()->key();
         // @igor-ignore - Service coordinates I/O or request-scoped work; not unsafe worker singleton state.
         $this->tagRepository->remove($tag);
+        $this->eventDispatcher?->dispatch(
+            new VaultTagChangeEvent(UserIdResolver::getId($creator), $tagId, $ownerKey, VaultTagChangeEvent::KIND_DELETED, $this->now()),
+            VaultEvents::TAG_CHANGED,
+        );
+    }
+
+    /**
+     * TAG_CHANGED after the vault's flush (1.19.0): ids only.
+     */
+    private function changed(VaultTag $tag, string $kind, ?object $actor): void
+    {
+        $this->eventDispatcher?->dispatch(
+            new VaultTagChangeEvent($actor !== null ? UserIdResolver::getId($actor) : null, $tag->getId(), $tag->getOwner()->key(), $kind, $this->now()),
+            VaultEvents::TAG_CHANGED,
+        );
+    }
+
+    private function now(): DateTimeImmutable
+    {
+        return $this->clock?->now() ?? new DateTimeImmutable();
     }
 
     private function scopeTags(): VaultScopeTagRepositoryInterface

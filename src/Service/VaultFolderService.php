@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Service;
 
+use DateTimeImmutable;
 use LogicException;
 use Nowo\VaultBundle\Entity\VaultFolder;
+use Nowo\VaultBundle\Event\VaultEvents;
+use Nowo\VaultBundle\Event\VaultFolderChangeEvent;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultScopeFolderRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
+use Nowo\VaultBundle\Support\UserIdResolver;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Creates, renames and looks up vault folders.
@@ -24,6 +30,8 @@ final readonly class VaultFolderService
     public function __construct(
         private VaultFolderRepositoryInterface $folderRepository,
         private ?VaultAccessGuard $accessGuard = null,
+        private ?EventDispatcherInterface $eventDispatcher = null,
+        private ?ClockInterface $clock = null,
     ) {
     }
 
@@ -47,6 +55,7 @@ final readonly class VaultFolderService
 
         $folder = VaultFolder::forScope($name, $scope, $actor, $parent);
         $this->folderRepository->save($folder);
+        $this->changed($folder, VaultFolderChangeEvent::KIND_CREATED, $actor);
 
         return $folder;
     }
@@ -72,6 +81,7 @@ final readonly class VaultFolderService
     {
         $folder = new VaultFolder($name, $creator, $parent);
         $this->folderRepository->save($folder);
+        $this->changed($folder, VaultFolderChangeEvent::KIND_CREATED, $creator);
 
         return $folder;
     }
@@ -83,6 +93,7 @@ final readonly class VaultFolderService
     {
         $folder->setName($name);
         $this->folderRepository->save($folder);
+        $this->changed($folder, VaultFolderChangeEvent::KIND_RENAMED, null);
 
         return $folder;
     }
@@ -95,6 +106,17 @@ final readonly class VaultFolderService
     public function listForCreator(object $creator): array
     {
         return $this->folderRepository->findByCreator($creator);
+    }
+
+    /**
+     * FOLDER_CHANGED after the vault's flush (1.19.0): ids only.
+     */
+    private function changed(VaultFolder $folder, string $kind, ?object $actor): void
+    {
+        $this->eventDispatcher?->dispatch(
+            new VaultFolderChangeEvent($actor !== null ? UserIdResolver::getId($actor) : null, $folder->getId(), $folder->getOwner()->key(), $kind, $this->clock?->now() ?? new DateTimeImmutable()),
+            VaultEvents::FOLDER_CHANGED,
+        );
     }
 
     /**

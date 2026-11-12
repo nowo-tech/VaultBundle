@@ -122,6 +122,10 @@ services:
         arguments:
             $managerName: '%nowo_vault.entity_manager%'
 
+    # 1.19.0 (REQ-ARCH-001 rule 1): id-based GDPR ports.
+    Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface: '@Nowo\VaultBundle\Service\VaultPersonalDataEraser'
+    Nowo\VaultBundle\Service\VaultPersonalDataExporterInterface: '@Nowo\VaultBundle\Service\VaultPersonalDataExporter'
+
     Nowo\VaultBundle\Service\VaultFieldRevealer:
         arguments:
             $revealableFields: '%nowo_vault.reveal.revealable_fields%'

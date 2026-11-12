@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Event;
 
+use Nowo\VaultBundle\Support\VaultUserRefs;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 
@@ -25,6 +27,8 @@ final class VaultHealthAccessCheckEvent extends Event
 
     /**
      * The viewer.
+     *
+     * @deprecated since 1.19.0, use getUserRef() / getUserId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
      */
     public function getUser(): UserInterface
     {
@@ -63,5 +67,21 @@ final class VaultHealthAccessCheckEvent extends Event
     public function isGranted(): bool
     {
         return $this->granted;
+    }
+
+    /**
+     * The user as a framework-free reference (1.19.0, REQ-ARCH-001 rules 3 and 4).
+     */
+    public function getUserRef(): VaultUserRef
+    {
+        return VaultUserRefs::fromUser($this->user);
+    }
+
+    /**
+     * The user's vault user id, or null when it has none (1.19.0).
+     */
+    public function getUserId(): ?string
+    {
+        return $this->getUserRef()->id;
     }
 }

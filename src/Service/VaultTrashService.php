@@ -9,6 +9,7 @@ use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Event\VaultEvents;
+use Nowo\VaultBundle\Event\VaultFolderChangeEvent;
 use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultItemChangeEvent;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
@@ -86,6 +87,7 @@ final readonly class VaultTrashService
         $detached = $this->itemRepository->detachItemsFromFolder($folder);
         $folder->markDeleted();
         $this->folderRepository->save($folder);
+        $this->folderChanged($folder->getId(), $folder->getOwner()->key(), VaultFolderChangeEvent::KIND_TRASHED);
 
         return $detached;
     }
@@ -97,6 +99,7 @@ final readonly class VaultTrashService
     {
         $folder->restore();
         $this->folderRepository->save($folder);
+        $this->folderChanged($folder->getId(), $folder->getOwner()->key(), VaultFolderChangeEvent::KIND_RESTORED);
     }
 
     /**
@@ -109,6 +112,18 @@ final readonly class VaultTrashService
         $grants   = $this->purge($folder);
         $this->logger()->info('Vault folder purged.', ['bundle' => 'nowo_vault', 'action' => 'folder_purge', 'folder_id' => $id]);
         $this->grantsPurged($grants, $ownerKey);
+        $this->folderChanged($id, $ownerKey, VaultFolderChangeEvent::KIND_PURGED);
+    }
+
+    /**
+     * FOLDER_CHANGED after the vault's flush (1.19.0): ids only (no actor is known here).
+     */
+    private function folderChanged(string $folderId, string $ownerKey, string $kind): void
+    {
+        $this->eventDispatcher?->dispatch(
+            new VaultFolderChangeEvent(null, $folderId, $ownerKey, $kind, $this->now()),
+            VaultEvents::FOLDER_CHANGED,
+        );
     }
 
     /**

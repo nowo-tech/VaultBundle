@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Event;
 
+use InvalidArgumentException;
 use Nowo\VaultBundle\Entity\VaultItem;
+use Nowo\VaultBundle\Support\VaultUserRefs;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 
@@ -34,6 +37,8 @@ final class VaultItemListQueryEvent extends Event
 
     /**
      * Returns the user viewing the list.
+     *
+     * @deprecated since 1.19.0, use getViewerRef() / getViewerId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
      */
     public function getViewer(): UserInterface
     {
@@ -42,6 +47,8 @@ final class VaultItemListQueryEvent extends Event
 
     /**
      * Returns the user whose items are listed.
+     *
+     * @deprecated since 1.19.0, use getListSubjectRef() / getListSubjectId(); removed in 2.0
      */
     public function getListSubject(): UserInterface
     {
@@ -50,6 +57,8 @@ final class VaultItemListQueryEvent extends Event
 
     /**
      * Changes the user whose items are listed.
+     *
+     * @deprecated since 1.19.0, use setListSubjectRef(); removed in 2.0
      */
     public function setListSubject(UserInterface $listSubject): void
     {
@@ -120,5 +129,49 @@ final class VaultItemListQueryEvent extends Event
         $this->overrideItems = $items;
         // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
         $this->overrideTotal = $total;
+    }
+
+    /**
+     * The viewer as a framework-free reference (1.19.0, REQ-ARCH-001 rules 3 and 4).
+     */
+    public function getViewerRef(): VaultUserRef
+    {
+        return VaultUserRefs::fromUser($this->viewer);
+    }
+
+    /**
+     * The viewer's vault user id, or null when it has none (1.19.0).
+     */
+    public function getViewerId(): ?string
+    {
+        return $this->getViewerRef()->id;
+    }
+
+    /**
+     * The user whose items are listed, as a framework-free reference (1.19.0).
+     */
+    public function getListSubjectRef(): VaultUserRef
+    {
+        return VaultUserRefs::fromUser($this->listSubject);
+    }
+
+    /**
+     * The vault user id of the user whose items are listed, or null (1.19.0).
+     */
+    public function getListSubjectId(): ?string
+    {
+        return $this->getListSubjectRef()->id;
+    }
+
+    /**
+     * Same as {@see self::setListSubject()} with a framework-free reference (1.19.0): its user object, or the vault's
+     * stand-in for its id.
+     *
+     * @throws InvalidArgumentException when the reference has neither a user object nor an id
+     */
+    public function setListSubjectRef(VaultUserRef $listSubject): void
+    {
+        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
+        $this->listSubject = VaultUserRefs::toUser($listSubject) ?? throw new InvalidArgumentException('The list subject needs a user object or an id.');
     }
 }
