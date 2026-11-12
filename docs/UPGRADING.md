@@ -4,7 +4,6 @@
 
 - [Unreleased](#unreleased)
 - [To 1.18.0](#to-1180)
-- [To 1.18.0](#to-1180-1)
   - [Existing settings and token tables (conditional mapping)](#existing-settings-and-token-tables-conditional-mapping)
 - [To 1.17.1](#to-1171)
 - [To 1.17.0](#to-1170)
@@ -73,14 +72,6 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
-
-## To 1.18.0
-
-From **1.17.1**:
-
-```bash
-composer update nowo-tech/vault-bundle
-```
 
 ## To 1.18.0
 
