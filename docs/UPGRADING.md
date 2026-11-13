@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Exact collation of the user id columns (`user_mapping: id`, MySQL / MariaDB)](#exact-collation-of-the-user-id-columns-user_mapping-id-mysql--mariadb)
 - [To 1.19.2](#to-1192)
 - [To 1.19.1](#to-1191)
 - [To 1.19.0](#to-1190)
@@ -80,6 +81,68 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+Target **1.19.3** (patch), from **1.19.2**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+Nothing changes with the default `user_mapping: relation`, nor on PostgreSQL, SQLite or SQL Server.
+
+### Exact collation of the user id columns (`user_mapping: id`, MySQL / MariaDB)
+
+1.17.0–1.19.2 gave the user id columns `utf8mb4_bin`. That collation is case- and accent-sensitive but PAD SPACE: `usera`
+and `usera ` compare equal. Since 1.19.3 the columns get a binary NO PAD collation: `utf8mb4_0900_bin` on MySQL
+8.0.17+, `utf8mb4_nopad_bin` on MariaDB. MySQL 5.7, or a `doctrine.dbal.server_version` without its patch number
+(`8`, `8.0`), keeps `utf8mb4_bin`, and the bundle logs a warning when it builds its metadata. Configure the full version
+(for example `8.4.3`).
+
+The columns are `creator_id` and `created_by_id` (items, folders), `creator_id` (tags), `created_by_id` and `grantee_id`
+(grants), and `user_id` (browser extension tokens). The vault already refused padded, control and invisible ids
+(`VaultUserClassPolicy`) and re-checked every row with `===`. The ALTER is defence in depth and makes list pages exact in
+SQL. It is not required for safety.
+
+**1. Detection (before the ALTER).** The NO PAD collation only splits values that compare equal today, so it cannot make
+`vault_grants_unique` or `vault_tags_creator_name_unique` fail. Look first at the values that will stop matching each
+other. Compare the bytes: `TRIM`, `DISTINCT`, `LOWER` or a `*_ci` / `*_ai_*` collation fold them too. Run each query
+for every column above.
+
+```sql
+-- look-alike ids that compare equal today (usera / UserA / úsera / "usera ")
+SELECT creator_id, COUNT(DISTINCT HEX(creator_id)) AS variants, COUNT(*) AS items_count
+FROM vault_items WHERE creator_id IS NOT NULL
+GROUP BY creator_id HAVING COUNT(DISTINCT HEX(creator_id)) > 1;
+
+-- ids the vault does not accept (spaces, controls, NBSP, zero-width, bidi marks, BOM): stored before the strict id
+-- rules of 1.17.0, unreachable since then
+SELECT id, HEX(creator_id) FROM vault_items
+WHERE HEX(creator_id) REGEXP '^(..)*([01][0-9A-F]|20|7F|C2A0|C2AD|E2808[0-9A-F]|E280A[89A-F]|E281A[0-9A-F]|E38080|EFBBBF)';
+```
+
+With `utf8mb4_bin` the first query only finds trailing-space variants. After the ALTER each variant is its own id; the
+vault never served one id's rows to another, because of the `===` re-checks.
+
+**2. ALTER** (use your table names, and `utf8mb4_nopad_bin` instead of `utf8mb4_0900_bin` on MariaDB). MySQL 8.0.17+:
+
+```sql
+ALTER TABLE vault_items
+  MODIFY creator_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE `utf8mb4_0900_bin` DEFAULT NULL,
+  MODIFY created_by_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE `utf8mb4_0900_bin` DEFAULT NULL;
+ALTER TABLE vault_folders
+  MODIFY creator_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE `utf8mb4_0900_bin` DEFAULT NULL,
+  MODIFY created_by_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE `utf8mb4_0900_bin` DEFAULT NULL;
+ALTER TABLE vault_tags
+  MODIFY creator_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE `utf8mb4_0900_bin` DEFAULT NULL;
+ALTER TABLE vault_grants
+  MODIFY created_by_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE `utf8mb4_0900_bin` DEFAULT NULL,
+  MODIFY grantee_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE `utf8mb4_0900_bin` NOT NULL;
+ALTER TABLE vault_extension_tokens
+  MODIFY user_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE `utf8mb4_0900_bin` NOT NULL;
+```
+
+Your `doctrine:migrations:diff` generates the same statements. Afterwards `doctrine:schema:update --dump-sql` shows
+nothing for these columns. `information_schema.COLUMNS.COLLATION_NAME` shows the new collation.
 
 ## To 1.19.2
 

@@ -289,6 +289,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$extensionTokensTableName', $extensionTokensTable)
             ->setArgument('$userClass', $config['user_class'])
             ->setArgument('$userMapping', $config['user_mapping'])
+            // REQ-SEC-006 (1.19.3): warns when MySQL only offers the PAD SPACE utf8mb4_bin for the user id columns
+            ->setArgument('$logger', new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE))
             ->addTag('doctrine.event_listener', ['event' => 'loadClassMetadata']));
 
         $container->setDefinition(VaultRuntimeConfigProvider::class, (new Definition(VaultRuntimeConfigProvider::class))
