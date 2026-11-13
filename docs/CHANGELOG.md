@@ -53,6 +53,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **User id columns are binary NO PAD on MySQL / MariaDB (`user_mapping: id`, REQ-SEC-006, patch 1.19.3):** the
+  `utf8mb4_bin` collation of 1.17.0–1.19.2 is PAD SPACE (`usera ` = `usera`). The columns now get `utf8mb4_0900_bin`
+  (MySQL 8.0.17+) or `utf8mb4_nopad_bin` (MariaDB). MySQL 5.7, or a `server_version` without its patch number, keeps
+  `utf8mb4_bin`, and a warning is logged. The strict id rules and the `===` re-checks are unchanged, so no row was
+  reachable by a padded id. Existing tables: detection queries and `ALTER TABLE` in UPGRADING.
+
 ### Fixed
 
 - **SQL filter mirroring (audit NZ-I6):** the private manager registers the class of each enabled source filter

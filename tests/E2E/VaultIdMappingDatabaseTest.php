@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Tests\E2E;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+use Doctrine\DBAL\Platforms\MariaDBPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Schema\Index;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,6 +33,7 @@ use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
 use Nowo\VaultBundle\Service\VaultSharedItemResolver;
 use Nowo\VaultBundle\Service\VaultTagService;
+use Nowo\VaultBundle\Support\VaultUserClassPolicy;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\IdMappingKernel;
 use PHPUnit\Framework\Attributes\Group;
@@ -44,13 +46,15 @@ use function array_values;
 use function count;
 use function getenv;
 use function is_string;
+use function json_encode;
 use function ob_get_clean;
 use function ob_start;
 use function sort;
 
 /**
  * LQ-V-M1 (1.17.0) on a database server (MySQL, MariaDB, PostgreSQL): with `user_mapping: id` the user id columns
- * compare byte for byte (`utf8mb4_bin` on MySQL / MariaDB), so `usera` never matches `UserA`; they are indexed; and the
+ * compare byte for byte (`utf8mb4_0900_bin` on MySQL, `utf8mb4_nopad_bin` on MariaDB since 1.19.3), so `usera` never
+ * matches `UserA` nor `usera `; they are indexed; and the
  * post-filters keep every secret, GDPR and token path exact even when a host's column uses a case-insensitive collation.
  * Set VAULT_TEST_DATABASE_URL to run (CI job "Id mapping on database servers").
  */
@@ -100,8 +104,10 @@ final class VaultIdMappingDatabaseTest extends WebTestCase
             $collations = $connection->fetchAllKeyValue("SELECT CONCAT(TABLE_NAME, '.', COLUMN_NAME), COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'vault\\_%' AND COLUMN_NAME IN ('creator_id', 'created_by_id', 'user_id', 'grantee_id')");
             self::assertGreaterThanOrEqual(8, count($collations));
             self::assertArrayHasKey('vault_grants.grantee_id', $collations);
+            // REQ-SEC-006 (1.19.3): binary NO PAD (utf8mb4_bin is PAD SPACE: `usera ` = `usera`)
+            $expected = $connection->getDatabasePlatform() instanceof MariaDBPlatform ? 'utf8mb4_nopad_bin' : 'utf8mb4_0900_bin';
             foreach ($collations as $column => $collation) {
-                self::assertSame('utf8mb4_bin', $collation, (string) $column);
+                self::assertSame($expected, $collation, (string) $column);
             }
         }
 
@@ -117,6 +123,25 @@ final class VaultIdMappingDatabaseTest extends WebTestCase
         $this->seed();
 
         $this->assertExactEverywhere(true);
+    }
+
+    /**
+     * REQ-SEC-006: look-alikes of `usera` (case, accent, trailing space, newline, NBSP, ZWSP) select none of its rows in
+     * SQL, and the vault refuses the padded and invisible ones as users.
+     */
+    public function testLookAlikeUserIdsNeverMatchInSql(): void
+    {
+        $this->seed();
+        $connection = $this->em()->getConnection();
+        self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM vault_items WHERE creator_id = ?', ['usera']));
+        foreach (['Usera', 'úsera', 'usera ', "usera\n", "usera\u{00A0}", "usera\u{200B}"] as $lookAlike) {
+            foreach (['vault_items' => 'creator_id', 'vault_folders' => 'creator_id', 'vault_tags' => 'creator_id', 'vault_extension_tokens' => 'user_id', 'vault_grants' => 'grantee_id'] as $table => $column) {
+                self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $column . ' = ?', [$lookAlike]), $table . '.' . $column . ' ' . json_encode($lookAlike));
+            }
+        }
+        foreach (['usera ', "usera\n", "usera\u{00A0}", "usera\u{200B}"] as $unusable) {
+            self::assertFalse(VaultUserClassPolicy::isUsableId($unusable, true), json_encode($unusable));
+        }
     }
 
     public function testPostFiltersKeepEveryPathExactUnderACaseInsensitiveCollation(): void

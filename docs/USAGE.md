@@ -522,8 +522,10 @@ With `user_mapping: id`:
 
 - the user columns are `VARCHAR(128)` holding the id (no foreign key, no join to your users table: the bundle's
   metadata listener replaces the relation with a plain column), indexed, and compared byte for byte: on MySQL /
-  MariaDB they (and `vault_grants.grantee_id`) use `utf8mb4_bin` and on SQL Server `Latin1_General_100_BIN2`
-  (PostgreSQL, SQLite and Oracle already compare byte-exact). Keep that collation in your migrations: the access
+  MariaDB they (and `vault_grants.grantee_id`) use a binary NO PAD collation (since 1.19.3: `utf8mb4_0900_bin` on
+  MySQL 8.0.17+, `utf8mb4_nopad_bin` on MariaDB; the PAD SPACE `utf8mb4_bin`, with a logged warning, on MySQL 5.7 or
+  a `server_version` without its patch number) and on SQL Server `Latin1_General_100_BIN2` (PostgreSQL, SQLite and
+  Oracle already compare byte-exact). Keep that collation in your migrations: the access
   decisions on grants, "shared with me", the decrypted export, the GDPR export / erasure and the token revocation stay
   exact without it, but lists, counts and search rely on it. Set `doctrine.dbal.server_version` when the database is
   not reachable at `cache:warmup` (the listener needs the platform);

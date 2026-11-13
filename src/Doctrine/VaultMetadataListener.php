@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Doctrine;
 
-use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use Doctrine\DBAL\Platforms\SQLServerPlatform;
 use Doctrine\ORM\Event\LoadClassMetadataEventArgs;
 use Doctrine\ORM\Mapping\AssociationMapping;
@@ -16,6 +15,8 @@ use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Entity\VaultSettings;
 use Nowo\VaultBundle\Entity\VaultTag;
+use Nowo\VaultBundle\Support\VaultUserClassPolicy;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 use function array_replace_recursive;
@@ -51,6 +52,7 @@ final readonly class VaultMetadataListener
         private string $extensionTokensTableName,
         private string $userClass,
         private string $userMapping = VaultUserMapping::RELATION,
+        private ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -109,6 +111,11 @@ final readonly class VaultMetadataListener
      * MySQL / MariaDB and SQL Server default to case- (and accent-) insensitive collations, so `usera` would match
      * `UserA`. PostgreSQL, SQLite and Oracle compare byte-exact by default and need nothing.
      *
+     * Since 1.19.3 (REQ-SEC-006) the MySQL / MariaDB collation is binary NO PAD ({@see ExactCollation}):
+     * `utf8mb4_0900_bin` (MySQL 8.0.17+) or `utf8mb4_nopad_bin` (MariaDB) instead of the PAD SPACE `utf8mb4_bin`
+     * (`usera ` = `usera`), which only MySQL 5.7 keeps, with a logged warning. SQL Server's binary collations always
+     * ignore trailing spaces; the strict id rules refuse such ids before any query ({@see VaultUserClassPolicy}).
+     *
      * The result is cached with the metadata, so an unknown platform fails loudly instead of caching metadata without
      * the collation (LQ-V-P2-I1): set `doctrine.dbal.server_version` when the database is not reachable at
      * `cache:warmup`.
@@ -118,15 +125,18 @@ final readonly class VaultMetadataListener
     private function binaryCollation(LoadClassMetadataEventArgs $args): array
     {
         try {
-            $platform = $args->getEntityManager()->getConnection()->getDatabasePlatform();
+            $connection = $args->getEntityManager()->getConnection();
+            $platform   = $connection->getDatabasePlatform();
+            // one fallback warning per metadata build: the item is the first entity with user columns
+            $collation = ExactCollation::forConnection($connection, $args->getClassMetadata()->getName() === VaultItem::class ? $this->logger : null);
         } catch (Throwable $exception) {
             throw new LogicException('nowo_vault.user_mapping "id" needs the database platform to map the user id columns (binary collation). Set doctrine.dbal.server_version (or make the database reachable) before warming up the cache.', 0, $exception);
         }
 
         return match (true) {
-            $platform instanceof AbstractMySQLPlatform => ['charset' => 'utf8mb4', 'collation' => 'utf8mb4_bin'],
-            $platform instanceof SQLServerPlatform     => ['collation' => 'Latin1_General_100_BIN2'],
-            default                                    => [],
+            $collation !== null                    => ['charset' => 'utf8mb4', 'collation' => $collation],
+            $platform instanceof SQLServerPlatform => ['collation' => 'Latin1_General_100_BIN2'],
+            default                                => [],
         };
     }
 
