@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.19.3](#to-1193)
   - [Exact collation of the user id columns (`user_mapping: id`, MySQL / MariaDB)](#exact-collation-of-the-user-id-columns-user_mapping-id-mysql--mariadb)
 - [To 1.19.2](#to-1192)
 - [To 1.19.1](#to-1191)
@@ -81,6 +82,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.19.3
+
+From **1.19.2**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 Target **1.19.3** (patch), from **1.19.2**:
 

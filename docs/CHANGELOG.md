@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.19.3] - 2026-11-13](#1193---2026-11-13)
 - [[1.19.2] - 2026-11-12](#1192---2026-11-12)
 - [[1.19.1] - 2026-11-12](#1191---2026-11-12)
 - [[1.19.0] - 2026-11-12](#1190---2026-11-12)
@@ -53,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.3] - 2026-11-13
+
 ### Security
 
 - **User id columns are binary NO PAD on MySQL / MariaDB (`user_mapping: id`, REQ-SEC-006, patch 1.19.3):** the
@@ -66,6 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SQL filter mirroring (audit NZ-I6):** the private manager registers the class of each enabled source filter
   *instance* (not the class named in the source configuration), so the mirror is exact, also when a filter is
   registered again under the same name with another class.
+
+[1.19.3]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.19.3
 
 ## [1.19.2] - 2026-11-12
 
@@ -1155,7 +1160,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.19.2...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.19.3...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
