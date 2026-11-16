@@ -4,4 +4,3 @@ nowo_tag_input:
     duplicates: false
     dropdown_enabled: true
     placeholder: ''
-    form_theme: 'bootstrap_5_layout.html.twig'
