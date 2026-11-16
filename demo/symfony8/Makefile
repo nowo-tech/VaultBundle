@@ -47,6 +47,11 @@ up: ensure-env
 	@rm -f .env.dev
 	@mkdir -p var/vault-storage
 	@chmod 700 var/vault-storage 2>/dev/null || true
+	@# Fresh checkout (CI demo smoke): FrankenPHP worker mode needs vendor/ before the server starts.
+	@if [ ! -f vendor/autoload_runtime.php ]; then \
+		echo "Installing dependencies before the first start..."; \
+		$(COMPOSE) run --rm --no-deps --entrypoint composer $(SERVICE_PHP) install --no-interaction --no-scripts; \
+	fi
 	@$(COMPOSE) up -d
 	@echo "Waiting for container to be ready..."
 	@sleep 5
