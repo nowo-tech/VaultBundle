@@ -72,9 +72,6 @@ make -C demo release-check              # healthcheck on port 8023
 make demo-smoke                         # REQ-TEST-011: start, HTTP 200 on /tools/vault (redirects followed), stop
 ```
 
-The `Demo smoke` workflow (`.github/workflows/demo-smoke.yml`) runs `make demo-smoke` every Monday, on `v*` tags,
-on demand and on pull requests that touch `demo/`, the Makefiles or the workflow.
-
 ## Switching classic vs worker (`FRANKENPHP_MODE`)
 
 Demos select the FrankenPHP runtime via **`FRANKENPHP_MODE`** in `.env` / `.env.example` (not a Dockerfile `ENV`):
