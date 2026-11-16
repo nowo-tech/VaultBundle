@@ -22,11 +22,17 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class VaultUserRefResolver
 {
+    /**
+     * Keeps the user locator used to look up references by id.
+     */
     public function __construct(
         private ?VaultUserLocatorInterface $userLocator = null,
     ) {
     }
 
+    /**
+     * User the vault can trust for the reference, or null.
+     */
     public function resolve(VaultUserRef $ref): ?UserInterface
     {
         $user = VaultUserRefs::toUser($ref);

@@ -31,6 +31,9 @@ final class ConditionalMappingPass implements CompilerPassInterface
 
     public const SCHEMA_FILTER_ID = 'nowo_vault.unmapped_tables_schema_filter';
 
+    /**
+     * Decorates the metadata driver of the vault entity manager and registers the schema filter when features are unmapped.
+     */
     public function process(ContainerBuilder $container): void
     {
         $classes = $container->hasParameter('nowo_vault.unmapped_entity_classes') ? $container->getParameter('nowo_vault.unmapped_entity_classes') : [];

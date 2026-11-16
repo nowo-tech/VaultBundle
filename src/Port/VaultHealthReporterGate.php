@@ -21,6 +21,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class VaultHealthReporterGate implements VaultHealthReporterInterface
 {
+    /**
+     * Selects the health report provider or the deprecated reporter.
+     */
     public function __construct(
         private string $mode,
         private ?VaultHealthReporterInterface $legacy = null,
@@ -29,6 +32,9 @@ final readonly class VaultHealthReporterGate implements VaultHealthReporterInter
         VaultPortMode::assert($mode === VaultPortMode::BOTH ? '' : $mode, $legacy, $policy, 'health reporter');
     }
 
+    /**
+     * Health report of a scope vault for the viewer.
+     */
     public function forScope(UserInterface $viewer, string $scope, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
         if ($this->legacy instanceof VaultHealthReporterInterface && $this->mode === VaultPortMode::LEGACY) {
@@ -38,6 +44,9 @@ final readonly class VaultHealthReporterGate implements VaultHealthReporterInter
         return $this->provider()->reportForScope(VaultUserRefs::fromUser($viewer), $scope, $policy);
     }
 
+    /**
+     * Health report of the personal vault of the owner.
+     */
     public function forPersonalVault(UserInterface $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
         if ($this->legacy instanceof VaultHealthReporterInterface && $this->mode === VaultPortMode::LEGACY) {

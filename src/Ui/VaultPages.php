@@ -61,6 +61,9 @@ final readonly class VaultPages
     /** Canonical blocks a 1.x layout may already render (the bridge skips them). */
     private const LEGACY_HOST_BLOCKS = ['nowo_ui_flashes', 'nowo_ui_styles', 'nowo_ui_scripts'];
 
+    /**
+     * Keeps the layout, the page templates, the share UI switch and the host note template.
+     */
     public function __construct(
         private ?string $layoutTemplate = null,
         private ?Environment $twig = null,

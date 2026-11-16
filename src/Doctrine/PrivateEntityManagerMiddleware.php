@@ -19,11 +19,17 @@ use Nowo\VaultBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
  */
 final readonly class PrivateEntityManagerMiddleware implements Middleware
 {
+    /**
+     * Keeps the private entity manager that the wrapped connections report to.
+     */
     public function __construct(
         private VaultEntityManager $entityManager,
     ) {
     }
 
+    /**
+     * Wraps the driver of the private entity manager connection.
+     */
     public function wrap(Driver $driver): Driver
     {
         return new PrivateEntityManagerDriver($driver, $this->entityManager);

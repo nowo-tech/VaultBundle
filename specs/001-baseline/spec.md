@@ -104,9 +104,25 @@ As an integrator, I hook list/access events to enforce custom team rules.
 
 ---
 
+### Scope vaults, grants, catalogue, reveal, health and personal data (1.16-1.19)
+
+- **FR-SCOPE-001**: Scope vaults (`scopes.enabled`): items, folders and tags owned by a host scope key (`VaultOwner`), membership from the scope host port memoized per request, scope pages and repositories, dry downgrade check.
+- **FR-GRANT-001**: Temporary grants with expiry enforced on every access, purge command and `GRANT_*` events with ids only; `GRANT_POLICY_CHECK` veto with a reason code.
+- **FR-CAT-001**: Metadata-only catalogue of a scope (no folder, creator or payload), `CATALOGUE_ACCESS_CHECK`, GET search form.
+- **FR-REVEAL-001**: Field reveal, copy and attachment download over POST + CSRF, per-user rate limits, `no-store` headers on every bundle response, values hidden from dumps, `ITEM_FIELD_REVEAL_CHECK` / `REVEAL_THROTTLED` events.
+- **FR-HEALTH-001**: On-demand password health per owner (weak, reused, old, optional breach hook), password policy per owner (optionally enforced on save), size and interval limits, events with counts only.
+- **FR-GDPR-001**: GDPR metadata export and erasure of one user by id; decrypted personal export behind a host re-authentication proof checked on the bundle clock, with a per-user lock.
+- **FR-USER-001**: `user_mapping: relation | id` (1.17), accepted user classes, strict ids compared byte for byte (binary NO PAD collation since 1.19.3), refusal of users of other classes.
+- **FR-PORT-001**: Framework-free host ports and VOs (1.19, REQ-ARCH-001 rule 3): access policy, scope access, team membership, re-authentication, health report, user directory, `VaultUserRef`; sensitive VO values kept out of dumps.
+- **FR-PORT-002**: Build-time gates choosing the deprecated interface, the 1.19 port or both (fail closed).
+- **FR-EVT-002**: `ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED` with ids only, dispatched after the vault's own flush (REQ-ARCH-001 rule 4).
+- **FR-DB-004**: Opt-in private entity manager (`database.private_entity_manager`): own registry and repository factory, savepoints around vault writes, rollback tracking, dropped at every unit-of-work boundary (REQ-ARCH-001 rule 6, REQ-RUNTIME-002).
+- **FR-DB-005**: `database.conditional_mapping`: entities and tables of disabled features left out of mapping and schema tools; raw DBAL access to unmapped token rows.
+- **FR-DB-006**: XML mapping of every entity for DDD hosts.
+
 ## Success Criteria
 
-- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (123/123 mapped, audited 2026-10-20; 1 co-located `*.test.ts` excluded).
+- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (256/256 mapped, audited 2026-11-16 on v1.19.3; 5 co-located `*.test.ts` excluded).
 - **SC-002**: Configuration keys in `docs/CONFIGURATION.md` match `Configuration.php`.
 - **SC-003**: `composer qa` / `make release-check` pass in CI (PHPUnit, PHPStan, Vitest where applicable).
 - **SC-004**: No Packagist-visible behavior change without spec, inventory, and test updates.

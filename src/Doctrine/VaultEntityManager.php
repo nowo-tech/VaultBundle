@@ -196,12 +196,18 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
         }
     }
 
+    /**
+     * Flushes the live private manager and records the transaction level of the write.
+     */
     public function flush(): void
     {
         $this->live()->flush();
         $this->wrote();
     }
 
+    /**
+     * Refreshes the object through the live private manager and records the transaction level of the read.
+     */
     public function refresh(object $object, LockMode|int|null $lockMode = LockMode::NONE): void
     {
         $this->live()->refresh($object, $lockMode);
@@ -228,6 +234,9 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
         }
     }
 
+    /**
+     * Runs the callable in a transaction of the live private manager and records the transaction level.
+     */
     public function wrapInTransaction(callable $func): mixed
     {
         try {

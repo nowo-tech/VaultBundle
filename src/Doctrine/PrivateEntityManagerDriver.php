@@ -15,6 +15,9 @@ use Doctrine\DBAL\Driver\Middleware\AbstractDriverMiddleware;
  */
 final class PrivateEntityManagerDriver extends AbstractDriverMiddleware
 {
+    /**
+     * Keeps the private entity manager that the wrapped connections report to.
+     */
     public function __construct(
         Driver $driver,
         private readonly VaultEntityManager $entityManager,
@@ -22,6 +25,9 @@ final class PrivateEntityManagerDriver extends AbstractDriverMiddleware
         parent::__construct($driver);
     }
 
+    /**
+     * Opens the driver connection wrapped in a PrivateEntityManagerConnection.
+     */
     public function connect(array $params): Connection
     {
         return new PrivateEntityManagerConnection(parent::connect($params), $this->entityManager);

@@ -44,6 +44,9 @@ use function max;
  */
 final readonly class VaultPageFactory
 {
+    /**
+     * Keeps the URL generator and the page settings used to build the view models.
+     */
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,
         private VaultPages $pages = new VaultPages(),

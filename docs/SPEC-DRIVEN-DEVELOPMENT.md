@@ -40,7 +40,7 @@ Personal and team password vault for Symfony apps: structured secrets, folders, 
 
 **Goal:** a personal and team password vault for Symfony applications (structured secrets, folders, sharing, trash, password generator, browser-extension API), with payloads encrypted at rest.
 
-**In scope:** vault entities and repositories, payload encryption (Sodium / runtime key) and re-encryption, manage Web UI (UiKit), sharing with users and teams, trash lifecycle, tags, password generator (server + client), runtime configuration stored in the database, browser-extension Bearer-token API, domain events for host extension points, console commands (token purge, re-encryption).
+**In scope:** vault entities and repositories, payload encryption (Sodium / runtime key) and re-encryption, manage Web UI (UiKit), sharing with users and teams, trash lifecycle, tags, password generator (server + client), runtime configuration stored in the database, browser-extension Bearer-token API, domain events for host extension points, console commands (token purge, re-encryption, expired-grant purge, downgrade check); since 1.16: scope vaults, temporary grants, metadata catalogue, field reveal / attachment download, password health, GDPR export / erasure and the decrypted personal export; since 1.17: `user_mapping: id` and accepted user classes; since 1.18-1.19: conditional mapping, XML mapping, framework-free host ports and the opt-in private entity manager.
 
 **Explicit non-goals:**
 

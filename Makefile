@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 # Vault Bundle - Development
-.PHONY: help update-deps up down down-dev build shell install test test-coverage test-coverage-100 coverage-check coverage-php-percent cs-check cs-fix qa clean assets assets-build assets-watch assets-test test-ts test-e2e ensure-up rector rector-dry phpstan igor release-check release-check-demos demo-smoke composer-sync update validate validate-translations extension-sync extension-build vault-purge-tokens check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history setup-hooks check-twig-extra check-no-raw-html-form
+.PHONY: help update-deps up down down-dev build shell install test test-coverage test-coverage-100 coverage-check coverage-php-percent cs-check cs-fix qa clean assets assets-build assets-watch assets-test test-ts test-e2e test-with-db test-coverage-with-db ensure-up rector rector-dry phpstan igor release-check release-check-demos demo-smoke composer-sync update validate validate-translations extension-sync extension-build vault-purge-tokens check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history setup-hooks check-twig-extra check-no-raw-html-form
 
 COMPOSE_FILE ?= docker-compose.yml
 # Prefer Compose V2 plugin (GitHub Actions / modern Docker Desktop); fall back to docker-compose V1 (REQ-MAKE-010).
@@ -52,9 +52,12 @@ help:
 	@echo "  check-no-raw-html-form  Fail on raw <form>/<input>/<textarea>/<select> in Twig (REQ-TWIG-005)"
 	@echo "  check-no-cursor-coauthor / check-open-prs / setup-hooks"
 	@echo "  extension-build / extension-sync / vault-purge-tokens"
+	@echo "  test-with-db       PHPUnit database group on the MySQL service of the root compose (REQ-TEST-005)"
+	@echo "  test-coverage-with-db   Same with text coverage (REQ-TEST-005)"
 	@echo ""
 	@echo "Demos:"
-	@echo "  demo-smoke / release-check-demos   Demo healthcheck (make -C demo release-check)"
+	@echo "  demo-smoke         REQ-TEST-011: boot the demo, one HTTP 200 (following redirects), stop it (make -C demo demo-smoke)"
+	@echo "  release-check-demos   Demo healthcheck (make -C demo release-check)"
 	@echo "  make -C demo up-symfony8 | down-symfony8 | test-symfony8   (see make -C demo help)"
 
 build:
@@ -69,7 +72,7 @@ up:
 	@echo "Container ready."
 
 down:
-	$(COMPOSE) down
+	$(COMPOSE) --profile db down
 
 down-dev: down
 	@echo "Dev container stopped."
@@ -123,6 +126,21 @@ test-coverage-100: ensure-up
 
 coverage-check: test-coverage-100
 
+# REQ-TEST-005: the database group (id mapping: binary collation, indexes, post-filters) against the MySQL 8.4 service
+# of the root docker-compose.yml (profile "db", throwaway database without a password, no host port). CI runs the same
+# group on MySQL 8.4, MariaDB 11.4 and PostgreSQL 17 (job "Id mapping on …").
+TEST_DATABASE_URL ?= mysql://root@mysql:3306/vault_test?serverVersion=8.4.0&charset=utf8mb4
+
+test-with-db: ensure-up
+	$(COMPOSE) --profile db up -d mysql
+	$(COMPOSE) exec -T -e VAULT_TEST_DATABASE_URL='$(TEST_DATABASE_URL)' $(SERVICE_PHP) php .scripts/wait-for-database.php
+	$(COMPOSE) exec -T -e VAULT_TEST_DATABASE_URL='$(TEST_DATABASE_URL)' $(SERVICE_PHP) vendor/bin/phpunit --group database --fail-on-skipped
+
+test-coverage-with-db: ensure-up
+	$(COMPOSE) --profile db up -d mysql
+	$(COMPOSE) exec -T -e VAULT_TEST_DATABASE_URL='$(TEST_DATABASE_URL)' $(SERVICE_PHP) php .scripts/wait-for-database.php
+	$(COMPOSE) exec -T -e VAULT_TEST_DATABASE_URL='$(TEST_DATABASE_URL)' $(SERVICE_PHP) vendor/bin/phpunit --group database --fail-on-skipped --coverage-text
+
 cs-check: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer cs-check
 
@@ -166,7 +184,7 @@ release-check-demos:
 	@$(MAKE) -C demo release-check
 
 demo-smoke:
-	@if [ -f demo/Makefile ]; then $(MAKE) -C demo release-check; else echo "No demo/Makefile — skip demo-smoke"; fi
+	@if [ -f demo/Makefile ]; then $(MAKE) -C demo demo-smoke; else echo "No demo/Makefile — skip demo-smoke"; fi
 
 clean:
 	rm -rf vendor node_modules .phpunit.cache coverage .php-cs-fixer.cache

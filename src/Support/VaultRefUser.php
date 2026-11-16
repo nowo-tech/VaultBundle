@@ -65,6 +65,9 @@ final readonly class VaultRefUser implements UserInterface
         return $this->id;
     }
 
+    /**
+     * Identifier of the reference, or its id when it has none.
+     */
     public function getUserIdentifier(): string
     {
         if ($this->ref->identifier !== '') {

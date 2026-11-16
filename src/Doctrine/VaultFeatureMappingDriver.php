@@ -39,6 +39,9 @@ final readonly class VaultFeatureMappingDriver implements MappingDriver
         $this->unmappedClasses = array_map(static fn (string $class): string => ltrim($class, '\\'), $unmappedClasses);
     }
 
+    /**
+     * Delegates to the inner driver; unmapped classes are never loaded.
+     */
     public function loadMetadataForClass(string $className, ClassMetadata $metadata): void
     {
         if ($this->isUnmapped($className)) {
@@ -56,6 +59,9 @@ final readonly class VaultFeatureMappingDriver implements MappingDriver
         return array_values(array_filter($this->inner->getAllClassNames(), fn (string $class): bool => !$this->isUnmapped($class)));
     }
 
+    /**
+     * True for the entities of disabled features, otherwise the answer of the inner driver.
+     */
     public function isTransient(string $className): bool
     {
         return $this->isUnmapped($className) || $this->inner->isTransient($className);

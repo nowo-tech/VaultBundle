@@ -141,6 +141,9 @@ final class VaultShareType extends AbstractType
         ]);
     }
 
+    /**
+     * Tells the template whether a grantee picker is shown.
+     */
     public function buildView(FormView $view, FormInterface $form, array $options): void
     {
         $view->vars['grantee_picker'] = $options['grantee_choices'] !== [];

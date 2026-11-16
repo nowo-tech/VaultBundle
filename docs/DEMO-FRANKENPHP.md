@@ -69,6 +69,7 @@ From bundle root:
 ```bash
 make -C demo up-symfony8
 make -C demo release-check              # healthcheck on port 8023
+make demo-smoke                         # REQ-TEST-011: start, HTTP 200 on /tools/vault (redirects followed), stop
 ```
 
 ## Switching classic vs worker (`FRANKENPHP_MODE`)

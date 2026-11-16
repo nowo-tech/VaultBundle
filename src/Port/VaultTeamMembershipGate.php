@@ -18,6 +18,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class VaultTeamMembershipGate implements VaultTeamMembershipResolverInterface
 {
+    /**
+     * Selects the team membership provider, the deprecated resolver or both (intersection).
+     */
     public function __construct(
         private string $mode,
         private ?VaultTeamMembershipResolverInterface $legacy = null,
@@ -26,6 +29,9 @@ final readonly class VaultTeamMembershipGate implements VaultTeamMembershipResol
         VaultPortMode::assert($mode, $legacy, $policy, 'team_membership_resolver');
     }
 
+    /**
+     * Team ids of the user used for team grants.
+     */
     public function getTeamIdsForUser(UserInterface $user): array
     {
         if ($this->mode === VaultPortMode::LEGACY) {

@@ -17,6 +17,7 @@
 /coverage-ts
 /coverage-php.txt
 /coverage-ts.txt
+/coverage.txt
 /extension/build
 /tests/**/var/
 **/config/reference.php

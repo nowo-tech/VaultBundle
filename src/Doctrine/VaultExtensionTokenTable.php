@@ -52,6 +52,9 @@ final readonly class VaultExtensionTokenTable
     /** Default `{table_prefix}_extension_tokens` name. */
     public const DEFAULT_TABLE = 'vault_extension_tokens';
 
+    /**
+     * Keeps the name of the token table accessed through raw DBAL.
+     */
     public function __construct(
         private string $tableName = self::DEFAULT_TABLE,
     ) {

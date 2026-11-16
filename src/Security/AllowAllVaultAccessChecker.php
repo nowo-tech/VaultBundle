@@ -12,21 +12,33 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final class AllowAllVaultAccessChecker implements VaultAccessPolicyInterface, VaultAccessCheckerInterface
 {
+    /**
+     * Always true (demo / dev only).
+     */
     public function allowsAccess(?VaultUserRef $user = null): bool
     {
         return true;
     }
 
+    /**
+     * Always true (demo / dev only).
+     */
     public function allowsCreate(?VaultUserRef $user = null): bool
     {
         return true;
     }
 
+    /**
+     * Always true (demo / dev only).
+     */
     public function allowsList(?VaultUserRef $user = null): bool
     {
         return true;
     }
 
+    /**
+     * Always true (demo / dev only).
+     */
     public function allowsRevoke(?VaultUserRef $user = null): bool
     {
         return true;

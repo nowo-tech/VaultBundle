@@ -23,6 +23,9 @@ final readonly class VaultScopeAccessGate implements VaultScopeAccessResolverInt
 {
     private const RANK = [VaultPermission::Read->value => 1, VaultPermission::Write->value => 2, VaultPermission::Admin->value => 3];
 
+    /**
+     * Selects the scope access provider, the deprecated resolver or both (weaker answer wins).
+     */
     public function __construct(
         private string $mode,
         private ?VaultScopeAccessResolverInterface $legacy = null,
@@ -31,6 +34,9 @@ final readonly class VaultScopeAccessGate implements VaultScopeAccessResolverInt
         VaultPortMode::assert($mode, $legacy, $policy, 'scopes.access_resolver');
     }
 
+    /**
+     * Scope membership of the user, or null when not a member.
+     */
     public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
     {
         $legacy = null;

@@ -33,6 +33,9 @@ final readonly class VaultUserColumnsListener
 {
     private const ENTITIES = [VaultItem::class, VaultFolder::class, VaultGrant::class, VaultTag::class, VaultExtensionToken::class];
 
+    /**
+     * Keeps the user reference resolver used to normalise the host user of new vault rows.
+     */
     public function __construct(
         private VaultUserReferenceResolverInterface $users,
     ) {

@@ -2,6 +2,18 @@
 
 VaultBundle mirrors the YopassBundle event pattern. Default access is **creator-only**; grants on items/folders extend access to users and teams.
 
+## Table of contents
+
+- [Events](#events)
+- [Grant list (share picker)](#grant-list-share-picker)
+- [Read-only mode](#read-only-mode)
+  - [Behaviour](#behaviour)
+- [Scope vaults](#scope-vaults)
+  - [Approving an access request](#approving-an-access-request)
+- [Re-authentication for the decrypted export](#re-authentication-for-the-decrypted-export)
+- [Grants API](#grants-api)
+- [Shared items view](#shared-items-view)
+
 ## Events
 
 | Event | Constant | Purpose |
