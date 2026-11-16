@@ -16,5 +16,16 @@ services:
       # MongoDB is require-dev only; CI and local dev may resolve deps without ext-mongodb loaded.
       COMPOSER_IGNORE_PLATFORM_REQ: ext-mongodb
 
+  # REQ-TEST-005: database for `make test-with-db` only (profile "db"; `make up` does not start it). Throwaway test
+  # database without a password, reachable only on the compose network (no host port), same image as the CI job.
+  mysql:
+    image: mysql:8.4
+    profiles: ["db"]
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: vault_test
+    tmpfs:
+      - /var/lib/mysql
+
 volumes:
   coverage-data:

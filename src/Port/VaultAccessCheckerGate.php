@@ -20,6 +20,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class VaultAccessCheckerGate implements VaultAccessCheckerInterface
 {
+    /**
+     * Selects the deprecated checker, the access policy or both (fail closed).
+     */
     public function __construct(
         private string $mode,
         private ?VaultAccessCheckerInterface $legacy = null,
@@ -28,21 +31,33 @@ final readonly class VaultAccessCheckerGate implements VaultAccessCheckerInterfa
         VaultPortMode::assert($mode, $legacy, $policy, 'access_checker');
     }
 
+    /**
+     * Whether the user may use the vault.
+     */
     public function canAccess(?UserInterface $user = null): bool
     {
         return $this->decide($user, static fn (VaultAccessCheckerInterface $c): bool => $c->canAccess($user), static fn (VaultAccessPolicyInterface $p, ?VaultUserRef $ref): bool => $p->allowsAccess($ref));
     }
 
+    /**
+     * Whether the user may create vault items.
+     */
     public function canCreate(?UserInterface $user = null): bool
     {
         return $this->decide($user, static fn (VaultAccessCheckerInterface $c): bool => $c->canCreate($user), static fn (VaultAccessPolicyInterface $p, ?VaultUserRef $ref): bool => $p->allowsCreate($ref));
     }
 
+    /**
+     * Whether the user may list vault items.
+     */
     public function canList(?UserInterface $user = null): bool
     {
         return $this->decide($user, static fn (VaultAccessCheckerInterface $c): bool => $c->canList($user), static fn (VaultAccessPolicyInterface $p, ?VaultUserRef $ref): bool => $p->allowsList($ref));
     }
 
+    /**
+     * Whether the user may revoke shares.
+     */
     public function canRevoke(?UserInterface $user = null): bool
     {
         return $this->decide($user, static fn (VaultAccessCheckerInterface $c): bool => $c->canRevoke($user), static fn (VaultAccessPolicyInterface $p, ?VaultUserRef $ref): bool => $p->allowsRevoke($ref));

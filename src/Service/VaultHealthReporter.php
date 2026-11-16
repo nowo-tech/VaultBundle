@@ -139,6 +139,9 @@ final readonly class VaultHealthReporter implements VaultHealthReportProviderInt
         return $this->forScope($this->userOf($viewer), $scope, $policy);
     }
 
+    /**
+     * Health report of the personal vault of the referenced owner.
+     */
     public function reportForPersonalVault(VaultUserRef $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
         return $this->forPersonalVault($this->userOf($owner), $policy);
@@ -154,6 +157,9 @@ final readonly class VaultHealthReporter implements VaultHealthReportProviderInt
         return ($this->refs instanceof VaultUserRefResolver ? $this->refs->resolve($ref) : VaultUserRefs::toUser($ref)) ?? throw new VaultAccessDeniedException();
     }
 
+    /**
+     * Health report of the login items of the owner personal vault.
+     */
     public function forPersonalVault(UserInterface $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
         $items = $this->itemRepository->findByCreatorAndItemType($owner, VaultItemType::Login);

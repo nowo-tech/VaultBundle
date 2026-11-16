@@ -50,6 +50,9 @@ final class PrivateEntityManagerPass implements CompilerPassInterface
         return (string) (new ReflectionMethod(Connection::class, 'rollBack'))->getReturnType() === 'void';
     }
 
+    /**
+     * Wires the private entity manager, its registry and its connection middleware when the option is on.
+     */
     public function process(ContainerBuilder $container): void
     {
         if (!$container->hasDefinition(VaultEntityManager::class)) {

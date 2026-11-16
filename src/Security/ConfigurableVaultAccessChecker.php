@@ -75,21 +75,33 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicy
         return $this->hasAnyRole($this->securityRoles()['delete_roles'], $user);
     }
 
+    /**
+     * Whether the referenced user may use the vault (roles of its user object; denied without one).
+     */
     public function allowsAccess(?VaultUserRef $user = null): bool
     {
         return $this->known($user) && $this->canAccess($this->user($user));
     }
 
+    /**
+     * Whether the referenced user may create vault items (denied without a user object).
+     */
     public function allowsCreate(?VaultUserRef $user = null): bool
     {
         return $this->known($user) && $this->canCreate($this->user($user));
     }
 
+    /**
+     * Whether the referenced user may list vault items (denied without a user object).
+     */
     public function allowsList(?VaultUserRef $user = null): bool
     {
         return $this->known($user) && $this->canList($this->user($user));
     }
 
+    /**
+     * Whether the referenced user may revoke shares (denied without a user object).
+     */
     public function allowsRevoke(?VaultUserRef $user = null): bool
     {
         return $this->known($user) && $this->canRevoke($this->user($user));

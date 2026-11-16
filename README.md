@@ -68,7 +68,6 @@ The screenshot at the top of this README comes from this demo (fixture data only
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Usage](docs/USAGE.md): [Standard Symfony host](docs/USAGE.md#standard-symfony-host) and [DDD / hexagonal host](docs/USAGE.md#ddd--hexagonal-host) (framework-free ports, id mapping, XML mapping, private entity manager)
-- [Templates (UiKit page contract)](docs/TEMPLATES.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](docs/CHANGELOG.md)
@@ -81,6 +80,7 @@ The screenshot at the top of this README comes from this demo (fixture data only
 
 ### Additional documentation
 
+- [Templates (UiKit page contract)](docs/TEMPLATES.md)
 - [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [PSR evaluation (REQ-CS-007)](docs/PSR.md)
 - [Browser extension](docs/BROWSER-EXTENSION.md)
@@ -90,8 +90,8 @@ The screenshot at the top of this README comes from this demo (fixture data only
 
 ## Tests and coverage
 
-- **PHP: 100%** lines (3376/3376 of `src/`, PHPUnit unit + integration + kernel E2E suites; only `src/Resources` — Twig, translations, config, built assets — is outside the measure). Gate: `make test-coverage-100` / CI fail below 100%.
-- **TS/JS: 99.69%** lines (326/327; 95.28% branches) over every TypeScript source of `src/Resources/assets/src` and `extension/src` (Vitest + jsdom). Gate: thresholds in `vitest.config.ts` (lines 98%), enforced by `pnpm run test:coverage` locally and in CI.
+- **PHP: 100%** (7335/7335 statements, 8461/8461 elements of `src/`, PHPUnit unit + integration + kernel E2E suites; only `src/Resources` — Twig, translations, config, built assets — is outside the measure). Gate: `make test-coverage-100` / CI fail below 100%.
+- **TS/JS: 99.79%** lines (479/480; 96.68% branches) over every TypeScript source of `src/Resources/assets/src` and `extension/src` (Vitest + jsdom). Gate: thresholds in `vitest.config.ts` (lines 98%), enforced by `pnpm run test:coverage` locally and in CI.
 - **Python:** N/A (no Python code).
 
 ```bash

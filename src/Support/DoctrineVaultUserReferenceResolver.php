@@ -40,16 +40,25 @@ final readonly class DoctrineVaultUserReferenceResolver implements VaultUserRefe
     ) {
     }
 
+    /**
+     * Whether vault rows store the user id instead of a relation.
+     */
     public function mapsById(): bool
     {
         return $this->userMapping === VaultUserMapping::ID;
     }
 
+    /**
+     * Whether the object is an accepted vault user with a usable id.
+     */
     public function isAccepted(object $user): bool
     {
         return $this->classes->idOf($user) !== null;
     }
 
+    /**
+     * The value stored for the user: its id (id mapping) or a user_class reference (relation mapping).
+     */
     public function reference(object $user): object|string
     {
         $id = $this->classes->idOf($user);

@@ -32,6 +32,9 @@ final class PrivateEntityManagerConnection extends AbstractConnectionMiddleware
     /** Savepoints the vault opens around one bulk / DBAL statement (VaultSavepoint): never rows of the private manager. */
     private const VAULT_SAVEPOINT = 'nowo_vault_';
 
+    /**
+     * Wraps a driver connection of the private entity manager and reports its transaction outcome to the manager.
+     */
     public function __construct(
         Connection $connection,
         private readonly VaultEntityManager $entityManager,
@@ -39,6 +42,9 @@ final class PrivateEntityManagerConnection extends AbstractConnectionMiddleware
         parent::__construct($connection);
     }
 
+    /**
+     * Commits, then tells the private manager the level is committed (a failed commit counts as a rollback).
+     */
     public function commit(): void
     {
         try {
@@ -51,6 +57,9 @@ final class PrivateEntityManagerConnection extends AbstractConnectionMiddleware
         $this->entityManager->connectionCommitted();
     }
 
+    /**
+     * Rolls back and always tells the private manager that the outermost level was rolled back.
+     */
     public function rollBack(): void
     {
         try {
@@ -60,6 +69,9 @@ final class PrivateEntityManagerConnection extends AbstractConnectionMiddleware
         }
     }
 
+    /**
+     * Runs the statement and reports savepoint rollbacks and releases of other code to the private manager.
+     */
     public function exec(string $sql): int|string
     {
         $result = parent::exec($sql);

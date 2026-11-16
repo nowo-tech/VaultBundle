@@ -21,6 +21,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class VaultUserLocatorGate implements VaultUserLocatorInterface
 {
+    /**
+     * Selects the user directory or the deprecated user locator.
+     */
     public function __construct(
         private string $mode,
         private ?VaultUserLocatorInterface $legacy = null,
@@ -29,6 +32,9 @@ final readonly class VaultUserLocatorGate implements VaultUserLocatorInterface
         VaultPortMode::assert($mode === VaultPortMode::BOTH ? '' : $mode, $legacy, $policy, 'user locator');
     }
 
+    /**
+     * User with exactly that id, or null.
+     */
     public function find(string $id): ?UserInterface
     {
         if ($this->legacy instanceof VaultUserLocatorInterface && $this->mode === VaultPortMode::LEGACY) {

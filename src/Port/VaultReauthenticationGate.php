@@ -25,6 +25,9 @@ use function is_string;
  */
 final readonly class VaultReauthenticationGate implements VaultReauthenticationCheckerInterface
 {
+    /**
+     * Selects the re-authentication provider or the deprecated checker.
+     */
     public function __construct(
         private string $mode,
         private ?VaultReauthenticationCheckerInterface $legacy = null,
@@ -33,6 +36,9 @@ final readonly class VaultReauthenticationGate implements VaultReauthenticationC
         VaultPortMode::assert($mode === VaultPortMode::BOTH ? '' : $mode, $legacy, $policy, 'export.reauth_checker');
     }
 
+    /**
+     * Fresh re-authentication proof of the user for the purpose, or null.
+     */
     public function getProof(UserInterface $user, Request $request, string $purpose): ?VaultReauthProof
     {
         if ($this->legacy instanceof VaultReauthenticationCheckerInterface && $this->mode === VaultPortMode::LEGACY) {
@@ -42,6 +48,9 @@ final readonly class VaultReauthenticationGate implements VaultReauthenticationC
         return $this->provider()->proofFor(self::context($request, $purpose, $user));
     }
 
+    /**
+     * Marks the proof as used.
+     */
     public function consume(VaultReauthProof $proof): void
     {
         if ($this->legacy instanceof VaultReauthenticationCheckerInterface && $this->mode === VaultPortMode::LEGACY) {
@@ -53,6 +62,9 @@ final readonly class VaultReauthenticationGate implements VaultReauthenticationC
         $this->provider()->consumeProof($proof);
     }
 
+    /**
+     * URL where the user re-authenticates before coming back to the given path.
+     */
     public function getReauthenticationUrl(Request $request, string $purpose, string $returnTo): string
     {
         if ($this->legacy instanceof VaultReauthenticationCheckerInterface && $this->mode === VaultPortMode::LEGACY) {

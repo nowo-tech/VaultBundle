@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/vault-bundle`  
-**Last audited**: 2026-10-29
+**Last audited**: 2026-11-16 (v1.19.3)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -214,6 +214,189 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Ui/VaultPages.php` | Layout / legacy bridge of the UiKit page contract (REQ-UI-003) | FR-VIEW-001 |
 | `Ui/VaultPageFactory.php` | UiKit view models of the manage pages (REQ-UI-003) | FR-VIEW-005 |
 
+## Scope vaults (1.16)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Controller/VaultScopeController.php` | Scope item list, item and folder creation | FR-SCOPE-001 |
+| `Resources/views/vault/scope_items.html.twig` | Scope item list page (UiKit list scaffold) | FR-SCOPE-001 |
+| `Repository/VaultScopeFolderRepositoryInterface.php` | Scope-owned folder queries | FR-SCOPE-001 |
+| `Repository/VaultScopeItemRepositoryInterface.php` | Scope-owned item queries | FR-SCOPE-001 |
+| `Repository/VaultScopeTagRepositoryInterface.php` | Scope tag queries | FR-SCOPE-001 |
+| `Service/VaultScopeItemLister.php` | Scope items visible to one member | FR-SCOPE-001 |
+| `Security/VaultScopeAccess.php` | Standing of a user in a scope | FR-SCOPE-001 |
+| `Security/VaultScopeAccessResolverInterface.php` | Scope host hook (deprecated in 1.19) | FR-SCOPE-001 |
+| `Security/NullVaultScopeAccessResolver.php` | Default: no scope membership | FR-SCOPE-001 |
+| `Security/RequestScopedScopeAccessCache.php` | Per-request membership memo | FR-SCOPE-001 |
+| `ValueObject/VaultOwner.php` | Owner of a row: user or scope key | FR-SCOPE-001 |
+| `Exception/VaultOwnerException.php` | Invalid owner (scope key, foreign folder/tag) | FR-SCOPE-001 |
+| `Exception/VaultAccessDeniedException.php` | Scope feature refused | FR-SCOPE-001 |
+| `Command/CheckDowngradeCommand.php` | Dry check before a 1.15 rollback | FR-SCOPE-001 |
+
+## Temporary grants and grant policy (1.16)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Command/PurgeExpiredGrantsCommand.php` | Purge of expired grants (scheduler) | FR-GRANT-001 |
+| `Service/VaultGrantExpiryService.php` | Expired-grant housekeeping, GRANT_EXPIRED | FR-GRANT-001 |
+| `Service/VaultGrantPurgeResult.php` | Counts of a purge run | FR-GRANT-001 |
+| `Service/VaultGrantResult.php` | Outcome of grantAs() | FR-GRANT-001 |
+| `Repository/VaultGrantExpiryRepositoryInterface.php` | Expiry and race-safe grant queries | FR-GRANT-001 |
+| `Exception/VaultGrantRefusedException.php` | Refused grant (reason code only) | FR-GRANT-001 |
+| `Event/VaultGrantPolicyCheckEvent.php` | GRANT_POLICY_CHECK veto | FR-GRANT-001 |
+| `Event/VaultGrantChangeEvent.php` | GRANT_CREATED / UPDATED / REVOKED / EXPIRED (ids) | FR-GRANT-001 |
+
+## Metadata catalogue (1.16)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Service/VaultCatalogue.php` | Metadata-only catalogue of a scope | FR-CAT-001 |
+| `Dto/VaultCatalogueEntry.php` | One catalogue row | FR-CAT-001 |
+| `Dto/VaultCataloguePage.php` | One catalogue page | FR-CAT-001 |
+| `Dto/VaultCatalogueQuery.php` | Catalogue filters and page | FR-CAT-001 |
+| `Event/VaultCatalogueAccessCheckEvent.php` | CATALOGUE_ACCESS_CHECK | FR-CAT-001 |
+| `Resources/views/vault/catalogue.html.twig` | Catalogue page | FR-CAT-001 |
+| `Form/VaultItemSearchType.php` | GET search form of the item lists | FR-CAT-001 |
+
+## Reveal, copy and attachments (1.16)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Controller/VaultRevealController.php` | Attachment download (POST + CSRF) | FR-REVEAL-001 |
+| `Controller/VaultRevealResponsesTrait.php` | Sensitive headers and refused-reveal mapping | FR-REVEAL-001 |
+| `Service/VaultFieldRevealer.php` | One field or attachment leaves the vault | FR-REVEAL-001 |
+| `Support/VaultRevealedValue.php` | Decrypted value hidden from dumps | FR-REVEAL-001 |
+| `Support/VaultSensitiveResponseHeaders.php` | no-store headers of decrypted responses | FR-REVEAL-001 |
+| `Support/VaultAttachmentFilename.php` | Safe attachment file name | FR-REVEAL-001 |
+| `EventListener/VaultNoStoreResponseListener.php` | no-store on every bundle route | FR-REVEAL-001 |
+| `Security/VaultRevealRateLimiter.php` | reveal.rate_limit per user | FR-REVEAL-001 |
+| `Security/VaultSecretAccessRateLimiter.php` | Shared budget of reveal and extension lookups | FR-REVEAL-001 |
+| `Exception/VaultRevealRefusedException.php` | Refused reveal (reason, Retry-After) | FR-REVEAL-001 |
+| `Exception/VaultDecryptionFailedException.php` | Generic decryption failure | FR-REVEAL-001 |
+| `Event/VaultFieldRevealCheckEvent.php` | ITEM_FIELD_REVEAL_CHECK veto | FR-REVEAL-001 |
+| `Event/VaultItemRevealedEvent.php` | Decrypted values returned (web / extension) | FR-REVEAL-001 |
+| `Event/VaultRevealThrottledEvent.php` | REVEAL_THROTTLED | FR-REVEAL-001 |
+| `Resources/assets/src/vault-reveal.ts` | Reveal / copy client (POST, clears the value) | FR-REVEAL-001 |
+
+## Password health (1.16)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Service/VaultHealthReporter.php` | Server-side health report | FR-HEALTH-001 |
+| `Service/VaultHealthReporterInterface.php` | Health report port (deprecated in 1.19) | FR-HEALTH-001 |
+| `Service/VaultHealthReportProviderInterface.php` | Framework-free health report port (1.19) | FR-HEALTH-001 |
+| `Dto/VaultHealthItemResult.php` | Flags of one login item | FR-HEALTH-001 |
+| `Dto/VaultHealthReport.php` | Health of one owner for one viewer | FR-HEALTH-001 |
+| `Dto/VaultPasswordPolicy.php` | Password policy of an owner | FR-HEALTH-001 |
+| `Security/ConfigVaultPasswordPolicyResolver.php` | Default policy resolver (health.policy) | FR-HEALTH-001 |
+| `Security/VaultPasswordPolicyResolverInterface.php` | Policy per owner hook | FR-HEALTH-001 |
+| `Security/VaultBreachCheckerInterface.php` | Opt-in breach corpus hook | FR-HEALTH-001 |
+| `Validator/VaultPasswordPolicyConstraint.php` | Policy on save (enforceOnSave) | FR-HEALTH-001 |
+| `Validator/VaultPasswordPolicyConstraintValidator.php` | Length and character classes | FR-HEALTH-001 |
+| `Event/VaultHealthAccessCheckEvent.php` | HEALTH_ACCESS_CHECK | FR-HEALTH-001 |
+| `Event/VaultHealthReportGeneratedEvent.php` | HEALTH_REPORT_GENERATED (counts) | FR-HEALTH-001 |
+| `Exception/VaultHealthThrottledException.php` | health.min_interval_seconds | FR-HEALTH-001 |
+| `Exception/VaultHealthTooLargeException.php` | health.max_items (413) | FR-HEALTH-001 |
+| `Resources/views/vault/health.html.twig` | Health report page | FR-HEALTH-001 |
+
+## Personal data and decrypted export (1.16)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Controller/VaultExportController.php` | Decrypted personal export behind re-authentication | FR-GDPR-001 |
+| `Service/VaultPersonalExportStreamer.php` | Streams the decrypted personal vault | FR-GDPR-001 |
+| `Form/VaultPersonalExportType.php` | Export format + CSRF | FR-GDPR-001 |
+| `Resources/views/vault/export.html.twig` | Export page | FR-GDPR-001 |
+| `Event/VaultItemsExportedEvent.php` | ITEMS_EXPORTED before the first byte | FR-GDPR-001 |
+| `Security/VaultReauthProof.php` | Host re-authentication proof | FR-GDPR-001 |
+| `Security/VaultReauthProofValidator.php` | Proof checked on the bundle clock | FR-GDPR-001 |
+| `Security/VaultReauthenticationCheckerInterface.php` | Re-authentication hook (deprecated in 1.19) | FR-GDPR-001 |
+| `DependencyInjection/Compiler/ExportLockFactoryPass.php` | Fails on an unknown export.lock_factory | FR-GDPR-001 |
+| `Service/VaultPersonalDataEraser.php` | GDPR erasure of one user | FR-GDPR-001 |
+| `Service/VaultPersonalDataEraserInterface.php` | Erasure port by id (1.19) | FR-GDPR-001 |
+| `Service/VaultPersonalDataExporter.php` | GDPR metadata export of one user | FR-GDPR-001 |
+| `Service/VaultPersonalDataExporterInterface.php` | Metadata export port by id (1.19) | FR-GDPR-001 |
+| `Dto/VaultErasureResult.php` | Rows touched by an erasure | FR-GDPR-001 |
+| `Event/VaultPersonalDataErasedEvent.php` | PERSONAL_DATA_ERASED | FR-GDPR-001 |
+
+## User mapping and accepted user classes (1.17)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Doctrine/VaultUserMapping.php` | relation | id | FR-USER-001 |
+| `Doctrine/VaultUserColumnsListener.php` | Normalises the host user of new rows | FR-USER-001 |
+| `Doctrine/ExactCollation.php` | Binary NO PAD collation of id columns (1.19.3) | FR-USER-001 |
+| `EventListener/VaultUserGateListener.php` | Refuses users of non-accepted classes | FR-USER-001 |
+| `Repository/BindsVaultUserTrait.php` | Binds a user to a user column | FR-USER-001 |
+| `Support/DoctrineVaultUserReferenceResolver.php` | Default user reference resolver | FR-USER-001 |
+| `Support/VaultUserReferenceResolverInterface.php` | User reference port | FR-USER-001 |
+| `Support/VaultUserClassPolicy.php` | Accepted classes and usable ids | FR-USER-001 |
+| `Support/VaultUserLocator.php` | Loads a host user by id | FR-USER-001 |
+| `Support/VaultUserLocatorInterface.php` | User locator port (deprecated in 1.19) | FR-USER-001 |
+| `ValueObject/VaultUserId.php` | User known only by id | FR-USER-001 |
+
+## Framework-free host ports (1.19, REQ-ARCH-001)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Security/VaultAccessPolicyInterface.php` | Access policy port | FR-PORT-001 |
+| `Security/VaultScopeAccessProviderInterface.php` | Scope access port | FR-PORT-001 |
+| `Security/VaultTeamMembershipProviderInterface.php` | Team membership port | FR-PORT-001 |
+| `Security/VaultReauthenticationProviderInterface.php` | Re-authentication port | FR-PORT-001 |
+| `Support/VaultUserDirectoryInterface.php` | User directory port | FR-PORT-001 |
+| `ValueObject/VaultUserRef.php` | User reference VO | FR-PORT-001 |
+| `ValueObject/VaultReauthContext.php` | Re-authentication request VO | FR-PORT-001 |
+| `Internal/HiddenValues.php` | Sensitive VO values kept out of properties | FR-PORT-001 |
+| `Support/VaultRefUser.php` | Stand-in user for a directory answer | FR-PORT-001 |
+| `Support/VaultUserRefResolver.php` | Trusted user for a reference | FR-PORT-001 |
+| `Support/VaultUserRefs.php` | Symfony user <-> VaultUserRef | FR-PORT-001 |
+| `DependencyInjection/Compiler/VaultPortsPass.php` | Wires the ports behind the gates | FR-PORT-002 |
+| `Port/VaultPortMode.php` | legacy | port | both | FR-PORT-002 |
+| `Port/VaultAccessCheckerGate.php` | Access gate (fail closed) | FR-PORT-002 |
+| `Port/VaultHealthReporterGate.php` | Health report gate | FR-PORT-002 |
+| `Port/VaultReauthenticationGate.php` | Re-authentication gate | FR-PORT-002 |
+| `Port/VaultScopeAccessGate.php` | Scope access gate (weaker answer wins) | FR-PORT-002 |
+| `Port/VaultTeamMembershipGate.php` | Team membership gate (intersection) | FR-PORT-002 |
+| `Port/VaultUserLocatorGate.php` | User locator gate | FR-PORT-002 |
+| `Event/VaultFolderChangeEvent.php` | FOLDER_CHANGED (ids, after flush) | FR-EVT-002 |
+| `Event/VaultItemChangeEvent.php` | ITEM_CHANGED (ids, after flush) | FR-EVT-002 |
+| `Event/VaultTagChangeEvent.php` | TAG_CHANGED (ids, after flush) | FR-EVT-002 |
+
+## Private entity manager, XML mapping and conditional mapping (1.18-1.19)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `DependencyInjection/Compiler/PrivateEntityManagerPass.php` | Private EM wiring | FR-DB-004 |
+| `Doctrine/VaultEntityManager.php` | Bundle-owned EM, recreated per unit of work | FR-DB-004 |
+| `Doctrine/VaultManagerRegistry.php` | Registry routing vault classes to the private EM | FR-DB-004 |
+| `Doctrine/PrivateManagerRepositoryFactory.php` | Own repository factory (no worker leak) | FR-DB-004 |
+| `Doctrine/PrivateEntityManagerMiddleware.php` | DBAL middleware of the private EM connection | FR-DB-004 |
+| `Doctrine/PrivateEntityManagerDriver.php` | Driver wrapper | FR-DB-004 |
+| `Doctrine/PrivateEntityManagerConnection.php` | Commit / rollback / savepoint reporting | FR-DB-004 |
+| `Doctrine/VaultSavepoint.php` | Savepoint around vault DBAL writes | FR-DB-004 |
+| `EventListener/VaultUnitOfWorkSubscriber.php` | Drops the private EM at every boundary | FR-DB-004 |
+| `EventListener/VaultRequestBoundaryListener.php` | Clears request memos at every boundary | FR-WORKER-001 |
+| `DependencyInjection/Compiler/ConditionalMappingPass.php` | database.conditional_mapping wiring | FR-DB-005 |
+| `Doctrine/VaultFeatureMappingDriver.php` | Disabled features become transient | FR-DB-005 |
+| `Doctrine/VaultUnmappedTablesSchemaFilter.php` | Hides tables of disabled features | FR-DB-005 |
+| `Doctrine/VaultExtensionTokenTable.php` | Raw DBAL access to unmapped tokens | FR-DB-005 |
+| `Resources/config/doctrine/VaultExtensionToken.orm.xml` | XML mapping (DDD host) | FR-DB-006 |
+| `Resources/config/doctrine/VaultFolder.orm.xml` | XML mapping (DDD host) | FR-DB-006 |
+| `Resources/config/doctrine/VaultGrant.orm.xml` | XML mapping (DDD host) | FR-DB-006 |
+| `Resources/config/doctrine/VaultItem.orm.xml` | XML mapping (DDD host) | FR-DB-006 |
+| `Resources/config/doctrine/VaultSettings.orm.xml` | XML mapping (DDD host) | FR-DB-006 |
+| `Resources/config/doctrine/VaultTag.orm.xml` | XML mapping (DDD host) | FR-DB-006 |
+
+## Forms and views (REQ-TWIG-005 / REQ-UI-003)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Form/VaultActionType.php` | CSRF-only row / toolbar action | FR-FORM-001 |
+| `Form/VaultFolderCreateType.php` | New folder | FR-FORM-001 |
+| `Form/VaultPasswordGeneratorType.php` | Password generator controls | FR-FORM-001 |
+| `Form/VaultRuntimeConfigType.php` | Runtime configuration page | FR-FORM-001 |
+| `Resources/views/ui/_row_actions.html.twig` | Row actions partial (UiKit) | FR-VIEW-005 |
+
 ## Coverage summary
 
 | Category | Files | Mapped |
@@ -235,6 +418,16 @@ This file proves that **every production source artifact** under `src/` is refer
 | Translations | 7 | 7 |
 | Twig views | 9 | 9 |
 | Twig integration | 3 | 3 |
-| **Total production sources** | **123** | **123** |
+| Scope vaults (1.16) | 14 | 14 |
+| Temporary grants and grant policy (1.16) | 8 | 8 |
+| Metadata catalogue (1.16) | 7 | 7 |
+| Reveal, copy and attachments (1.16) | 15 | 15 |
+| Password health (1.16) | 16 | 16 |
+| Personal data and decrypted export (1.16) | 15 | 15 |
+| User mapping and accepted user classes (1.17) | 11 | 11 |
+| Framework-free host ports (1.19, REQ-ARCH-001) | 22 | 22 |
+| Private entity manager, XML mapping and conditional mapping (1.18-1.19) | 20 | 20 |
+| Forms and views (REQ-TWIG-005 / REQ-UI-003) | 5 | 5 |
+| **Total production sources** | **256** | **256** |
 
-Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 123.
+Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 256.

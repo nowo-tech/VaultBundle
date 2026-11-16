@@ -36,31 +36,49 @@ final readonly class VaultManagerRegistry implements ManagerRegistry
     ) {
     }
 
+    /**
+     * Name of the application default connection.
+     */
     public function getDefaultConnectionName(): string
     {
         return $this->registry->getDefaultConnectionName();
     }
 
+    /**
+     * Connection of the application registry with that name.
+     */
     public function getConnection(?string $name = null): object
     {
         return $this->registry->getConnection($name);
     }
 
+    /**
+     * Connections of the application registry.
+     */
     public function getConnections(): array
     {
         return $this->registry->getConnections();
     }
 
+    /**
+     * Connection names of the application registry.
+     */
     public function getConnectionNames(): array
     {
         return $this->registry->getConnectionNames();
     }
 
+    /**
+     * Name of the application default entity manager.
+     */
     public function getDefaultManagerName(): string
     {
         return $this->registry->getDefaultManagerName();
     }
 
+    /**
+     * The private vault manager for the vault manager name, otherwise the application manager.
+     */
     public function getManager(?string $name = null): ObjectManager
     {
         if ($this->isVaultManager($name)) {
@@ -70,6 +88,9 @@ final readonly class VaultManagerRegistry implements ManagerRegistry
         return $this->registry->getManager($name);
     }
 
+    /**
+     * Application managers, with the vault manager name mapped to the private manager.
+     */
     public function getManagers(): array
     {
         return $this->registry->getManagers();
@@ -90,11 +111,17 @@ final readonly class VaultManagerRegistry implements ManagerRegistry
         return $this->registry->resetManager($name);
     }
 
+    /**
+     * Manager names of the application registry.
+     */
     public function getManagerNames(): array
     {
         return $this->registry->getManagerNames();
     }
 
+    /**
+     * Repository of the class from the manager this registry resolves for it.
+     */
     public function getRepository(string $persistentObject, ?string $persistentManagerName = null): ObjectRepository
     {
         if (($persistentManagerName === null || $this->isVaultManager($persistentManagerName)) && self::isBundleEntity($persistentObject)) {
@@ -104,6 +131,9 @@ final readonly class VaultManagerRegistry implements ManagerRegistry
         return $this->registry->getRepository($persistentObject, $persistentManagerName);
     }
 
+    /**
+     * The private vault manager for a vault entity class, otherwise the application registry answer.
+     */
     public function getManagerForClass(string $class): ?ObjectManager
     {
         if (self::isBundleEntity($class)) {

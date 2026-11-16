@@ -27,6 +27,9 @@ final readonly class VaultUserGateListener
 {
     private const CONTROLLER_NAMESPACE = 'Nowo\\VaultBundle\\Controller\\';
 
+    /**
+     * Keeps the user reference resolver and the token storage that decide which signed-in users the vault accepts.
+     */
     public function __construct(
         private VaultUserReferenceResolverInterface $users,
         private ?TokenStorageInterface $tokenStorage = null,
