@@ -1,33 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Vault Bundle Demo{% endblock %}</title>
-    {# Demo app only: the host loads its CSS framework (Tabler on Bootstrap 5); the bundle never loads a CDN. #}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
-    <link rel="stylesheet" href="{{ asset('css/demo.css') }}">
-    {% block stylesheets %}{% endblock %}
-</head>
-<body>
-<div class="page">
-    <header class="navbar navbar-expand-md navbar-dark bg-dark d-print-none vault-demo-masthead">
-        <div class="container-xl">
-            <a class="navbar-brand" href="{{ path('nowo_vault_index') }}">Vault Bundle Demo</a>
-            {% set _route = app.request.attributes.get('_route')|default('') %}
-            <ul class="navbar-nav flex-row gap-3 me-auto ms-3">
-                <li class="nav-item"><a class="nav-link{{ _route == 'nowo_vault_index' ? ' active' }}" href="{{ path('nowo_vault_index') }}">Home</a></li>
-                <li class="nav-item"><a class="nav-link{{ _route == 'nowo_vault_items' ? ' active' }}" href="{{ path('nowo_vault_items') }}">My items</a></li>
-                <li class="nav-item"><a class="nav-link{{ _route == 'nowo_vault_shared' ? ' active' }}" href="{{ path('nowo_vault_shared') }}">Shared</a></li>
-                <li class="nav-item"><a class="nav-link{{ _route == 'nowo_vault_trash' ? ' active' }}" href="{{ path('nowo_vault_trash') }}">Trash</a></li>
-            </ul>
-            <span class="navbar-text text-white-50 small">Symfony 8 · FrankenPHP</span>
+{#- REQ-DEMO-014: the demo shell is UiKit's admin layout with UiKit's default theme (nowo-ui.css from the bundle's own
+    asset package, no CSS framework, no CDN, inline SVG icons). The Vault pages render in it too
+    (nowo_ui_kit.layouts.admin). -#}
+{% extends '@NowoUiKit/layout/admin.html.twig' %}
+
+{% block nowo_ui_document_title %}{% block title %}Vault Bundle Demo{% endblock %}{% endblock %}
+
+{% block nowo_ui_navigation %}
+    {% set _route = app.request.attributes.get('_route')|default('') %}
+    <header class="nowo-ui-header" data-testid="demo-masthead">
+        <a class="nowo-ui-brand" href="{{ path('nowo_vault_index') }}">Vault Bundle Demo</a>
+        <nav class="nowo-ui-menu" aria-label="Vault Bundle">
+            <a class="nowo-ui-link" href="{{ path('nowo_vault_index') }}"{% if _route == 'nowo_vault_index' %} aria-current="page"{% endif %}>Home</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_vault_items') }}"{% if _route == 'nowo_vault_items' %} aria-current="page"{% endif %}>My items</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_vault_shared') }}"{% if _route == 'nowo_vault_shared' %} aria-current="page"{% endif %}>Shared</a>
+            <a class="nowo-ui-link" href="{{ path('nowo_vault_trash') }}"{% if _route == 'nowo_vault_trash' %} aria-current="page"{% endif %}>Trash</a>
+        </nav>
+        <div class="nowo-ui-header__end">
+            {{ include('@NowoUiKitBundle/partials/_theme_toggle.html.twig', { compact: true }, false) }}
         </div>
     </header>
-    <div class="container-xl py-4">
-        {% block body %}{% endblock %}
-    </div>
-</div>
-{% block javascripts %}{% endblock %}
-</body>
-</html>
+{% endblock %}
+
+{% block nowo_ui_content %}{% block body %}{% endblock %}{% endblock %}

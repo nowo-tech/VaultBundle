@@ -1,0 +1,3 @@
+nowo_form_kit:
+    # REQ-DEMO-015: FormKit sits on UiKit's form theme (twig.yaml), not on a CSS framework.
+    css_framework: none
