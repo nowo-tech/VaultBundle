@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Demo
 
-- The demo is built on UiKit and FormKit (REQ-DEMO-014 / REQ-DEMO-015): `templates/base.html.twig` is UiKit's admin layout with its default theme and a masthead (the Tabler CDN shell, the Tabler Icons CDN stylesheet, the bridge `layouts/admin.html.twig` and `demo.css` are gone), `nowo_ui_kit` uses `css_framework: custom` with `icon_set: svg_inline`, the Twig and TagInput form themes follow UiKit's `nowo_ui_layout` (`nowo_form_kit.css_framework: none`), and the demo requires `nowo-tech/ui-kit-bundle` `^2.52` and `form-kit-bundle` `^2.23`. The demo database is built with `doctrine:schema:update` (the demo migrations had not followed the bundle entities, so a fresh database failed on `secret_changed_at`). The README screenshots were recaptured for the new shell. No bundle runtime change.
+- The demo is built on UiKit and FormKit (REQ-DEMO-014 / REQ-DEMO-015): `templates/base.html.twig` is UiKit's admin layout with its default theme and a masthead (the Tabler CDN shell, the Tabler Icons CDN stylesheet, the bridge `layouts/admin.html.twig` and `demo.css` are gone), `nowo_ui_kit` uses `css_framework: custom` with `icon_set: svg_inline`, the Twig and TagInput form themes follow UiKit's `nowo_ui_layout` (`nowo_form_kit.css_framework: none`), and the demo requires `nowo-tech/ui-kit-bundle` `^2.52` and `form-kit-bundle` `^2.23`. A new demo migration brings the demo schema up to the current bundle entities (a fresh database failed on `secret_changed_at`). The README screenshots were recaptured for the new shell. No bundle runtime change.
 
 ## [1.19.3] - 2026-11-13
 

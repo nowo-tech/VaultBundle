@@ -61,7 +61,7 @@ up: ensure-env
 	@rm -f .env.dev
 	@$(COMPOSE) exec -T $(SERVICE_PHP) test -f bin/console && $(COMPOSE) exec -T $(SERVICE_PHP) composer run-script post-install-cmd || true
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:database:create --if-not-exists
-	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:schema:update --force --complete --no-interaction
+	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:migrations:migrate --no-interaction
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:fixtures:load --no-interaction --append || true
 	@PORT=$$(grep "^PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	[ -z "$$PORT" ] && PORT=$$(grep "^PORT=" .env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
@@ -86,13 +86,13 @@ database:
 # Schema + demo fixtures on the running demo (idempotent; fixtures are appended).
 setup:
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:database:create --if-not-exists
-	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:schema:update --force --complete --no-interaction
+	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:migrations:migrate --no-interaction
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:fixtures:load --no-interaction --append
 
 database-empty:
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:database:drop --force --if-exists
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:database:create --if-not-exists
-	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:schema:update --force --complete --no-interaction
+	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:migrations:migrate --no-interaction
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:fixtures:load --no-interaction
 	@find var/vault-storage -type f -delete 2>/dev/null || true
 	@echo "Database emptied, fixtures reloaded, local ciphertext files removed."
@@ -125,7 +125,7 @@ verify:
 test-http-e2e: update-bundle
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:database:drop --force --if-exists
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:database:create --if-not-exists
-	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:schema:update --force --complete --no-interaction
+	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:migrations:migrate --no-interaction
 	@$(COMPOSE) exec -T $(SERVICE_PHP) php bin/console doctrine:fixtures:load --no-interaction
 	@$(COMPOSE) exec -T -e DEMO_HTTP_E2E=1 -e DEMO_HTTP_BASE_URL=http://127.0.0.1 $(SERVICE_PHP) vendor/bin/phpunit --group http-e2e
 
