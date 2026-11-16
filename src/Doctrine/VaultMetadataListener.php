@@ -177,7 +177,7 @@ final readonly class VaultMetadataListener
     {
         foreach (['indexes', 'uniqueConstraints'] as $kind) {
             foreach ($metadata->table[$kind] ?? [] as $definition) {
-                if (is_array($definition) && is_array($definition['columns'] ?? null) && ($definition['columns'][0] ?? null) === $column) {
+                if (($definition['columns'][0] ?? null) === $column) {
                     return;
                 }
             }
