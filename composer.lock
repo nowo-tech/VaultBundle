@@ -7071,16 +7071,16 @@
         },
         {
             "name": "nowo-tech/doctrine-encrypt-bundle",
-            "version": "v2.12.1",
+            "version": "v2.13.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/DoctrineEncryptBundle.git",
-                "reference": "22e2f6cd925264c0f9230a856247861532fb6609"
+                "reference": "4d9a4520c64bcbe426009d49cbdd3897e88f859c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/22e2f6cd925264c0f9230a856247861532fb6609",
-                "reference": "22e2f6cd925264c0f9230a856247861532fb6609",
+                "url": "https://api.github.com/repos/nowo-tech/DoctrineEncryptBundle/zipball/4d9a4520c64bcbe426009d49cbdd3897e88f859c",
+                "reference": "4d9a4520c64bcbe426009d49cbdd3897e88f859c",
                 "shasum": ""
             },
             "require": {
@@ -7168,7 +7168,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-11-11T14:41:37+00:00"
+            "time": "2026-11-13T18:28:53+00:00"
         },
         {
             "name": "nowo-tech/phpstan-frankenphp",
