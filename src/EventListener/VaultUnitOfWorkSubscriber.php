@@ -87,6 +87,9 @@ final class VaultUnitOfWorkSubscriber implements EventSubscriberInterface, Reset
         $this->pendingClear = new WeakMap();
     }
 
+    /**
+     * Subscribes to the kernel boundary events that clear the per-request unit-of-work state.
+     */
     public static function getSubscribedEvents(): array
     {
         return [
