@@ -161,7 +161,9 @@ vault-rotation-demo:
 
 # REQ-DEMO-013: Playwright e2e + README screenshots (official Playwright image, host network).
 # Separate from the PHPUnit HTTP tests (test-http-e2e / tests/E2E).
-PLAYWRIGHT_IMAGE ?= mcr.microsoft.com/playwright:v1.63.0-jammy
+# The image tag always follows the exact @playwright/test version pinned in e2e/package.json (browsers ship with the image).
+PLAYWRIGHT_VERSION := $(shell sed -n 's/.*"@playwright\/test": "\([0-9.]*\)".*/\1/p' e2e/package.json)
+PLAYWRIGHT_IMAGE ?= mcr.microsoft.com/playwright:v$(PLAYWRIGHT_VERSION)-jammy
 E2E_PORT = PORT=$$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	[ -z "$$PORT" ] && PORT=$$(grep -E '^PORT=' .env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); PORT=$${PORT:-8023}
 
@@ -179,7 +181,7 @@ test-e2e: ensure-up
 		-v "$(CURDIR)/e2e:/e2e" -w /e2e \
 		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
 		$(PLAYWRIGHT_IMAGE) \
-		bash -lc 'npm install --no-fund --no-audit && npx playwright test --project=chromium'
+		bash -lc 'npm ci --no-fund --no-audit && npx playwright test --project=chromium'
 
 # Screenshots start from a clean demo DB (database-empty reloads the fixtures: demo user + fake logins).
 demo-screenshots: ensure-up
@@ -193,7 +195,7 @@ demo-screenshots: ensure-up
 		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
 		-e SCREENSHOT_DIR=/screenshots \
 		$(PLAYWRIGHT_IMAGE) \
-		bash -lc 'npm install --no-fund --no-audit && npx playwright test --project=screenshots && node scripts/to-webp.mjs /screenshots'
+		bash -lc 'npm ci --no-fund --no-audit && npx playwright test --project=screenshots && node scripts/to-webp.mjs /screenshots'
 	@echo "Screenshots written under docs/images/demo/ (WebP)"
 
 # REQ-MAKE-008: update-deps (REQ-MAKE-008)
