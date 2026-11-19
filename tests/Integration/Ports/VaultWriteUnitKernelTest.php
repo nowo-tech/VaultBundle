@@ -26,6 +26,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Throwable;
 
 use function assert;
 
@@ -106,6 +107,45 @@ final class VaultWriteUnitKernelTest extends KernelTestCase
 
         $this->creator($container)->create(VaultItemType::Login, 'After', $users['alice'], ['password' => 'REDACTED-TEST']);
         self::assertSame(1, (int) self::hostManager($container)->getConnection()->fetchOne('SELECT COUNT(*) FROM vault_items'), 'the next write works');
+    }
+
+    /**
+     * transaction-doctrine 1.7.1 audit UI2-1 (the check of a write unit scoped to its managers): with the private
+     * entity manager the unit writes only through the vault's manager, so a failed unit (a domain refusal or a storage
+     * error) never clears, closes or resets the application's manager: its entities stay managed, nothing is pending.
+     */
+    #[Test]
+    public function thePrivateUnitWritesOnlyThroughTheVaultManagerAndLeavesTheApplicationManagerAlone(): void
+    {
+        [$container, $users] = $this->boot('private_relation_legacy');
+        $host                = self::hostManager($container);
+        $vault               = self::vaultManager($container);
+        self::assertNotSame($host, $vault);
+        self::assertTrue($host->contains($users['alice']));
+
+        $failures = [
+            static fn (): never => throw new RuntimeException('refused'),
+            static fn (): int => $vault->getConnection()->executeStatement('UPDATE vault_missing_table SET id = 1'),
+        ];
+        foreach ($failures as $failure) {
+            try {
+                $this->unit($container)->run(function () use ($container, $users, $failure): void {
+                    $this->creator($container)->create(VaultItemType::Login, 'Scoped', $users['alice'], ['password' => 'REDACTED-TEST']);
+                    $failure();
+                });
+                self::fail('the failure is rethrown');
+            } catch (Throwable) {
+                // Expected: the unit rethrows its failure.
+            }
+
+            self::assertTrue($host->isOpen(), 'the application manager is never closed');
+            self::assertTrue($host->contains($users['alice']), 'the application manager is never cleared');
+            $host->getUnitOfWork()->computeChangeSets();
+            self::assertSame([], $host->getUnitOfWork()->getScheduledEntityInsertions(), 'the unit wrote nothing through it');
+            self::assertSame([], $host->getUnitOfWork()->getScheduledEntityUpdates());
+        }
+
+        self::assertSame(0, (int) $host->getConnection()->fetchOne('SELECT COUNT(*) FROM vault_items'));
     }
 
     #[Test]

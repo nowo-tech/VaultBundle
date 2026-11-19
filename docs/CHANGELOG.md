@@ -55,6 +55,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **nowo-tech/transaction-doctrine `^1.7.1`** (was `^1.6`; the demo lock follows). The vault's conflict listener now
+  detects a lock conflict through transaction-doctrine's bounded walk (`TransientFailureClassifier::findConflict()`,
+  `ThrowableWalk`: `getPrevious()` and Messenger's wrapped exceptions, each throwable once, at most 256) instead of
+  walking `getPrevious()` by hand. A write unit's uncommitted `ConcurrencyConflict` reaching a vault route now answers
+  409 + `CONFLICT_001` (it was a 500 unless a deadlock sat in its chain). Unique violations and lost connections are
+  still never conflicts.
+- **`forManagers()` is not used, on purpose.** The vault's write unit is a one-attempt `DoctrineTransactionRunner`
+  (no replay), not transaction-doctrine's replaying `WriteUnit`: it never repairs any manager but the one it runs on.
+  The UI2-1 check holds and is now covered by a kernel test: with the private entity manager a failed unit (domain
+  refusal or storage error) writes only through the vault's manager and leaves the application's manager open, with
+  its entities managed and nothing pending.
+
+### Fixed
+
+- **Commit tracking follows every manager that maps the vault (audit UE3-CF-1).** With
+  `conflict_response.commit_tracking: bundle` the vault's commit-tracking middleware wrapped only the connection of
+  `database.entity_manager`. It now also wraps the connection of every entity manager whose mapping covers
+  `Nowo\VaultBundle\Entity`, so a commit on such a manager is never missed (CONFLICT_002). The host's other connections
+  are still left alone.
+- **A stray `CommitLedger` service no longer silences CONFLICT_002 (audit UE3-CF-2).** The vault dropped its own
+  middleware and ledger as soon as a `Nowo\TransactionDoctrine\WriteUnit\CommitLedger` service existed. It now does so
+  only when transaction-doctrine's `nowo_transaction_doctrine.commit_tracking_middleware` exists too (its bundle with
+  `commit_detection` on); otherwise nothing fed that ledger and every conflict answered `CONFLICT_001`.
+
 ## [1.20.0] - 2026-11-19
 
 ### Added

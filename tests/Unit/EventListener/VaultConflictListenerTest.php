@@ -58,6 +58,7 @@ final class VaultConflictListenerTest extends TestCase
         yield 'lock timeout (PostgreSQL 55P03)' => [new DriverException(self::driverError('lock timeout', '55P03'), null)];
         yield 'MariaDB 1020' => [new DriverException(self::driverError('Record has changed', 'HY000', 1020), null)];
         yield 'the runner\'s TransientStorageFailure' => [TransientStorageFailure::fromPrevious(new RuntimeException('x'), 1)];
+        yield 'a write unit\'s uncommitted ConcurrencyConflict (transaction-doctrine 1.7.1 findConflict())' => [new RuntimeException('wrapped', 0, new ConcurrencyConflict(3, TransientFailureKind::Deadlock, 1, new RuntimeException('x'), false))];
         yield 'wrapped by the kernel' => [new RuntimeException('wrapped', 0, new DeadlockException(self::driverError('Deadlock', '40001', 1213), null))];
     }
 

@@ -8,6 +8,7 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\TransactionDoctrine\ConflictCode;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
+use Nowo\TransactionDoctrine\ThrowableWalk;
 use Nowo\TransactionDoctrine\TransientFailureClassifier;
 use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
 use Nowo\TransactionDoctrine\WriteUnit\CommitMark;
@@ -27,7 +28,8 @@ use function str_starts_with;
 /**
  * 1.20 (REQ-RUNTIME-003 rule 6): a lock conflict on a route of the vault answers a conflict instead of a 500.
  *
- * - Lock conflict (a deadlock, lock wait timeout or serialization failure anywhere down the chain, a
+ * - Lock conflict (a deadlock, lock wait timeout or serialization failure anywhere down the chain or inside Messenger's
+ *   wrapped exceptions, read through transaction-doctrine's bounded walk; a
  *   {@see TransientStorageFailure}, or a lost savepoint of unknown outcome): the status of the
  *   {@see ConflictResponsePolicy} (**409** by default, 503 when the host configures it) with a {@see ConflictCode} in the
  *   `X-Conflict-Code` header:
@@ -98,8 +100,6 @@ final readonly class VaultConflictListener
 
     private ConflictResponsePolicy $policy;
 
-    private TransientFailureClassifier $classifier;
-
     /**
      * @param ConflictResponsePolicy|null $policy the conflict status and default Retry-After (null = 409, 1 s)
      * @param CommitLedger|null $ledger real commits counted by the commit-tracking middleware (null = none)
@@ -111,8 +111,7 @@ final readonly class VaultConflictListener
         private ?RequestStack $requestStack = null,
         private ?VaultBrowserExtensionResponseFactory $extensionResponses = null,
     ) {
-        $this->policy     = $policy ?? new ConflictResponsePolicy();
-        $this->classifier = new TransientFailureClassifier();
+        $this->policy = $policy ?? new ConflictResponsePolicy();
     }
 
     /**
@@ -181,15 +180,15 @@ final readonly class VaultConflictListener
         return $response;
     }
 
+    /**
+     * transaction-doctrine's bounded walk (1.7.1): getPrevious() and Messenger's wrapped exceptions, each throwable once,
+     * at most 256, never throwing on a broken wrapper. A lock conflict (the contract's TransientStorageFailure, a write
+     * unit's ConcurrencyConflict), a deadlock, lock wait timeout or serialization failure, or a lost savepoint of unknown
+     * outcome; never a unique violation or a lost connection.
+     */
     private function isLockConflict(Throwable $failure): bool
     {
-        for ($current = $failure; $current instanceof Throwable; $current = $current->getPrevious()) {
-            if ($current instanceof TransientStorageFailure) {
-                return true;
-            }
-        }
-
-        return $this->classifier->isTransient($failure) || $this->classifier->isCommitOutcomeUnknown($failure);
+        return TransientFailureClassifier::findConflict($failure) instanceof Throwable;
     }
 
     /**
@@ -212,28 +211,16 @@ final readonly class VaultConflictListener
         return $mark instanceof CommitMark ? $mark : null;
     }
 
-    /** The first Retry-After hint of the chain (a transient failure of a runner); null for none or zero. */
+    /** The Retry-After hint of the first transient failure of a runner (bounded walk); null for none or zero. */
     private function hint(Throwable $failure): ?int
     {
-        for ($current = $failure; $current instanceof Throwable; $current = $current->getPrevious()) {
-            if ($current instanceof TransientStorageFailure) {
-                $hint = $current->retryAfterSeconds();
+        $hint = ThrowableWalk::first($failure, TransientStorageFailure::class)?->retryAfterSeconds();
 
-                return $hint !== null && $hint > 0 ? $hint : null;
-            }
-        }
-
-        return null;
+        return $hint !== null && $hint > 0 ? $hint : null;
     }
 
     private function isUniqueViolation(Throwable $failure): bool
     {
-        for ($current = $failure; $current instanceof Throwable; $current = $current->getPrevious()) {
-            if ($current instanceof UniqueConstraintViolationException) {
-                return true;
-            }
-        }
-
-        return false;
+        return ThrowableWalk::first($failure, UniqueConstraintViolationException::class) instanceof UniqueConstraintViolationException;
     }
 }

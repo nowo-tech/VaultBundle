@@ -126,11 +126,15 @@ nowo_vault:
     conflict_response:
         status: ~          # 409 (default) or 503; null follows transaction-doctrine's conflict_response, else 409
         retry_after: ~     # seconds of a CONFLICT_001 answer; null follows transaction-doctrine, else 1
-        commit_tracking: bundle   # bundle (the connection of database.entity_manager), all, or off
+        commit_tracking: bundle   # bundle (the connection of database.entity_manager and of every manager mapping the vault's entities), all, or off
 ```
 
-- With nowo-tech/transaction-doctrine's bundle registered and `commit_detection` on, its commit ledger is reused and the
-  vault adds no middleware (`VaultCommitTrackingPass`).
+- With nowo-tech/transaction-doctrine's bundle registered and `commit_detection` on (its
+  `nowo_transaction_doctrine.commit_tracking_middleware` service exists), its commit ledger is reused and the vault
+  adds no middleware (`VaultCommitTrackingPass`). A `CommitLedger` service without that middleware is ignored: the
+  vault keeps its own ledger (audit UE3-CF-2).
+- `bundle` wraps the connection of `database.entity_manager` and of every other manager whose mapping covers
+  `Nowo\VaultBundle\Entity` (audit UE3-CF-1); never the host's other connections.
 - `database.private_entity_manager: true` (recommended) makes the write unit run on the vault's own manager; in the
   deprecated 1.18 mode it runs on yours and refuses to start over your unflushed changes.
 - A host that answers 503 for lock conflicts sets `status: 503`; the codes and headers stay the same.
@@ -139,7 +143,12 @@ nowo_vault:
 
 - A `CONFLICT_001` answer is safe to retry: nothing of the request was committed. A `CONFLICT_002` answer is not: reload
   first.
-- The vault's write unit runs once (no automatic retry). A host that aliases nowo-tech/transaction-contract's runner to
+- The vault's write unit runs once (no automatic retry). It is a `DoctrineTransactionRunner`, not transaction-doctrine's
+  replaying `WriteUnit`, so `forManagers()` does not apply: the runner only ever repairs the manager it runs on (the
+  vault's private manager, or forgets its own entities in yours in the 1.18 mode). A kernel test checks that a failed
+  unit writes only through the vault's manager (transaction-doctrine audit UI2-1).
+- Conflicts are detected through transaction-doctrine's bounded walk (`findConflict()`, `ThrowableWalk`, 1.7.1): the
+  `getPrevious()` chain and Messenger's wrapped exceptions, each throwable once, at most 256. A host that aliases nowo-tech/transaction-contract's runner to
   a retrying adapter does not change the vault's unit; the item edit re-reads its row under the lock on every attempt,
   and no entity from a failed attempt is reused (the failed unit clears or detaches it).
 - The vault has no Messenger handlers of its own. Its commands are idempotent by design: the re-encryption skips rows already on
