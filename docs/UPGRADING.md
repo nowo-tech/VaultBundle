@@ -85,6 +85,21 @@
 
 ## Unreleased
 
+```bash
+composer update nowo-tech/vault-bundle nowo-tech/transaction-doctrine
+```
+
+- **nowo-tech/transaction-doctrine `^1.7.1` is required** (was `^1.6`). Nothing to configure. Read its UPGRADING
+  ("To 1.7.0", "To 1.7.1"): no signature changed.
+- **Commit tracking.** With `conflict_response.commit_tracking: bundle` (the default) the vault's middleware now also
+  wraps the connection of any other entity manager that maps the vault's entities (audit UE3-CF-1). The vault reuses
+  transaction-doctrine's ledger only when its `nowo_transaction_doctrine.commit_tracking_middleware` service exists
+  (its bundle with `commit_detection` on); a `CommitLedger` service registered by anything else no longer replaces the
+  vault's own tracking (audit UE3-CF-2). Nothing to do; a test asserting `CONFLICT_001` after a commit in one of
+  these setups needs `CONFLICT_002`.
+- **Conflict detection.** A write unit's `ConcurrencyConflict` (or a lock conflict inside Messenger's wrapped
+  exceptions) reaching a vault route answers 409 + `CONFLICT_*` instead of a 500.
+
 ## To 1.20.0
 
 From **1.19.3**:

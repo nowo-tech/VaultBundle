@@ -236,7 +236,7 @@ final class Configuration implements ConfigurationInterface
                         ->enumNode('commit_tracking')
                             ->values(['bundle', 'all', 'off'])
                             ->defaultValue('bundle')
-                            ->info('Commits counted for CONFLICT_002 when nowo-tech/transaction-doctrine\'s commit_detection is off: bundle (default, the connection of database.entity_manager only), all (every Doctrine connection) or off (no middleware; only the failure itself and transaction-doctrine\'s request mark decide). With commit_detection on, transaction-doctrine\'s ledger is reused and the vault adds no middleware.')
+                            ->info('Commits counted for CONFLICT_002 when nowo-tech/transaction-doctrine\'s commit_detection is off: bundle (default, the connection of database.entity_manager and of every other manager mapping the vault entities), all (every Doctrine connection) or off (no middleware; only the failure itself and transaction-doctrine\'s request mark decide). With commit_detection on, transaction-doctrine\'s ledger is reused and the vault adds no middleware.')
                         ->end()
                     ->end()
                 ->end()

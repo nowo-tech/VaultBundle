@@ -1871,16 +1871,16 @@
         },
         {
             "name": "nowo-tech/transaction-doctrine",
-            "version": "v1.6.1",
+            "version": "v1.7.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/transaction-doctrine.git",
-                "reference": "2508e7689c0051c28ca8532a4cdf31ca7bfff311"
+                "reference": "2f14da7ce82b0399d463c2e1faf999f945104629"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/transaction-doctrine/zipball/2508e7689c0051c28ca8532a4cdf31ca7bfff311",
-                "reference": "2508e7689c0051c28ca8532a4cdf31ca7bfff311",
+                "url": "https://api.github.com/repos/nowo-tech/transaction-doctrine/zipball/2f14da7ce82b0399d463c2e1faf999f945104629",
+                "reference": "2f14da7ce82b0399d463c2e1faf999f945104629",
                 "shasum": ""
             },
             "require": {
@@ -1938,7 +1938,8 @@
             },
             "autoload": {
                 "psr-4": {
-                    "Nowo\\TransactionDoctrine\\": "src/"
+                    "Nowo\\TransactionDoctrine\\": "src/",
+                    "Nowo\\TransactionDoctrine\\WriteUnit\\Dbal\\Dbal3\\": "compat/dbal3/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -1976,8 +1977,8 @@
                 "issues": "https://github.com/nowo-tech/transaction-doctrine/issues",
                 "source": "https://github.com/nowo-tech/transaction-doctrine"
             },
-            "time": "2026-11-18T23:35:00+00:00",
-            "published-time": "2026-11-18T23:37:46+00:00"
+            "time": "2026-11-19T10:12:34+00:00",
+            "published-time": "2026-11-19T10:15:50+00:00"
         },
         {
             "name": "nowo-tech/ui-kit-bundle",
@@ -2088,7 +2089,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/vault-bundle",
-                "reference": "2b81e86841fcf762815432e8e948dd5e0226c25e"
+                "reference": "373379ea842bb2a6f1c8dc99d80fb0a41ffd30bf"
             },
             "require": {
                 "composer-runtime-api": "^2.0",
@@ -2097,7 +2098,7 @@
                 "ext-sodium": "*",
                 "nowo-tech/form-kit-bundle": "^2.16",
                 "nowo-tech/transaction-contract": "^1.0",
-                "nowo-tech/transaction-doctrine": "^1.6",
+                "nowo-tech/transaction-doctrine": "^1.7.1",
                 "nowo-tech/ui-kit-bundle": "^2.17.3",
                 "php": ">=8.2 <8.6",
                 "psr/clock": "^1.0",

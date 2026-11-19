@@ -93,7 +93,7 @@ instead of a 500. See [CONCURRENCY.md](CONCURRENCY.md) for the codes and the wri
 |--------|---------|-------------|
 | `conflict_response.status` | `null` | `409` (`CONFLICT_001` / `CONFLICT_002`) or `503`. Null: nowo-tech/transaction-doctrine's `conflict_response` when its bundle is registered, else 409 |
 | `conflict_response.retry_after` | `null` | `Retry-After` seconds of a `CONFLICT_001` answer. Null: transaction-doctrine's value, else 1 |
-| `conflict_response.commit_tracking` | `bundle` | Commits counted for `CONFLICT_002` when transaction-doctrine's `commit_detection` is off: `bundle` (the connection of `database.entity_manager`), `all` (every Doctrine connection) or `off`. With `commit_detection` on, its ledger is reused |
+| `conflict_response.commit_tracking` | `bundle` | Commits counted for `CONFLICT_002` when transaction-doctrine's `commit_detection` is off: `bundle` (the connection of `database.entity_manager` and of every other manager mapping the vault's entities), `all` (every Doctrine connection) or `off`. With `commit_detection` on (its `nowo_transaction_doctrine.commit_tracking_middleware` exists), its ledger is reused |
 
 ```yaml
 nowo_vault:
