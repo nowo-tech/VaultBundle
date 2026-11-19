@@ -33,6 +33,14 @@ final readonly class VaultSearchViewers
     }
 
     /**
+     * Whether the vault stores user ids in string columns (`user_mapping: id`) rather than relations.
+     */
+    public function mapsById(): bool
+    {
+        return $this->users->mapsById();
+    }
+
+    /**
      * The viewer whose user identifier is `$userIdentifier`, or null.
      */
     public function forIdentifier(string $userIdentifier): ?VaultSearchViewer

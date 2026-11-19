@@ -31,6 +31,9 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
+use Nowo\VaultBundle\Event\VaultEvents;
+use Nowo\VaultBundle\Event\VaultItemAccessCheckEvent;
+use Nowo\VaultBundle\Event\VaultSearchScopesEvent;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultGrantRepository;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
@@ -73,14 +76,11 @@ if (!class_exists(EntitySearchProviderTestCase::class)) {
 /**
  * The SearchKit contract kit against the real VaultItemSearchDefinition, Vault's own guard and grant repository and a
  * real database (SQLite by default; MySQL / MariaDB / PostgreSQL through VAULT_TEST_DATABASE_URL in the CI job
- * "SearchKit on databases"). The SearchKit "tenant" is the viewer's vault user id; a hidden row is an item of a scope
- * vault the viewer is not a member of (the SQL keeps scope items, the scope access resolver refuses them).
+ * "SearchKit on databases"). The SearchKit "tenant" is the viewer's vault user id. Every other refusal is in SQL, so a
+ * hidden row (seedHidden()) is the one case left to PHP: an own item a host ITEM_ACCESS_CHECK listener denies.
  */
 abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
 {
-    /** The scope nobody of the kit is a member of (seedHidden()). */
-    protected const HIDDEN_SCOPE = 'skc-hidden';
-
     private static ?EntityManagerInterface $em = null;
 
     private static ?QueryCounter $counter = null;
@@ -95,6 +95,12 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
 
     /** @var array<string, array<string, VaultScopeAccess>> user id => scope => access */
     protected array $members = [];
+
+    /** @var array<string, true> item ids the host ITEM_ACCESS_CHECK listener denies (seedHidden()) */
+    protected array $vetoed = [];
+
+    /** Calls of the host scope access resolver (memoized per request by RequestScopedScopeAccessCache). */
+    public int $resolverCalls = 0;
 
     /** @var array<string, list<string>> user id => team ids */
     protected array $teamIds = [];
@@ -132,6 +138,11 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
         }
         $this->vaultEvents = new EventDispatcher();
         $this->tokens      = new TokenStorage();
+        $this->vaultEvents->addListener(VaultEvents::ITEM_ACCESS_CHECK, function (VaultItemAccessCheckEvent $event): void {
+            if (isset($this->vetoed[$event->getItemId()])) {
+                $event->deny();
+            }
+        });
         $this->scopeCache  = new RequestScopedScopeAccessCache(new class($this) implements VaultScopeAccessResolverInterface {
             public function __construct(private readonly VaultItemSearchTestCase $test)
             {
@@ -139,6 +150,8 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
 
             public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
             {
+                ++$this->test->resolverCalls;
+
                 return $this->test->scopeAccess((string) UserIdResolver::getId($user), $scope);
             }
         });
@@ -349,9 +362,26 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
         return $this->persistItem(new VaultItem(VaultItemType::Login, $text, $this->ownerValue($tenant), 'ciphertext'));
     }
 
+    /**
+     * An own item of the tenant that a host ITEM_ACCESS_CHECK listener denies: the only refusal left to PHP (every
+     * other one is in SQL, so it never takes a slot of the candidate window).
+     */
     protected function seedHidden(int|string $tenant, string $text): int|string
     {
-        return $this->persistItem(VaultItem::forScope(VaultItemType::Login, $text, self::HIDDEN_SCOPE, null, 'ciphertext'));
+        $id                = $this->persistItem(new VaultItem(VaultItemType::Login, $text, $this->ownerValue($tenant), 'ciphertext'));
+        $this->vetoed[$id] = true;
+
+        return $id;
+    }
+
+    /**
+     * Names the scope vaults searched (a SEARCH_SCOPES listener, as a host lists the viewer's projects).
+     *
+     * @param list<string> $scopes
+     */
+    protected function searchScopes(array $scopes): void
+    {
+        $this->vaultEvents->addListener(VaultEvents::SEARCH_SCOPES, static fn (VaultSearchScopesEvent $event) => $event->limitTo($scopes));
     }
 
     protected function seedArchived(int|string $tenant, string $text): int|string

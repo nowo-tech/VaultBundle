@@ -10,6 +10,7 @@ use Nowo\SearchKitBundle\Model\SearchGroup;
 use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchQuery;
 use Nowo\SearchKitBundle\Model\SearchReference;
+use Nowo\SearchKitBundle\Provider\Entity\EntitySearchProvider;
 use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
 use Nowo\VaultBundle\Bridge\SearchKit\VaultItemSearchDefinition;
 use Nowo\VaultBundle\Bridge\SearchKit\VaultSearchViewers;
@@ -111,7 +112,7 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         self::assertSame('/tools/vault/items/' . $id, $row->url);
         self::assertNull($row->badge);
         self::assertStringNotContainsString('SECRET', json_encode($row->toArray(VaultItemSearchDefinition::GROUP), JSON_THROW_ON_ERROR));
-        self::assertSame('/tools/vault/items?q=' . $marker, $group->moreUrl);
+        self::assertNull($group->moreUrl, 'No see-all link: no vault page lists the same set.');
         self::assertSame('Vault items', $group->label);
     }
 
@@ -168,6 +169,7 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         $this->grant(VaultResourceType::Item, $grantsOnly, GranteeType::User, self::ALICE);
         $this->grant(VaultResourceType::Item, $outsider, GranteeType::User, self::ALICE);
         $this->members[self::ALICE] = ['proj-a' => new VaultScopeAccess(VaultPermission::Read), 'proj-b' => new VaultScopeAccess(null)];
+        $this->searchScopes(['proj-a', 'proj-b', 'proj-c']);
         $this->actAs(self::ALICE, self::VIEWER_A);
 
         $group = $this->provider()->search($this->query($marker));
@@ -176,11 +178,9 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         $subtitles = array_map(static fn (SearchItem $row): string => $row->subtitle, $group->items);
         self::assertContains('login · Ops', $subtitles, 'A member with a baseline sees the scope folder.');
 
-        // Scopes off: the scope items are not searched (an item shared with the viewer still is, through its grant).
+        // Scopes off: no scope item is searched, granted or not.
         $this->scopesEnabled = false;
-        $group               = $this->provider()->search($this->query($marker));
-        self::assertInstanceOf(SearchGroup::class, $group);
-        self::assertSame([$marker . ' b granted'], $this->titles($group));
+        self::assertNull($this->provider()->search($this->query($marker)));
     }
 
     public function testSearchScopesListenersNarrowInSql(): void
@@ -191,6 +191,8 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' own', self::ALICE, 'ciphertext'));
         $this->members[self::ALICE] = ['proj-a' => new VaultScopeAccess(VaultPermission::Read), 'proj-b' => new VaultScopeAccess(VaultPermission::Read)];
         $this->actAs(self::ALICE, self::VIEWER_A);
+
+        self::assertSame([$marker . ' own'], $this->titles($this->provider()->search($this->query($marker))), 'Fail closed: no listener, no scope vault.');
 
         $seen = [];
         $this->vaultEvents->addListener(VaultEvents::SEARCH_SCOPES, static function (VaultSearchScopesEvent $event) use (&$seen): void {
@@ -207,7 +209,7 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         self::assertSame([$marker . ' own'], $this->titles($this->provider()->search($this->query($marker))));
     }
 
-    public function testExcludeAloneKeepsTheOtherScopes(): void
+    public function testExcludeAloneSearchesNoScope(): void
     {
         $marker = $this->marker();
         $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' a', 'proj-a', null, 'ciphertext'));
@@ -216,7 +218,7 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         $this->actAs(self::ALICE, self::VIEWER_A);
         $this->vaultEvents->addListener(VaultEvents::SEARCH_SCOPES, static fn (VaultSearchScopesEvent $event) => $event->exclude(['proj-a']));
 
-        self::assertSame([$marker . ' b'], $this->titles($this->provider()->search($this->query($marker))));
+        self::assertNull($this->provider()->search($this->query($marker)), 'exclude() without limitTo() names no scope.');
     }
 
     public function testHostVetoesApply(): void
@@ -346,7 +348,7 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
 
         $item = $definition->toItem(self::em()->find(VaultItem::class, $id) ?? new stdClass(), $this->query($marker));
         self::assertSame('/host/secrets/' . $id, $item->url);
-        self::assertSame('/host/secrets?q=' . $marker, $definition->seeAllUrl($this->query($marker)));
+        self::assertNull($definition->seeAllUrl($this->query($marker)));
         self::assertNotNull($definition->referenceId(new SearchReference('/host/secrets/' . $id, 'vault_items', 'host_item_view', ['id' => $id])));
     }
 
@@ -360,6 +362,7 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         $this->grant(VaultResourceType::Item, $shared, GranteeType::Team, 'team-1');
         $this->teamIds[self::ALICE] = ['team-1'];
         $this->members[self::ALICE] = ['proj-a' => new VaultScopeAccess(VaultPermission::Read)];
+        $this->searchScopes(['proj-a']);
         $this->actAs(self::ALICE, self::VIEWER_A);
         $provider = $this->provider();
 
@@ -395,6 +398,77 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
 
         self::assertSame('Vault items', $definition->label($this->query($marker)));
         self::assertSame('login', $definition->toItem(self::em()->find(VaultItem::class, $id) ?? new stdClass(), $this->query($marker))->subtitle);
+    }
+
+    /**
+     * Audit VJ-1: rows the viewer may not see, all NEWER than the visible ones, never take a slot of a small candidate
+     * window: non-member scopes (named or not), a grants-only member's ungranted items, a shared folder holding another
+     * user's items, expired grants, items in the trash. The visible count, the total and its exactness do not move.
+     */
+    public function testHiddenRowsNewerThanTheVisibleOnesNeverFillTheWindow(): void
+    {
+        $marker = $this->marker();
+        for ($row = 0; $row < 3; ++$row) {
+            $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' divorce ' . $row, self::ALICE, 'ciphertext'));
+        }
+        $this->actAs(self::ALICE, self::VIEWER_A);
+        $definition = $this->searchDefinition(maxCandidates: 5);
+        $before     = (new EntitySearchProvider($definition))->search($this->query($marker));
+        self::assertInstanceOf(SearchGroup::class, $before);
+        self::assertSame(3, $before->total);
+        self::assertTrue($before->exactTotal);
+
+        $bobFolder = $this->persistFolder(new VaultFolder('Bob shared', self::BOB));
+        $this->grant(VaultResourceType::Folder, $bobFolder->getId(), GranteeType::User, self::ALICE);
+        for ($row = 0; $row < 7; ++$row) {
+            $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' divorce foreign ' . $row, 'proj-x', null, 'ciphertext'));
+            $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' divorce named ' . $row, 'proj-named', null, 'ciphertext'));
+            $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' divorce grants-only ' . $row, 'proj-g', null, 'ciphertext'));
+            $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' divorce carol ' . $row, 'vtsk-carol', 'ciphertext', $bobFolder));
+            $expired = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' divorce expired ' . $row, self::BOB, 'ciphertext'));
+            $this->grant(VaultResourceType::Item, $expired, GranteeType::User, self::ALICE, new DateTimeImmutable('-1 minute'));
+            $lookAlike = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' divorce lookalike ' . $row, 'VTSK-ALICE', 'ciphertext'));
+            $this->grant(VaultResourceType::Item, $lookAlike, GranteeType::User, 'vtsk-alice ');
+            $this->persistItem((new VaultItem(VaultItemType::Login, $marker . ' divorce trash ' . $row, self::ALICE, 'ciphertext'))->markDeleted());
+        }
+        $this->members[self::ALICE] = ['proj-g' => new VaultScopeAccess(null)];
+        $this->searchScopes(['proj-named', 'proj-g']);
+        $this->actAs(self::ALICE, self::VIEWER_A);
+
+        $after = (new EntitySearchProvider($definition))->search($this->query($marker));
+        self::assertInstanceOf(SearchGroup::class, $after);
+        self::assertEqualsCanonicalizing($this->titles($before), $this->titles($after));
+        self::assertSame(3, $after->total);
+        self::assertTrue($after->exactTotal);
+        self::assertCount(3, $definition->baseQuery(self::ALICE, $this->query($marker))->andWhere('i.title LIKE :t')->setParameter('t', $marker . '%')->getQuery()->getResult(), 'Not even a SQL candidate.');
+    }
+
+    /**
+     * Audit VJ-2: the host scope resolver is asked only about the scopes a SEARCH_SCOPES listener names, once per
+     * request, never about the scope of a row.
+     */
+    public function testTheScopeResolverIsAskedOnlyAboutNamedScopes(): void
+    {
+        $marker = $this->marker();
+        foreach (['proj-a', 'proj-x', 'proj-y', 'proj-z'] as $scope) {
+            for ($row = 0; $row < 3; ++$row) {
+                $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' ' . $scope . ' ' . $row, $scope, null, 'ciphertext'));
+            }
+        }
+        $this->members[self::ALICE] = ['proj-a' => new VaultScopeAccess(VaultPermission::Read), 'proj-x' => new VaultScopeAccess(VaultPermission::Read)];
+        $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' own', self::ALICE, 'ciphertext'));
+
+        $this->actAs(self::ALICE, self::VIEWER_A);
+        $this->resolverCalls = 0;
+        self::assertSame([$marker . ' own'], $this->titles($this->provider()->search($this->query($marker))));
+        self::assertSame(0, $this->resolverCalls, 'No listener: the resolver is never asked.');
+
+        $this->searchScopes(['proj-a']);
+        $this->actAs(self::ALICE, self::VIEWER_A);
+        $this->resolverCalls = 0;
+        $group = $this->provider()->search($this->query($marker));
+        self::assertCount(4, $this->titles($group));
+        self::assertSame(1, $this->resolverCalls, 'Once for the named scope, then memoized for the rows.');
     }
 
     /**

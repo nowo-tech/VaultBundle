@@ -16,17 +16,18 @@ use function in_array;
 
 /**
  * SEARCH_SCOPES (1.21.0): which scope vaults the SearchKit group `vault_items` searches for one viewer, dispatched once
- * per search before the SQL query. By default every scope is searched, and each scope item found is kept only when the
- * scope access resolver says the viewer is a member (the same rule as the scope pages). A listener can narrow that in
- * SQL: limitTo() the scopes the viewer belongs to (so other scopes never fill the candidate window), exclude() scopes
- * whose vault is off for this page, or excludeAll(). Narrowing only: no listener can add a scope the resolver refuses.
+ * per search before the SQL query. Fail closed: no scope vault is searched unless a listener names it with limitTo()
+ * (typically the viewer's projects or organisations). Of the named scopes (minus exclude()), only those where the scope
+ * access resolver says the viewer is a member are searched; the resolver is asked about the named scopes only. A later
+ * limitTo() intersects, exclude() removes, excludeAll() searches none: listeners can only narrow what an earlier one
+ * named, never add a scope the resolver refuses.
  *
  * A malformed scope key is ignored. Personal items and items shared with the viewer from a personal vault are not
  * affected. A new event per search: nothing is kept between requests.
  */
 final class VaultSearchScopesEvent extends Event
 {
-    /** @var list<string>|null null = every scope */
+    /** @var list<string>|null null = no listener named a scope (none is searched) */
     private ?array $only = null;
 
     /** @var list<string> */
@@ -80,7 +81,7 @@ final class VaultSearchScopesEvent extends Event
     }
 
     /**
-     * Searches no scope vault at all (personal and personally shared items only).
+     * Searches no scope vault at all (personal items and items shared from personal vaults only).
      */
     public function excludeAll(): void
     {
@@ -89,15 +90,16 @@ final class VaultSearchScopesEvent extends Event
     }
 
     /**
-     * Whether every scope is still searched (no listener narrowed it).
+     * Whether a listener named the scopes to search (limitTo() or excludeAll()).
      */
-    public function searchesEveryScope(): bool
+    public function isNamed(): bool
     {
-        return $this->only === null;
+        return $this->only !== null;
     }
 
     /**
-     * The scopes searched when narrowed with limitTo() / excludeAll() (excluded ones removed), or null for every scope.
+     * The named scopes, excluded ones removed (still subject to membership), or null when no listener named any (then
+     * no scope vault is searched).
      *
      * @return list<string>|null
      */
@@ -125,7 +127,7 @@ final class VaultSearchScopesEvent extends Event
             return false;
         }
 
-        return $this->only === null || in_array($scope, $this->only, true);
+        return $this->only !== null && in_array($scope, $this->only, true);
     }
 
     /**

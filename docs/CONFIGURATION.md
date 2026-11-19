@@ -509,12 +509,12 @@ discloses.
 
 ## SearchKit group (`search_kit`)
 
-Since 1.21.0. Used only when nowo-tech/search-kit-bundle 1.9 or later is installed (PHP 8.3 or later); otherwise these
-options do nothing. See [USAGE](USAGE.md#header-search-searchkit).
+Since 1.21.0. **Opt-in**: nothing is registered unless you set `search_kit.enabled: true`, and only when
+nowo-tech/search-kit-bundle 1.9 or later is installed (PHP 8.3 or later). See [USAGE](USAGE.md#header-search-searchkit).
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `search_kit.enabled` | `true` | Registers the SearchKit group `vault_items` (item names only). `false`: no group |
+| `search_kit.enabled` | `false` | `true` registers the SearchKit group `vault_items` (item names only). Hosts switch it on explicitly |
 | `search_kit.priority` | `0` | Tag priority of the group among the SearchKit providers (its position) |
 | `search_kit.max_candidates` | `100` | Items read and access-checked per search (1–1000): bounds the checks, the visible total and the deepest results page |
 
@@ -526,8 +526,9 @@ nowo_vault:
         max_candidates: 100
 ```
 
-SearchKit's own switch applies too (`nowo_search_kit.groups.vault_items: { enabled: false }` or a `priority`). The group
-is sensitive: SearchKit leaves it out while `nowo_search_kit.recent.enabled` is true and `recent.revalidate` is false.
+With `scopes.enabled`, scope vaults are searched only when a `VaultEvents::SEARCH_SCOPES` listener names them. SearchKit's
+own switch applies too (`nowo_search_kit.groups.vault_items: { enabled: false }` or a `priority`). The group is sensitive:
+SearchKit leaves it out while `nowo_search_kit.recent.enabled` is true and `recent.revalidate` is false.
 
 ## Reveal (`reveal`)
 

@@ -86,12 +86,11 @@
 
 ## Unreleased
 
-- **SearchKit group `vault_items` (optional).** Nothing changes unless nowo-tech/search-kit-bundle 1.9 or later is
-  installed (it needs PHP 8.3 or later; the vault still supports PHP 8.2 without it). With it, the group is on by
-  default and lists item **names** only. It is a sensitive group: SearchKit shows it only while its recents are
-  revalidated or off. Turn it off with `nowo_vault.search_kit.enabled: false` or
-  `nowo_search_kit.groups.vault_items.enabled: false`. With many scope vaults, add a `VaultEvents::SEARCH_SCOPES`
-  listener that limits the search to the viewer's scopes (see USAGE "Header search (SearchKit)").
+- **SearchKit group `vault_items` (opt-in).** Nothing changes unless you install nowo-tech/search-kit-bundle 1.9 or later
+  (PHP 8.3 or later; the vault still supports PHP 8.2 without it) **and** set `nowo_vault.search_kit.enabled: true`. The
+  group lists item **names** only and is sensitive: SearchKit shows it only while its recents are revalidated or off.
+  With scope vaults, add a `VaultEvents::SEARCH_SCOPES` listener that names the viewer's scopes; without one, scope items
+  are not searched (see USAGE "Header search (SearchKit)").
 
 ## To 1.20.1
 

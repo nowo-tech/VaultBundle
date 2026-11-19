@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Tests\Integration\SearchKit;
 use LogicException;
 use Nowo\SearchKitBundle\Model\SearchGroup;
 use Nowo\SearchKitBundle\Model\SearchItem;
+use Nowo\SearchKitBundle\Provider\Entity\EntitySearchProvider;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -89,6 +90,30 @@ final class VaultItemSearchRelationMappingTest extends VaultItemSearchTestCase
         }
         self::assertSame(['/tools/vault/items/' . $own => 'login · Mine', '/tools/vault/items/' . $shared => 'login'], $rows);
         self::assertSame([$marker . ' own', $marker . ' shared'], array_map(static fn (SearchItem $row): string => $row->title, $group->items));
+    }
+
+    /**
+     * Audit VJ-1 (b), relation mapping (`IDENTITY(f.creator) = IDENTITY(i.creator)`): a folder grant covers only the
+     * items with the folder's owner, so another user's items moved into a shared folder are not even SQL candidates.
+     */
+    public function testAFolderGrantCoversOnlyTheFolderOwnersItems(): void
+    {
+        [$alice, $bob] = $this->tenants();
+        $carol         = (string) $this->userId('searchkit-contract-carol');
+        $marker        = $this->marker();
+        $folder        = $this->persistFolder(new VaultFolder('Bob shared', $this->ownerValue($bob)));
+        $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' bob', $this->ownerValue($bob), 'ciphertext', $folder));
+        for ($row = 0; $row < 4; ++$row) {
+            $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' carol ' . $row, $this->ownerValue($carol), 'ciphertext', $folder));
+        }
+        $this->grant(VaultResourceType::Folder, $folder->getId(), GranteeType::User, $alice);
+        $this->actAs($alice, self::VIEWER_A);
+
+        $group = (new EntitySearchProvider($this->searchDefinition(maxCandidates: 2)))->search($this->query($marker));
+        self::assertInstanceOf(SearchGroup::class, $group);
+        self::assertSame([$marker . ' bob'], array_map(static fn (SearchItem $row): string => $row->title, $group->items));
+        self::assertSame(1, $group->total);
+        self::assertTrue($group->exactTotal);
     }
 
     private function userId(string $identifier): int

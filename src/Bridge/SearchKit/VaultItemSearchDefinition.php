@@ -6,7 +6,6 @@ namespace Nowo\VaultBundle\Bridge\SearchKit;
 
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Query\Expr\Orx;
 use Doctrine\ORM\QueryBuilder as OrmQueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
@@ -14,7 +13,6 @@ use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchQuery;
 use Nowo\SearchKitBundle\Model\SearchReference;
 use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
-use Nowo\SearchKitBundle\Search\Query\SeeAllLink;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
@@ -40,6 +38,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function array_map;
+use function array_slice;
 use function is_array;
 use function is_string;
 use function max;
@@ -55,12 +54,18 @@ use function sprintf;
  *   fields, tags and history live in the encrypted payload or other tables and are never matched, shown or decrypted:
  *   the definition has no cryptographer and never reads the ciphertext.
  * - A row shows the name, the item type and the folder name when the viewer may see that folder (see folderName()).
- * - SQL first: active items (not in the trash) that are the viewer's own personal items, shared with the viewer or one
- *   of its teams by an active item or folder grant, or in a scope vault (narrowed by VaultEvents::SEARCH_SCOPES).
- * - Then Vault's own check on the whole candidate window, in one batch: VaultAccessGuard::resolvePermissionMap()
- *   (ownership by exact id, scope membership through the scope access resolver, active grants compared byte for byte,
- *   the ITEM_ACCESS_CHECK listeners), plus an exact re-check of scope membership and of the viewer. Then SearchKit's
- *   shared visibility event. Any refusal: null, no count, no hint.
+ * - Hidden rows never become SQL candidates (no count or existence oracle through the candidate window): the SQL
+ *   keeps only active items (not in the trash) that are the viewer's own personal items (exact owner id), shared with
+ *   the viewer or one of its teams by an active item grant or by an active grant on a folder WITH THE ITEM'S OWNER
+ *   (SEC-004 M1), or in a scope vault where the viewer has a baseline; scope items only for member scopes that a
+ *   VaultEvents::SEARCH_SCOPES listener names (memberScopes()). User and grantee ids are compared by the database: the
+ *   vault's id columns have a binary NO PAD collation on MySQL / MariaDB since 1.19.3 (byte for byte on PostgreSQL and
+ *   SQLite), and with the relation mapping they are integer or UUID keys.
+ * - Then Vault's own check on the window, in one batch: VaultAccessGuard::resolvePermissionMap() (exact ids, scope
+ *   membership, active grants, the ITEM_ACCESS_CHECK listeners), an exact re-check of scope membership, then SearchKit's
+ *   shared visibility event. Residual, filtered in PHP only: rows an ITEM_ACCESS_CHECK or visibility listener denies,
+ *   and look-alike ids on a host whose migration dropped that collation; such rows can still take window slots.
+ *   Any refusal: null, no count, no hint.
  * - The group is sensitive(): SearchKit runs it only while its recents are revalidated or off.
  * - The viewer is the signed-in vault user whose identifier is the query's (VaultSearchViewers); its vault user id is
  *   the SearchKit "tenant", so the rows of another user are another tenant's.
@@ -83,7 +88,10 @@ final class VaultItemSearchDefinition extends EntitySearchDefinition
     private const ID_PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/';
 
     /** Route names used when the runtime configuration has none. */
-    private const DEFAULT_ROUTES = ['item_view' => 'nowo_vault_item_view', 'items' => 'nowo_vault_items'];
+    private const DEFAULT_ROUTES = ['item_view' => 'nowo_vault_item_view'];
+
+    /** Most scope vaults searched per search (the scope access resolver is asked once per named scope). */
+    public const MAX_SCOPES = 100;
 
     /**
      * @param bool $scopesEnabled `nowo_vault.scopes.enabled`
@@ -164,11 +172,15 @@ final class VaultItemSearchDefinition extends EntitySearchDefinition
             $queryBuilder->setParameter('vault_search_team_type', GranteeType::Team)->setParameter('vault_search_team_ids', $teamIds);
         }
         $granted = 'SELECT g%1$s.resourceId FROM ' . VaultGrant::class . ' g%1$s WHERE g%1$s.resourceType = :vault_search_%2$s AND (' . $grantees . ') AND (g%1$s.expiresAt IS NULL OR g%1$s.expiresAt > :vault_search_now)';
+        // SEC-004 M1 in SQL: a folder grant covers only the items that have the folder's owner.
+        $sameOwner = $this->viewers->mapsById()
+            ? '(f.ownerScope IS NULL AND i.ownerScope IS NULL AND f.creator = i.creator)'
+            : '(f.ownerScope IS NULL AND i.ownerScope IS NULL AND IDENTITY(f.creator) = IDENTITY(i.creator))';
 
         $visible = $queryBuilder->expr()->orX(
             'i.ownerScope IS NULL AND i.creator = :vault_search_viewer',
             'i.id IN (' . sprintf($granted, 'i', 'item') . ')',
-            'f.id IN (' . sprintf($granted, 'f', 'folder') . ')',
+            '(f.id IN (' . sprintf($granted, 'f', 'folder') . ') AND (' . $sameOwner . ' OR (f.ownerScope IS NOT NULL AND f.ownerScope = i.ownerScope)))',
         );
         $queryBuilder
             ->setParameter('vault_search_viewer', $viewer->reference)
@@ -178,7 +190,18 @@ final class VaultItemSearchDefinition extends EntitySearchDefinition
             ->setParameter('vault_search_folder', VaultResourceType::Folder)
             ->setParameter('vault_search_now', $this->clock?->now() ?? new DateTimeImmutable());
 
-        $this->applyScopeVaults($queryBuilder, $visible, $viewer);
+        // Scope items fail closed: only scopes the viewer is a member of are candidates (grants included), and every
+        // item of a scope only where the viewer has a baseline.
+        [$baseline, $members] = $this->memberScopes($viewer);
+        if ($members === []) {
+            $queryBuilder->andWhere('i.ownerScope IS NULL');
+        } else {
+            $queryBuilder->andWhere('i.ownerScope IS NULL OR i.ownerScope IN (:vault_search_member_scopes)')->setParameter('vault_search_member_scopes', $members);
+        }
+        if ($baseline !== []) {
+            $visible->add('i.ownerScope IN (:vault_search_baseline_scopes)');
+            $queryBuilder->setParameter('vault_search_baseline_scopes', $baseline);
+        }
 
         return $queryBuilder->andWhere($visible);
     }
@@ -230,9 +253,12 @@ final class VaultItemSearchDefinition extends EntitySearchDefinition
         );
     }
 
-    public function seeAllUrl(SearchQuery $query): ?string
+    /**
+     * No "see all" link: no vault page lists the same set (the items page shows the viewer's own items only).
+     */
+    public function seeAllUrl(SearchQuery $query): null
     {
-        return SeeAllLink::build($this->urls, $this->route('items'), [], $query);
+        return null;
     }
 
     public function maxCandidates(): int
@@ -263,32 +289,37 @@ final class VaultItemSearchDefinition extends EntitySearchDefinition
     }
 
     /**
-     * Adds the scope vault items to the SQL condition, as narrowed by the SEARCH_SCOPES listeners.
+     * The scope vaults searched for the viewer (fail closed): only the scopes the SEARCH_SCOPES listeners name
+     * (`limitTo()`, minus `exclude()`, at most MAX_SCOPES), and of those only the ones where the scope access resolver
+     * says the viewer is a member. Vault's resolver answers per scope and cannot list a user's scopes, so without a
+     * listener no scope vault is searched, and the resolver is asked only about the named scopes (memoized for the
+     * request by RequestScopedScopeAccessCache, cleared at every request boundary), never about the scope of a row.
+     *
+     * @return array{0: list<string>, 1: list<string>} the scopes with a baseline (every item), and every member scope
      */
-    private function applyScopeVaults(OrmQueryBuilder $queryBuilder, Orx $visible, VaultSearchViewer $viewer): void
+    private function memberScopes(VaultSearchViewer $viewer): array
     {
         if (!$this->scopesEnabled) {
-            return;
+            return [[], []];
         }
 
         $event = new VaultSearchScopesEvent(VaultUserRefs::fromUser($viewer->user));
         $this->eventDispatcher?->dispatch($event, VaultEvents::SEARCH_SCOPES);
-        $only     = $event->getScopes();
-        $excluded = $event->getExcluded();
 
-        if ($only === null) {
-            $visible->add('i.ownerScope IS NOT NULL');
-        } elseif ($only !== []) {
-            $visible->add('i.ownerScope IN (:vault_search_scopes)');
-            $queryBuilder->setParameter('vault_search_scopes', $only);
+        $baseline = [];
+        $members  = [];
+        foreach (array_slice($event->getScopes() ?? [], 0, self::MAX_SCOPES) as $scope) {
+            $access = $this->accessGuard->resolveScopeAccess($viewer->user, $scope);
+            if (!$access instanceof VaultScopeAccess) {
+                continue;
+            }
+            $members[] = $scope;
+            if ($access->baseline instanceof VaultPermission) {
+                $baseline[] = $scope;
+            }
         }
-        // Narrowing applies to shared scope items too: an excluded scope is never searched.
-        if ($only !== null) {
-            $queryBuilder->andWhere($only === [] ? 'i.ownerScope IS NULL' : 'i.ownerScope IS NULL OR i.ownerScope IN (:vault_search_scopes)');
-        }
-        if ($excluded !== []) {
-            $queryBuilder->andWhere('i.ownerScope IS NULL OR i.ownerScope NOT IN (:vault_search_excluded)')->setParameter('vault_search_excluded', $excluded);
-        }
+
+        return [$baseline, $members];
     }
 
     /**

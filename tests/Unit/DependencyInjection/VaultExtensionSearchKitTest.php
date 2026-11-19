@@ -15,8 +15,8 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use function class_exists;
 
 /**
- * 1.21.0: the SearchKit group `vault_items` is registered (tagged for SearchKit's provider pass) only with SearchKit
- * installed and `search_kit.enabled`.
+ * 1.21.0: the SearchKit group `vault_items` is opt-in: registered (tagged for SearchKit's provider pass) only with
+ * `search_kit.enabled: true` and SearchKit installed.
  */
 #[CoversClass(VaultExtension::class)]
 final class VaultExtensionSearchKitTest extends TestCase
@@ -28,7 +28,7 @@ final class VaultExtensionSearchKitTest extends TestCase
 
     public function testTheGroupIsTaggedWhenSearchKitIsInstalled(): void
     {
-        $container = $this->load(['search_kit' => ['priority' => 12, 'max_candidates' => 40], 'scopes' => ['enabled' => true, 'access_resolver' => 'app.scopes']]);
+        $container = $this->load(['search_kit' => ['enabled' => true, 'priority' => 12, 'max_candidates' => 40], 'scopes' => ['enabled' => true, 'access_resolver' => 'app.scopes']]);
         if (!class_exists(VaultExtension::SEARCH_KIT_DEFINITION_CLASS)) {
             self::assertFalse($container->hasDefinition(VaultItemSearchDefinition::class), 'Without SearchKit (PHP 8.2) nothing is registered.');
 
@@ -43,18 +43,20 @@ final class VaultExtensionSearchKitTest extends TestCase
         self::assertSame('nowo_vault.port.team_membership', (string) $definition->getArgument('$teams'));
         self::assertTrue($container->hasDefinition(VaultSearchViewers::class));
 
-        $defaults = $this->load([])->getDefinition(VaultItemSearchDefinition::class);
+        $defaults = $this->load(['search_kit' => ['enabled' => true]])->getDefinition(VaultItemSearchDefinition::class);
         self::assertSame([['priority' => 0]], $defaults->getTag(VaultExtension::SEARCH_KIT_DEFINITION_TAG));
         self::assertSame(100, $defaults->getArgument('$maxCandidates'));
         self::assertFalse($defaults->getArgument('$scopesEnabled'));
     }
 
-    public function testTheGroupCanBeSwitchedOff(): void
+    public function testTheGroupIsOptIn(): void
     {
-        $container = $this->load(['search_kit' => ['enabled' => false]]);
+        foreach ([[], ['search_kit' => ['enabled' => false]]] as $config) {
+            $container = $this->load($config);
 
-        self::assertFalse($container->hasDefinition(VaultItemSearchDefinition::class));
-        self::assertFalse($container->hasDefinition(VaultSearchViewers::class));
+            self::assertFalse($container->hasDefinition(VaultItemSearchDefinition::class), 'Off by default (owner decision): hosts switch it on.');
+            self::assertFalse($container->hasDefinition(VaultSearchViewers::class));
+        }
     }
 
     /**

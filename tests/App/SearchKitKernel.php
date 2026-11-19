@@ -25,7 +25,7 @@ use function class_exists;
 use const PHP_VERSION_ID;
 
 /**
- * Test kernel variant (1.21.0): the SearchKit group wired by the extension (scope vaults on, `search_kit.priority` 7),
+ * Test kernel variant (1.21.0): the SearchKit group switched on and wired by the extension (scope vaults on, `search_kit.priority` 7),
  * reachable through the public alias `test.vault_search_definition` when SearchKit is installed. Own cache directory.
  */
 final class SearchKitKernel extends BaseKernel
@@ -48,7 +48,7 @@ final class SearchKitKernel extends BaseKernel
         $loader->load(static function (ContainerBuilder $container): void {
             $container->loadFromExtension('nowo_vault', [
                 'scopes'     => ['enabled' => true, 'access_resolver' => TestScopeAccessResolver::class],
-                'search_kit' => ['priority' => 7, 'max_candidates' => 50],
+                'search_kit' => ['enabled' => true, 'priority' => 7, 'max_candidates' => 50],
             ]);
             $container->register(TestScopeAccessResolver::class, TestScopeAccessResolver::class);
             $container->addCompilerPass(new class implements CompilerPassInterface {

@@ -131,8 +131,8 @@ final class VaultEvents
     public const TAG_CHANGED = 'nowo_vault.tag_changed';
 
     /**
-     * The SearchKit group `vault_items` is about to search: listeners narrow the scope vaults searched for the viewer
-     * (1.21.0, {@see VaultSearchScopesEvent}; narrowing only, membership is still checked per item).
+     * The SearchKit group `vault_items` is about to search: listeners name the scope vaults searched for the viewer
+     * (1.21.0, {@see VaultSearchScopesEvent}; none without a listener; membership is checked for each named scope).
      */
     public const SEARCH_SCOPES = 'nowo_vault.search_scopes';
 }
