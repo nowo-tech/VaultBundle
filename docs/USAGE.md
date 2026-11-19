@@ -10,6 +10,7 @@
 - [Scope vaults](#scope-vaults)
 - [Temporary grants](#temporary-grants)
 - [Catalogue](#catalogue)
+- [Header search (SearchKit)](#header-search-searchkit)
 - [Reveal, copy and attachments](#reveal-copy-and-attachments)
 - [Password health](#password-health)
 - [Personal data](#personal-data)
@@ -134,6 +135,95 @@ attachment) is shown or loaded. Offer *Request access* by overriding the row blo
 The block receives `entry` (`VaultCatalogueEntry`) only. Your approval flow then calls `VaultGrantService::grantAs()`
 (see [Temporary grants](#temporary-grants)). Hosts that render their own catalogue call `VaultCatalogue::page()`.
 Scope admins can keep an item out of the catalogue with *Hide from the catalogue* (access does not change).
+
+## Header search (SearchKit)
+
+Since 1.21.0 the vault can add the group **`vault_items`** to the header search of
+[SearchKit](https://github.com/nowo-tech/SearchKitBundle) 1.9 or later (the Ctrl/⌘+K palette and the results page).
+SearchKit needs PHP 8.3 or later; the vault keeps supporting PHP 8.2 without it. The group is **off by default**: a host
+switches it on explicitly.
+
+```bash
+composer require nowo-tech/search-kit-bundle:^1.9
+```
+
+```yaml
+nowo_vault:
+    search_kit:
+        enabled: true   # opt-in
+```
+
+The extension then tags the definition and SearchKit builds the provider.
+
+**What is searched and shown.** Only the item **name** (the `title` column, matched with an escaped `LIKE`). A row shows
+the name, the item type and, when the viewer may see it, the folder name, and links to the item page
+(`routes.item_view`). Secret values, notes, URLs, card numbers, attachments, custom fields, tags and history are never
+matched, shown or decrypted: they live in the encrypted payload, which the search never reads. The group has no "see
+all" link, because no vault page lists the same set (the items page shows the viewer's own items only).
+
+**Which items.** The items the viewer may open on the item page:
+
+- the viewer's own personal items;
+- items shared with the viewer or one of its teams by an active item grant, or by an active grant on a folder that
+  belongs to the item's owner (a grant on a folder never covers another user's items moved into it; an expired grant
+  counts for nothing);
+- with `scopes.enabled`, items of the scope vaults that a `VaultEvents::SEARCH_SCOPES` listener names (see below) and in
+  which the scope access resolver says the viewer is a member: every item with a baseline, the granted ones without;
+- never an item in the trash, and never one an `ITEM_ACCESS_CHECK` listener denies.
+
+Every rule except the host listeners is applied **in SQL**, so a row the viewer may not see never takes a slot of the
+candidate window: it cannot change the results, the count or whether the count is exact. The ids are compared by the
+database: with `user_mapping: id` the user id columns, and with both mappings the grantee id (`vault_grants.grantee_id`,
+which holds user **and team** ids; since 1.21.0 for the relation mapping), use a binary NO PAD collation on MySQL /
+MariaDB (PostgreSQL and SQLite compare byte for byte), so `UserA` is never `usera` nor `usera `, and team `Ops` or `Öps`
+is never `ops`. With the relation mapping the owner columns are foreign keys to your users table and compare like its
+primary key. Then one batched call to
+`VaultAccessGuard` checks the window again (one grant query), then SearchKit's shared `nowo_search_kit.item_visibility`
+event runs. A refused search answers nothing at all (no count, no hint).
+
+What is left to PHP only: rows an `ITEM_ACCESS_CHECK` or `nowo_search_kit.item_visibility` listener denies, and, on a
+host whose own migration dropped the binary collation of those id columns (or a relation-mapping host that has not run
+the 1.21.0 migration of `grantee_id`, see UPGRADING), look-alike ids. Such rows are still never
+shown or counted, but they can take window slots (`search_kit.max_candidates`).
+
+The viewer is the signed-in user whose identifier is the query's, and only a user the vault accepts (`user_class` or
+`accepted_user_classes`, with a usable id); its access checker must allow `canAccess()` and `canList()`.
+
+**The folder name** is shown only for the viewer's own personal folder, or a folder of a scope where the viewer has a
+baseline, when the folder belongs to the item's owner and is not in the trash. A `FOLDER_ACCESS_CHECK` listener can still
+hide it. A viewer who only holds a grant sees no folder name.
+
+**Sensitive group.** Item names can be private, so the group is `sensitive()`: SearchKit runs it only while its recents
+are revalidated on the server or off (`nowo_search_kit.recent.revalidate: true`, or `recent.enabled: false`). Stored
+recents are revalidated through the same checks (`routes.item_view` and a lower-case UUID only).
+
+**Scope vaults are searched only when you name them** (`VaultEvents::SEARCH_SCOPES`, `VaultSearchScopesEvent`, once per
+search). The scope access resolver answers per scope and cannot list a user's scopes, so the search fails closed: with no
+listener, no scope vault is searched. List the viewer's scopes; the resolver is then asked about those scopes only (once
+per request), never about the scope of a row:
+
+```php
+use Nowo\VaultBundle\Event\VaultEvents;
+use Nowo\VaultBundle\Event\VaultSearchScopesEvent;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+
+#[AsEventListener(event: VaultEvents::SEARCH_SCOPES)]
+final class VaultSearchScopes
+{
+    public function __construct(private readonly ProjectMembers $members) {}
+
+    public function __invoke(VaultSearchScopesEvent $event): void
+    {
+        $event->limitTo($this->members->scopeKeysOf((string) $event->getUserId())); // e.g. ['project-42', 'org-7']
+        // $event->exclude(['project-archived']);  // never search these
+        // $event->excludeAll();                   // no scope vault
+    }
+}
+```
+
+At most 100 scopes are searched per search (`VaultItemSearchDefinition::MAX_SCOPES`). A later `limitTo()` intersects with
+an earlier one, `exclude()` removes scopes, and a scope the resolver refuses is never searched, whatever a listener
+says. See [CONFIGURATION](CONFIGURATION.md#searchkit-group-search_kit) for the options.
 
 ## Reveal, copy and attachments
 

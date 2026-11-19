@@ -86,6 +86,34 @@
 
 ## Unreleased
 
+- **SearchKit group `vault_items` (opt-in).** Nothing changes unless you install nowo-tech/search-kit-bundle 1.9 or later
+  (PHP 8.3 or later; the vault still supports PHP 8.2 without it) **and** set `nowo_vault.search_kit.enabled: true`. The
+  group lists item **names** only and is sensitive: SearchKit shows it only while its recents are revalidated or off.
+  With scope vaults, add a `VaultEvents::SEARCH_SCOPES` listener that names the viewer's scopes; without one, scope items
+  are not searched (see USAGE "Header search (SearchKit)").
+- **Migration for `user_mapping: relation` on MySQL / MariaDB.** `vault_grants.grantee_id` (user and team ids) now gets
+  the same binary NO PAD collation as with the id mapping, so team look-alikes never match in SQL. Generate the
+  migration and run it:
+
+  ```bash
+  php bin/console doctrine:migrations:diff
+  php bin/console doctrine:migrations:migrate
+  ```
+
+  or alter the column yourself (replace `vault_grants` if you use another `table_prefix`):
+
+  ```sql
+  -- MySQL 8.0.17 or later
+  ALTER TABLE vault_grants MODIFY grantee_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL;
+  -- MariaDB
+  ALTER TABLE vault_grants MODIFY grantee_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_nopad_bin NOT NULL;
+  ```
+
+  If two grants on the same resource differ only by case, accents or trailing spaces of the grantee id, the unique
+  index `vault_grants_unique` no longer treats them as one; nothing else changes. PostgreSQL and SQLite need nothing.
+  Set `doctrine.dbal.server_version` if the database is not reachable at cache warmup; otherwise the column keeps its
+  old collation and a warning is logged.
+
 ## To 1.20.1
 
 From **1.20.0**:

@@ -31,6 +31,7 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 - [Scope vaults (`scopes`)](#scope-vaults-scopes)
 - [Temporary grants (`grants.temporary`)](#temporary-grants-grantstemporary)
 - [Catalogue (`catalogue`)](#catalogue-catalogue)
+- [SearchKit group (`search_kit`)](#searchkit-group-search_kit)
 - [Reveal (`reveal`)](#reveal-reveal)
 - [Password health (`health`)](#password-health-health)
 - [Decrypted personal export (`export`)](#decrypted-personal-export-export)
@@ -505,6 +506,29 @@ The catalogue shows, to scope members whose `VaultScopeAccess::$catalogue` is tr
 `CATALOGUE_ACCESS_CHECK` listener grants), the id, title, type, scope tag names and the **date** of the last change of
 every active item that is not *Hidden from the catalogue*. See [SECURITY](SECURITY.md#catalogue-leakage) for what this
 discloses.
+
+## SearchKit group (`search_kit`)
+
+Since 1.21.0. **Opt-in**: nothing is registered unless you set `search_kit.enabled: true`, and only when
+nowo-tech/search-kit-bundle 1.9 or later is installed (PHP 8.3 or later). See [USAGE](USAGE.md#header-search-searchkit).
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `search_kit.enabled` | `false` | `true` registers the SearchKit group `vault_items` (item names only). Hosts switch it on explicitly |
+| `search_kit.priority` | `0` | Tag priority of the group among the SearchKit providers (its position) |
+| `search_kit.max_candidates` | `100` | Items read and access-checked per search (1–1000): bounds the checks, the visible total and the deepest results page |
+
+```yaml
+nowo_vault:
+    search_kit:
+        enabled: true
+        priority: 10
+        max_candidates: 100
+```
+
+With `scopes.enabled`, scope vaults are searched only when a `VaultEvents::SEARCH_SCOPES` listener names them. SearchKit's
+own switch applies too (`nowo_search_kit.groups.vault_items: { enabled: false }` or a `priority`). The group is sensitive:
+SearchKit leaves it out while `nowo_search_kit.recent.enabled` is true and `recent.revalidate` is false.
 
 ## Reveal (`reveal`)
 

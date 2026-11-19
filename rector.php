@@ -15,6 +15,7 @@ return RectorConfig::configure()
         // what these files avoid (the test stand-ins in tests/Fixtures would otherwise make Rector rewrite them).
         StringClassNameToClassConstantRector::class => [
             __DIR__ . '/src/Integration',
+            __DIR__ . '/src/DependencyInjection/VaultExtension.php',
             __DIR__ . '/tests/Fixtures/OptionalBundles',
         ],
     ])

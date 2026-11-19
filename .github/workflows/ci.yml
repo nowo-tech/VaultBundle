@@ -102,6 +102,12 @@ jobs:
             doctrine/doctrine-bundle:${DOCTRINE_BUNDLE} \
             --no-interaction --no-update
           composer update symfony/* doctrine/* --with-all-dependencies --no-interaction --prefer-dist --no-progress
+
+      # 1.21: SearchKit (optional, PHP >= 8.3, never in composer.json / composer.lock) for the SearchKit group
+      # vault_items. On PHP 8.2 the script does nothing: the group is not registered and its tests skip.
+      - name: SearchKit (PHP 8.3 and later)
+        run: .github/ci/search-kit.sh
+
       - name: Composer audit (Critical/High)
         run: composer audit --locked
 
@@ -235,11 +241,15 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          # 1.21: 8.4, so SearchKit is installed and the SearchKit group is analysed (the dependency-floor job runs
+          # PHPStan without SearchKit: phpstan-search-kit.php leaves the group out there).
+          php-version: '8.4'
           tools: composer:v2, cs2pr
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+        run: |
+          composer install --prefer-dist --no-progress --no-interaction
+          .github/ci/search-kit.sh
 
       - name: PHPStan (level and ignoreErrors from phpstan.neon.dist; fails the build on any error)
         run: composer phpstan --no-interaction
@@ -309,6 +319,72 @@ jobs:
       - name: Id mapping and concurrency tests (LQ-V-M1, REQ-RUNTIME-003)
         timeout-minutes: 15
         run: vendor/bin/phpunit --group database --no-coverage --fail-on-skipped
+
+  # 1.21: the SearchKit group vault_items on real servers (the SearchKit contract kit: visibility, other users' rows,
+  # trash, a host deny, LIKE escaping, the query budget; plus shares, scopes and exact ids). PHP 8.4 (SearchKit needs
+  # PHP >= 8.3), DBAL 4. None may be skipped.
+  searchkit-database:
+    name: SearchKit on ${{ matrix.database.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database:
+          - name: MySQL 8.4
+            image: mysql:8.4
+            url: mysql://root@127.0.0.1:3306/vault_test?serverVersion=8.4.0&charset=utf8mb4
+          - name: MariaDB 11.4
+            image: mariadb:11.4
+            url: mysql://root@127.0.0.1:3306/vault_test?serverVersion=11.4.0-MariaDB&charset=utf8mb4
+          - name: PostgreSQL 16
+            image: postgres:16
+            url: postgresql://postgres@127.0.0.1:5432/vault_test?serverVersion=16&charset=utf8
+    services:
+      database:
+        image: ${{ matrix.database.image }}
+        # Throwaway CI databases without passwords (GitGuardian: no credential in the workflow).
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 'yes'
+          MYSQL_DATABASE: vault_test
+          MARIADB_DATABASE: vault_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: vault_test
+        ports:
+          - 3306:3306
+          - 5432:5432
+    env:
+      COMPOSER_IGNORE_PLATFORM_REQ: ext-mongodb
+      VAULT_TEST_DATABASE_URL: ${{ matrix.database.url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, pdo_pgsql, sodium
+          tools: composer:v2
+
+      - name: Install dependencies and SearchKit
+        run: |
+          composer install --prefer-dist --no-progress --no-interaction
+          .github/ci/search-kit.sh
+
+      - name: Wait for the database
+        run: |
+          php -r 'require "vendor/autoload.php";
+            $params = (new Doctrine\DBAL\Tools\DsnParser(["mysql" => "pdo_mysql", "postgresql" => "pdo_pgsql"]))->parse(getenv("VAULT_TEST_DATABASE_URL"));
+            for ($i = 0; $i < 60; ++$i) {
+                try { Doctrine\DBAL\DriverManager::getConnection($params)->executeQuery("SELECT 1"); exit(0); } catch (Throwable) { sleep(2); }
+            }
+            exit(1);'
+
+      - name: SearchKit group tests on the server
+        timeout-minutes: 15
+        run: vendor/bin/phpunit --group searchkit --no-coverage --fail-on-skipped
 
   # The bundle must work with the lowest nowo-tech/transaction-* versions its composer.json allows (hosts and demos
   # can run `composer update nowo-tech/vault-bundle` without updating them), and the demo lock must install what the
@@ -386,15 +462,17 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          # 1.21: 8.4, so SearchKit is installed and the SearchKit group counts towards the 100% gate.
+          php-version: '8.4'
           extensions: json, sodium
           coverage: pcov
           tools: composer:v2
 
-      - name: Install dependencies (Symfony 7.0)
+      - name: Install dependencies (Symfony 7.x)
         run: |
           composer require symfony/config:^7.0 symfony/dependency-injection:^7.0 symfony/form:^7.0 symfony/framework-bundle:^7.0 symfony/http-foundation:^7.0 symfony/http-kernel:^7.0 symfony/routing:^7.0 symfony/twig-bundle:^7.0 symfony/web-profiler-bundle:^7.0 symfony/var-exporter:^7.0 symfony/browser-kit:^7.0 symfony/asset:^7.0 symfony/dom-crawler:^7.0 doctrine/doctrine-bundle:^2.10 --no-interaction --no-update
           composer update symfony/* doctrine/* --with-all-dependencies --no-interaction --prefer-dist --no-progress
+          .github/ci/search-kit.sh
 
       - name: Run tests with coverage
         run: |

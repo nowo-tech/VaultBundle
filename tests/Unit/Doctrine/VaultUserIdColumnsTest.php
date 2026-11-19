@@ -22,6 +22,7 @@ use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultGrant;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Tests\App\Entity\User;
+use Nowo\VaultBundle\Tests\Support\RecordingLogger;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
@@ -93,6 +94,53 @@ final class VaultUserIdColumnsTest extends TestCase
             ->loadClassMetadata(new LoadClassMetadataEventArgs($metadata, $em));
 
         self::assertSame(['charset' => 'utf8mb4', 'collation' => 'utf8mb4_bin'], $metadata->fieldMappings['granteeId']->options);
+    }
+
+    /**
+     * Audit VJ2-1 (1.21.0): with the relation mapping too, the grantee id (team ids are host strings) gets the binary
+     * collation; an unknown platform keeps the relation-mapping metadata buildable and logs a warning.
+     */
+    public function testGranteeIdGetsTheBinaryCollationInRelationModeToo(): void
+    {
+        foreach ([[new MariaDBPlatform(), ['charset' => 'utf8mb4', 'collation' => 'utf8mb4_nopad_bin']], [new PostgreSQLPlatform(), null]] as [$platform, $expected]) {
+            $metadata = $this->grantMetadata();
+            (new VaultMetadataListener('i', 'f', 'g', 't', 'it', 's', 'x', User::class, VaultUserMapping::RELATION))
+                ->loadClassMetadata(new LoadClassMetadataEventArgs($metadata, $this->entityManager($platform)));
+            self::assertSame($expected, $metadata->fieldMappings['granteeId']->options);
+        }
+
+        $logger   = new RecordingLogger();
+        $metadata = $this->grantMetadata();
+        (new VaultMetadataListener('i', 'f', 'g', 't', 'it', 's', 'x', User::class, VaultUserMapping::RELATION, $logger))
+            ->loadClassMetadata(new LoadClassMetadataEventArgs($metadata, $this->entityManager(null)));
+        self::assertNull($metadata->fieldMappings['granteeId']->options);
+        self::assertCount(1, $logger->records);
+    }
+
+    /**
+     * @return ClassMetadata<VaultGrant>
+     */
+    private function grantMetadata(): ClassMetadata
+    {
+        $metadata = new ClassMetadata(VaultGrant::class);
+        $metadata->setPrimaryTable(['name' => 'vault_grants']);
+        $metadata->mapField(['fieldName' => 'granteeId', 'columnName' => 'grantee_id', 'type' => 'string', 'length' => 128]);
+
+        return $metadata;
+    }
+
+    private function entityManager(?AbstractPlatform $platform): EntityManagerInterface
+    {
+        $connection = $this->createStub(Connection::class);
+        if ($platform instanceof AbstractPlatform) {
+            $connection->method('getDatabasePlatform')->willReturn($platform);
+        } else {
+            $connection->method('getDatabasePlatform')->willThrowException(new RuntimeException('no server'));
+        }
+        $em = $this->createStub(EntityManagerInterface::class);
+        $em->method('getConnection')->willReturn($connection);
+
+        return $em;
     }
 
     public function testIndexesTheUserIdColumnUnlessAnIndexStartsWithIt(): void

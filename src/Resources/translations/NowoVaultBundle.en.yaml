@@ -28,6 +28,8 @@ vault:
         all: All items
         name_placeholder: Folder name
         empty_hint: 'No folders yet. Create one from the items page to organize entries:'
+    search_kit:
+        group: Vault items
     search:
         clear: Clear
         placeholder: Search all items

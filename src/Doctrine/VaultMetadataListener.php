@@ -89,9 +89,14 @@ final readonly class VaultMetadataListener
         }
 
         $columnOptions = $this->userMapping === VaultUserMapping::ID ? $this->binaryCollation($args) : [];
-        if ($columnOptions !== [] && $class === VaultGrant::class && isset($metadata->fieldMappings['granteeId'])) {
-            // LQ-V-P2-M1: the grantee id (a user id or a team id) is compared like the user columns.
-            $metadata->fieldMappings['granteeId']->options = $columnOptions + ($metadata->fieldMappings['granteeId']->options ?? []);
+        if ($class === VaultGrant::class && isset($metadata->fieldMappings['granteeId'])) {
+            // LQ-V-P2-M1: the grantee id (a user id or a team id) is compared like the user columns. Since 1.21.0 (audit
+            // VJ2-1) with both user mappings: team ids are host strings in either, and SQL compares them (`ops` must
+            // never match `Ops`, `Öps` or `ops `).
+            $granteeOptions = $this->userMapping === VaultUserMapping::ID ? $columnOptions : $this->relationGranteeCollation($args);
+            if ($granteeOptions !== []) {
+                $metadata->fieldMappings['granteeId']->options = $granteeOptions + ($metadata->fieldMappings['granteeId']->options ?? []);
+            }
         }
         foreach (self::USER_FIELDS as $field) {
             if (!isset($metadata->associationMappings[$field])) {
@@ -138,6 +143,26 @@ final readonly class VaultMetadataListener
             $platform instanceof SQLServerPlatform => ['collation' => 'Latin1_General_100_BIN2'],
             default                                => [],
         };
+    }
+
+    /**
+     * The grantee id collation with the relation mapping (1.21.0): the same binary NO PAD collation as the id mapping.
+     * The relation mapping never needed the database platform to build its metadata, so a host that warms the cache
+     * without a reachable database (and without `doctrine.dbal.server_version`) keeps working: the column is mapped as
+     * before and a warning is logged. Access stays exact either way (the guard compares grantee ids with `===`); only
+     * the search's SQL pre-filter relies on the collation.
+     *
+     * @return array<string, string>
+     */
+    private function relationGranteeCollation(LoadClassMetadataEventArgs $args): array
+    {
+        try {
+            return $this->binaryCollation($args);
+        } catch (LogicException $exception) {
+            $this->logger?->warning('NowoVaultBundle: vault_grants.grantee_id is mapped without its binary collation (the database platform is unknown at cache warmup). Set doctrine.dbal.server_version so team and user grantee ids compare byte for byte in SQL.', ['exception' => $exception->getPrevious()]);
+
+            return [];
+        }
     }
 
     /**

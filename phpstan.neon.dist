@@ -1,5 +1,9 @@
 parameters:
     level: 8
+    # 1.21: analysed on PHP 8.4 (SearchKit needs 8.3) while the bundle supports 8.2: keep 8.2-only API misuse visible.
+    phpVersion:
+        min: 80200
+        max: 80599
     paths:
         - src
     excludePaths:
@@ -10,3 +14,4 @@ parameters:
 includes:
   - vendor/nowo-tech/phpstan-frankenphp/ruleset-classic.neon
   - vendor/nowo-tech/phpstan-frankenphp/ruleset-worker.neon
+  - phpstan-search-kit.php
