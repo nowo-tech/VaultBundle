@@ -28,6 +28,8 @@ vault:
         all: Tous les éléments
         name_placeholder: Nom du dossier
         empty_hint: 'Aucun dossier pour le moment. Créez-en un depuis la page des éléments pour organiser les entrées :'
+    search_kit:
+        group: Éléments du coffre-fort
     search:
         clear: Effacer
         placeholder: Rechercher dans tous les éléments

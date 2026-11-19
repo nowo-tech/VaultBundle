@@ -56,6 +56,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **SearchKit group `vault_items`**: with nowo-tech/search-kit-bundle `^1.9` installed (PHP 8.3 or
+  later; optional, in `suggest`), the header search lists the vault items the viewer may open, matched on their **name
+  only**. A row shows the name, the item type and the folder name when the viewer may see that folder. Secret values,
+  notes, URLs, attachments, custom fields, tags and history are never matched, shown or decrypted. Own items (exact
+  owner id), items shared by an active item or folder grant (user or team, exact grantee id) and scope vault items of
+  the scopes the viewer belongs to; never the trash. Vault's own `VaultAccessGuard` checks the whole candidate window in
+  one batch (`ITEM_ACCESS_CHECK` listeners included), then SearchKit's visibility event. Sensitive group: off while
+  SearchKit keeps recents in the browser without revalidation. Two queries per search. Built on SearchKit's
+  `EntitySearchDefinition`; worker-safe. New options `search_kit.enabled`, `search_kit.priority`,
+  `search_kit.max_candidates`; new translation key `vault.search_kit.group` (7 locales).
+- **`VaultEvents::SEARCH_SCOPES`** (`VaultSearchScopesEvent`): host listeners narrow, in SQL, the scope vaults the
+  group searches for a viewer (`limitTo()`, `exclude()`, `excludeAll()`); narrowing only.
+
 ## [1.20.1] - 2026-11-19
 
 ### Changed

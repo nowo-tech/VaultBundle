@@ -28,6 +28,8 @@ vault:
         all: Alle Elemente
         name_placeholder: Ordnername
         empty_hint: 'Noch keine Ordner. Erstellen Sie einen auf der Elementseite, um Einträge zu organisieren:'
+    search_kit:
+        group: Tresor-Elemente
     search:
         clear: Zurücksetzen
         placeholder: Alle Elemente durchsuchen

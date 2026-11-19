@@ -8,6 +8,7 @@ use LogicException;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
 use Nowo\TransactionDoctrine\WriteUnit\Dbal\CommitTrackingMiddleware;
+use Nowo\VaultBundle\Bridge\SearchKit\VaultSearchViewers;
 use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterface;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
@@ -69,6 +70,7 @@ use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
+use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultGrantService;
@@ -136,6 +138,15 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         VaultFolderService::class,
         VaultGrantService::class,
     ];
+
+    /** SearchKit's provider base (1.9), optional: a literal, so the bundle loads without it (PHP 8.2). */
+    public const SEARCH_KIT_DEFINITION_CLASS = 'Nowo\\SearchKitBundle\\Provider\\Entity\\EntitySearchDefinition';
+
+    /** The group's definition (extends SearchKit's EntitySearchDefinition): a literal, so PHPStan without SearchKit passes. */
+    public const SEARCH_KIT_GROUP_DEFINITION = 'Nowo\\VaultBundle\\Bridge\\SearchKit\\VaultItemSearchDefinition';
+
+    /** SearchKit's `EntitySearchDefinition::TAG` (a literal: SearchKit is optional). */
+    public const SEARCH_KIT_DEFINITION_TAG = 'nowo_search_kit.entity_definition';
 
     /** Route keys registered only with `scopes.enabled` (1.16.0; see VaultRouteLoader::OPTIONAL_ROUTE_KEYS). */
     public const SCOPE_ROUTE_KEYS = ['scope_items', 'scope_item_new', 'scope_folder_create'];
@@ -299,6 +310,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         }
 
         $this->registerWriteUnit($container, $private, $emRef, $registryRef, $emName);
+        $this->registerSearchKit($config['search_kit'], (bool) $config['scopes']['enabled'], $container, $emRef, $registryRef, $emName);
         $this->registerConflictAnswer($container, $config['conflict_response']);
 
         // 1.18.0 (NC-1): raw access to the token table while its entity is not mapped (conditional_mapping).
@@ -404,6 +416,39 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$allowedOrigins', $browserExtension['cors_allowed_origins'])
             ->setArgument('$kernelEnvironment', '%kernel.environment%'));
 
+    }
+
+    /**
+     * The SearchKit group `vault_items` (1.21.0), registered only when `search_kit.enabled` and SearchKit >= 1.9 (its
+     * EntitySearchDefinition, PHP >= 8.3) is installed: SearchKit's EntitySearchPass builds the provider from the tag.
+     *
+     * @param array{enabled: bool, priority: int, max_candidates: int} $searchKit
+     */
+    private function registerSearchKit(array $searchKit, bool $scopesEnabled, ContainerBuilder $container, Reference $emRef, Reference $registryRef, string $emName): void
+    {
+        if (!$searchKit['enabled'] || !class_exists(self::SEARCH_KIT_DEFINITION_CLASS)) {
+            return;
+        }
+
+        $container->setDefinition(VaultSearchViewers::class, (new Definition(VaultSearchViewers::class))
+            ->setArgument('$users', new Reference(VaultUserReferenceResolverInterface::class))
+            ->setArgument('$tokenStorage', new Reference('security.token_storage', ContainerInterface::NULL_ON_INVALID_REFERENCE)));
+        $container->setDefinition(self::SEARCH_KIT_GROUP_DEFINITION, (new Definition(self::SEARCH_KIT_GROUP_DEFINITION))
+            ->setArgument('$entityManager', $emRef)
+            ->setArgument('$viewers', new Reference(VaultSearchViewers::class))
+            ->setArgument('$accessGuard', new Reference(VaultAccessGuard::class))
+            ->setArgument('$accessChecker', new Reference(VaultPortsPass::GATE_PREFIX . 'access_checker'))
+            ->setArgument('$teams', new Reference(VaultPortsPass::GATE_PREFIX . 'team_membership'))
+            ->setArgument('$urls', new Reference('router'))
+            ->setArgument('$registry', $registryRef)
+            ->setArgument('$managerName', $emName)
+            ->setArgument('$eventDispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$translator', new Reference('translator', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$runtimeConfig', new Reference(VaultRuntimeConfigProvider::class))
+            ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            ->setArgument('$scopesEnabled', $scopesEnabled)
+            ->setArgument('$maxCandidates', $searchKit['max_candidates'])
+            ->addTag(self::SEARCH_KIT_DEFINITION_TAG, ['priority' => $searchKit['priority']]));
     }
 
     /**

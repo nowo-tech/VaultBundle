@@ -28,6 +28,8 @@ vault:
         all: Todos os elementos
         name_placeholder: Nome da pasta
         empty_hint: 'Ainda não há pastas. Crie uma na página de elementos para organizar entradas:'
+    search_kit:
+        group: Elementos do cofre
     search:
         clear: Limpar
         placeholder: Pesquisar em todos os elementos

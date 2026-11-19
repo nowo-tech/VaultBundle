@@ -28,6 +28,8 @@ vault:
         all: Todos los elementos
         name_placeholder: Nombre de la carpeta
         empty_hint: 'Aún no hay carpetas. Crea una desde la página de elementos para organizar entradas:'
+    search_kit:
+        group: Elementos de la bóveda
     search:
         clear: Limpiar
         placeholder: Buscar en todos los elementos

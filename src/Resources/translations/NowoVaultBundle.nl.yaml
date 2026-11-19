@@ -28,6 +28,8 @@ vault:
         all: Alle items
         name_placeholder: Mapnaam
         empty_hint: 'Nog geen mappen. Maak er een aan vanaf de itemspagina om items te organiseren:'
+    search_kit:
+        group: Kluisitems
     search:
         clear: Wissen
         placeholder: Alle items doorzoeken

@@ -129,4 +129,10 @@ final class VaultEvents
      * A tag was created or deleted (1.19.0, {@see VaultTagChangeEvent}, ids only).
      */
     public const TAG_CHANGED = 'nowo_vault.tag_changed';
+
+    /**
+     * The SearchKit group `vault_items` is about to search: listeners narrow the scope vaults searched for the viewer
+     * (1.21.0, {@see VaultSearchScopesEvent}; narrowing only, membership is still checked per item).
+     */
+    public const SEARCH_SCOPES = 'nowo_vault.search_scopes';
 }

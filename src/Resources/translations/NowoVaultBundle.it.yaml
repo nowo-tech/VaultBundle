@@ -28,6 +28,8 @@ vault:
         all: Tutti gli elementi
         name_placeholder: Nome cartella
         empty_hint: 'Non ci sono ancora cartelle. Creane una dalla pagina elementi per organizzare le voci:'
+    search_kit:
+        group: Elementi della cassaforte
     search:
         clear: Cancella
         placeholder: Cerca in tutti gli elementi
