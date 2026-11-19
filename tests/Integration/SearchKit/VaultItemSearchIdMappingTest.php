@@ -31,7 +31,6 @@ use Nowo\VaultBundle\Support\VaultUserClassPolicy;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Ddd\OtherDomainUser;
-use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use stdClass;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
@@ -50,8 +49,6 @@ use const JSON_THROW_ON_ERROR;
  * guard; exact ids; the SEARCH_SCOPES narrowing; the folder name rule; host vetoes; routes, recents and the budget.
  */
 #[Group('searchkit')]
-#[CoversClass(VaultSearchViewers::class)]
-#[CoversClass(VaultSearchScopesEvent::class)]
 final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
 {
     private const ALICE = 'vtsk-alice';
