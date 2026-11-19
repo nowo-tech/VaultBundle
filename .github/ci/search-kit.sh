@@ -7,7 +7,7 @@
 # the group is not registered, its tests skip and PHPStan leaves it out (phpstan-search-kit.php).
 set -euo pipefail
 
-CONSTRAINT="${SEARCH_KIT_CONSTRAINT:-dev-feat/provider-base-1.9 as 1.9.0}"
+CONSTRAINT="${SEARCH_KIT_CONSTRAINT:-^1.9}"
 
 if php -r 'exit(PHP_VERSION_ID >= 80300 ? 0 : 1);'; then
   echo "Requiring nowo-tech/search-kit-bundle ${CONSTRAINT} for require-dev (PHP $(php -r 'echo PHP_VERSION;'))"
