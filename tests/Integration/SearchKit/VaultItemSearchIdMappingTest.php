@@ -10,8 +10,8 @@ use Nowo\SearchKitBundle\Model\SearchGroup;
 use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchQuery;
 use Nowo\SearchKitBundle\Model\SearchReference;
-use Nowo\SearchKitBundle\Provider\Entity\EntitySearchProvider;
 use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
+use Nowo\SearchKitBundle\Provider\Entity\EntitySearchProvider;
 use Nowo\VaultBundle\Bridge\SearchKit\VaultItemSearchDefinition;
 use Nowo\VaultBundle\Bridge\SearchKit\VaultSearchViewers;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
@@ -466,7 +466,7 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         $this->searchScopes(['proj-a']);
         $this->actAs(self::ALICE, self::VIEWER_A);
         $this->resolverCalls = 0;
-        $group = $this->provider()->search($this->query($marker));
+        $group               = $this->provider()->search($this->query($marker));
         self::assertCount(4, $this->titles($group));
         self::assertSame(1, $this->resolverCalls, 'Once for the named scope, then memoized for the rows.');
     }

@@ -22,6 +22,7 @@ use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\SearchKitKernel;
 use Nowo\VaultBundle\Tests\App\Security\TestScopeAccessResolver;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 
@@ -83,7 +84,7 @@ final class VaultItemSearchKernelTest extends KernelTestCase
         TestScopeAccessResolver::$members = [(string) $alice->getId() => ['proj-k' => new VaultScopeAccess(VaultPermission::Read)]];
 
         $events = $container->get('event_dispatcher');
-        self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $events);
+        self::assertInstanceOf(EventDispatcherInterface::class, $events);
         $events->addListener(VaultEvents::SEARCH_SCOPES, static fn (VaultSearchScopesEvent $event) => $event->limitTo(['proj-k']));
 
         $tokens = $container->get('security.token_storage');

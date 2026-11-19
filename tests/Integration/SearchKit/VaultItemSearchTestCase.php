@@ -143,7 +143,7 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
                 $event->deny();
             }
         });
-        $this->scopeCache  = new RequestScopedScopeAccessCache(new class($this) implements VaultScopeAccessResolverInterface {
+        $this->scopeCache = new RequestScopedScopeAccessCache(new class($this) implements VaultScopeAccessResolverInterface {
             public function __construct(private readonly VaultItemSearchTestCase $test)
             {
             }
