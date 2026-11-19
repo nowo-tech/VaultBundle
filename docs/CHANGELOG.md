@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.20.1] - 2026-11-19](#1201---2026-11-19)
 - [[1.20.0] - 2026-11-19](#1200---2026-11-19)
 - [[1.19.3] - 2026-11-13](#1193---2026-11-13)
 - [[1.19.2] - 2026-11-12](#1192---2026-11-12)
@@ -55,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.20.1] - 2026-11-19
+
 ### Changed
 
 - **nowo-tech/transaction-doctrine `^1.7.1`** (was `^1.6`; the demo lock follows). The vault's conflict listener now
@@ -80,6 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   middleware and ledger as soon as a `Nowo\TransactionDoctrine\WriteUnit\CommitLedger` service existed. It now does so
   only when transaction-doctrine's `nowo_transaction_doctrine.commit_tracking_middleware` exists too (its bundle with
   `commit_detection` on); otherwise nothing fed that ledger and every conflict answered `CONFLICT_001`.
+
+[1.20.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.20.1
 
 ## [1.20.0] - 2026-11-19
 
@@ -1219,7 +1224,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.20.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.20.1...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
