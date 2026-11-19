@@ -245,11 +245,14 @@ jobs:
         run: composer phpstan --no-interaction
 
   database:
-    name: Id mapping on ${{ matrix.database.name }}
+    # REQ-TEST-005 + REQ-RUNTIME-003: the id-mapping tests (LQ-V-M1) and the two-connection concurrency tests on real
+    # servers, on DBAL 3 and DBAL 4. None may be skipped.
+    name: Databases on ${{ matrix.database.name }} - DBAL ${{ matrix.dbal }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        dbal: ['3', '4']
         database:
           - name: MySQL 8.4
             image: mysql:8.4
@@ -257,9 +260,9 @@ jobs:
           - name: MariaDB 11.4
             image: mariadb:11.4
             url: mysql://root@127.0.0.1:3306/vault_test?serverVersion=11.4.0-MariaDB&charset=utf8mb4
-          - name: PostgreSQL 17
-            image: postgres:17
-            url: postgresql://postgres@127.0.0.1:5432/vault_test?serverVersion=17&charset=utf8
+          - name: PostgreSQL 16
+            image: postgres:16
+            url: postgresql://postgres@127.0.0.1:5432/vault_test?serverVersion=16&charset=utf8
     services:
       database:
         image: ${{ matrix.database.image }}
@@ -289,8 +292,10 @@ jobs:
           extensions: pdo_mysql, pdo_pgsql, sodium
           tools: composer:v2
 
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+      - name: Install dependencies (DBAL ${{ matrix.dbal }})
+        run: |
+          composer require doctrine/dbal:^${{ matrix.dbal }} --no-interaction --no-update
+          composer update --with-all-dependencies --prefer-dist --no-progress --no-interaction
 
       - name: Wait for the database
         run: |
@@ -301,8 +306,50 @@ jobs:
             }
             exit(1);'
 
-      - name: Id mapping (binary collation, indexes, post-filters; LQ-V-M1)
-        run: vendor/bin/phpunit --group database --fail-on-skipped
+      - name: Id mapping and concurrency tests (LQ-V-M1, REQ-RUNTIME-003)
+        timeout-minutes: 15
+        run: vendor/bin/phpunit --group database --no-coverage --fail-on-skipped
+
+  # The bundle must work with the lowest nowo-tech/transaction-* versions its composer.json allows (hosts and demos
+  # can run `composer update nowo-tech/vault-bundle` without updating them), and the demo lock must install what the
+  # bundle requires (the demo installs from its lock, so a requirement added later is never installed and the demo
+  # fails with "class not found").
+  deps-floor:
+    name: Dependency floor (nowo-tech/transaction-* lowest, demo lock)
+    runs-on: ubuntu-latest
+    env:
+      COMPOSER_IGNORE_PLATFORM_REQ: ext-mongodb
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Demo lock satisfies the bundle's nowo-tech requirements
+        run: python3 .scripts/check-demo-lock.py . --only 'nowo-tech/*'
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sodium
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: |
+          composer config platform.php 8.4.1
+          composer update --prefer-dist --no-progress --no-interaction
+
+      - name: Downgrade nowo-tech/transaction-* to the lowest allowed versions
+        run: |
+          composer update 'nowo-tech/transaction-*' --prefer-lowest --prefer-dist --no-progress --no-interaction
+          composer show 'nowo-tech/transaction-*'
+
+      - name: PHPStan at the floor
+        run: composer phpstan --no-interaction
+
+      - name: Unit and integration suites at the floor
+        timeout-minutes: 15
+        run: vendor/bin/phpunit --no-coverage --testsuite unit,integration
 
   igor:
     name: Igor (FrankenPHP worker state)

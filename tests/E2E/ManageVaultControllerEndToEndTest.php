@@ -10,12 +10,14 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
+use Nowo\VaultBundle\Exception\VaultItemChangedException;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Service\VaultGrantService;
+use Nowo\VaultBundle\Service\VaultItemUpdater;
 use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Tests\App\Entity\User;
@@ -224,6 +226,61 @@ final class ManageVaultControllerEndToEndTest extends WebTestCase
         $reloaded = $this->findItem($item->getId());
         self::assertSame('Card (work)', $reloaded?->getTitle());
         self::assertSame($folder->getId(), $reloaded?->getFolder()?->getId());
+    }
+
+    public function testAStaleEditPageIsRefusedWith409AndTheOtherSaveIsKept(): void
+    {
+        [$client, $alice] = $this->loggedIn();
+        $item             = $this->createItem($alice, 'Mail', VaultItemType::Login, ['username' => 'old', 'password' => 'REDACTED-FIRST']);
+
+        $stale = $client->request('GET', '/tools/vault/items/' . $item->getId() . '/edit');
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $stale->filterXPath('//input[@name="vault_item_form[editToken]"]'));
+
+        // Someone else saves the item (a new password) after this page was opened.
+        $this->saveAsSomeoneElse($item->getId(), 'Mail', ['username' => 'old', 'password' => 'REDACTED-SECOND']);
+
+        $client->submit($stale->filterXPath('//form[.//input[@name="vault_item_form[title]"]]')->form([
+            'vault_item_form[title]'    => 'Mail (stale)',
+            'vault_item_form[username]' => 'stale-user',
+        ]));
+
+        self::assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
+        self::assertResponseHeaderSame('X-Error-Code', VaultItemChangedException::CODE);
+        self::assertResponseHeaderNotSame('X-Conflict-Code', 'CONFLICT_001');
+        self::assertStringContainsString('Someone else saved this item after you opened it.', (string) $client->getResponse()->getContent());
+        $reloaded = $this->findItem($item->getId());
+        self::assertSame('Mail', $reloaded?->getTitle(), 'nothing of the stale save was written');
+        self::assertSame('REDACTED-SECOND', $this->payloadOf($item->getId())['password'], 'the other save is kept');
+
+        // The page shown with the 409 carries the current token: saving it again works.
+        $fresh = $client->getCrawler();
+        $client->submit($fresh->filterXPath('//form[.//input[@name="vault_item_form[title]"]]')->form([
+            'vault_item_form[title]' => 'Mail (now)',
+        ]));
+        self::assertResponseRedirects();
+        self::assertSame('Mail (now)', $this->findItem($item->getId())?->getTitle());
+        self::assertSame('REDACTED-SECOND', $this->payloadOf($item->getId())['password'], 'an empty secret field keeps the stored secret');
+    }
+
+    public function testAnEditWithoutTokenKeepsTheSecretsOfTheCurrentRow(): void
+    {
+        [$client, $alice] = $this->loggedIn();
+        $item             = $this->createItem($alice, 'Mail', VaultItemType::Login, ['password' => 'REDACTED-FIRST']);
+
+        $page = $client->request('GET', '/tools/vault/items/' . $item->getId() . '/edit');
+        $this->saveAsSomeoneElse($item->getId(), 'Mail', ['username' => 'u', 'password' => 'REDACTED-SECOND']);
+
+        // A client that posts no token (a host form built before 1.20) is not refused; its secrets come from the row
+        // read under the lock, never from an older read.
+        $client->submit($page->filterXPath('//form[.//input[@name="vault_item_form[title]"]]')->form([
+            'vault_item_form[title]'     => 'Mail (no token)',
+            'vault_item_form[editToken]' => '',
+        ]));
+
+        self::assertResponseRedirects();
+        self::assertSame('Mail (no token)', $this->findItem($item->getId())?->getTitle());
+        self::assertSame('REDACTED-SECOND', $this->payloadOf($item->getId())['password']);
     }
 
     public function testGranteeAccessRules(): void
@@ -457,6 +514,31 @@ final class ManageVaultControllerEndToEndTest extends WebTestCase
 
         $client->request('POST', '/tools/vault/password/generate', server: ['CONTENT_TYPE' => 'application/json'], content: json_encode(['_token' => 42], JSON_THROW_ON_ERROR));
         self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function saveAsSomeoneElse(string $id, string $title, array $payload): void
+    {
+        $item = $this->findItem($id);
+        self::assertInstanceOf(VaultItem::class, $item);
+        $updater = self::getContainer()->get(VaultItemUpdater::class);
+        self::assertInstanceOf(VaultItemUpdater::class, $updater);
+        $updater->update($item, $title, $payload + ['websites' => ['https://example.com']], $item->getFolder());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payloadOf(string $id): array
+    {
+        $item = $this->findItem($id);
+        self::assertInstanceOf(VaultItem::class, $item);
+        $cryptographer = self::getContainer()->get(VaultPayloadCryptographerInterface::class);
+        self::assertInstanceOf(VaultPayloadCryptographerInterface::class, $cryptographer);
+
+        return $cryptographer->decrypt($item->getCiphertext());
     }
 
     /**

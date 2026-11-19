@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Controller;
 
 use LogicException;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
+use Nowo\VaultBundle\Doctrine\VaultWriteUnit;
 use Nowo\VaultBundle\Dto\VaultCatalogueQuery;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Entity\VaultFolder;
@@ -63,6 +64,7 @@ final class VaultScopeController extends AbstractController
 {
     use VaultCsrfTrait;
     use VaultPagesTrait;
+    use VaultWriteUnitTrait;
 
     /**
      * Stores the scope collaborators and the deny status.
@@ -85,6 +87,8 @@ final class VaultScopeController extends AbstractController
         private readonly int $cataloguePerPage = 50,
         private readonly ?VaultHealthReporterInterface $healthReporter = null,
         private readonly ?VaultPasswordPolicyResolverInterface $passwordPolicyResolver = null,
+        /** 1.20: one transaction per item save (REQ-RUNTIME-003). */
+        private readonly ?VaultWriteUnit $writeUnit = null,
     ) {
     }
 
@@ -250,9 +254,13 @@ final class VaultScopeController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             // The folder choices are the scope's folders: another owner's folder is an invalid submission (422).
-            $item = $this->itemCreator->createInScope($user, $itemType, $data->title, $scope, $this->withAttachment($data->toPayload(), $itemType, $request), $data->folder);
-            $item->setCatalogueHidden($data->catalogueHidden);
-            $this->tagService->syncItemTags($item, $user, $data->tags);
+            $payload = $this->withAttachment($data->toPayload(), $itemType, $request);
+            // 1.20: the item, its catalogue flag and its tags in one transaction.
+            $this->inWriteUnit(function () use ($user, $itemType, $data, $scope, $payload): void {
+                $item = $this->itemCreator->createInScope($user, $itemType, $data->title, $scope, $payload, $data->folder);
+                $item->setCatalogueHidden($data->catalogueHidden);
+                $this->tagService->syncItemTags($item, $user, $data->tags);
+            });
             $this->addFlash('success', $this->translator->trans('vault.flash.item_created', [], 'NowoVaultBundle'));
 
             return $this->redirectToRoute($this->routes()['scope_items']['name'], ['scope' => $scope] + ($data->folder instanceof VaultFolder ? ['folder' => $data->folder->getId()] : []));

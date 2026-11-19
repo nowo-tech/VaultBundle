@@ -54,6 +54,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Conflict answers (REQ-RUNTIME-003 rule 6).** A deadlock, lock wait timeout or serialization failure on a vault route answers **409** (configurable to 503) instead of a 500: `X-Conflict-Code: CONFLICT_001` with `Retry-After` when nothing of the request was committed, `CONFLICT_002` without `Retry-After` after a commit earlier in the request (nowo-tech/transaction-doctrine 1.6 request mark and commit ledger). The browser-extension API and the JSON actions answer their `{"error"}` shape with `"code"` added (and expose the two headers to an allowed extension origin); HTML pages go through your error page with the headers. Unique violations (except a tag created at the same moment: domain 409 `X-Error-Code: VAULT_DUPLICATE_KEY`) and lost connections are not mapped. Your own routes are untouched.
+- **`conflict_response` options**: `status` (409 or 503), `retry_after`, `commit_tracking` (`bundle`, `all`, `off`). With transaction-doctrine's `commit_detection` its ledger is reused and the vault adds no middleware.
+- **Edit token on the item edit page** (hidden field `editToken`, `VaultItemEditToken`, form option `edit_token`).
+- `docs/CONCURRENCY.md`: write paths, codes, host options, residual risks.
+- Two-connection race tests on MySQL 8.4, MariaDB 11.4 and PostgreSQL 16 (private entity manager and 1.18 mode); the CI job "Databases on … - DBAL 3 / 4" replaces "Id mapping on …" (PostgreSQL 16 instead of 17) and is required, with the new "Dependency floor" job (lowest nowo-tech/transaction-* versions, demo lock check `.scripts/check-demo-lock.py`). `make test-with-db DB=mysql|mariadb|postgres`.
+
+### Changed
+
+- Requires `nowo-tech/transaction-contract` `^1.0` and `nowo-tech/transaction-doctrine` `^1.6`.
+- **One transaction per page action (rule 1).** Item create (manage and scope: the item, its catalogue flag and its tags), item edit and folder trash (the detached items and the folder) run in one transaction through the vault's write unit (`DoctrineTransactionRunner`): a failure leaves nothing half-saved. With the private entity manager the unit runs on the vault's manager; in the deprecated 1.18 mode on `database.entity_manager` through `forHostEntityManager()`, which never clears or resets your open manager and **throws LogicException when it holds unflushed changes** (see UPGRADING).
+- The change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`) dispatched during such a unit are dispatched after its commit, and not at all when it fails. Check and veto events are unchanged.
+
+### Fixed
+
+- **Lost updates when two people edit one item.** A save could silently overwrite another person's save: a page opened before that save wrote back its older fields, and two saves at the same moment could put back the old stored password. The save now locks the item row (`SELECT … FOR UPDATE`), keeps the stored secrets from that locked row, and refuses a page opened before another save with 409 `X-Error-Code: VAULT_ITEM_CHANGED` (nothing saved, the current item shown with a message).
+- A lock conflict on a vault page answered a 500 (now 409 + `CONFLICT_*`).
+- Two requests creating the same new tag: the second one answered a 500 (now a domain 409 `VAULT_DUPLICATE_KEY`, nothing saved; saving again reuses the tag).
+
 ### Documentation
 
 - `VaultUnitOfWorkSubscriber::getSubscribedEvents()` gets its PHPDoc: every public method of `src/` now has a docblock (REQ-CS-001).

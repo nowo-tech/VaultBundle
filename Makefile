@@ -52,7 +52,7 @@ help:
 	@echo "  check-no-raw-html-form  Fail on raw <form>/<input>/<textarea>/<select> in Twig (REQ-TWIG-005)"
 	@echo "  check-no-cursor-coauthor / check-open-prs / setup-hooks"
 	@echo "  extension-build / extension-sync / vault-purge-tokens"
-	@echo "  test-with-db       PHPUnit database group on the MySQL service of the root compose (REQ-TEST-005)"
+	@echo "  test-with-db       PHPUnit database group (id mapping + concurrency) on DB=mysql|mariadb|postgres (REQ-TEST-005, REQ-RUNTIME-003)"
 	@echo "  test-coverage-with-db   Same with text coverage (REQ-TEST-005)"
 	@echo ""
 	@echo "Demos:"
@@ -128,16 +128,21 @@ coverage-check: test-coverage-100
 
 # REQ-TEST-005: the database group (id mapping: binary collation, indexes, post-filters) against the MySQL 8.4 service
 # of the root docker-compose.yml (profile "db", throwaway database without a password, no host port). CI runs the same
-# group on MySQL 8.4, MariaDB 11.4 and PostgreSQL 17 (job "Id mapping on …").
-TEST_DATABASE_URL ?= mysql://root@mysql:3306/vault_test?serverVersion=8.4.0&charset=utf8mb4
+# group on MySQL 8.4, MariaDB 11.4 and PostgreSQL 16 (job "Databases on …", DBAL 3 and 4).
+# DB=mysql (default), mariadb or postgres: the server of `make test-with-db` (REQ-RUNTIME-003: run all three).
+DB ?= mysql
+TEST_DATABASE_URL_mysql    = mysql://root@mysql:3306/vault_test?serverVersion=8.4.0&charset=utf8mb4
+TEST_DATABASE_URL_mariadb  = mysql://root@mariadb:3306/vault_test?serverVersion=11.4.0-MariaDB&charset=utf8mb4
+TEST_DATABASE_URL_postgres = postgresql://postgres@postgres:5432/vault_test?serverVersion=16&charset=utf8
+TEST_DATABASE_URL ?= $(TEST_DATABASE_URL_$(DB))
 
 test-with-db: ensure-up
-	$(COMPOSE) --profile db up -d mysql
+	$(COMPOSE) --profile db up -d $(DB)
 	$(COMPOSE) exec -T -e VAULT_TEST_DATABASE_URL='$(TEST_DATABASE_URL)' $(SERVICE_PHP) php .scripts/wait-for-database.php
 	$(COMPOSE) exec -T -e VAULT_TEST_DATABASE_URL='$(TEST_DATABASE_URL)' $(SERVICE_PHP) vendor/bin/phpunit --group database --fail-on-skipped
 
 test-coverage-with-db: ensure-up
-	$(COMPOSE) --profile db up -d mysql
+	$(COMPOSE) --profile db up -d $(DB)
 	$(COMPOSE) exec -T -e VAULT_TEST_DATABASE_URL='$(TEST_DATABASE_URL)' $(SERVICE_PHP) php .scripts/wait-for-database.php
 	$(COMPOSE) exec -T -e VAULT_TEST_DATABASE_URL='$(TEST_DATABASE_URL)' $(SERVICE_PHP) vendor/bin/phpunit --group database --fail-on-skipped --coverage-text
 

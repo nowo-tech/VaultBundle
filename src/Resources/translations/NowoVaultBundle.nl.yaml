@@ -176,6 +176,7 @@ vault:
     flash:
         item_created: Item opgeslagen.
         item_updated: Item bijgewerkt.
+        item_changed: "Iemand anders heeft dit item opgeslagen nadat je het opende. Je wijzigingen zijn niet opgeslagen: dit is het huidige item, breng ze opnieuw aan."
         item_trashed: Item naar prullenbak verplaatst.
         item_restored: Item hersteld.
         item_purged: Item permanent verwijderd.

@@ -6,6 +6,7 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 
 - [Required](#required)
 - [Database](#database)
+- [Conflict answers (`conflict_response`)](#conflict-answers-conflict_response)
 - [Sharing (`sharing`)](#sharing-sharing)
 - [Security](#security)
 - [Teams](#teams)
@@ -82,6 +83,24 @@ after a rollback on its connection (doctrine/dbal 4: a DBAL middleware is attach
 (start and end of the main request, of a Messenger message and of the outermost console command). Vault changes still
 pending at a boundary are dropped and logged as a warning. The vault's bulk and DBAL writes run inside a savepoint
 when your code opened a transaction on the connection (both modes).
+
+## Conflict answers (`conflict_response`)
+
+1.20 (REQ-RUNTIME-003). A deadlock, lock wait timeout or serialization failure on a vault route answers a conflict
+instead of a 500. See [CONCURRENCY.md](CONCURRENCY.md) for the codes and the write paths.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `conflict_response.status` | `null` | `409` (`CONFLICT_001` / `CONFLICT_002`) or `503`. Null: nowo-tech/transaction-doctrine's `conflict_response` when its bundle is registered, else 409 |
+| `conflict_response.retry_after` | `null` | `Retry-After` seconds of a `CONFLICT_001` answer. Null: transaction-doctrine's value, else 1 |
+| `conflict_response.commit_tracking` | `bundle` | Commits counted for `CONFLICT_002` when transaction-doctrine's `commit_detection` is off: `bundle` (the connection of `database.entity_manager`), `all` (every Doctrine connection) or `off`. With `commit_detection` on, its ledger is reused |
+
+```yaml
+nowo_vault:
+    conflict_response:
+        status: 503        # keep a 503 for lock conflicts (default 409)
+        retry_after: 2
+```
 
 ## Sharing (`sharing`)
 

@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Controller;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
+use Nowo\VaultBundle\Doctrine\VaultWriteUnit;
 use Nowo\VaultBundle\Dto\PasswordGeneratorOptions;
 use Nowo\VaultBundle\Dto\VaultItemFormData;
 use Nowo\VaultBundle\Dto\VaultShareFormData;
@@ -20,8 +21,10 @@ use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultGrantListQueryEvent;
 use Nowo\VaultBundle\Event\VaultItemRevealedEvent;
+use Nowo\VaultBundle\EventListener\VaultConflictListener;
 use Nowo\VaultBundle\Exception\VaultDecryptionFailedException;
 use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
+use Nowo\VaultBundle\Exception\VaultItemChangedException;
 use Nowo\VaultBundle\Exception\VaultRevealRefusedException;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
@@ -49,6 +52,7 @@ use Nowo\VaultBundle\Service\VaultScopeItemLister;
 use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Support\UserIdResolver;
+use Nowo\VaultBundle\Support\VaultItemEditToken;
 use Nowo\VaultBundle\Ui\VaultPageFactory;
 use Nowo\VaultBundle\Ui\VaultPages;
 use Nowo\VaultBundle\ValueObject\VaultOwner;
@@ -73,6 +77,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use function array_filter;
 use function array_values;
 use function base64_encode;
+use function hash_equals;
 use function in_array;
 use function is_array;
 use function is_string;
@@ -86,6 +91,7 @@ final class VaultManageController extends AbstractController
     use VaultCsrfTrait;
     use VaultPagesTrait;
     use VaultRevealResponsesTrait;
+    use VaultWriteUnitTrait;
 
     /**
      * Stores the access, listing, persistence, crypto and configuration collaborators of the manage UI.
@@ -130,6 +136,8 @@ final class VaultManageController extends AbstractController
         private readonly ?VaultScopeItemLister $scopeItemLister = null,
         /** `sharing.enabled` (1.18.0): false answers 404 on the share and revoke actions. */
         private readonly bool $sharingEnabled = true,
+        /** 1.20: one transaction per item save / folder trash (REQ-RUNTIME-003). */
+        private readonly ?VaultWriteUnit $writeUnit = null,
     ) {
     }
 
@@ -355,14 +363,17 @@ final class VaultManageController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $payload = $this->mergeAttachmentIntoPayload($data->toPayload(), $itemType, $request);
-            $item    = $this->itemCreator->create(
-                $itemType,
-                $data->title,
-                $user,
-                $payload,
-                $data->folder,
-            );
-            $this->tagService->syncItemTags($item, $user, $data->tags);
+            // 1.20: the item and its tags in one transaction (a failed tag save leaves no item without its tags).
+            $this->inWriteUnit(function () use ($itemType, $data, $user, $payload): void {
+                $item = $this->itemCreator->create(
+                    $itemType,
+                    $data->title,
+                    $user,
+                    $payload,
+                    $data->folder,
+                );
+                $this->tagService->syncItemTags($item, $user, $data->tags);
+            });
 
             $this->addFlash('success', $this->translator->trans('vault.flash.item_created', [], 'NowoVaultBundle'));
 
@@ -446,6 +457,8 @@ final class VaultManageController extends AbstractController
             'strength_meter'  => !$viewMode && !$readOnly,
             'scope_item'      => $scope !== null && $canOrganise,
             'password_policy' => $item->getItemType() === VaultItemType::Login ? $this->passwordPolicyResolver?->forOwner($item->getOwner()) : null,
+            // 1.20: a save refuses to overwrite a change saved after the page was opened (409, VAULT_ITEM_CHANGED).
+            'edit_token' => !$viewMode && !$readOnly ? VaultItemEditToken::of($item) : null,
         ]);
 
         if (!$viewMode && $request instanceof Request) {
@@ -457,23 +470,38 @@ final class VaultManageController extends AbstractController
         }
 
         if (!$viewMode && $request instanceof Request && $form->isSubmitted() && $form->isValid()) {
-            $cleared    = $form->has('clearSecrets') ? $form->get('clearSecrets')->getData() : [];
-            $newPayload = VaultItemFormData::keepStoredSecrets(
-                $item->getItemType(),
-                $data->toPayload(),
-                $payload,
-                is_array($cleared) ? array_values(array_filter($cleared, is_string(...))) : [],
-            );
-            $payload = $this->mergeAttachmentIntoPayload($newPayload, $item->getItemType(), $request, $payload);
-            // Folder and tags are the owner's organisation: a grantee with Write may change the content only (a folder
-            // move was a privilege escalation path, SEC-004 M1; the editor's folders / tags replaced the owner's, L1/L2).
-            $this->itemUpdater->update($item, $data->title, $payload, $canOrganise ? $data->folder : $item->getFolder(), $user);
-            if ($canOrganise) {
-                if ($scope !== null) {
-                    $item->setCatalogueHidden($data->catalogueHidden);
-                }
-                $this->tagService->syncItemTags($item, $user, $data->tags);
+            $cleared = $form->has('clearSecrets') ? $form->get('clearSecrets')->getData() : [];
+            $cleared = is_array($cleared) ? array_values(array_filter($cleared, is_string(...))) : [];
+            $token   = $form->has(VaultItemFormType::EDIT_TOKEN_FIELD) ? $form->get(VaultItemFormType::EDIT_TOKEN_FIELD)->getData() : null;
+
+            try {
+                // 1.20 (REQ-RUNTIME-003): one transaction with the item row locked. A concurrent save waits, then sees
+                // the committed row: its stored secrets are kept from that row (never from this page's older read),
+                // and a page opened before that save is refused instead of overwriting it.
+                $this->inWriteUnit(function () use ($item, $data, $request, $cleared, $token, $canOrganise, $scope, $user): void {
+                    $this->writeUnit?->lockForUpdate($item);
+                    if (is_string($token) && $token !== '' && !hash_equals(VaultItemEditToken::of($item), $token)) {
+                        throw new VaultItemChangedException();
+                    }
+
+                    $stored     = $this->cryptographer->decrypt($item->getCiphertext());
+                    $newPayload = VaultItemFormData::keepStoredSecrets($item->getItemType(), $data->toPayload(), $stored, $cleared);
+                    $newPayload = $this->mergeAttachmentIntoPayload($newPayload, $item->getItemType(), $request, $stored);
+                    // Folder and tags are the owner's organisation: a grantee with Write may change the content only (a
+                    // folder move was a privilege escalation path, SEC-004 M1; the editor's folders / tags replaced the
+                    // owner's, L1/L2).
+                    $this->itemUpdater->update($item, $data->title, $newPayload, $canOrganise ? $data->folder : $item->getFolder(), $user);
+                    if ($canOrganise) {
+                        if ($scope !== null) {
+                            $item->setCatalogueHidden($data->catalogueHidden);
+                        }
+                        $this->tagService->syncItemTags($item, $user, $data->tags);
+                    }
+                });
+            } catch (VaultItemChangedException) {
+                return $this->itemChangedResponse($id);
             }
+
             $this->addFlash('success', $this->translator->trans('vault.flash.item_updated', [], 'NowoVaultBundle'));
 
             if ($scope !== null && isset($this->routes()['scope_items'])) {
@@ -534,6 +562,22 @@ final class VaultManageController extends AbstractController
         $purpose = $request->request->getString('purpose') ?: (is_array($decoded) && is_string($decoded['purpose'] ?? null) ? $decoded['purpose'] : $request->query->getString('purpose'));
 
         return $purpose === VaultItemRevealedEvent::PURPOSE_COPY ? VaultItemRevealedEvent::PURPOSE_COPY : VaultItemRevealedEvent::PURPOSE_REVEAL;
+    }
+
+    /**
+     * 1.20: the edit page of the current item, 409 with `X-Error-Code: VAULT_ITEM_CHANGED`, after a save refused because
+     * someone else saved the item after the page was opened (nothing of this save was written).
+     */
+    private function itemChangedResponse(string $id): Response
+    {
+        $this->addFlash('error', $this->translator->trans('vault.flash.item_changed', [], 'NowoVaultBundle'));
+        $response = $this->renderItemForm(null, $id, viewMode: false);
+        // @igor-ignore - Fresh per-request Response built just above; not shared worker state.
+        $response->setStatusCode(Response::HTTP_CONFLICT);
+        // @igor-ignore - Fresh per-request Response built just above; not shared worker state.
+        $response->headers->set(VaultConflictListener::ERROR_CODE_HEADER, VaultItemChangedException::CODE);
+
+        return $response;
     }
 
     /**
@@ -778,7 +822,8 @@ final class VaultManageController extends AbstractController
 
         $folder = $this->findFolderOr404($id);
         $this->denyUnlessFolderAccess($folder, VaultAccessAction::Delete);
-        $detached = $this->trashService->moveFolderToTrash($folder);
+        // 1.20: the items leave the folder and the folder goes to the trash in one transaction.
+        $detached = $this->inWriteUnit(fn (): int => $this->trashService->moveFolderToTrash($folder));
         $flashKey = $detached > 0 ? 'vault.flash.folder_trashed_items_detached' : 'vault.flash.folder_trashed';
         $this->addFlash('success', $this->translator->trans($flashKey, ['%count%' => $detached], 'NowoVaultBundle'));
 

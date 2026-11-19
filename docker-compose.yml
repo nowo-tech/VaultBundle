@@ -27,5 +27,24 @@ services:
     tmpfs:
       - /var/lib/mysql
 
+  # REQ-RUNTIME-003: the concurrency tests run on MySQL, MariaDB and PostgreSQL (`make test-with-db DB=mariadb|postgres`).
+  mariadb:
+    image: mariadb:11.4
+    profiles: ["db"]
+    environment:
+      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "yes"
+      MARIADB_DATABASE: vault_test
+    tmpfs:
+      - /var/lib/mysql
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["db"]
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: vault_test
+    tmpfs:
+      - /var/lib/postgresql/data
+
 volumes:
   coverage-data:

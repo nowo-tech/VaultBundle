@@ -176,6 +176,7 @@ vault:
     flash:
         item_created: Item saved.
         item_updated: Item updated.
+        item_changed: "Someone else saved this item after you opened it. Your changes were not saved: this is the current item, apply them again."
         item_trashed: Item moved to trash.
         item_restored: Item restored.
         item_purged: Item permanently deleted.
