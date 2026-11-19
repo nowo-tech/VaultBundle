@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.21.0](#to-1210)
 - [To 1.20.1](#to-1201)
 - [To 1.20.0](#to-1200)
   - [Concurrency (REQ-RUNTIME-003)](#concurrency-req-runtime-003)
@@ -85,6 +86,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.21.0
+
+From **1.20.1**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 - **SearchKit group `vault_items` (opt-in).** Nothing changes unless you install nowo-tech/search-kit-bundle 1.9 or later
   (PHP 8.3 or later; the vault still supports PHP 8.2 without it) **and** set `nowo_vault.search_kit.enabled: true`. The

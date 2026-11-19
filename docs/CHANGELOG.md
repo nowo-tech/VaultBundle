@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.21.0] - 2026-11-19](#1210---2026-11-19)
 - [[1.20.1] - 2026-11-19](#1201---2026-11-19)
 - [[1.20.0] - 2026-11-19](#1200---2026-11-19)
 - [[1.19.3] - 2026-11-13](#1193---2026-11-13)
@@ -56,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-11-19
+
 ### Added
 
 - **SearchKit group `vault_items`, opt-in** (`nowo_vault.search_kit.enabled: true`; off by default). With
@@ -85,6 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   search's SQL compares: team `Ops`, `Öps` or `ops ` never matches `ops`. Access was already exact (the guard compares
   grantee ids in PHP). A relation-mapping host whose database platform is unknown at cache warmup still builds its
   metadata: the column stays as it was and a warning is logged. Needs a schema migration (see UPGRADING).
+
+[1.21.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.21.0
 
 ## [1.20.1] - 2026-11-19
 
@@ -1254,7 +1259,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.20.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.21.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
