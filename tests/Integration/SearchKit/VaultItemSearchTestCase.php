@@ -338,6 +338,17 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
         return true;
     }
 
+    /**
+     * SearchKit 1.10.1 kit hook (harmless on 1.10.0): the hidden rows of seedHidden() are host ITEM_ACCESS_CHECK vetoes,
+     * the one refusal filtered in PHP only (USAGE "Header search (SearchKit)", the listener residual: never shown or
+     * counted, but they can take window slots). Every refusal of Vault itself is filtered in SQL, and the VJ regression
+     * tests assert that with hidden rows newer than the visible ones.
+     */
+    protected function hiddenRowsFilteredInSql(): bool
+    {
+        return false;
+    }
+
     protected function actAs(int|string|null $tenant, string $userIdentifier): void
     {
         // A new request: the request-scoped scope memo is cleared, as VaultRequestBoundaryListener does.
