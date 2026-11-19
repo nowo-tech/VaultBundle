@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.20.0] - 2026-11-19](#1200---2026-11-19)
 - [[1.19.3] - 2026-11-13](#1193---2026-11-13)
 - [[1.19.2] - 2026-11-12](#1192---2026-11-12)
 - [[1.19.1] - 2026-11-12](#1191---2026-11-12)
@@ -54,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-11-19
+
 ### Added
 
 - **Conflict answers (REQ-RUNTIME-003 rule 6).** A deadlock, lock wait timeout or serialization failure on a vault route answers **409** (configurable to 503) instead of a 500: `X-Conflict-Code: CONFLICT_001` with `Retry-After` when nothing of the request was committed, `CONFLICT_002` without `Retry-After` after a commit earlier in the request (nowo-tech/transaction-doctrine 1.6 request mark and commit ledger). The browser-extension API and the JSON actions answer their `{"error"}` shape with `"code"` added (and expose the two headers to an allowed extension origin); HTML pages go through your error page with the headers. Unique violations (except a tag created at the same moment: domain 409 `X-Error-Code: VAULT_DUPLICATE_KEY`) and lost connections are not mapped. Your own routes are untouched.
@@ -81,6 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Demo
 
 - The demo is built on UiKit and FormKit (REQ-DEMO-014 / REQ-DEMO-015): `templates/base.html.twig` is UiKit's admin layout with its default theme and a masthead (the Tabler CDN shell, the Tabler Icons CDN stylesheet, the bridge `layouts/admin.html.twig` and `demo.css` are gone), `nowo_ui_kit` uses `css_framework: custom` with `icon_set: svg_inline`, the Twig and TagInput form themes follow UiKit's `nowo_ui_layout` (`nowo_form_kit.css_framework: none`), and the demo requires `nowo-tech/ui-kit-bundle` `^2.52` and `form-kit-bundle` `^2.23`. A new demo migration brings the demo schema up to the current bundle entities (a fresh database failed on `secret_changed_at`). The README screenshots were recaptured for the new shell. No bundle runtime change.
+
+[1.20.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.20.0
 
 ## [1.19.3] - 2026-11-13
 
@@ -1188,7 +1193,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.19.3...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v1.20.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5

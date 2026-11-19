@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.20.0](#to-1200)
   - [Concurrency (REQ-RUNTIME-003)](#concurrency-req-runtime-003)
 - [To 1.19.3](#to-1193)
   - [Exact collation of the user id columns (`user_mapping: id`, MySQL / MariaDB)](#exact-collation-of-the-user-id-columns-user_mapping-id-mysql--mariadb)
@@ -83,6 +84,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 1.20.0
+
+From **1.19.3**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 ### Concurrency (REQ-RUNTIME-003)
 
