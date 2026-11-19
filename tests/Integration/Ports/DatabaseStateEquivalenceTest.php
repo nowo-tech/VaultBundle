@@ -106,14 +106,15 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         $connection = self::hostManager($container)->getConnection();
 
         $connection->beginTransaction();
-        $connection->insert('users', ['email' => 'before@example.com', 'password' => 'x']);
+        // An explicit id: on PostgreSQL with doctrine/dbal 3 the ORM maps the generated id to a sequence (no column default).
+        $connection->insert('users', ['id' => 9001, 'email' => 'before@example.com', 'password' => 'x']);
         try {
             VaultSavepoint::write($connection, static fn (): int|string => $connection->executeStatement('DELETE FROM nowo_vault_missing_table WHERE id = 1'));
             self::fail('the statement fails');
         } catch (Exception) {
         }
         // Without the savepoint, PostgreSQL refuses every statement until the end of the transaction.
-        $connection->insert('users', ['email' => 'after@example.com', 'password' => 'x']);
+        $connection->insert('users', ['id' => 9002, 'email' => 'after@example.com', 'password' => 'x']);
         $connection->commit();
 
         self::assertSame(2, (int) $connection->fetchOne("SELECT COUNT(*) FROM users WHERE email IN ('before@example.com', 'after@example.com')"));
