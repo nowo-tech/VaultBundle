@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Unit\DependencyInjection;
 
 use LogicException;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterface;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
@@ -12,9 +13,12 @@ use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPas
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use Nowo\VaultBundle\Doctrine\VaultManagerRegistry;
+use Nowo\VaultBundle\Doctrine\VaultWriteUnit;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultSettings;
+use Nowo\VaultBundle\EventListener\VaultConflictListener;
 use Nowo\VaultBundle\Form\VaultItemFormType;
+use Nowo\VaultBundle\Internal\DeferredVaultEventDispatcher;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultItemRepository;
 use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
@@ -30,6 +34,7 @@ use Symfony\Bundle\SecurityBundle\SecurityBundle;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 
@@ -94,6 +99,46 @@ final class VaultExtensionTest extends TestCase
         ]], $custom);
         self::assertSame(25, $custom->getParameter('nowo_vault.pagination.per_page'));
         self::assertSame(10, $custom->getParameter('nowo_vault.browser_extension.max_login_items'));
+    }
+
+    public function testConflictAnswerWriteUnitAndDeferredDispatcherAreWired(): void
+    {
+        $container = $this->container(['SecurityBundle' => SecurityBundle::class]);
+        (new VaultExtension())->load([self::BASE_CONFIG], $container);
+
+        $listener = $container->getDefinition(VaultConflictListener::class);
+        $policy   = $listener->getArgument(0);
+        self::assertInstanceOf(Reference::class, $policy, 'unset options follow transaction-doctrine\'s policy service');
+        self::assertSame(ConflictResponsePolicy::class, (string) $policy);
+        self::assertSame(VaultExtension::COMMIT_LEDGER_SERVICE, (string) $listener->getArgument(1));
+        self::assertTrue($container->hasDefinition(VaultExtension::COMMIT_TRACKING_MIDDLEWARE));
+        self::assertSame('bundle', $container->getParameter(VaultExtension::COMMIT_TRACKING_PARAMETER));
+        self::assertTrue($container->hasDefinition(VaultWriteUnit::class));
+        self::assertFalse($container->getDefinition(VaultWriteUnit::class)->getArgument(1), 'the 1.18 mode by default');
+        foreach (VaultExtension::DEFERRED_EVENT_SERVICES as $service) {
+            self::assertSame(DeferredVaultEventDispatcher::class, (string) $container->getDefinition($service)->getArgument('$eventDispatcher'), $service);
+        }
+
+        $custom = $this->container(['SecurityBundle' => SecurityBundle::class]);
+        (new VaultExtension())->load([self::BASE_CONFIG + ['conflict_response' => ['status' => 503, 'commit_tracking' => 'off']]], $custom);
+        $policy = $custom->getDefinition(VaultConflictListener::class)->getArgument(0);
+        self::assertInstanceOf(Definition::class, $policy);
+        self::assertSame([503, ConflictResponsePolicy::DEFAULT_RETRY_AFTER], $policy->getArguments());
+        self::assertNull($custom->getDefinition(VaultConflictListener::class)->getArgument(1));
+        self::assertFalse($custom->hasDefinition(VaultExtension::COMMIT_TRACKING_MIDDLEWARE));
+        self::assertFalse($custom->hasDefinition(VaultExtension::COMMIT_LEDGER_SERVICE));
+
+        $retry = $this->container(['SecurityBundle' => SecurityBundle::class]);
+        (new VaultExtension())->load([self::BASE_CONFIG + ['conflict_response' => ['retry_after' => 4]]], $retry);
+        $policy = $retry->getDefinition(VaultConflictListener::class)->getArgument(0);
+        self::assertInstanceOf(Definition::class, $policy);
+        self::assertSame([ConflictResponsePolicy::STATUS_CONFLICT, 4], $policy->getArguments());
+    }
+
+    public function testConflictResponseStatusMustBe409Or503(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        (new VaultExtension())->load([self::BASE_CONFIG + ['conflict_response' => ['status' => 500]]], $this->container(['SecurityBundle' => SecurityBundle::class]));
     }
 
     public function testPaginationAndLoginCapBoundsAreValidated(): void

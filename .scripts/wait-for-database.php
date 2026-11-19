@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /*
  * Waits until the database of VAULT_TEST_DATABASE_URL answers `SELECT 1` (REQ-TEST-005, `make test-with-db`).
- * Same loop as the "Wait for the database" step of the CI job "Id mapping on …". Exits 1 after about two minutes.
+ * Same loop as the "Wait for the database" step of the CI job "Databases on …". Exits 1 after about two minutes.
  */
 
 require dirname(__DIR__).'/vendor/autoload.php';

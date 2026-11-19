@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Concurrency (REQ-RUNTIME-003)](#concurrency-req-runtime-003)
 - [To 1.19.3](#to-1193)
   - [Exact collation of the user id columns (`user_mapping: id`, MySQL / MariaDB)](#exact-collation-of-the-user-id-columns-user_mapping-id-mysql--mariadb)
 - [To 1.19.2](#to-1192)
@@ -82,6 +83,28 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+### Concurrency (REQ-RUNTIME-003)
+
+```bash
+composer update nowo-tech/vault-bundle --with-dependencies
+```
+
+- **New dependencies**: `nowo-tech/transaction-contract` `^1.0` and `nowo-tech/transaction-doctrine` `^1.6` (installed by Composer; registering transaction-doctrine's bundle is optional).
+- **No schema change.**
+- **Lock conflicts answer 409 instead of 500** on the vault's routes, with `X-Conflict-Code: CONFLICT_001` (+ `Retry-After`) or `CONFLICT_002`. To keep a 503 for lock conflicts, set:
+
+  ```yaml
+  nowo_vault:
+      conflict_response:
+          status: 503
+  ```
+
+  Unset, the vault follows transaction-doctrine's `conflict_response` when its bundle is registered, else 409 with `Retry-After: 1`. JSON answers keep their `error` key and gain `code`. See [CONCURRENCY.md](CONCURRENCY.md).
+- **Stale item edits answer 409.** The item edit page now carries a hidden `editToken`. A save from a page opened before another save of the same item is refused with 409 and `X-Error-Code: VAULT_ITEM_CHANGED`, and the current item is shown again. A host that renders its own item edit form keeps working: without the field the save is not refused (it still locks the row and keeps the stored secrets of the current row). Add the field (it is rendered with the other children of the form) to get the check.
+- **1.18 mode only (`database.private_entity_manager` unset or false):** the item create, item edit and folder trash pages now run in one transaction on your entity manager through transaction-doctrine's `forHostEntityManager()`. It **throws LogicException** (a 500) when your manager holds changes you did not flush when the vault page action starts, instead of flushing them as part of the vault's write. Flush your changes before a vault page runs (for example in your own listeners), or switch to the private entity manager (`database.private_entity_manager: true`, recommended), which never touches your manager.
+- **Change events after the commit.** `ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED` and `GRANT_*` dispatched while one of these page actions runs now reach your listeners after its commit (and not at all when it fails). A listener that read the vault rows inside the vault's transaction now reads them committed.
+- **CI (contributors):** the required checks "Id mapping on MySQL 8.4 / MariaDB 11.4 / PostgreSQL 17" are replaced by "Databases on MySQL 8.4 / MariaDB 11.4 / PostgreSQL 16 - DBAL 3 / 4", and "Dependency floor (nowo-tech/transaction-* lowest, demo lock)" is new.
 
 ## To 1.19.3
 

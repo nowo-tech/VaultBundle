@@ -20,6 +20,7 @@ use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
@@ -34,6 +35,7 @@ use function array_combine;
 use function array_merge;
 use function array_merge_recursive;
 use function in_array;
+use function is_string;
 
 /**
  * Vault item create/edit form (login, card, identity, note fields).
@@ -44,6 +46,8 @@ use function in_array;
 final class VaultItemFormType extends AbstractType
 {
     use FormOptionsTrait;
+    /** 1.20: name of the hidden edit-token field (edit form only, option `edit_token`). */
+    public const EDIT_TOKEN_FIELD = 'editToken';
 
     /** Labels of the "clear stored values" choices, per secret payload key. */
     private const SECRET_LABELS = [
@@ -157,6 +161,14 @@ final class VaultItemFormType extends AbstractType
                 'required' => false,
                 'label'    => 'vault.form.catalogue_hidden',
                 'help'     => 'vault.form.catalogue_hidden_help',
+            ]);
+        }
+
+        if (is_string($options['edit_token'])) {
+            // 1.20 (REQ-RUNTIME-003): unmapped; the controller refuses the save when the item changed since (409).
+            $builder->add(self::EDIT_TOKEN_FIELD, HiddenType::class, [
+                'mapped' => false,
+                'data'   => $options['edit_token'],
             ]);
         }
 
@@ -311,7 +323,10 @@ final class VaultItemFormType extends AbstractType
             'password_policy' => null,
             // 1.18.0: PasswordStrength meter on the password field (when installed); false on the view page.
             'strength_meter' => true,
+            // 1.20: edit form only, the VaultItemEditToken of the item when the page was opened (hidden field).
+            'edit_token' => null,
         ]);
+        $resolver->setAllowedTypes('edit_token', ['null', 'string']);
         $resolver->setAllowedTypes('strength_meter', 'bool');
         $resolver->setAllowedTypes('password_policy', ['null', VaultPasswordPolicy::class]);
         $resolver->setAllowedTypes('scope_item', 'bool');

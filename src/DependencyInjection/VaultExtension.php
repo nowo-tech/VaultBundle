@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\DependencyInjection;
 
 use LogicException;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
+use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
+use Nowo\TransactionDoctrine\WriteUnit\Dbal\CommitTrackingMiddleware;
 use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterface;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
@@ -15,6 +18,7 @@ use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\Controller\VaultExportController;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\VaultCommitTrackingPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
 use Nowo\VaultBundle\Doctrine\PrivateEntityManagerMiddleware;
 use Nowo\VaultBundle\Doctrine\VaultEntityManager;
@@ -22,15 +26,18 @@ use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
 use Nowo\VaultBundle\Doctrine\VaultManagerRegistry;
 use Nowo\VaultBundle\Doctrine\VaultMetadataListener;
 use Nowo\VaultBundle\Doctrine\VaultUserColumnsListener;
+use Nowo\VaultBundle\Doctrine\VaultWriteUnit;
 use Nowo\VaultBundle\Dto\VaultPasswordPolicy;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultSettings;
+use Nowo\VaultBundle\EventListener\VaultConflictListener;
 use Nowo\VaultBundle\EventListener\VaultRequestBoundaryListener;
 use Nowo\VaultBundle\EventListener\VaultUnitOfWorkSubscriber;
 use Nowo\VaultBundle\EventListener\VaultUserGateListener;
 use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
+use Nowo\VaultBundle\Internal\DeferredVaultEventDispatcher;
 use Nowo\VaultBundle\Port\VaultPortMode;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultFolderRepository;
@@ -63,11 +70,17 @@ use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Service\VaultCatalogue;
+use Nowo\VaultBundle\Service\VaultFolderService;
+use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
 use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
+use Nowo\VaultBundle\Service\VaultItemCreator;
+use Nowo\VaultBundle\Service\VaultItemUpdater;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
+use Nowo\VaultBundle\Service\VaultTagService;
+use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Support\DoctrineVaultUserReferenceResolver;
 use Nowo\VaultBundle\Support\VaultUserClassPolicy;
 use Nowo\VaultBundle\Support\VaultUserLocator;
@@ -83,6 +96,7 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\User\UserCheckerInterface;
 
 use function array_key_exists;
@@ -103,6 +117,25 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
 
     /** Server-side evaluator of nowo-tech/password-strength-bundle, used by the health report when installed. */
     public const STRENGTH_EVALUATOR = 'Nowo\\PasswordStrengthBundle\\Service\\PasswordStrengthEvaluator';
+
+    /** 1.20: real commits counted by {@see self::COMMIT_TRACKING_MIDDLEWARE}, read by the conflict answer. */
+    public const COMMIT_LEDGER_SERVICE = 'nowo_vault.commit_ledger';
+
+    /** 1.20: transaction-doctrine's commit-tracking DBAL middleware (scoped by {@see VaultCommitTrackingPass}). */
+    public const COMMIT_TRACKING_MIDDLEWARE = 'nowo_vault.commit_tracking_middleware';
+
+    /** 1.20: container parameter holding `conflict_response.commit_tracking` (bundle, all or off). */
+    public const COMMIT_TRACKING_PARAMETER = 'nowo_vault.conflict_response.commit_tracking';
+
+    /** 1.20: write services whose change notifications wait for the end of a write unit. */
+    public const DEFERRED_EVENT_SERVICES = [
+        VaultItemCreator::class,
+        VaultItemUpdater::class,
+        VaultTagService::class,
+        VaultTrashService::class,
+        VaultFolderService::class,
+        VaultGrantService::class,
+    ];
 
     /** Route keys registered only with `scopes.enabled` (1.16.0; see VaultRouteLoader::OPTIONAL_ROUTE_KEYS). */
     public const SCOPE_ROUTE_KEYS = ['scope_items', 'scope_item_new', 'scope_folder_create'];
@@ -264,6 +297,9 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                 $container->getDefinition($repoClass)->setArgument('$users', new Reference(VaultUserReferenceResolverInterface::class));
             }
         }
+
+        $this->registerWriteUnit($container, $private, $emRef, $registryRef, $emName);
+        $this->registerConflictAnswer($container, $config['conflict_response']);
 
         // 1.18.0 (NC-1): raw access to the token table while its entity is not mapped (conditional_mapping).
         $container->setDefinition(VaultExtensionTokenTable::class, (new Definition(VaultExtensionTokenTable::class))
@@ -505,6 +541,69 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$clock', new Reference(ClockInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE)));
         $container->setParameter('nowo_vault.reveal.auto_hide_seconds', $reveal['auto_hide_seconds']);
         $container->setParameter('nowo_vault.reveal.revealable_fields', $reveal['revealable_fields'] === [] ? null : $reveal['revealable_fields']);
+    }
+
+    /**
+     * 1.20 (REQ-RUNTIME-003 rule 1): the vault's write unit ({@see VaultWriteUnit}, one transaction per user action on
+     * the vault's manager) and the dispatcher of the write services, which holds their change notifications until the
+     * unit has committed ({@see DeferredVaultEventDispatcher}).
+     */
+    private function registerWriteUnit(ContainerBuilder $container, bool $private, Reference $emRef, Reference $registryRef, string $emName): void
+    {
+        $container->setDefinition(DeferredVaultEventDispatcher::class, (new Definition(DeferredVaultEventDispatcher::class, [new Reference('event_dispatcher')]))
+            ->addTag('kernel.reset', ['method' => 'reset']));
+        $container->setDefinition(VaultWriteUnit::class, new Definition(VaultWriteUnit::class, [
+            $emRef,
+            $private,
+            $registryRef,
+            $emName,
+            new Reference(DeferredVaultEventDispatcher::class),
+            new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+        ]));
+
+        foreach (self::DEFERRED_EVENT_SERVICES as $service) {
+            if ($container->hasDefinition($service)) {
+                $container->getDefinition($service)->setArgument('$eventDispatcher', new Reference(DeferredVaultEventDispatcher::class));
+            }
+        }
+    }
+
+    /**
+     * 1.20 (REQ-RUNTIME-003 rule 6): 409 (or 503) + CONFLICT_001 / CONFLICT_002 instead of a 500 for lock conflicts on
+     * the vault's routes. Unset options follow transaction-doctrine's policy service when its bundle is registered.
+     *
+     * Commit tracking (`conflict_response.commit_tracking`): `bundle` (default) and `all` register transaction-doctrine's
+     * commit-tracking middleware; {@see VaultCommitTrackingPass} scopes it to the vault's connection (`bundle`), or drops
+     * it and reuses transaction-doctrine's own ledger when that bundle's `commit_detection` is on. `off` registers
+     * neither the ledger nor the middleware.
+     *
+     * @param array{status: int|null, retry_after: int|null, commit_tracking: string} $conflictResponse
+     */
+    private function registerConflictAnswer(ContainerBuilder $container, array $conflictResponse): void
+    {
+        $container->setParameter(self::COMMIT_TRACKING_PARAMETER, $conflictResponse['commit_tracking']);
+        $tracking = $conflictResponse['commit_tracking'] !== 'off';
+        if ($tracking) {
+            $container->setDefinition(self::COMMIT_LEDGER_SERVICE, new Definition(CommitLedger::class));
+            $container->setDefinition(self::COMMIT_TRACKING_MIDDLEWARE, (new Definition(CommitTrackingMiddleware::class, [new Reference(self::COMMIT_LEDGER_SERVICE)]))
+                ->addTag('doctrine.middleware'));
+        }
+
+        $policy = $conflictResponse['status'] === null && $conflictResponse['retry_after'] === null
+            ? new Reference(ConflictResponsePolicy::class, ContainerInterface::NULL_ON_INVALID_REFERENCE)
+            : new Definition(ConflictResponsePolicy::class, [
+                $conflictResponse['status'] ?? ConflictResponsePolicy::STATUS_CONFLICT,
+                $conflictResponse['retry_after'] ?? ConflictResponsePolicy::DEFAULT_RETRY_AFTER,
+            ]);
+
+        $container->setDefinition(VaultConflictListener::class, (new Definition(VaultConflictListener::class, [
+            $policy,
+            $tracking ? new Reference(self::COMMIT_LEDGER_SERVICE) : null,
+            new Reference('request_stack', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            new Reference(VaultBrowserExtensionResponseFactory::class, ContainerInterface::NULL_ON_INVALID_REFERENCE),
+        ]))
+            ->addTag('kernel.event_listener', ['event' => KernelEvents::REQUEST, 'method' => 'onRequest', 'priority' => VaultConflictListener::REQUEST_PRIORITY])
+            ->addTag('kernel.event_listener', ['event' => KernelEvents::EXCEPTION, 'method' => 'onException', 'priority' => VaultConflictListener::PRIORITY]));
     }
 
     /**

@@ -176,6 +176,7 @@ vault:
     flash:
         item_created: Element gespeichert.
         item_updated: Element aktualisiert.
+        item_changed: "Jemand anderes hat dieses Element gespeichert, nachdem Sie es geöffnet haben. Ihre Änderungen wurden nicht gespeichert: Dies ist das aktuelle Element, übernehmen Sie sie erneut."
         item_trashed: Element in Papierkorb verschoben.
         item_restored: Element wiederhergestellt.
         item_purged: Element dauerhaft gelöscht.

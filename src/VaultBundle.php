@@ -10,6 +10,7 @@ use Nowo\VaultBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\ExportLockFactoryPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\TwigPathsPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\VaultCommitTrackingPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
@@ -39,6 +40,8 @@ final class VaultBundle extends Bundle
         $container->addCompilerPass(new ConditionalMappingPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
         // 1.19.0: before DoctrineBundle's MiddlewaresPass, which collects the rollback middleware tag.
         $container->addCompilerPass(new PrivateEntityManagerPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
+        // 1.20: before DoctrineBundle's MiddlewaresPass, which collects the commit-tracking middleware tag.
+        $container->addCompilerPass(new VaultCommitTrackingPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
     }
 
     /**

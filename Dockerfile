@@ -1,7 +1,7 @@
 FROM php:8.2-cli-alpine
 
-RUN apk add --no-cache git unzip bash libzip-dev nodejs npm \
-    && docker-php-ext-install -j$(nproc) zip pdo_mysql
+RUN apk add --no-cache git unzip bash libzip-dev nodejs npm postgresql-dev \
+    && docker-php-ext-install -j$(nproc) zip pdo_mysql pdo_pgsql
 
 # pcov: PHPUnit coverage; mongodb: doctrine/mongodb-odm (optional persistence backend, dev/tests)
 RUN apk add --no-cache $PHPIZE_DEPS \

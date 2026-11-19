@@ -25,6 +25,8 @@ services:
             - '../../Controller/'
             - '../../Internal/'
             - '../../Port/'
+            # 1.20: registered by the extension (conflict_response options).
+            - '../../EventListener/VaultConflictListener.php'
 
     # REQ-SF-004 rule 7: controllers are registered explicitly, NOT autoconfigured (no #[AsController]). On
     # Symfony >= 7.3 a #[Route] class is autoconfigured with the routing.controller tag and the host's
