@@ -116,6 +116,31 @@ final class VaultItemSearchRelationMappingTest extends VaultItemSearchTestCase
         self::assertTrue($group->exactTotal);
     }
 
+    /**
+     * Audit VJ2-1: with the relation mapping, grants to look-alikes of the viewer's team (`Ops`, `Öps`, `ops `) are not
+     * SQL candidates either: grantee_id has the binary NO PAD collation on MySQL / MariaDB in both mappings.
+     */
+    public function testTeamLookAlikeGrantsNeverFillTheWindow(): void
+    {
+        [$alice, $bob] = $this->tenants();
+        $marker        = $this->marker();
+        for ($row = 0; $row < 3; ++$row) {
+            $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' own ' . $row, $this->ownerValue($alice), 'ciphertext'));
+        }
+        foreach (['Ops', "\u{00D6}ps", 'ops ', 'OPS', 'oPs', "\u{00F6}ps"] as $row => $lookAlike) {
+            $shared = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' team ' . $row, $this->ownerValue($bob), 'ciphertext'));
+            $this->grant(VaultResourceType::Item, $shared, GranteeType::Team, $lookAlike);
+        }
+        $this->teamIds[$alice] = ['ops'];
+        $this->actAs($alice, self::VIEWER_A);
+
+        $group = (new EntitySearchProvider($this->searchDefinition(maxCandidates: 5)))->search($this->query($marker));
+        self::assertInstanceOf(SearchGroup::class, $group);
+        self::assertCount(3, $group->items);
+        self::assertSame(3, $group->total);
+        self::assertTrue($group->exactTotal);
+    }
+
     private function userId(string $identifier): int
     {
         if (!isset(self::$userIds[$identifier])) {

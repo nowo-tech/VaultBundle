@@ -63,9 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vault items the viewer may open, matched on their **name only**. A row shows the name, the item type and the folder
   name when the viewer may see that folder; there is no "see all" link. Secret values, notes, URLs, attachments, custom
   fields, tags and history are never matched, shown or decrypted.
-  - Candidates are filtered in SQL: own items, items shared by an active item grant or by a grant on a folder with the
-    item's owner (user or team), and items of member scope vaults named by `SEARCH_SCOPES`; never the trash. Hidden
-    rows never take a slot of the candidate window (no count or existence oracle).
+  - Every row Vault itself refuses is filtered in SQL, so it never takes a slot of the candidate window: candidates are
+    own items, items shared by an active item grant or by a grant on a folder with the item's owner (user or team),
+    and items of member scope vaults named by `SEARCH_SCOPES`; never the trash. Rows denied only by host listeners
+    (`ITEM_ACCESS_CHECK`, SearchKit's `item_visibility`) are filtered in PHP: never shown or counted, but they can
+    still take window slots.
   - Vault's own `VaultAccessGuard` then checks the window in one batch (`ITEM_ACCESS_CHECK` listeners included),
     followed by SearchKit's visibility event.
   - Sensitive group: off while SearchKit keeps recents in the browser without revalidation. Two queries per search.
@@ -75,6 +77,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`VaultEvents::SEARCH_SCOPES`** (`VaultSearchScopesEvent`): host listeners name the scope vaults the group searches for
   a viewer (`limitTo()`, `exclude()`, `excludeAll()`). Fail closed: without a listener no scope vault is searched, and the
   scope access resolver is asked about the named scopes only.
+
+### Changed
+
+- **`vault_grants.grantee_id` gets the binary NO PAD collation with `user_mapping: relation` too** (MySQL / MariaDB:
+  `utf8mb4_0900_bin` or `utf8mb4_nopad_bin`, as with the id mapping since 1.19.3). The column holds team ids, which the
+  search's SQL compares: team `Ops`, `Öps` or `ops ` never matches `ops`. Access was already exact (the guard compares
+  grantee ids in PHP). A relation-mapping host whose database platform is unknown at cache warmup still builds its
+  metadata: the column stays as it was and a warning is logged. Needs a schema migration (see UPGRADING).
 
 ## [1.20.1] - 2026-11-19
 

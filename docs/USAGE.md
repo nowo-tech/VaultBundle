@@ -173,13 +173,17 @@ all" link, because no vault page lists the same set (the items page shows the vi
 
 Every rule except the host listeners is applied **in SQL**, so a row the viewer may not see never takes a slot of the
 candidate window: it cannot change the results, the count or whether the count is exact. The ids are compared by the
-database: with `user_mapping: id` the vault's id columns use a binary NO PAD collation on MySQL / MariaDB (since 1.19.3;
-PostgreSQL and SQLite compare byte for byte), so `UserA` is never `usera` nor `usera `. Then one batched call to
+database: with `user_mapping: id` the user id columns, and with both mappings the grantee id (`vault_grants.grantee_id`,
+which holds user **and team** ids; since 1.21.0 for the relation mapping), use a binary NO PAD collation on MySQL /
+MariaDB (PostgreSQL and SQLite compare byte for byte), so `UserA` is never `usera` nor `usera `, and team `Ops` or `Öps`
+is never `ops`. With the relation mapping the owner columns are foreign keys to your users table and compare like its
+primary key. Then one batched call to
 `VaultAccessGuard` checks the window again (one grant query), then SearchKit's shared `nowo_search_kit.item_visibility`
 event runs. A refused search answers nothing at all (no count, no hint).
 
 What is left to PHP only: rows an `ITEM_ACCESS_CHECK` or `nowo_search_kit.item_visibility` listener denies, and, on a
-host whose own migration dropped the binary collation of those id columns, look-alike ids. Such rows are still never
+host whose own migration dropped the binary collation of those id columns (or a relation-mapping host that has not run
+the 1.21.0 migration of `grantee_id`, see UPGRADING), look-alike ids. Such rows are still never
 shown or counted, but they can take window slots (`search_kit.max_candidates`).
 
 The viewer is the signed-in user whose identifier is the query's, and only a user the vault accepts (`user_class` or
