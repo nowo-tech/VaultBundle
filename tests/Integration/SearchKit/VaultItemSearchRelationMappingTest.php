@@ -7,8 +7,6 @@ namespace Nowo\VaultBundle\Tests\Integration\SearchKit;
 use LogicException;
 use Nowo\SearchKitBundle\Model\SearchGroup;
 use Nowo\SearchKitBundle\Model\SearchItem;
-use Nowo\SearchKitBundle\Test\EntitySearchProviderTestCase;
-use Nowo\VaultBundle\Bridge\SearchKit\VaultItemSearchDefinition;
 use Nowo\VaultBundle\Bridge\SearchKit\VaultSearchViewers;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
 use Nowo\VaultBundle\Entity\VaultFolder;
@@ -21,19 +19,13 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 
 use function array_map;
-use function class_exists;
 use function dirname;
-
-if (!class_exists(EntitySearchProviderTestCase::class)) {
-    return;
-}
 
 /**
  * `user_mapping: relation` (the default: `creator_id` is a foreign key to the host users table): the SearchKit contract
  * and a shared item, with Doctrine user entities as owners and viewers.
  */
 #[Group('searchkit')]
-#[CoversClass(VaultItemSearchDefinition::class)]
 #[CoversClass(VaultSearchViewers::class)]
 final class VaultItemSearchRelationMappingTest extends VaultItemSearchTestCase
 {

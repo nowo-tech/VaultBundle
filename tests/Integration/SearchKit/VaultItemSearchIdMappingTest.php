@@ -11,7 +11,6 @@ use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchQuery;
 use Nowo\SearchKitBundle\Model\SearchReference;
 use Nowo\SearchKitBundle\Provider\Entity\EntitySearchDefinition;
-use Nowo\SearchKitBundle\Test\EntitySearchProviderTestCase;
 use Nowo\VaultBundle\Bridge\SearchKit\VaultItemSearchDefinition;
 use Nowo\VaultBundle\Bridge\SearchKit\VaultSearchViewers;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
@@ -40,15 +39,10 @@ use Symfony\Component\Translation\Loader\ArrayLoader;
 use Symfony\Component\Translation\Translator;
 
 use function array_map;
-use function class_exists;
 use function implode;
 use function json_encode;
 
 use const JSON_THROW_ON_ERROR;
-
-if (!class_exists(EntitySearchProviderTestCase::class)) {
-    return;
-}
 
 /**
  * `user_mapping: id` (a strict DDD host: string user ids, no user table): the SearchKit contract, then the vault rules
@@ -56,7 +50,6 @@ if (!class_exists(EntitySearchProviderTestCase::class)) {
  * guard; exact ids; the SEARCH_SCOPES narrowing; the folder name rule; host vetoes; routes, recents and the budget.
  */
 #[Group('searchkit')]
-#[CoversClass(VaultItemSearchDefinition::class)]
 #[CoversClass(VaultSearchViewers::class)]
 #[CoversClass(VaultSearchScopesEvent::class)]
 final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase

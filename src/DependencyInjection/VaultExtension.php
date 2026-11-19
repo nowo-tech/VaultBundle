@@ -90,6 +90,7 @@ use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Ui\VaultPages;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\Config\Resource\ClassExistenceResource;
 use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -426,6 +427,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
      */
     private function registerSearchKit(array $searchKit, bool $scopesEnabled, ContainerBuilder $container, Reference $emRef, Reference $registryRef, string $emName): void
     {
+        // Rebuild the cached container when SearchKit is installed or removed.
+        $container->addResource(new ClassExistenceResource(self::SEARCH_KIT_DEFINITION_CLASS));
         if (!$searchKit['enabled'] || !class_exists(self::SEARCH_KIT_DEFINITION_CLASS)) {
             return;
         }

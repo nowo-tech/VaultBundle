@@ -55,6 +55,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Translation\IdentityTranslator;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function class_alias;
 use function class_exists;
 use function dirname;
 use function getenv;
@@ -63,9 +64,10 @@ use function sys_get_temp_dir;
 
 use const PHP_VERSION_ID;
 
-// SearchKit (>= 1.9) needs PHP >= 8.3 and stays optional: without it (the PHP 8.2 CI cell) this file declares nothing.
+// SearchKit (>= 1.9) needs PHP >= 8.3 and stays optional: without it (the PHP 8.2 jobs) the test classes extend a
+// stand-in and every test is skipped.
 if (!class_exists(EntitySearchProviderTestCase::class)) {
-    return;
+    class_alias(SearchKitAbsentTestCase::class, EntitySearchProviderTestCase::class);
 }
 
 /**
@@ -125,6 +127,9 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
 
     protected function setUp(): void
     {
+        if (!class_exists(EntitySearchDefinition::class)) {
+            self::markTestSkipped('nowo-tech/search-kit-bundle >= 1.9 is not installed (PHP >= 8.3).');
+        }
         $this->vaultEvents = new EventDispatcher();
         $this->tokens      = new TokenStorage();
         $this->scopeCache  = new RequestScopedScopeAccessCache(new class($this) implements VaultScopeAccessResolverInterface {

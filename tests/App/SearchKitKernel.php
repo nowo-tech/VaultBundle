@@ -8,6 +8,7 @@ use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\VaultBundle\Bridge\SearchKit\VaultItemSearchDefinition;
+use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Nowo\VaultBundle\Tests\App\Security\TestScopeAccessResolver;
 use Nowo\VaultBundle\VaultBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
@@ -18,6 +19,8 @@ use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
 use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
+
+use function class_exists;
 
 use const PHP_VERSION_ID;
 
@@ -71,6 +74,7 @@ final class SearchKitKernel extends BaseKernel
 
     public function getCacheDir(): string
     {
-        return $this->getProjectDir() . '/var/cache/searchkit_' . $this->environment;
+        // One container per SearchKit presence: a cached container (debug off) never sees SearchKit come or go.
+        return $this->getProjectDir() . '/var/cache/searchkit_' . (class_exists(VaultExtension::SEARCH_KIT_DEFINITION_CLASS) ? 'with_' : 'without_') . $this->environment;
     }
 }
