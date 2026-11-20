@@ -1,24 +1,19 @@
-{#- REQ-DEMO-014: the demo shell is UiKit's admin layout with UiKit's default theme (nowo-ui.css from the bundle's own
-    asset package, no CSS framework, no CDN, inline SVG icons). The Vault pages render in it too
-    (nowo_ui_kit.layouts.admin). -#}
-{% extends '@NowoUiKit/layout/admin.html.twig' %}
+{#- REQ-DEMO-014: the demo runs inside UiKit's shared demo platform shell (@NowoUiKit/demo_platform/layout.html.twig):
+    the same top bar, aside, content width, theme and footer as every other nowo-tech bundle demo. This file only
+    declares the demo (nowo_ui_demo_platform); the Vault pages render through it too (nowo_ui_kit.layouts). -#}
+{% extends '@NowoUiKit/demo_platform/layout.html.twig' %}
+{% set nowo_ui_demo_platform = {
+    bundle: 'Vault',
+    home_route: 'nowo_vault_index',
+    repository: 'https://github.com/nowo-tech/VaultBundle',
+    translation_domain: false,
+    locales: [],
+    nav: [
+        {label: 'Home', route: 'nowo_vault_index'},
+        {label: 'My items', route: 'nowo_vault_items', active: ['nowo_vault_items', 'nowo_vault_item_*'], section: 'Vault'},
+        {label: 'Shared', route: 'nowo_vault_shared', section: 'Vault'},
+        {label: 'Trash', route: 'nowo_vault_trash', section: 'Vault'},
+    ],
+} %}
 
-{% block nowo_ui_document_title %}{% block title %}Vault Bundle Demo{% endblock %}{% endblock %}
-
-{% block nowo_ui_navigation %}
-    {% set _route = app.request.attributes.get('_route')|default('') %}
-    <header class="nowo-ui-header" data-testid="demo-masthead">
-        <a class="nowo-ui-brand" href="{{ path('nowo_vault_index') }}">Vault Bundle Demo</a>
-        <nav class="nowo-ui-menu" aria-label="Vault Bundle">
-            <a class="nowo-ui-link" href="{{ path('nowo_vault_index') }}"{% if _route == 'nowo_vault_index' %} aria-current="page"{% endif %}>Home</a>
-            <a class="nowo-ui-link" href="{{ path('nowo_vault_items') }}"{% if _route == 'nowo_vault_items' %} aria-current="page"{% endif %}>My items</a>
-            <a class="nowo-ui-link" href="{{ path('nowo_vault_shared') }}"{% if _route == 'nowo_vault_shared' %} aria-current="page"{% endif %}>Shared</a>
-            <a class="nowo-ui-link" href="{{ path('nowo_vault_trash') }}"{% if _route == 'nowo_vault_trash' %} aria-current="page"{% endif %}>Trash</a>
-        </nav>
-        <div class="nowo-ui-header__end">
-            {{ include('@NowoUiKitBundle/partials/_theme_toggle.html.twig', { compact: true }, false) }}
-        </div>
-    </header>
-{% endblock %}
-
-{% block nowo_ui_content %}{% block body %}{% endblock %}{% endblock %}
+{% block nowo_ui_document_title %}{% block title %}Vault Bundle Demo{% endblock %} — Symfony 8{% endblock %}
