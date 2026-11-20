@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\DependencyInjection;
 
 use Nowo\VaultBundle\Ui\VaultPages;
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
@@ -21,7 +22,19 @@ final class RuntimeConfiguration implements ConfigurationInterface
         $treeBuilder = new TreeBuilder('nowo_vault_runtime');
         $root        = $treeBuilder->getRootNode();
 
-        $root
+        $this->addEncryptionKeyToSecuritySections($root);
+        $this->addRoutesSection($root);
+        $this->addTemplatesAndFollowingSections($root);
+
+        return $treeBuilder;
+    }
+
+    /**
+     * Adds the `encryption_key` to `security` settings.
+     */
+    private function addEncryptionKeyToSecuritySections(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
             ->children()
                 ->scalarNode('encryption_key')
                     ->defaultNull()
@@ -53,123 +66,182 @@ final class RuntimeConfiguration implements ConfigurationInterface
                         ->arrayNode('delete_roles')->scalarPrototype()->end()->defaultValue(['ROLE_USER'])->end()
                     ->end()
                 ->end()
-                ->arrayNode('routes')
-                    ->addDefaultsIfNotSet()
-                    ->children()
-                        ->arrayNode('index')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_index')->end()
-                        ->end()->end()
-                        ->arrayNode('items')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_items')->end()
-                        ->end()->end()
-                        ->arrayNode('shared')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/shared')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_shared')->end()
-                        ->end()->end()
-                        ->arrayNode('trash')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/trash')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_trash')->end()
-                        ->end()->end()
-                        ->arrayNode('item_new')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/new/{type}')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_new')->end()
-                        ->end()->end()
-                        ->arrayNode('item_edit')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/edit')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_edit')->end()
-                        ->end()->end()
-                        ->arrayNode('item_view')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/{id}')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_view')->end()
-                        ->end()->end()
-                        ->arrayNode('item_trash')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/trash')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_trash')->end()
-                        ->end()->end()
-                        ->arrayNode('item_restore')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/restore')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_restore')->end()
-                        ->end()->end()
-                        ->arrayNode('item_purge')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/purge')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_purge')->end()
-                        ->end()->end()
-                        ->arrayNode('folder_create')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/folders')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_folder_create')->end()
-                        ->end()->end()
-                        ->arrayNode('folder_trash')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/trash')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_folder_trash')->end()
-                        ->end()->end()
-                        ->arrayNode('tag_delete')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/tags/{id}/delete')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_tag_delete')->end()
-                        ->end()->end()
-                        ->arrayNode('item_share')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/share')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_share')->end()
-                        ->end()->end()
-                        ->arrayNode('item_grant_revoke')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/grants/{grantId}/revoke')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_grant_revoke')->end()
-                        ->end()->end()
-                        ->arrayNode('folder_share')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/share')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_folder_share')->end()
-                        ->end()->end()
-                        ->arrayNode('folder_grant_revoke')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/grants/{grantId}/revoke')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_folder_grant_revoke')->end()
-                        ->end()->end()
-                        ->arrayNode('item_reveal')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/reveal/{field}')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_reveal')->end()
-                        ->end()->end()
-                        ->arrayNode('scope_items')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_scope_items')->end()
-                        ->end()->end()
-                        ->arrayNode('scope_item_new')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/items/new/{type}')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_scope_item_new')->end()
-                        ->end()->end()
-                        ->arrayNode('scope_folder_create')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/folders')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_scope_folder_create')->end()
-                        ->end()->end()
-                        ->arrayNode('catalogue')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/catalogue')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_catalogue')->end()
-                        ->end()->end()
-                        ->arrayNode('item_attachment')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/attachment')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_item_attachment')->end()
-                        ->end()->end()
-                        ->arrayNode('health')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/health')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_health')->end()
-                        ->end()->end()
-                        ->arrayNode('personal_export')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/export')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_personal_export')->end()
-                        ->end()->end()
-                        ->arrayNode('personal_export_download')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/export')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_personal_export_download')->end()
-                        ->end()->end()
-                        ->arrayNode('password_generate')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/password/generate')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_password_generate')->end()
-                        ->end()->end()
-                        ->arrayNode('runtime_config')->addDefaultsIfNotSet()->children()
-                            ->scalarNode('path')->defaultValue('/tools/vault/runtime-config')->end()
-                            ->scalarNode('name')->defaultValue('nowo_vault_runtime_config')->end()
-                        ->end()->end()
-                    ->end()
-                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds a part of the tree.
+     */
+    private function addRoutesPart(ArrayNodeDefinition $routes): void
+    {
+        $routes
+            ->children()
+                ->arrayNode('index')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_index')->end()
+                ->end()->end()
+                ->arrayNode('items')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_items')->end()
+                ->end()->end()
+                ->arrayNode('shared')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/shared')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_shared')->end()
+                ->end()->end()
+                ->arrayNode('trash')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/trash')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_trash')->end()
+                ->end()->end()
+                ->arrayNode('item_new')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/new/{type}')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_new')->end()
+                ->end()->end()
+                ->arrayNode('item_edit')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/edit')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_edit')->end()
+                ->end()->end()
+                ->arrayNode('item_view')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/{id}')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_view')->end()
+                ->end()->end()
+                ->arrayNode('item_trash')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/trash')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_trash')->end()
+                ->end()->end()
+                ->arrayNode('item_restore')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/restore')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_restore')->end()
+                ->end()->end()
+            ->end();
+    }
+
+    /**
+     * Adds a part of the tree.
+     */
+    private function addRoutesPart2(ArrayNodeDefinition $routes): void
+    {
+        $routes
+            ->children()
+                ->arrayNode('item_purge')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/purge')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_purge')->end()
+                ->end()->end()
+                ->arrayNode('folder_create')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/folders')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_folder_create')->end()
+                ->end()->end()
+                ->arrayNode('folder_trash')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/trash')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_folder_trash')->end()
+                ->end()->end()
+                ->arrayNode('tag_delete')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/tags/{id}/delete')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_tag_delete')->end()
+                ->end()->end()
+                ->arrayNode('item_share')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/share')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_share')->end()
+                ->end()->end()
+                ->arrayNode('item_grant_revoke')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/grants/{grantId}/revoke')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_grant_revoke')->end()
+                ->end()->end()
+                ->arrayNode('folder_share')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/share')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_folder_share')->end()
+                ->end()->end()
+                ->arrayNode('folder_grant_revoke')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/grants/{grantId}/revoke')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_folder_grant_revoke')->end()
+                ->end()->end()
+                ->arrayNode('item_reveal')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/reveal/{field}')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_reveal')->end()
+                ->end()->end()
+            ->end();
+    }
+
+    /**
+     * Adds a part of the tree.
+     */
+    private function addRoutesPart3(ArrayNodeDefinition $routes): void
+    {
+        $routes
+            ->children()
+                ->arrayNode('scope_items')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_scope_items')->end()
+                ->end()->end()
+                ->arrayNode('scope_item_new')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/items/new/{type}')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_scope_item_new')->end()
+                ->end()->end()
+                ->arrayNode('scope_folder_create')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/folders')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_scope_folder_create')->end()
+                ->end()->end()
+                ->arrayNode('catalogue')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/catalogue')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_catalogue')->end()
+                ->end()->end()
+                ->arrayNode('item_attachment')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/attachment')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_item_attachment')->end()
+                ->end()->end()
+                ->arrayNode('health')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/health')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_health')->end()
+                ->end()->end()
+                ->arrayNode('personal_export')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/export')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_personal_export')->end()
+                ->end()->end()
+                ->arrayNode('personal_export_download')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/export')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_personal_export_download')->end()
+                ->end()->end()
+                ->arrayNode('password_generate')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/password/generate')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_password_generate')->end()
+                ->end()->end()
+            ->end();
+    }
+
+    /**
+     * Adds a part of the tree.
+     */
+    private function addRoutesPart4(ArrayNodeDefinition $routes): void
+    {
+        $routes
+            ->children()
+                ->arrayNode('runtime_config')->addDefaultsIfNotSet()->children()
+                    ->scalarNode('path')->defaultValue('/tools/vault/runtime-config')->end()
+                    ->scalarNode('name')->defaultValue('nowo_vault_runtime_config')->end()
+                ->end()->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `routes` section; its large children have their own methods.
+     */
+    private function addRoutesSection(ArrayNodeDefinition $rootNode): void
+    {
+        $routes = $rootNode->children()->arrayNode('routes');
+        $routes
+            ->addDefaultsIfNotSet();
+        $this->addRoutesPart($routes);
+        $this->addRoutesPart2($routes);
+        $this->addRoutesPart3($routes);
+        $this->addRoutesPart4($routes);
+    }
+
+    /**
+     * Adds the `templates` to `node` settings.
+     */
+    private function addTemplatesAndFollowingSections(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('templates')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -190,8 +262,6 @@ final class RuntimeConfiguration implements ConfigurationInterface
                 ->end()
                 ->scalarNode('firewall')->defaultValue('main')->end()
             ->end();
-
-        return $treeBuilder;
     }
 
     /**
