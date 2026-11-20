@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/vault-bundle`  
-**Last audited**: 2026-11-16 (v1.19.3)
+**Last audited**: 2026-11-20 (v1.21.0)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -113,6 +113,16 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Service/VaultSharedItemResolver.php` | Shared-with-me resolver | FR-SHARE-003 |
 | `Service/VaultTagService.php` | Tag assignment | FR-TAG-001 |
 | `Service/VaultTrashService.php` | Trash restore/purge | FR-TRASH-001 |
+| `Bridge/SearchKit/VaultItemSearchDefinition.php` | SearchKit group `vault_items`, name-only match (1.21) | FR-CAT-001, FR-PORT-001 |
+| `Bridge/SearchKit/VaultSearchViewer.php` | Viewer of one search (1.21) | FR-CAT-001, FR-USER-001 |
+| `Bridge/SearchKit/VaultSearchViewers.php` | Per-call viewer resolver, fail closed (1.21) | FR-CAT-001, FR-WORKER-001 |
+| `Event/VaultSearchScopesEvent.php` | SEARCH_SCOPES: scope vaults one search covers (1.21) | FR-CAT-001, FR-EVT-001 |
+| `Controller/VaultWriteUnitTrait.php` | Runs a vault page action in one write unit (1.20) | FR-WORKER-001, FR-UI-001 |
+| `Doctrine/VaultWriteUnit.php` | Vault write unit through the transaction runner (1.20) | FR-WORKER-001 |
+| `DependencyInjection/Compiler/VaultCommitTrackingPass.php` | Scopes commit tracking of the conflict answer (1.20) | FR-WORKER-001 |
+| `EventListener/VaultConflictListener.php` | Lock conflict answered as 409 / CONFLICT codes (1.20) | FR-WORKER-001, FR-UI-001 |
+| `Exception/VaultItemChangedException.php` | Item saved by someone else since the edit page opened (1.20) | FR-UI-001 |
+| `Internal/DeferredVaultEventDispatcher.php` | Dispatches events after the outermost unit commits (1.20) | FR-EVT-002, FR-WORKER-001 |
 
 ## Security
 
@@ -165,6 +175,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | --- | --- | --- |
 | `Support/UserIdResolver.php` | Support utility | FR-UTIL-001 |
 | `ValueObject/Uuid.php` | Support utility | FR-UTIL-001 |
+| `Support/VaultItemEditToken.php` | Edit token of a vault item, compared on submit (1.20) | FR-UI-001, FR-SEC-003 |
 
 ## Frontend TypeScript
 
@@ -407,12 +418,12 @@ This file proves that **every production source artifact** under `src/` is refer
 | Persistence | 19 | 19 |
 | Forms | 3 | 3 |
 | Domain models | 9 | 9 |
-| Application services | 24 | 24 |
+| Application services | 34 | 34 |
 | Security | 11 | 11 |
 | Browser extension | 8 | 8 |
 | Routing | 1 | 1 |
 | Persistence integration | 5 | 5 |
-| Support utilities | 2 | 2 |
+| Support utilities | 3 | 3 |
 | Frontend TypeScript | 3 | 3 |
 | Symfony config | 1 | 1 |
 | Translations | 7 | 7 |
@@ -428,6 +439,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | Framework-free host ports (1.19, REQ-ARCH-001) | 22 | 22 |
 | Private entity manager, XML mapping and conditional mapping (1.18-1.19) | 20 | 20 |
 | Forms and views (REQ-TWIG-005 / REQ-UI-003) | 5 | 5 |
-| **Total production sources** | **256** | **256** |
+| **Total production sources** | **267** | **267** |
 
-Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 256.
+Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 267.
