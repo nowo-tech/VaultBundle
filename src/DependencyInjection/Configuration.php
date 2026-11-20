@@ -10,6 +10,7 @@ use Nowo\VaultBundle\Database\DatabaseDriver;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Ui\VaultPages;
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -53,7 +54,27 @@ final class Configuration implements ConfigurationInterface
             ->beforeNormalization()
                 ->ifArray()
                 ->then(static fn (array $v): array => self::mapDeprecatedKeys($v))
-            ->end()
+            ->end();
+        $this->addUserClassToPaginationSections($root);
+        $this->addMaxAttachmentBytesToDashboardRouteSections($root);
+        $this->addSecurityToScopesSections($root);
+        $this->addGrantsToCatalogueSections($root);
+        $this->addRevealSection($root);
+        $this->addHealthSection($root);
+        $this->addExportSection($root);
+        $this->addRoutesSection($root);
+        $this->addBrowserExtensionSection($root);
+        $this->addFirewallSection($root);
+
+        return $treeBuilder;
+    }
+
+    /**
+     * Adds the `user_class` to `pagination` settings.
+     */
+    private function addUserClassToPaginationSections(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
             ->children()
                 ->scalarNode('user_class')
                     ->info('FQCN of the application user entity (must implement UserInterface and expose getId()).')
@@ -152,6 +173,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `max_attachment_bytes` to `dashboard_route` settings.
+     */
+    private function addMaxAttachmentBytesToDashboardRouteSections(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->integerNode('max_attachment_bytes')
                     ->info('Maximum document attachment size in bytes (stored encrypted in item payload).')
                     ->defaultValue(512_000)
@@ -250,6 +281,16 @@ final class Configuration implements ConfigurationInterface
                 ->scalarNode('dashboard_route')
                     ->defaultNull()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `security` to `scopes` settings.
+     */
+    private function addSecurityToScopesSections(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('security')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -314,6 +355,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `grants` to `catalogue` settings.
+     */
+    private function addGrantsToCatalogueSections(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('grants')
                     ->info('Sharing grants (1.16.0).')
                     ->addDefaultsIfNotSet()
@@ -362,6 +413,16 @@ final class Configuration implements ConfigurationInterface
                         ->integerNode('per_page')->defaultValue(50)->min(1)->max(500)->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `reveal` section.
+     */
+    private function addRevealSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('reveal')
                     ->info('On-demand reveal of secret fields (1.16.0 additions on top of the 1.15.2 item_reveal route).')
                     ->addDefaultsIfNotSet()
@@ -399,6 +460,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `health` section.
+     */
+    private function addHealthSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('health')
                     ->info('Password health report (1.16.0): weak, reused, old and (optionally) breached login passwords, computed on demand in memory.')
                     ->addDefaultsIfNotSet()
@@ -422,6 +493,16 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `export` section.
+     */
+    private function addExportSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->arrayNode('export')
                     ->info('Decrypted export of the personal vault behind a fresh re-authentication (1.16.0).')
                     ->addDefaultsIfNotSet()
@@ -456,313 +537,397 @@ final class Configuration implements ConfigurationInterface
                         ->booleanNode('csv_raw_values')->info('Keep CSV cells exact. Default false: a cell starting with = + - @, tab or CR gets a leading \' (CSV formula injection: Write grantees can edit the owner\'s items).')->defaultFalse()->end()
                     ->end()
                 ->end()
-                ->arrayNode('routes')
+            ->end();
+    }
+
+    /**
+     * Adds the `index` to `item_restore` settings.
+     */
+    private function addRoutesIndexToItemRestoreSections(ArrayNodeDefinition $routes): void
+    {
+        $routes
+            ->children()
+                ->arrayNode('index')
                     ->addDefaultsIfNotSet()
                     ->children()
-                        ->arrayNode('index')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_index')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('items')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_items')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('shared')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/shared')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_shared')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('trash')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/trash')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_trash')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_new')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/new/{type}')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_new')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_edit')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/edit')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_edit')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_view')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_view')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_trash')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/trash')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_trash')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_restore')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/restore')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_restore')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_purge')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/purge')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_purge')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('folder_create')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/folders')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_folder_create')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('folder_trash')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/trash')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_folder_trash')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('tag_delete')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/tags/{id}/delete')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_tag_delete')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_share')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/share')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_share')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_grant_revoke')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/grants/{grantId}/revoke')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_grant_revoke')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('folder_share')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/share')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_folder_share')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('folder_grant_revoke')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/grants/{grantId}/revoke')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_folder_grant_revoke')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_reveal')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/reveal/{field}')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_reveal')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('scope_items')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_scope_items')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('scope_item_new')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/items/new/{type}')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_scope_item_new')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('scope_folder_create')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/folders')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_scope_folder_create')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('catalogue')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/catalogue')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_catalogue')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('item_attachment')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/attachment')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_item_attachment')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('health')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/health')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_health')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('personal_export')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/export')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_personal_export')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('personal_export_download')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/export')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_personal_export_download')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('password_generate')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/password/generate')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_password_generate')->end()
-                            ->end()
-                        ->end()
-                        ->arrayNode('runtime_config')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/tools/vault/runtime-config')->end()
-                                ->scalarNode('name')->defaultValue('nowo_vault_runtime_config')->end()
-                            ->end()
-                        ->end()
+                        ->scalarNode('path')->defaultValue('/tools/vault')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_index')->end()
                     ->end()
                 ->end()
-                ->arrayNode('browser_extension')
-                    ->info('Chrome/Brave browser extension API (Bearer token auth).')
+                ->arrayNode('items')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_items')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('shared')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/shared')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_shared')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('trash')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/trash')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_trash')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('item_new')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/new/{type}')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_new')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('item_edit')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/edit')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_edit')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('item_view')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/{id}')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_view')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('item_trash')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/trash')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_trash')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('item_restore')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/restore')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_restore')->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `item_purge` to `item_reveal` settings.
+     */
+    private function addRoutesItemPurgeToItemRevealSections(ArrayNodeDefinition $routes): void
+    {
+        $routes
+            ->children()
+                ->arrayNode('item_purge')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/purge')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_purge')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('folder_create')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/folders')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_folder_create')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('folder_trash')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/trash')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_folder_trash')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('tag_delete')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/tags/{id}/delete')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_tag_delete')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('item_share')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/share')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_share')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('item_grant_revoke')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/grants/{grantId}/revoke')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_grant_revoke')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('folder_share')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/share')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_folder_share')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('folder_grant_revoke')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/folders/{id}/grants/{grantId}/revoke')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_folder_grant_revoke')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('item_reveal')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/reveal/{field}')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_reveal')->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `scope_items` to `password_generate` settings.
+     */
+    private function addRoutesScopeItemsToPasswordGenerateSections(ArrayNodeDefinition $routes): void
+    {
+        $routes
+            ->children()
+                ->arrayNode('scope_items')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_scope_items')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('scope_item_new')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/items/new/{type}')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_scope_item_new')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('scope_folder_create')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/folders')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_scope_folder_create')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('catalogue')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/catalogue')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_catalogue')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('item_attachment')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/items/{id}/attachment')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_item_attachment')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('health')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/scopes/{scope}/health')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_health')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('personal_export')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/export')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_personal_export')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('personal_export_download')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/export')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_personal_export_download')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('password_generate')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/password/generate')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_password_generate')->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `runtime_config` section.
+     */
+    private function addRoutesRuntimeConfigSection(ArrayNodeDefinition $routes): void
+    {
+        $routes
+            ->children()
+                ->arrayNode('runtime_config')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/tools/vault/runtime-config')->end()
+                        ->scalarNode('name')->defaultValue('nowo_vault_runtime_config')->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `routes` section; its large children have their own methods.
+     */
+    private function addRoutesSection(ArrayNodeDefinition $rootNode): void
+    {
+        $routes = $rootNode->children()->arrayNode('routes');
+        $routes
+            ->addDefaultsIfNotSet();
+        $this->addRoutesIndexToItemRestoreSections($routes);
+        $this->addRoutesItemPurgeToItemRevealSections($routes);
+        $this->addRoutesScopeItemsToPasswordGenerateSections($routes);
+        $this->addRoutesRuntimeConfigSection($routes);
+    }
+
+    /**
+     * Adds the `enabled` to `login_rate_limit` settings.
+     */
+    private function addBrowserExtensionEnabledToLoginRateLimitSections(ArrayNodeDefinition $browserExtension): void
+    {
+        $browserExtension
+            ->children()
+                ->booleanNode('enabled')
+                    ->defaultFalse()
+                ->end()
+                ->integerNode('token_ttl')
+                    ->info('Bearer token lifetime in seconds.')
+                    ->defaultValue(86_400)
+                    ->min(60)
+                ->end()
+                ->integerNode('max_login_items')
+                    ->info('Upper bound of login items (own + shared, most recently updated first) decrypted per /logins lookup — REQ-PERF-001.')
+                    ->defaultValue(1000)
+                    ->min(1)
+                ->end()
+                ->scalarNode('authenticator')
+                    ->info('Service id implementing VaultBrowserExtensionAuthenticatorInterface. Null uses the default password authenticator.')
+                    ->defaultNull()
+                ->end()
+                ->scalarNode('user_provider')
+                    ->info('Symfony user provider service id for the default authenticator (e.g. security.user.provider.concrete.app_user_provider).')
+                    ->defaultNull()
+                ->end()
+                ->scalarNode('firewall')
+                    ->info('Firewall whose user checker (security.user_checker.<firewall>, incl. chained checkers such as UserKit) the default authenticator runs. Null = auto: the firewall named "main" when present, else the first firewall with security enabled. Ignored when user_checker is set.')
+                    ->defaultNull()
+                ->end()
+                ->scalarNode('user_checker')
+                    ->info('Explicit Symfony user checker service id run by the default authenticator; wins over firewall. Null resolves security.user_checker.<firewall> (see firewall), falling back to the UserCheckerInterface alias when no firewall with security is configured.')
+                    ->defaultNull()
+                ->end()
+                ->arrayNode('cors_allowed_origins')
+                    ->info('Allowed CORS origins. Empty allows any chrome-extension:// and moz-extension:// origin. When set, only the listed origins are allowed. Wildcard "*" is development-only and is rejected in prod.')
+                    ->scalarPrototype()->end()
+                    ->defaultValue([])
+                ->end()
+                ->arrayNode('login_rate_limit')
+                    ->info('Brute-force protection for extension login (cache-backed).')
                     ->addDefaultsIfNotSet()
                     ->children()
                         ->booleanNode('enabled')
-                            ->defaultFalse()
+                            ->defaultTrue()
                         ->end()
-                        ->integerNode('token_ttl')
-                            ->info('Bearer token lifetime in seconds.')
-                            ->defaultValue(86_400)
-                            ->min(60)
-                        ->end()
-                        ->integerNode('max_login_items')
-                            ->info('Upper bound of login items (own + shared, most recently updated first) decrypted per /logins lookup — REQ-PERF-001.')
-                            ->defaultValue(1000)
+                        ->integerNode('max_attempts')
+                            ->defaultValue(5)
                             ->min(1)
                         ->end()
-                        ->scalarNode('authenticator')
-                            ->info('Service id implementing VaultBrowserExtensionAuthenticatorInterface. Null uses the default password authenticator.')
-                            ->defaultNull()
+                        ->integerNode('max_attempts_per_ip')
+                            ->info('Failed logins from one client IP across all usernames before lockout (credential stuffing). 0 disables the per-IP bucket.')
+                            ->defaultValue(20)
+                            ->min(0)
                         ->end()
-                        ->scalarNode('user_provider')
-                            ->info('Symfony user provider service id for the default authenticator (e.g. security.user.provider.concrete.app_user_provider).')
-                            ->defaultNull()
+                        ->integerNode('interval_seconds')
+                            ->info('Lockout window in seconds after max_attempts failed logins.')
+                            ->defaultValue(900)
+                            ->min(60)
                         ->end()
-                        ->scalarNode('firewall')
-                            ->info('Firewall whose user checker (security.user_checker.<firewall>, incl. chained checkers such as UserKit) the default authenticator runs. Null = auto: the firewall named "main" when present, else the first firewall with security enabled. Ignored when user_checker is set.')
-                            ->defaultNull()
+                        ->scalarNode('cache_pool')
+                            ->defaultValue('cache.app')
+                            ->cannotBeEmpty()
                         ->end()
-                        ->scalarNode('user_checker')
-                            ->info('Explicit Symfony user checker service id run by the default authenticator; wins over firewall. Null resolves security.user_checker.<firewall> (see firewall), falling back to the UserCheckerInterface alias when no firewall with security is configured.')
-                            ->defaultNull()
-                        ->end()
-                        ->arrayNode('cors_allowed_origins')
-                            ->info('Allowed CORS origins. Empty allows any chrome-extension:// and moz-extension:// origin. When set, only the listed origins are allowed. Wildcard "*" is development-only and is rejected in prod.')
-                            ->scalarPrototype()->end()
-                            ->defaultValue([])
-                        ->end()
-                        ->arrayNode('login_rate_limit')
-                            ->info('Brute-force protection for extension login (cache-backed).')
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `routes` section.
+     */
+    private function addBrowserExtensionRoutesSection(ArrayNodeDefinition $browserExtension): void
+    {
+        $browserExtension
+            ->children()
+                ->arrayNode('routes')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->arrayNode('login')
                             ->addDefaultsIfNotSet()
                             ->children()
-                                ->booleanNode('enabled')
-                                    ->defaultTrue()
-                                ->end()
-                                ->integerNode('max_attempts')
-                                    ->defaultValue(5)
-                                    ->min(1)
-                                ->end()
-                                ->integerNode('max_attempts_per_ip')
-                                    ->info('Failed logins from one client IP across all usernames before lockout (credential stuffing). 0 disables the per-IP bucket.')
-                                    ->defaultValue(20)
-                                    ->min(0)
-                                ->end()
-                                ->integerNode('interval_seconds')
-                                    ->info('Lockout window in seconds after max_attempts failed logins.')
-                                    ->defaultValue(900)
-                                    ->min(60)
-                                ->end()
-                                ->scalarNode('cache_pool')
-                                    ->defaultValue('cache.app')
-                                    ->cannotBeEmpty()
-                                ->end()
+                                ->scalarNode('path')->defaultValue('/api/vault/extension/login')->end()
+                                ->scalarNode('name')->defaultValue('nowo_vault_extension_login')->end()
                             ->end()
                         ->end()
-                        ->arrayNode('routes')
+                        ->arrayNode('logins')
                             ->addDefaultsIfNotSet()
                             ->children()
-                                ->arrayNode('login')
-                                    ->addDefaultsIfNotSet()
-                                    ->children()
-                                        ->scalarNode('path')->defaultValue('/api/vault/extension/login')->end()
-                                        ->scalarNode('name')->defaultValue('nowo_vault_extension_login')->end()
-                                    ->end()
-                                ->end()
-                                ->arrayNode('logins')
-                                    ->addDefaultsIfNotSet()
-                                    ->children()
-                                        ->scalarNode('path')->defaultValue('/api/vault/extension/logins')->end()
-                                        ->scalarNode('name')->defaultValue('nowo_vault_extension_logins')->end()
-                                    ->end()
-                                ->end()
-                                ->arrayNode('logout')
-                                    ->addDefaultsIfNotSet()
-                                    ->children()
-                                        ->scalarNode('path')->defaultValue('/api/vault/extension/logout')->end()
-                                        ->scalarNode('name')->defaultValue('nowo_vault_extension_logout')->end()
-                                    ->end()
-                                ->end()
-                                ->arrayNode('me')
-                                    ->addDefaultsIfNotSet()
-                                    ->children()
-                                        ->scalarNode('path')->defaultValue('/api/vault/extension/me')->end()
-                                        ->scalarNode('name')->defaultValue('nowo_vault_extension_me')->end()
-                                    ->end()
-                                ->end()
+                                ->scalarNode('path')->defaultValue('/api/vault/extension/logins')->end()
+                                ->scalarNode('name')->defaultValue('nowo_vault_extension_logins')->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('logout')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->scalarNode('path')->defaultValue('/api/vault/extension/logout')->end()
+                                ->scalarNode('name')->defaultValue('nowo_vault_extension_logout')->end()
+                            ->end()
+                        ->end()
+                        ->arrayNode('me')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->scalarNode('path')->defaultValue('/api/vault/extension/me')->end()
+                                ->scalarNode('name')->defaultValue('nowo_vault_extension_me')->end()
                             ->end()
                         ->end()
                     ->end()
                 ->end()
+            ->end();
+    }
+
+    /**
+     * Adds the `browser_extension` section; its large children have their own methods.
+     */
+    private function addBrowserExtensionSection(ArrayNodeDefinition $rootNode): void
+    {
+        $browserExtension = $rootNode->children()->arrayNode('browser_extension');
+        $browserExtension
+            ->info('Chrome/Brave browser extension API (Bearer token auth).')
+            ->addDefaultsIfNotSet();
+        $this->addBrowserExtensionEnabledToLoginRateLimitSections($browserExtension);
+        $this->addBrowserExtensionRoutesSection($browserExtension);
+    }
+
+    /**
+     * Adds the `firewall` section.
+     */
+    private function addFirewallSection(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
                 ->scalarNode('firewall')
                     ->defaultValue('main')
                 ->end()
             ->end();
-
-        return $treeBuilder;
     }
 
     /**
