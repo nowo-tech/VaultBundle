@@ -148,7 +148,7 @@ final readonly class VaultPages
         }
 
         $template = $this->twig->load($legacy);
-        $context  = $this->twig->mergeGlobals([]);
+        $context  = $this->twig->getGlobals();
         $blocks   = [];
         foreach (self::LEGACY_HOST_BLOCKS as $block) {
             if ($template->hasBlock($block, $context)) {
@@ -169,7 +169,7 @@ final readonly class VaultPages
         }
 
         try {
-            $canonical = $this->twig->load($layout)->hasBlock(self::CANONICAL_BLOCK, $this->twig->mergeGlobals([]));
+            $canonical = $this->twig->load($layout)->hasBlock(self::CANONICAL_BLOCK, $this->twig->getGlobals());
         } catch (Throwable) {
             return null;
         }

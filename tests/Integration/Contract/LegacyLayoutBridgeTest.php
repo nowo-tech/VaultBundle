@@ -14,11 +14,13 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Twig\Environment;
 
+use function implode;
 use function restore_error_handler;
 use function set_error_handler;
 use function str_contains;
 use function substr_count;
 
+use const E_DEPRECATED;
 use const E_USER_DEPRECATED;
 
 /**
@@ -125,6 +127,36 @@ final class LegacyLayoutBridgeTest extends TestCase
         self::assertNull((new VaultPages(''))->layout());
         self::assertNull((new VaultPages())->layout());
         self::assertSame(['key' => 'k', 'domain' => VaultPages::DOMAIN, 'params' => ['%n%' => 1]], (array) VaultPages::label('k', ['%n%' => 1]));
+    }
+
+    /**
+     * Twig 3.14 deprecated Environment::mergeGlobals(); the layout probes read the globals with getGlobals() instead
+     * (same context: nothing to merge into an empty context).
+     */
+    public function testProbingTheLayoutRaisesNoTwigDeprecation(): void
+    {
+        $all = [];
+        set_error_handler(static function (int $level, string $message) use (&$all): bool {
+            $all[] = $message;
+
+            return true;
+        }, E_USER_DEPRECATED | E_DEPRECATED);
+
+        try {
+            $legacy = new VaultPages('legacy/with-flashes.html.twig', $this->twig());
+            $legacy->layout();
+            $blocks = $legacy->context([])['nowo_vault_legacy_blocks'];
+            (new VaultPages('canonical.html.twig', $this->twig()))->layout();
+        } finally {
+            restore_error_handler();
+        }
+
+        self::assertSame(['nowo_ui_flashes'], $blocks);
+        foreach ($all as $message) {
+            self::assertStringNotContainsString('mergeGlobals', $message);
+        }
+        self::assertCount(1, $all, 'Only the bundle bridge deprecation of the 1.x layout is raised: ' . implode("\n", $all));
+        self::assertStringContainsString('UiKit canonical blocks', $all[0]);
     }
 
     /**

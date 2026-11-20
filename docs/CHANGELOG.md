@@ -58,6 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- No more Twig deprecation: the legacy-layout probes of `VaultPages` called `Twig\Environment::mergeGlobals()` (deprecated since twig/twig 3.14); they read the globals with `getGlobals()`, which gives the same context for the empty array they passed, on every Twig version the constraint allows. A test asserts that probing a layout raises only the bundle's own bridge deprecation.
+
 ## [1.21.1] - 2026-11-20
 
 ### Changed
