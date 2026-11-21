@@ -45,6 +45,9 @@ final readonly class VaultItemUpdater
      *
      * @param array<string, mixed> $payload
      * @param object|null $actor the user making the change (ITEM_CHANGED actor id)
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultItemCommandsInterface::update()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function update(VaultItem $item, string $title, array $payload, ?VaultFolder $folder = null, ?object $actor = null): VaultItem
     {
@@ -65,6 +68,28 @@ final readonly class VaultItemUpdater
         if ($moved) {
             $this->dispatch($actorId, $item, VaultItemChangeEvent::KIND_MOVED, false, $now);
         }
+
+        return $item;
+    }
+
+    /**
+     * Moves an item to another folder of its owner (null: no folder) without touching its content (2.1.0, for
+     * {@see VaultItemCommandsInterface::move()}): emits ITEM_CHANGED `moved` when the folder changed. The caller checks
+     * that the folder belongs to the item's owner.
+     *
+     * @param object|null $actor the user making the change (ITEM_CHANGED actor id)
+     *
+     * @internal host code calls {@see VaultItemCommandsInterface::move()}
+     */
+    public function move(VaultItem $item, ?VaultFolder $folder, ?object $actor = null): VaultItem
+    {
+        if ($item->getFolder()?->getId() === $folder?->getId()) {
+            return $item;
+        }
+
+        $item->setFolder($folder);
+        $this->itemRepository->save($item);
+        $this->dispatch($actor !== null ? UserIdResolver::getId($actor) : null, $item, VaultItemChangeEvent::KIND_MOVED, false, $this->clock?->now() ?? new DateTimeImmutable());
 
         return $item;
     }

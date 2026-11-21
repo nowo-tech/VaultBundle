@@ -38,6 +38,7 @@ use Nowo\VaultBundle\EventListener\VaultUserGateListener;
 use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
+use Nowo\VaultBundle\Internal\DeferredVaultEventBoundaryListener;
 use Nowo\VaultBundle\Internal\DeferredVaultEventDispatcher;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultFolderRepository;
@@ -65,16 +66,28 @@ use Nowo\VaultBundle\Security\VaultReauthProofValidator;
 use Nowo\VaultBundle\Security\VaultRevealRateLimiter;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
+use Nowo\VaultBundle\Service\VaultAccessCheckInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultCatalogue;
+use Nowo\VaultBundle\Service\VaultFolderCommands;
+use Nowo\VaultBundle\Service\VaultFolderCommandsInterface;
 use Nowo\VaultBundle\Service\VaultFolderService;
+use Nowo\VaultBundle\Service\VaultGrantCommands;
+use Nowo\VaultBundle\Service\VaultGrantCommandsInterface;
 use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
+use Nowo\VaultBundle\Service\VaultIdAccessChecker;
+use Nowo\VaultBundle\Service\VaultItemCommands;
+use Nowo\VaultBundle\Service\VaultItemCommandsInterface;
 use Nowo\VaultBundle\Service\VaultItemCreator;
+use Nowo\VaultBundle\Service\VaultItemQuery;
+use Nowo\VaultBundle\Service\VaultItemQueryInterface;
 use Nowo\VaultBundle\Service\VaultItemUpdater;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
+use Nowo\VaultBundle\Service\VaultTagCommands;
+use Nowo\VaultBundle\Service\VaultTagCommandsInterface;
 use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Support\DoctrineVaultUserReferenceResolver;
@@ -291,7 +304,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             }
         }
 
-        $this->registerWriteUnit($container, $emRef);
+        $this->registerWriteUnit($container, $emRef, (bool) $config['events']['after_host_commit']);
+        $this->registerHostPorts($container, $emRef);
         $this->registerSearchKit($config['search_kit'], (bool) $config['scopes']['enabled'], $container, $emRef, $registryRef, $emName);
         $this->registerConflictAnswer($container, $config['conflict_response']);
 
@@ -573,10 +587,31 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
      * the vault's private manager) and the dispatcher of the write services, which holds their change notifications
      * until the unit has committed ({@see DeferredVaultEventDispatcher}).
      */
-    private function registerWriteUnit(ContainerBuilder $container, Reference $emRef): void
+    private function registerWriteUnit(ContainerBuilder $container, Reference $emRef, bool $afterHostCommit): void
     {
-        $container->setDefinition(DeferredVaultEventDispatcher::class, (new Definition(DeferredVaultEventDispatcher::class, [new Reference('event_dispatcher')]))
+        // 2.1.0 (B4, opt-in `events.after_host_commit`): with the connection hook (doctrine/dbal 4) the notifications
+        // also wait for the application's commit; the connection of the private manager reports it
+        // (PrivateEntityManagerMiddleware). Off (the default until 3.0): the 2.0 timing.
+        $hook = $afterHostCommit && PrivateEntityManagerPass::supportsRollbackMiddleware();
+        $container->setDefinition(DeferredVaultEventDispatcher::class, (new Definition(DeferredVaultEventDispatcher::class, [
+            new Reference('event_dispatcher'),
+            $hook ? new Reference(VaultEntityManager::class) : null,
+            new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+        ]))
             ->addTag('kernel.reset', ['method' => 'reset']));
+        $boundary = $container->setDefinition(DeferredVaultEventBoundaryListener::class, (new Definition(DeferredVaultEventBoundaryListener::class, [
+            new IteratorArgument([new Reference(DeferredVaultEventDispatcher::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE)]),
+        ]))
+            ->addTag('kernel.event_listener', ['event' => 'kernel.request', 'method' => 'onKernelRequest', 'priority' => 2048])
+            ->addTag('kernel.event_listener', ['event' => 'kernel.finish_request', 'method' => 'onFinishRequest', 'priority' => -2048])
+            ->addTag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => 'onBoundary', 'priority' => -2048])
+            ->addTag('kernel.event_listener', ['event' => 'console.terminate', 'method' => 'onBoundary', 'priority' => -2048]));
+        foreach ([VaultRequestBoundaryListener::WORKER_MESSAGE_HANDLED, VaultRequestBoundaryListener::WORKER_MESSAGE_FAILED] as $event) {
+            $boundary->addTag('kernel.event_listener', ['event' => $event, 'method' => 'onBoundary', 'priority' => -2048]);
+        }
+        if ($hook && $container->hasDefinition(PrivateEntityManagerMiddleware::class)) {
+            $container->getDefinition(PrivateEntityManagerMiddleware::class)->setArgument(1, new Reference(DeferredVaultEventDispatcher::class));
+        }
         $container->setDefinition(VaultWriteUnit::class, new Definition(VaultWriteUnit::class, [
             $emRef,
             new Reference(DeferredVaultEventDispatcher::class),
@@ -587,6 +622,28 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             if ($container->hasDefinition($service)) {
                 $container->getDefinition($service)->setArgument('$eventDispatcher', new Reference(DeferredVaultEventDispatcher::class));
             }
+        }
+    }
+
+    /**
+     * 2.1.0 (DDD-host checklist B1, B7, B8): the id-based host ports. Their implementations read on the vault's private
+     * manager (never the application's, which autowiring would pick).
+     */
+    private function registerHostPorts(ContainerBuilder $container, Reference $emRef): void
+    {
+        foreach ([
+            VaultItemQuery::class       => VaultItemQueryInterface::class,
+            VaultIdAccessChecker::class => VaultAccessCheckInterface::class,
+            VaultItemCommands::class    => VaultItemCommandsInterface::class,
+            VaultFolderCommands::class  => VaultFolderCommandsInterface::class,
+            VaultGrantCommands::class   => VaultGrantCommandsInterface::class,
+            VaultTagCommands::class     => VaultTagCommandsInterface::class,
+        ] as $class => $interface) {
+            $definition = $container->getDefinition($class);
+            if ($class !== VaultTagCommands::class) {
+                $definition->setArgument('$entityManager', $emRef);
+            }
+            $container->setAlias($interface, $class);
         }
     }
 

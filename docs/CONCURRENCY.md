@@ -32,15 +32,24 @@ residual risks.
   own savepoint (`VaultSavepoint`, 1.19).
 - **Notifications after the commit.** The change events of the vault (`ITEM_CHANGED`, `FOLDER_CHANGED`,
   `TAG_CHANGED`, `GRANT_*`) dispatched during a unit are held until the unit has committed, and dropped when it fails
-  (`DeferredVaultEventDispatcher`). The check and veto events (access checks, list queries, grant policy) are
-  dispatched at once, since their listeners answer the vault.
+  (`DeferredVaultEventDispatcher`). With `events.after_host_commit: true` (2.1.0 opt-in, default from 3.0), inside an application transaction (where the unit is a savepoint)
+  they wait for the application's outermost commit, follow its released and rolled-back savepoints, are dropped when
+  it rolls back, and are dispatched at the next idle point (never inside the commit call). doctrine/dbal 4 only (the
+  private manager's connection hook); with the option off, or DBAL 3, they are released when the unit ends. A listener exception of a released event is logged,
+  not rethrown (the data is committed); held events wait in a long loop until it goes idle; the next main request
+  starts empty. The check and veto events
+  (access checks, list queries, grant policy) are dispatched at once, since their listeners answer the vault.
 - **Exact keys.** Owner, creator, grantee and scope ids compare byte for byte (binary collation with
   `user_mapping: id`, post-filters on the secret, GDPR and token paths; REQ-SEC-006 / LQ rule since 1.17 and 1.19.3).
+- **Host commands lock their row.** The 2.1 command ports read the item or folder with `SELECT … FOR UPDATE` inside
+  their unit: a concurrent change waits, and a row purged meanwhile is refused (`VaultAccessDeniedException`), never
+  written as zero rows nor announced by an event (audit YF-L1; two-connection tests on MySQL, MariaDB, PostgreSQL).
 - **No I/O under a lock.** The only lock the vault takes is the item row lock of an edit (`SELECT … FOR UPDATE`),
   held while the payload is decrypted, encrypted and written; no HTTP call, mail or file is involved (an uploaded
   attachment is already in memory).
 - **FrankenPHP worker mode with kernel reset off.** The write unit is stateless; the deferred dispatcher's queue lives
-  only for one unit (and is emptied at `kernel.reset`); the commit ledger of the conflict answer is a monotonic counter
+  only for one unit, and what it holds for an application transaction is released or dropped at the end of every
+  request, message and command and emptied at the start of the next main request (and at `kernel.reset`); the commit ledger of the conflict answer is a monotonic counter
   of the process, read by difference only.
 
 ## Write paths

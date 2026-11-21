@@ -13,11 +13,17 @@ use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
 use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
+use Nowo\VaultBundle\Service\VaultAccessCheckInterface;
+use Nowo\VaultBundle\Service\VaultFolderCommandsInterface;
+use Nowo\VaultBundle\Service\VaultGrantCommandsInterface;
 use Nowo\VaultBundle\Service\VaultHealthReportProviderInterface;
+use Nowo\VaultBundle\Service\VaultItemCommandsInterface;
+use Nowo\VaultBundle\Service\VaultItemQueryInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporterInterface;
+use Nowo\VaultBundle\Service\VaultTagCommandsInterface;
 use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Entity\User;
@@ -66,6 +72,7 @@ use const PHP_VERSION_ID;
  * - `_worker`: the services resetter is replaced by a no-op (FrankenPHP worker mode with the resetter bypassed);
  * - `_db`: the database server of VAULT_TEST_DATABASE_URL instead of a SQLite file;
  * - `_404`: `security.deny_status: 404`;
+ * - `_ahc`: `events.after_host_commit: true` (2.1.0, opt-in);
  * - 2.0 removed paths, each of which must fail the build: `_rmchecker` (`security.access_checker` names a class that
  *   still implements the removed access port), `_rmalias` (the application aliases the removed user locator id),
  *   `_rmaccess` / `_rmlocator` / `_rmscope` (application classes that still implement a removed port, registered by
@@ -101,6 +108,8 @@ final class VariantKernel extends BaseKernel
 
     private readonly int $denyStatus;
 
+    private readonly bool $afterHostCommit;
+
     private readonly ?string $removed;
 
     /** @var array{0: string, 1: string}|null [mode, port] of a `_compat<mode><port>` variant */
@@ -117,6 +126,7 @@ final class VariantKernel extends BaseKernel
         $this->worker                    = in_array('worker', $parts, true);
         $this->server                    = in_array('db', $parts, true);
         $this->denyStatus                = in_array('404', $parts, true) ? 404 : 403;
+        $this->afterHostCommit           = in_array('ahc', $parts, true);
         $removed                         = array_values(array_intersect($parts, ['rmchecker', 'rmalias', 'rmaccess', 'rmlocator', 'rmscope', 'pemfalse']));
         $this->removed                   = $removed[0] ?? null;
         $compat                          = null;
@@ -153,8 +163,9 @@ final class VariantKernel extends BaseKernel
         $deny    = $this->denyStatus;
         $removed = $this->removed;
         $compat  = $this->compat;
+        $ahc     = $this->afterHostCommit;
         $url     = $this->server ? '%env(VAULT_TEST_DATABASE_URL)%' : 'sqlite:///%kernel.cache_dir%/variant.db';
-        $loader->load(static function (ContainerBuilder $container) use ($byId, $xml, $ports, $worker, $url, $deny, $removed, $compat): void {
+        $loader->load(static function (ContainerBuilder $container) use ($byId, $xml, $ports, $worker, $url, $deny, $removed, $compat, $ahc): void {
             $orm = ['naming_strategy' => 'doctrine.orm.naming_strategy.underscore_number_aware'] + (PHP_VERSION_ID >= 80400 ? ['enable_native_lazy_objects' => true] : []);
             if (!$byId) {
                 $orm['mappings'] = ['TestUser' => ['type' => 'attribute', 'dir' => '%kernel.project_dir%/Entity', 'prefix' => 'Nowo\\VaultBundle\\Tests\\App\\Entity', 'is_bundle' => false]];
@@ -176,6 +187,7 @@ final class VariantKernel extends BaseKernel
                 'database'       => ['mapping_type' => $xml ? 'xml' : 'attribute'],
                 'security'       => ['deny_status' => $deny, 'allow_unlisted_grantees' => true, 'access_roles' => ['ROLE_USER'], 'create_roles' => ['ROLE_USER'], 'list_roles' => ['ROLE_USER'], 'delete_roles' => ['ROLE_USER']],
                 'scopes'         => ['enabled' => true, 'access_resolver' => 'app.vault_ports'],
+                'events'         => ['after_host_commit' => $ahc],
             ];
             $container->register('app.vault_ports', PolicyHostPorts::class)->setPublic(true);
             if ($ports !== 'builtin') {
@@ -240,7 +252,12 @@ final class VariantKernel extends BaseKernel
             $container->setAlias('test.personal_data_exporter', VaultPersonalDataExporter::class)->setPublic(true);
             $container->setAlias('test.personal_data_eraser', VaultPersonalDataEraser::class)->setPublic(true);
             // The 1.19 ports a host calls, reachable by the tests.
-            foreach ([VaultPersonalDataEraserInterface::class, VaultPersonalDataExporterInterface::class, VaultHealthReportProviderInterface::class] as $port) {
+            foreach ([
+                VaultPersonalDataEraserInterface::class, VaultPersonalDataExporterInterface::class, VaultHealthReportProviderInterface::class,
+                // 2.1.0 host ports (ids and VaultUserRef).
+                VaultItemCommandsInterface::class, VaultFolderCommandsInterface::class, VaultGrantCommandsInterface::class,
+                VaultTagCommandsInterface::class, VaultItemQueryInterface::class, VaultAccessCheckInterface::class,
+            ] as $port) {
                 $container->setAlias('test.port.' . $port, $port)->setPublic(true);
             }
             if ($ports === 'new') {

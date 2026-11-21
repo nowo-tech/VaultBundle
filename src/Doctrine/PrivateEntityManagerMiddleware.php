@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Doctrine;
 use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\Middleware;
 use Nowo\VaultBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
+use Nowo\VaultBundle\Internal\DeferredVaultEventDispatcher;
 
 /**
  * DBAL middleware on the connection of the private entity manager (1.19.0): tells {@see VaultEntityManager} when a
@@ -24,6 +25,7 @@ final readonly class PrivateEntityManagerMiddleware implements Middleware
      */
     public function __construct(
         private VaultEntityManager $entityManager,
+        private ?DeferredVaultEventDispatcher $events = null,
     ) {
     }
 
@@ -32,6 +34,6 @@ final readonly class PrivateEntityManagerMiddleware implements Middleware
      */
     public function wrap(Driver $driver): Driver
     {
-        return new PrivateEntityManagerDriver($driver, $this->entityManager);
+        return new PrivateEntityManagerDriver($driver, $this->entityManager, $this->events);
     }
 }

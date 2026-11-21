@@ -8,6 +8,7 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 - [Host users (1.17.0)](#host-users-1170)
 - [Database](#database)
 - [Conflict answers (`conflict_response`)](#conflict-answers-conflict_response)
+- [Event timing (`events`)](#event-timing-events)
 - [Sharing (`sharing`)](#sharing-sharing)
 - [Security](#security)
 - [Teams](#teams)
@@ -93,6 +94,22 @@ nowo_vault:
     conflict_response:
         status: 503        # keep a 503 for lock conflicts (default 409)
         retry_after: 2
+```
+
+## Event timing (`events`)
+
+2.1.0 (REQ-ARCH-001 rule 7, opt-in). The change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`)
+always leave after the vault's own commit. This option decides what happens inside a transaction **your** code opened
+on the vault's connection, where the vault's unit is only a savepoint.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `events.after_host_commit` | `false` | `false`: the 2.0 timing, the events leave when the vault's unit ends (before your commit). `true`: they wait for your outermost commit, follow your savepoints, are dropped when you roll back, and are dispatched at the next idle point (the next vault change outside a transaction, or the end of the request, Messenger message or console command), never inside the commit call. doctrine/dbal 4 only (DBAL 3: no effect). **The default becomes `true` in 3.0.** |
+
+```yaml
+nowo_vault:
+    events:
+        after_host_commit: true
 ```
 
 ## Sharing (`sharing`)

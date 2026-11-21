@@ -65,6 +65,9 @@ final readonly class VaultTagService
      * item's owner: the creator's tags for a personal item, the scope's tags for a scope item (1.16.0).
      *
      * @param list<string> $tagNames
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultItemCommandsInterface::retag()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function syncItemTags(VaultItem $item, object $creator, array $tagNames): void
     {
@@ -136,6 +139,9 @@ final readonly class VaultTagService
 
     /**
      * Deletes a tag owned by the creator. Items keep their other tags; this label is removed from them.
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultTagCommandsInterface::delete()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function deleteForCreator(object $creator, string $tagId): void
     {

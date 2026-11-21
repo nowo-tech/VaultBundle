@@ -45,6 +45,9 @@ final readonly class VaultTrashService
 
     /**
      * Soft-deletes an item.
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultItemCommandsInterface::moveToTrash()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function moveItemToTrash(VaultItem $item, ?object $actor = null): void
     {
@@ -55,6 +58,9 @@ final readonly class VaultTrashService
 
     /**
      * Restores a soft-deleted item.
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultItemCommandsInterface::restore()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function restoreItem(VaultItem $item, ?object $actor = null): void
     {
@@ -65,6 +71,9 @@ final readonly class VaultTrashService
 
     /**
      * Permanently deletes an item (and, since 1.16.0, its grants in the same transaction).
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultItemCommandsInterface::purge()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function purgeItem(VaultItem $item, ?object $actor = null): void
     {
@@ -81,6 +90,9 @@ final readonly class VaultTrashService
 
     /**
      * Soft-deletes a folder after detaching its active items; returns how many were detached.
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultFolderCommandsInterface::moveToTrash()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function moveFolderToTrash(VaultFolder $folder): int
     {
@@ -94,6 +106,9 @@ final readonly class VaultTrashService
 
     /**
      * Restores a soft-deleted folder.
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultFolderCommandsInterface::restore()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function restoreFolder(VaultFolder $folder): void
     {
@@ -104,6 +119,9 @@ final readonly class VaultTrashService
 
     /**
      * Permanently deletes a folder (and, since 1.16.0, its grants in the same transaction).
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultFolderCommandsInterface::purge()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function purgeFolder(VaultFolder $folder): void
     {

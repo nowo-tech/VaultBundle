@@ -42,6 +42,9 @@ final readonly class VaultItemCreator
      * Encrypts the payload and persists a new personal item.
      *
      * @param array<string, mixed> $payload
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultItemCommandsInterface::create()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function create(
         VaultItemType $type,
@@ -66,6 +69,9 @@ final readonly class VaultItemCreator
      *
      * @throws VaultAccessDeniedException when the actor may not create in the scope
      * @throws VaultOwnerException when the folder belongs to another owner (or is trashed)
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultItemCommandsInterface::createInScope()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function createInScope(
         UserInterface $actor,

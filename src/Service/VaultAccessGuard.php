@@ -56,6 +56,9 @@ final readonly class VaultAccessGuard
 
     /**
      * Whether the user may perform the action on the item (ownership, grants and access-check listeners).
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultAccessCheckInterface::canAccessItem()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function canAccessItem(UserInterface $user, VaultItem $item, VaultAccessAction $action): bool
     {
@@ -84,6 +87,9 @@ final readonly class VaultAccessGuard
 
     /**
      * Whether the user may perform the action on the folder (ownership, grants and access-check listeners).
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultAccessCheckInterface::canAccessFolder()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function canAccessFolder(UserInterface $user, VaultFolder $folder, VaultAccessAction $action): bool
     {
@@ -105,6 +111,9 @@ final readonly class VaultAccessGuard
 
     /**
      * Whether listeners mark the item read-only for the user.
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultAccessCheckInterface::isItemReadOnly()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function isItemReadOnly(UserInterface $user, VaultItem $item): bool
     {
@@ -143,6 +152,9 @@ final readonly class VaultAccessGuard
      * @param list<VaultItem> $items
      *
      * @return array<string, VaultPermission|null> item id => effective permission (null = no access)
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultAccessCheckInterface::itemPermissions()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function resolvePermissionMap(UserInterface $user, array $items): array
     {
@@ -226,6 +238,9 @@ final readonly class VaultAccessGuard
 
     /**
      * The user's standing in a scope for this request (null: not a member, or scopes are off).
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultAccessCheckInterface::scopeAccess()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function resolveScopeAccess(UserInterface $user, string $scope): ?VaultScopeAccess
     {

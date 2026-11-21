@@ -18,6 +18,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\EventListener\VaultUnitOfWorkSubscriber;
+use Nowo\VaultBundle\Internal\VaultTransactionLevelInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Service\ResetInterface;
 use Throwable;
@@ -59,7 +60,7 @@ use function sprintf;
  *
  * @internal
  */
-final class VaultEntityManager extends EntityManagerDecorator implements ResetInterface
+final class VaultEntityManager extends EntityManagerDecorator implements ResetInterface, VaultTransactionLevelInterface
 {
     private ?EntityManagerInterface $current = null;
 
@@ -147,6 +148,15 @@ final class VaultEntityManager extends EntityManagerDecorator implements ResetIn
     public function isStale(): bool
     {
         return $this->stale;
+    }
+
+    /**
+     * The transaction nesting level of the vault's connection (2.1.0): read from the source manager's connection, so it
+     * never creates the private manager.
+     */
+    public function transactionLevel(): int
+    {
+        return $this->source()->getConnection()->getTransactionNestingLevel();
     }
 
     /**
