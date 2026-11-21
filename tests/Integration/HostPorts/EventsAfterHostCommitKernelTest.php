@@ -43,10 +43,6 @@ final class EventsAfterHostCommitKernelTest extends KernelTestCase
 
     protected function setUp(): void
     {
-        if (!PrivateEntityManagerPass::supportsRollbackMiddleware()) {
-            self::markTestSkipped('The connection hook needs doctrine/dbal 4.');
-        }
-
         $this->bootVariant('private_relation_new');
         $dispatcher = $this->container->get('event_dispatcher');
         assert($dispatcher instanceof EventDispatcherInterface);
@@ -61,6 +57,12 @@ final class EventsAfterHostCommitKernelTest extends KernelTestCase
     #[Test]
     public function notificationsWaitForTheApplicationsCommitAndRunOutsideIt(): void
     {
+        if (!PrivateEntityManagerPass::supportsRollbackMiddleware()) {
+            $this->assertTheDbal3Behaviour();
+
+            return;
+        }
+
         $connection = $this->connection();
         $connection->beginTransaction();
         $this->items()->create($this->ref('alice'), VaultItemType::Login, 'In host transaction', self::PAYLOAD);
@@ -78,6 +80,12 @@ final class EventsAfterHostCommitKernelTest extends KernelTestCase
     #[Test]
     public function aRollbackDropsThemAndTheBoundaryReleasesCommittedOnes(): void
     {
+        if (!PrivateEntityManagerPass::supportsRollbackMiddleware()) {
+            $this->assertTheDbal3Behaviour();
+
+            return;
+        }
+
         $connection = $this->connection();
         $connection->beginTransaction();
         $this->items()->create($this->ref('alice'), VaultItemType::Login, 'Rolled back', self::PAYLOAD);
@@ -95,6 +103,12 @@ final class EventsAfterHostCommitKernelTest extends KernelTestCase
     #[Test]
     public function savepointsOfTheApplicationAreFollowed(): void
     {
+        if (!PrivateEntityManagerPass::supportsRollbackMiddleware()) {
+            $this->assertTheDbal3Behaviour();
+
+            return;
+        }
+
         $connection = $this->connection();
         $connection->beginTransaction();
         $connection->beginTransaction();
@@ -113,6 +127,12 @@ final class EventsAfterHostCommitKernelTest extends KernelTestCase
     #[Test]
     public function aBoundaryDropsWhatNeverCommitted(): void
     {
+        if (!PrivateEntityManagerPass::supportsRollbackMiddleware()) {
+            $this->assertTheDbal3Behaviour();
+
+            return;
+        }
+
         $connection = $this->connection();
         $connection->beginTransaction();
         $this->items()->create($this->ref('alice'), VaultItemType::Login, 'Open', self::PAYLOAD);
@@ -121,6 +141,21 @@ final class EventsAfterHostCommitKernelTest extends KernelTestCase
         $this->boundary();
 
         self::assertSame([], $this->seen, 'a transaction still open at the boundary never reaches the next request');
+    }
+
+    /**
+     * doctrine/dbal 3 (no connection hook): the 2.0 behaviour, the notifications leave when the vault's unit ends, even
+     * inside the application's transaction (the database CI jobs run with --fail-on-skipped, so this is asserted, not
+     * skipped).
+     */
+    private function assertTheDbal3Behaviour(): void
+    {
+        $connection = $this->connection();
+        $connection->beginTransaction();
+        $this->items()->create($this->ref('alice'), VaultItemType::Login, 'DBAL 3', self::PAYLOAD);
+        $connection->rollBack();
+
+        self::assertSame(['item:created:1'], $this->seen);
     }
 
     private function boundary(): void
