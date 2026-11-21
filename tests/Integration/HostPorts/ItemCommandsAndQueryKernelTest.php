@@ -13,6 +13,7 @@ use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultItemChangedException;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
+use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
 use Nowo\VaultBundle\Tests\App\VariantKernel;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Nowo\VaultBundle\View\VaultItemView;
@@ -24,6 +25,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use function array_fill;
 use function array_keys;
 use function array_map;
+use function assert;
 use function str_repeat;
 
 /**
@@ -78,7 +80,7 @@ final class ItemCommandsAndQueryKernelTest extends KernelTestCase
         // Optimistic save with the edit token; a stale token is refused and nothing is written.
         $updated = $this->items()->update($alice, $item->id, 'Mail 2', self::PAYLOAD, $item->editToken);
         self::assertSame('Mail 2', $updated->title);
-        $this->assertThrows(VaultItemChangedException::class, fn () => $this->items()->update($alice, $item->id, 'Lost', self::PAYLOAD, $item->editToken));
+        $this->assertThrows(VaultItemChangedException::class, fn (): VaultItemView => $this->items()->update($alice, $item->id, 'Lost', self::PAYLOAD, $item->editToken));
         self::assertSame('Mail 2', $this->query()->findById($item->id)?->title);
         self::assertSame('Mail 3', $this->items()->update($alice, $item->id, 'Mail 3', self::PAYLOAD)->title);
 
@@ -107,6 +109,11 @@ final class ItemCommandsAndQueryKernelTest extends KernelTestCase
         self::assertSame(['Note'], $this->titles($this->query()->find($mine->withoutFolder())->items));
         self::assertSame(['Note'], $this->titles($this->query()->find($mine->withType(VaultItemType::SecureNote))->items));
         self::assertSame(['Mail 3'], $this->titles($this->query()->find($mine->withTitleContaining('AIL'))->items));
+        $tags = $this->container->get(VaultTagRepositoryInterface::class);
+        assert($tags instanceof VaultTagRepositoryInterface);
+        $beta = $tags->findOneByCreatorAndName($this->users['alice'], 'beta');
+        self::assertNotNull($beta);
+        self::assertSame(['Mail 3'], $this->titles($this->query()->find($mine->withTag($beta->getId()))->items));
         self::assertSame(1, $this->query()->count($mine->withTitle('Mail 3')));
         self::assertSame(['Mail 3'], $this->titles($this->query()->find($mine->withTitle('Mail 3'))->items));
         self::assertSame(0, $this->query()->count($mine->withTitle('mail 3')), 'exact title, byte for byte');
@@ -130,6 +137,7 @@ final class ItemCommandsAndQueryKernelTest extends KernelTestCase
 
         // Trash, restore, purge.
         self::assertTrue($this->items()->moveToTrash($alice, $item->id)->isTrashed());
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultItemView => $this->items()->update($alice, $item->id, 'x', self::PAYLOAD), 'a trashed item is not edited');
         self::assertFalse($this->access()->canAccessItem($alice, $item->id, VaultAccessAction::View), 'a trashed item is only reachable to restore or purge');
         self::assertTrue($this->access()->canAccessItem($alice, $item->id, VaultAccessAction::Restore));
         self::assertSame(['Note'], $this->titles($this->query()->find($mine)->items));
@@ -153,27 +161,27 @@ final class ItemCommandsAndQueryKernelTest extends KernelTestCase
         $bobs  = $this->folders()->create($bob, 'Bob folder');
 
         $denied = [
-            'unknown actor'         => fn () => $this->items()->create(VaultUserRef::ofId('nobody'), VaultItemType::Login, 'x', self::PAYLOAD),
-            'unknown item'          => fn () => $this->items()->update($alice, 'missing', 'x', self::PAYLOAD),
-            'empty id'              => fn () => $this->items()->moveToTrash($alice, ''),
-            'no access'             => fn () => $this->items()->update($bob, $item->id, 'x', self::PAYLOAD),
-            'not the organiser'     => fn () => $this->items()->retag($bob, $item->id, ['x']),
-            'trash without access'  => fn () => $this->items()->moveToTrash($bob, $item->id),
-            'restore without access'=> fn () => $this->items()->restore($bob, $item->id),
-            'purge without access'  => fn () => $this->items()->purge($bob, $item->id),
-            'scope non-member'      => fn () => $this->items()->createInScope($bob, 'org-1', VaultItemType::Login, 'x', self::PAYLOAD),
+            'unknown actor'          => fn (): VaultItemView => $this->items()->create(VaultUserRef::ofId('nobody'), VaultItemType::Login, 'x', self::PAYLOAD),
+            'unknown item'           => fn (): VaultItemView => $this->items()->update($alice, 'missing', 'x', self::PAYLOAD),
+            'empty id'               => fn (): VaultItemView => $this->items()->moveToTrash($alice, ''),
+            'no access'              => fn (): VaultItemView => $this->items()->update($bob, $item->id, 'x', self::PAYLOAD),
+            'not the organiser'      => fn (): VaultItemView => $this->items()->retag($bob, $item->id, ['x']),
+            'trash without access'   => fn (): VaultItemView => $this->items()->moveToTrash($bob, $item->id),
+            'restore without access' => fn (): VaultItemView => $this->items()->restore($bob, $item->id),
+            'purge without access'   => fn () => $this->items()->purge($bob, $item->id),
+            'scope non-member'       => fn (): VaultItemView => $this->items()->createInScope($bob, 'org-1', VaultItemType::Login, 'x', self::PAYLOAD),
         ];
         foreach ($denied as $case => $call) {
             $this->assertThrows(VaultAccessDeniedException::class, $call, $case);
         }
 
-        $this->assertThrows(VaultOwnerException::class, fn () => $this->items()->create($alice, VaultItemType::Login, 'x', self::PAYLOAD, $bobs->id), 'folder of another user');
-        $this->assertThrows(VaultOwnerException::class, fn () => $this->items()->create($alice, VaultItemType::Login, 'x', self::PAYLOAD, 'missing'), 'unknown folder');
-        $this->assertThrows(VaultOwnerException::class, fn () => $this->items()->move($alice, $item->id, $bobs->id), 'move into a folder of another user');
-        $this->assertThrows(VaultOwnerException::class, fn () => $this->items()->createInScope($alice, 'org-1', VaultItemType::Login, 'x', self::PAYLOAD, 'missing'), 'unknown scope folder');
-        $this->assertThrows(InvalidArgumentException::class, fn () => $this->items()->create($alice, VaultItemType::Login, '  ', self::PAYLOAD), 'blank title');
-        $this->assertThrows(InvalidArgumentException::class, fn () => $this->items()->create($alice, VaultItemType::Login, str_repeat('x', 256), self::PAYLOAD), 'long title');
-        $this->assertThrows(InvalidArgumentException::class, fn () => $this->query()->findByIds(array_fill(0, 501, 'x')), 'too many ids');
+        $this->assertThrows(VaultOwnerException::class, fn (): VaultItemView => $this->items()->create($alice, VaultItemType::Login, 'x', self::PAYLOAD, $bobs->id), 'folder of another user');
+        $this->assertThrows(VaultOwnerException::class, fn (): VaultItemView => $this->items()->create($alice, VaultItemType::Login, 'x', self::PAYLOAD, 'missing'), 'unknown folder');
+        $this->assertThrows(VaultOwnerException::class, fn (): VaultItemView => $this->items()->move($alice, $item->id, $bobs->id), 'move into a folder of another user');
+        $this->assertThrows(VaultOwnerException::class, fn (): VaultItemView => $this->items()->createInScope($alice, 'org-1', VaultItemType::Login, 'x', self::PAYLOAD, 'missing'), 'unknown scope folder');
+        $this->assertThrows(InvalidArgumentException::class, fn (): VaultItemView => $this->items()->create($alice, VaultItemType::Login, '  ', self::PAYLOAD), 'blank title');
+        $this->assertThrows(InvalidArgumentException::class, fn (): VaultItemView => $this->items()->create($alice, VaultItemType::Login, str_repeat('x', 256), self::PAYLOAD), 'long title');
+        $this->assertThrows(InvalidArgumentException::class, fn (): array => $this->query()->findByIds(array_fill(0, 501, 'x')), 'too many ids');
         self::assertSame(1, $this->query()->count(VaultItemCriteria::forUser($this->id('alice'))), 'no refused call wrote anything');
     }
 

@@ -16,7 +16,6 @@ use function array_key_exists;
 use function mb_strlen;
 use function sprintf;
 use function str_starts_with;
-use function strlen;
 use function substr;
 use function trim;
 
@@ -135,7 +134,7 @@ final readonly class VaultItemCriteria
      */
     public function inFolder(?string $folderId): self
     {
-        return $this->copy(['folderId' => self::nonEmpty($folderId), 'withoutFolder' => false]);
+        return $this->copy(['folderId' => $this->nonEmpty($folderId), 'withoutFolder' => false]);
     }
 
     /**
@@ -151,7 +150,7 @@ final readonly class VaultItemCriteria
      */
     public function withTag(?string $tagId): self
     {
-        return $this->copy(['tagId' => self::nonEmpty($tagId)]);
+        return $this->copy(['tagId' => $this->nonEmpty($tagId)]);
     }
 
     /**
@@ -221,8 +220,8 @@ final readonly class VaultItemCriteria
         );
     }
 
-    private static function nonEmpty(?string $value): ?string
+    private function nonEmpty(?string $value): ?string
     {
-        return $value === null || strlen($value) === 0 ? null : $value;
+        return $value === null || $value === '' ? null : $value;
     }
 }

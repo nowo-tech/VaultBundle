@@ -68,6 +68,7 @@ final readonly class VaultItemQuery implements VaultItemQueryInterface
             );
         }
 
+        // @igor-ignore - A query builder built for this call (createQueryBuilder() returns a new one), not shared state.
         $qb->setFirstResult($criteria->offset)->setMaxResults($criteria->limit);
         $paginator = new Paginator($qb->getQuery(), fetchJoinCollection: true);
         /** @var list<VaultItem> $items */

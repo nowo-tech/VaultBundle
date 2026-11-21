@@ -6,13 +6,14 @@ namespace Nowo\VaultBundle\View;
 
 use DateTimeImmutable;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Service\VaultItemCommandsInterface;
 
 /**
  * Read model of one vault item for a host (2.1.0, REQ-ARCH-001 rules 1 and 3): ids, scalars and dates only. It never
  * carries a payload value, the ciphertext or a hash of a secret, and no Doctrine, Symfony or entity type.
  *
  * `editToken` is the item's edit token as it is now (the one the edit page carries): pass it back to
- * {@see \Nowo\VaultBundle\Service\VaultItemCommandsInterface::update()} to refuse a save that would overwrite a change
+ * {@see VaultItemCommandsInterface::update()} to refuse a save that would overwrite a change
  * saved meanwhile (REQ-RUNTIME-003 rule 4).
  */
 final readonly class VaultItemView

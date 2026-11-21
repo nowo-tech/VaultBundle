@@ -219,6 +219,8 @@ final class DeferredVaultEventDispatcher implements EventDispatcherInterface, Re
         $this->queue = [];
         $this->depth = 0;
         $this->dropHeld();
+        // @igor-ignore - Held until the application's commit; dropped on rollback and at every boundary.
+        $this->held = [];
         if ($this->committed !== []) {
             $this->logger?->warning('nowo_vault: dropped {count} committed change notification(s) that were never dispatched.', ['count' => count($this->committed)]);
         }

@@ -40,7 +40,7 @@ final readonly class VaultIdAccessChecker implements VaultAccessCheckInterface
     public function canAccessItem(VaultUserRef $user, string $itemId, VaultAccessAction $action): bool
     {
         $actor = $this->users->resolve($user);
-        $item  = $this->item($itemId, self::reachesTrash($action));
+        $item  = $this->item($itemId, $this->reachesTrash($action));
 
         return $actor instanceof UserInterface && $item instanceof VaultItem && $this->guard->canAccessItem($actor, $item, $action);
     }
@@ -48,7 +48,7 @@ final readonly class VaultIdAccessChecker implements VaultAccessCheckInterface
     public function canAccessFolder(VaultUserRef $user, string $folderId, VaultAccessAction $action): bool
     {
         $actor  = $this->users->resolve($user);
-        $folder = $this->folder($folderId, self::reachesTrash($action));
+        $folder = $this->folder($folderId, $this->reachesTrash($action));
 
         return $actor instanceof UserInterface && $folder instanceof VaultFolder && $this->guard->canAccessFolder($actor, $folder, $action);
     }
@@ -100,7 +100,7 @@ final readonly class VaultIdAccessChecker implements VaultAccessCheckInterface
     /**
      * Restore and Purge act on trashed resources; every other action only on active ones (as the vault pages).
      */
-    private static function reachesTrash(VaultAccessAction $action): bool
+    private function reachesTrash(VaultAccessAction $action): bool
     {
         return $action === VaultAccessAction::Restore || $action === VaultAccessAction::Purge;
     }

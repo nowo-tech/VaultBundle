@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\View;
 
+use Nowo\VaultBundle\Service\VaultItemQueryInterface;
+
 /**
- * One page of a {@see \Nowo\VaultBundle\Service\VaultItemQueryInterface::find()} query (2.1.0).
+ * One page of a {@see VaultItemQueryInterface::find()} query (2.1.0).
  */
 final readonly class VaultItemPage
 {

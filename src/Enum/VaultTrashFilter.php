@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Enum;
 
+use Nowo\VaultBundle\Service\VaultItemQueryInterface;
+
 /**
- * Which items a {@see \Nowo\VaultBundle\Service\VaultItemQueryInterface} query returns (2.1.0): active, trashed or both.
+ * Which items a {@see VaultItemQueryInterface} query returns (2.1.0): active, trashed or both.
  */
 enum VaultTrashFilter: string
 {

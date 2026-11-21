@@ -18,6 +18,9 @@ use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
 use Nowo\VaultBundle\Service\VaultGrantResult;
 use Nowo\VaultBundle\Tests\App\VariantKernel;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
+use Nowo\VaultBundle\View\VaultFolderView;
+use Nowo\VaultBundle\View\VaultGrantView;
+use Nowo\VaultBundle\View\VaultItemView;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -72,17 +75,17 @@ final class ScopeFoldersGrantsKernelTest extends KernelTestCase
         self::assertSame([$item->id => VaultPermission::Read], $this->access()->itemPermissions($dave, [$item->id]));
         self::assertTrue($this->access()->canAccessItem($dave, $item->id, VaultAccessAction::View));
         self::assertFalse($this->access()->canAccessItem($dave, $item->id, VaultAccessAction::Edit));
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->items()->createInScope($dave, 'org-1', VaultItemType::Login, 'x', self::PAYLOAD));
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->folders()->createInScope($dave, 'org-1', 'x'));
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->items()->move($dave, $item->id, null));
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultItemView => $this->items()->createInScope($dave, 'org-1', VaultItemType::Login, 'x', self::PAYLOAD));
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultFolderView => $this->folders()->createInScope($dave, 'org-1', 'x'));
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultItemView => $this->items()->move($dave, $item->id, null));
         self::assertNull($this->items()->move($alice, $item->id, null)->folderId, 'alice administers the scope');
         self::assertSame(['lan'], $this->items()->retag($alice, $item->id, ['lan'])->tagNames);
 
         // A scope item never moves into a personal folder; a parent of another scope or a trashed one is refused.
         $personal = $this->folders()->create($alice, 'Mine');
-        $this->assertThrows(VaultOwnerException::class, fn () => $this->items()->move($alice, $item->id, $personal->id));
-        $this->assertThrows(VaultOwnerException::class, fn () => $this->folders()->createInScope($alice, 'org-1', 'x', $personal->id));
-        $this->assertThrows(VaultOwnerException::class, fn () => $this->folders()->createInScope($alice, 'org-1', 'x', 'missing'));
+        $this->assertThrows(VaultOwnerException::class, fn (): VaultItemView => $this->items()->move($alice, $item->id, $personal->id));
+        $this->assertThrows(VaultOwnerException::class, fn (): VaultFolderView => $this->folders()->createInScope($alice, 'org-1', 'x', $personal->id));
+        $this->assertThrows(VaultOwnerException::class, fn (): VaultFolderView => $this->folders()->createInScope($alice, 'org-1', 'x', 'missing'));
 
         // Folder lifecycle (personal).
         $sub = $this->folders()->create($alice, 'Sub', $personal->id);
@@ -92,16 +95,16 @@ final class ScopeFoldersGrantsKernelTest extends KernelTestCase
         self::assertTrue($this->access()->canAccessFolder($alice, $personal->id, VaultAccessAction::Delete));
         self::assertSame(1, $this->folders()->moveToTrash($alice, $personal->id), 'its active item left the folder');
         self::assertFalse($this->access()->canAccessFolder($alice, $personal->id, VaultAccessAction::View));
-        $this->assertThrows(VaultOwnerException::class, fn () => $this->folders()->create($alice, 'x', $personal->id), 'a trashed parent');
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->folders()->rename($alice, $personal->id, 'x'), 'a trashed folder');
+        $this->assertThrows(VaultOwnerException::class, fn (): VaultFolderView => $this->folders()->create($alice, 'x', $personal->id), 'a trashed parent');
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultFolderView => $this->folders()->rename($alice, $personal->id, 'x'), 'a trashed folder');
         self::assertFalse($this->folders()->restore($alice, $personal->id)->isTrashed());
         $this->folders()->purge($alice, $personal->id);
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->folders()->restore($alice, $personal->id), 'purged');
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->folders()->rename($this->ref('bob'), $sub->id, 'x'));
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->folders()->rename($alice, '', 'x'));
-        $this->assertThrows(InvalidArgumentException::class, fn () => $this->folders()->create($alice, ' '));
-        $this->assertThrows(InvalidArgumentException::class, fn () => $this->folders()->rename($alice, $sub->id, str_repeat('n', 256)));
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->folders()->create(VaultUserRef::ofId('nobody'), 'x'));
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultFolderView => $this->folders()->restore($alice, $personal->id), 'purged');
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultFolderView => $this->folders()->rename($this->ref('bob'), $sub->id, 'x'));
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultFolderView => $this->folders()->rename($alice, '', 'x'));
+        $this->assertThrows(InvalidArgumentException::class, fn (): VaultFolderView => $this->folders()->create($alice, ' '));
+        $this->assertThrows(InvalidArgumentException::class, fn (): VaultFolderView => $this->folders()->rename($alice, $sub->id, str_repeat('n', 256)));
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultFolderView => $this->folders()->create(VaultUserRef::ofId('nobody'), 'x'));
     }
 
     #[Test]
@@ -124,11 +127,11 @@ final class ScopeFoldersGrantsKernelTest extends KernelTestCase
         $listed = $this->grants()->listForResource($alice, VaultResourceType::Item, $item->id);
         self::assertCount(1, $listed);
         self::assertNull($listed[0]->result);
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->grants()->listForResource($bob, VaultResourceType::Item, $item->id), 'Write is not Share');
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->grants()->listForResource($alice, VaultResourceType::Item, 'missing'));
-        $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->grants()->listForResource($alice, VaultResourceType::Folder, ''));
-        $this->assertThrows(VaultGrantRefusedException::class, fn () => $this->grants()->grant($bob, VaultResourceType::Item, $item->id, GranteeType::User, $this->id('carol'), VaultPermission::Read));
-        $this->assertThrows(VaultGrantRefusedException::class, fn () => $this->grants()->revoke($bob, $grant->id));
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): array => $this->grants()->listForResource($bob, VaultResourceType::Item, $item->id), 'Write is not Share');
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): array => $this->grants()->listForResource($alice, VaultResourceType::Item, 'missing'));
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): array => $this->grants()->listForResource($alice, VaultResourceType::Folder, ''));
+        $this->assertThrows(VaultGrantRefusedException::class, fn (): VaultGrantView => $this->grants()->grant($bob, VaultResourceType::Item, $item->id, GranteeType::User, $this->id('carol'), VaultPermission::Read));
+        $this->assertThrows(VaultGrantRefusedException::class, fn (): bool => $this->grants()->revoke($bob, $grant->id));
 
         $folder = $this->folders()->create($alice, 'Team');
         $this->grants()->grant($alice, VaultResourceType::Folder, $folder->id, GranteeType::Team, 'team-1', VaultPermission::Read);

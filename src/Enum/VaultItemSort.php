@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Enum;
 
+use Nowo\VaultBundle\Service\VaultItemQueryInterface;
+
 /**
- * Order of a {@see \Nowo\VaultBundle\Service\VaultItemQueryInterface} query (2.1.0). Ties are broken by the item id,
+ * Order of a {@see VaultItemQueryInterface} query (2.1.0). Ties are broken by the item id,
  * so pages are stable.
  */
 enum VaultItemSort: string
