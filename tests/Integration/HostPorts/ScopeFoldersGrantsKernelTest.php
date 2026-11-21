@@ -27,6 +27,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 use function assert;
 use function str_repeat;
+use function strtoupper;
 
 /**
  * 2.1.0 (DDD-host checklist B1, B8): scope items and folders, folder lifecycle, sharing and tags through the id-based
@@ -108,6 +109,36 @@ final class ScopeFoldersGrantsKernelTest extends KernelTestCase
     }
 
     #[Test]
+    public function organisingIsTheOwners(): void
+    {
+        $this->bootVariant('private_id_new');
+        $alice = $this->ref('alice');
+        $erin  = $this->ref('erin');
+
+        // A Write grantee of a personal folder may not rename it (audit YF-I6).
+        $mine = $this->folders()->create($alice, 'Mine');
+        $this->grants()->grant($alice, VaultResourceType::Folder, $mine->id, GranteeType::User, $this->id('bob'), VaultPermission::Write);
+        self::assertTrue($this->access()->canAccessFolder($this->ref('bob'), $mine->id, VaultAccessAction::Edit));
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultFolderView => $this->folders()->rename($this->ref('bob'), $mine->id, 'Taken'));
+
+        // Scope folders: renamed by a member who may Share them (alice: Admin baseline), not by a Read member.
+        $f1 = $this->folders()->createInScope($alice, 'org-1', 'F1');
+        $f2 = $this->folders()->createInScope($alice, 'org-1', 'F2');
+        self::assertSame('F1 renamed', $this->folders()->rename($alice, $f1->id, 'F1 renamed')->name);
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultFolderView => $this->folders()->rename($this->ref('dave'), $f1->id, 'x'));
+
+        // erin (grants only) administers one item in F1: she may move it out, but never into F2, a folder she cannot use
+        // (audit YF-L3: a move must not extend F2's grants to the item).
+        $item = $this->items()->createInScope($alice, 'org-1', VaultItemType::Login, 'Router', self::PAYLOAD, $f1->id);
+        $this->grants()->grant($alice, VaultResourceType::Item, $item->id, GranteeType::User, $this->id('erin'), VaultPermission::Admin);
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultItemView => $this->items()->move($erin, $item->id, $f2->id));
+        self::assertSame($f1->id, $this->query()->findById($item->id)?->folderId);
+        self::assertNull($this->items()->move($erin, $item->id, null)->folderId);
+        self::assertSame($f2->id, $this->items()->move($alice, $item->id, $f2->id)->folderId, 'a member with a baseline uses every folder');
+        $this->assertThrows(VaultAccessDeniedException::class, fn (): VaultFolderView => $this->folders()->createInScope($this->ref('bob'), 'org-1', 'x', 'missing'), 'the scope gate before the parent');
+    }
+
+    #[Test]
     public function sharingAndTags(): void
     {
         $this->bootVariant('private_id_new');
@@ -138,8 +169,15 @@ final class ScopeFoldersGrantsKernelTest extends KernelTestCase
         self::assertCount(1, $this->grants()->listForResource($alice, VaultResourceType::Folder, $folder->id));
 
         self::assertTrue($this->grants()->revoke($alice, $grant->id));
-        self::assertFalse($this->grants()->revoke($alice, $grant->id), 'already gone');
-        self::assertFalse($this->grants()->revoke($alice, ''));
+        foreach (['already gone' => $grant->id, 'empty id' => ''] as $case => $grantId) {
+            $this->assertRefused(fn (): bool => $this->grants()->revoke($alice, $grantId), $case);
+        }
+
+        // Exact resource id (audit YF-L2): a case variant (the same row for a case-insensitive MySQL / MariaDB
+        // collation) is refused like a resource the actor may not share, and nothing is stored.
+        $this->assertRefused(fn (): VaultGrantView => $this->grants()->grant($alice, VaultResourceType::Item, strtoupper($item->id), GranteeType::User, $this->id('bob'), VaultPermission::Read), 'case variant');
+        $this->assertRefused(fn (): VaultGrantView => $this->grants()->grant($alice, VaultResourceType::Item, 'missing', GranteeType::User, $this->id('bob'), VaultPermission::Read), 'unknown');
+        self::assertSame([], $this->grants()->listForResource($alice, VaultResourceType::Item, $item->id));
         self::assertFalse($this->access()->canAccessItem($bob, $item->id, VaultAccessAction::View));
 
         // Tags: only the actor's own personal tags.
@@ -151,5 +189,18 @@ final class ScopeFoldersGrantsKernelTest extends KernelTestCase
         $this->tagCommands()->delete($alice, $work->getId());
         self::assertSame([], $this->query()->findById($item->id)?->tagNames);
         $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->tagCommands()->delete($alice, $work->getId()), 'gone');
+    }
+
+    private function assertRefused(callable $call, string $case): void
+    {
+        try {
+            $call();
+        } catch (VaultGrantRefusedException $exception) {
+            self::assertSame(VaultGrantRefusedException::ACTOR_CANNOT_SHARE, $exception->getReason(), $case);
+
+            return;
+        }
+
+        self::fail('Expected a refusal: ' . $case);
     }
 }

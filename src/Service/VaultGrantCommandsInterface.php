@@ -21,7 +21,8 @@ use Nowo\VaultBundle\View\VaultGrantView;
  * rules, GRANT_POLICY_CHECK).
  *
  * Errors: {@see VaultAccessDeniedException} for an unknown or refused actor; {@see VaultGrantRefusedException} (with
- * its reason code) when a sharing rule refuses the call.
+ * its reason code) when a sharing rule refuses the call. An unknown resource or grant, and a resource id that is not
+ * exactly the stored one (byte for byte), answer `actor_cannot_share`, like a resource the actor may not share.
  */
 interface VaultGrantCommandsInterface
 {
@@ -40,7 +41,9 @@ interface VaultGrantCommandsInterface
     ): VaultGrantView;
 
     /**
-     * Revokes a grant (the actor needs Share on its resource). False when the grant does not exist (any more).
+     * Revokes a grant (the actor needs Share on its resource). An unknown grant is refused like a grant of a resource
+     * the actor may not share ({@see VaultGrantRefusedException} `actor_cannot_share`); false when another call
+     * revoked it meanwhile.
      */
     public function revoke(VaultUserRef $actor, string $grantId): bool;
 

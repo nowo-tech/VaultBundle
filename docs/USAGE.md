@@ -382,7 +382,15 @@ when the vault's unit ends, unless you opt in to `events.after_host_commit: true
 wait for your commit, are dropped if you roll back (a rolled-back savepoint drops the events written inside it), and
 committed events are dispatched at the next idle point: the next vault change outside a transaction, or the end of the
 request, Messenger message or console command, never inside the commit call. doctrine/dbal 4 only (see
-[CONFIGURATION](CONFIGURATION.md#event-timing-events)).
+[CONFIGURATION](CONFIGURATION.md#event-timing-events)). With the option on:
+
+- a listener of a released event runs after the data is committed: its exception is **logged and not rethrown** (it
+  must not turn a committed write into an error of an unrelated call or of the boundary), and the other released
+  events still run;
+- in a long-running loop (a console command or a worker handling many items in one transaction stream) the events
+  wait until the next vault change outside a transaction or the end of the command; commit and let the loop go idle,
+  or keep the option off, if listeners must react sooner;
+- the start of every main request empties what is still held (nothing of one request is dispatched in the next).
 
 ## Lists and pagination
 
@@ -660,9 +668,22 @@ final readonly class SeedOrganisationVault
 - **Query** (`VaultItemQueryInterface`: `find`, `count`, `findById`, `findByIds`) is a system read with no access check:
   filter by owner (`VaultItemCriteria::forUser($id)`, `forScope($key)` or `forOwnerKey('user:…' | 'scope:…')`), type,
   folder (or none), tag, exact title (byte for byte), title fragment, trash state, sort and page (at most 500 rows).
-  Decide what a user may see with your own rules or with the access port first.
+  It reads one scalar row per candidate of the owner, re-checks the owner id and an exact title byte for byte in PHP,
+  then loads the page, so items, page and total agree. With the relation mapping and an integer user key, only the
+  canonical decimal id (`5`, not `05`) matches. Decide what a user may see with your own rules or with the access port
+  first.
 - **Access** (`VaultAccessCheckInterface`: `canAccessItem`, `canAccessFolder`, `isItemReadOnly`, `itemPermissions`,
   `scopeAccess`) answers `false` / null for an unknown user or resource.
+- **Uniform refusals.** Unknown, trashed and denied resources give the same answer: `VaultAccessDeniedException` for
+  the item and folder commands, `VaultGrantRefusedException` (`actor_cannot_share`) for an unknown resource or grant
+  in `grant()` / `revoke()`, and null for every requested id in `itemPermissions()`. A scope command checks the scope
+  membership before it looks at a folder. Ids compare byte for byte (`ABC` never reaches `abc`).
+- **Form rules are yours to apply.** The command ports write what you pass: they do not run the item form's rules
+  (the password policy with `health.policy.enforce_on_save`, the attachment size limit, the payload keys of each item
+  type, tag and title normalisation beyond the length checks). Validate the payload in your use case first.
+- **Organising is the owner's.** `move()`, `retag()` and folder `rename()` need the personal owner, or a scope member
+  who may Share the resource; a scope item only moves into a folder the actor may use (the folders the item pages
+  offer them), so a move never extends a folder's grants past what the actor could share.
 - **Feature roles are yours to gate.** The ports apply the per-resource rules only (ownership, scope membership,
   grants, the access-check and read-only events). The role checks of the vault pages (`security.*_roles` or your
   `VaultAccessPolicyInterface`: access, create, list, revoke) are UI gates: check them in your use case before calling

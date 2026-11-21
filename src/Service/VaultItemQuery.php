@@ -6,7 +6,6 @@ namespace Nowo\VaultBundle\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
-use Doctrine\ORM\Tools\Pagination\Paginator;
 use InvalidArgumentException;
 use Nowo\VaultBundle\Dto\VaultItemCriteria;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -18,23 +17,24 @@ use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\View\VaultItemPage;
 use Nowo\VaultBundle\View\VaultItemView;
 
-use function array_filter;
-use function array_map;
+use function array_keys;
 use function array_slice;
 use function array_unique;
 use function array_values;
 use function count;
-use function iterator_to_array;
+use function in_array;
 use function mb_strtolower;
+use function preg_match;
 use function sprintf;
 use function str_replace;
 
 /**
  * The vault's {@see VaultItemQueryInterface} (2.1.0): DQL on the vault's private entity manager, tags fetch-joined.
  *
- * Exactness (REQ-SEC-006): the owner id, the item ids and an exact title are compared by the database (binary NO PAD
- * collation on the MySQL / MariaDB id columns) and again byte for byte in PHP on the rows returned. With an exact title
- * the matching rows of the owner are read once and paged in PHP, so the total is exact too.
+ * Exactness (REQ-SEC-006, audit YF-L4): the owner id, the item ids and an exact title are compared by the database
+ * and again byte for byte in PHP. A query first reads the ids of every candidate (one scalar row each, in order),
+ * keeps the exact matches and pages them in PHP, then loads that page: the items, the page and the total all follow
+ * the byte-exact rule. With the relation mapping and an integer user key, a non-canonical owner id matches nothing.
  *
  * Stateless (FrankenPHP worker mode, kernel reset off): the private manager is resolved on every call and dropped at
  * every boundary.
@@ -52,31 +52,11 @@ final readonly class VaultItemQuery implements VaultItemQueryInterface
 
     public function find(VaultItemCriteria $criteria): VaultItemPage
     {
-        $qb = $this->filtered($criteria)->select('i')->leftJoin('i.tags', 't')->addSelect('t');
-        $this->order($qb, $criteria->sort);
-
-        if ($criteria->title !== null) {
-            /** @var list<VaultItem> $all */
-            $all   = $qb->getQuery()->getResult();
-            $exact = $this->exact($all, $criteria);
-
-            return new VaultItemPage(
-                array_map(VaultViews::item(...), array_slice($exact, $criteria->offset, $criteria->limit)),
-                count($exact),
-                $criteria->offset,
-                $criteria->limit,
-            );
-        }
-
-        // @igor-ignore - A query builder built for this call (createQueryBuilder() returns a new one), not shared state.
-        $qb->setFirstResult($criteria->offset)->setMaxResults($criteria->limit);
-        $paginator = new Paginator($qb->getQuery(), fetchJoinCollection: true);
-        /** @var list<VaultItem> $items */
-        $items = iterator_to_array($paginator, false);
+        $ids = $this->matchingIds($criteria);
 
         return new VaultItemPage(
-            array_map(VaultViews::item(...), $this->exact($items, $criteria)),
-            count($paginator),
+            $this->findByIds(array_slice($ids, $criteria->offset, $criteria->limit)),
+            count($ids),
             $criteria->offset,
             $criteria->limit,
         );
@@ -84,13 +64,7 @@ final readonly class VaultItemQuery implements VaultItemQueryInterface
 
     public function count(VaultItemCriteria $criteria): int
     {
-        if ($criteria->title !== null) {
-            $rows = $this->filtered($criteria)->select('i.title AS title')->getQuery()->getArrayResult();
-
-            return count(array_filter($rows, static fn (array $row): bool => $row['title'] === $criteria->title));
-        }
-
-        return (int) $this->filtered($criteria)->select('COUNT(DISTINCT i.id)')->getQuery()->getSingleScalarResult();
+        return count($this->matchingIds($criteria));
     }
 
     public function findById(string $itemId): ?VaultItemView
@@ -193,15 +167,50 @@ final readonly class VaultItemQuery implements VaultItemQueryInterface
     }
 
     /**
-     * The items whose owner id and title (when the criteria name one) equal the criteria's byte for byte.
+     * The ids of every matching item, in the criteria's order, after the byte-exact re-check of the owner id and the
+     * exact title in PHP (audit YF-L4): one scalar row per candidate, so pages and totals agree with the promise.
      *
-     * @param list<VaultItem> $items
-     *
-     * @return list<VaultItem>
+     * @return list<string>
      */
-    private function exact(array $items, VaultItemCriteria $criteria): array
+    private function matchingIds(VaultItemCriteria $criteria): array
     {
-        return array_values(array_filter($items, static fn (VaultItem $item): bool => ($criteria->ownerUserId === null || $item->getCreatorId() === $criteria->ownerUserId)
-            && ($criteria->title === null || $item->getTitle() === $criteria->title)));
+        if (!$this->ownerIdFitsTheMapping($criteria->ownerUserId)) {
+            return [];
+        }
+
+        $owner = match (true) {
+            $criteria->ownerScope !== null => 'i.ownerScope',
+            $this->users->mapsById()       => 'i.creator',
+            default                        => 'IDENTITY(i.creator)',
+        };
+        $qb = $this->filtered($criteria)->select('i.id AS id', 'i.title AS title', $owner . ' AS owner');
+        $this->order($qb, $criteria->sort);
+
+        $ids = [];
+        foreach ($qb->getQuery()->getArrayResult() as $row) {
+            $id = (string) $row['id'];
+            if (($criteria->ownerUserId === null || (string) $row['owner'] === $criteria->ownerUserId)
+                && ($criteria->title === null || $row['title'] === $criteria->title)) {
+                $ids[$id] = true;
+            }
+        }
+
+        return array_keys($ids);
+    }
+
+    /**
+     * Whether a personal owner id can be a key of the user relation (audit YF-L4): with the relation mapping and an
+     * integer key, only the canonical decimal form (`5`, never `05`, ` 5` or `abc`, which some databases cast or refuse).
+     */
+    private function ownerIdFitsTheMapping(?string $ownerUserId): bool
+    {
+        if ($ownerUserId === null || $this->users->mapsById()) {
+            return true;
+        }
+
+        $target = $this->entityManager->getClassMetadata($this->entityManager->getClassMetadata(VaultItem::class)->getAssociationTargetClass('creator'));
+        $type   = $target->getTypeOfField($target->getSingleIdentifierFieldName());
+
+        return !in_array($type, ['integer', 'smallint', 'bigint'], true) || preg_match('/^(0|-?[1-9][0-9]{0,18})$/D', $ownerUserId) === 1;
     }
 }

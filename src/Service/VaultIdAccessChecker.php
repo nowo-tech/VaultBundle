@@ -13,6 +13,8 @@ use Nowo\VaultBundle\Support\VaultUserRefResolver;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function array_fill_keys;
+use function array_replace;
 use function array_slice;
 use function array_unique;
 use function array_values;
@@ -65,8 +67,10 @@ final readonly class VaultIdAccessChecker implements VaultAccessCheckInterface
     {
         $actor = $this->users->resolve($user);
         $ids   = array_slice(array_values(array_unique($itemIds)), 0, self::MAX_IDS);
+        // Every requested id gets an answer; unknown, trashed and denied are the same null (audit YF-I1).
+        $none = array_fill_keys($ids, null);
         if (!$actor instanceof UserInterface || $ids === []) {
-            return [];
+            return $none;
         }
 
         /** @var list<VaultItem> $loaded */
@@ -87,7 +91,7 @@ final readonly class VaultIdAccessChecker implements VaultAccessCheckInterface
             }
         }
 
-        return $this->guard->resolvePermissionMap($actor, $items);
+        return array_replace($none, $this->guard->resolvePermissionMap($actor, $items));
     }
 
     public function scopeAccess(VaultUserRef $user, string $scope): ?VaultScopeAccess

@@ -36,8 +36,9 @@ interface VaultAccessCheckInterface
     public function isItemReadOnly(VaultUserRef $user, string $itemId): bool;
 
     /**
-     * The effective permission of the user on each active item, in one pass (null: no access; unknown ids are left
-     * out). The ITEM_ACCESS_CHECK listeners are applied for View.
+     * The effective permission of the user on each item, in one pass: every requested id (duplicates once, at most
+     * 500) is a key, and null means no access, an unknown or trashed item, or an unknown user alike. The
+     * ITEM_ACCESS_CHECK listeners are applied for View.
      *
      * @param list<string> $itemIds
      *

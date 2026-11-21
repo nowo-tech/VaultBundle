@@ -81,6 +81,10 @@ removed, no signature or default behaviour changes; see [UPGRADING](UPGRADING.md
   `isItemReadOnly`, `itemPermissions`, `scopeAccess`) for a `VaultUserRef` and resource ids, with the decisions of
   `VaultAccessGuard`.
 - `VaultItemUpdater::move()` (internal to the item command port).
+- Pre-release audit YF, applied in the ports before the tag: the commands lock their row with `SELECT … FOR UPDATE`
+  and refuse a row deleted meanwhile; `grant()` refuses a resource id that is not byte-exact; `move()` of a scope item
+  needs a folder the actor may use; folder `rename()` needs the owner; the item query pages and counts by byte-exact
+  ids (canonical integer keys with the relation mapping); unknown, trashed and denied resources answer alike.
 - **Opt-in `events.after_host_commit`** (B4, REQ-ARCH-001 rule 7; default `false`, the 2.0 timing; the default becomes
   `true` in 3.0): when on, the change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`) written
   inside a transaction your code opened on the vault's connection (the vault's unit is then a savepoint) wait for your

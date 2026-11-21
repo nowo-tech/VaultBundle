@@ -16,7 +16,9 @@ use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
 use Nowo\VaultBundle\Internal\VaultCommandsTrait;
+use Nowo\VaultBundle\Internal\VaultRowLock;
 use Nowo\VaultBundle\Internal\VaultViews;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Support\VaultUserRefResolver;
@@ -58,6 +60,11 @@ final readonly class VaultGrantCommands implements VaultGrantCommandsInterface
         $user = $this->actor($actor);
 
         return $this->inUnit(function () use ($user, $resourceType, $resourceId, $granteeType, $granteeId, $permission, $expiresAt): VaultGrantView {
+            // Exact resource id (audit YF-L2): a case or padding variant the database would match is refused like a
+            // resource the actor may not share, so no grant row is ever stored with a variant id.
+            if ($this->resource($resourceType, $resourceId) === null) {
+                throw new VaultGrantRefusedException(VaultGrantRefusedException::ACTOR_CANNOT_SHARE);
+            }
             // grantAs() re-checks Share and every sharing rule; it refuses with VaultGrantRefusedException.
             $result = $this->grants->grantAs($user, $resourceType, $resourceId, $granteeType, $granteeId, $permission, $expiresAt);
             foreach ($this->grants->listForResource($resourceType, $resourceId) as $grant) {
@@ -79,7 +86,8 @@ final readonly class VaultGrantCommands implements VaultGrantCommandsInterface
         return $this->inUnit(function () use ($user, $grantId): bool {
             $grant = $grantId !== '' ? $this->grants->findById($grantId) : null;
             if (!$grant instanceof VaultGrant || $grant->getId() !== $grantId) {
-                return false;
+                // The same answer as a grant of a resource the actor may not share (audit YF-I1).
+                throw new VaultGrantRefusedException(VaultGrantRefusedException::ACTOR_CANNOT_SHARE);
             }
 
             // revokeAs() re-checks Share on the resource; it refuses with VaultGrantRefusedException.
@@ -90,10 +98,10 @@ final readonly class VaultGrantCommands implements VaultGrantCommandsInterface
     public function listForResource(VaultUserRef $actor, VaultResourceType $resourceType, string $resourceId): array
     {
         $user     = $this->actor($actor);
-        $resource = $resourceId !== '' ? $this->entityManager->find($resourceType === VaultResourceType::Item ? VaultItem::class : VaultFolder::class, $resourceId) : null;
+        $resource = $this->resource($resourceType, $resourceId);
         $allowed  = match (true) {
-            $resource instanceof VaultItem   => $resource->getId() === $resourceId && !$resource->isDeleted() && $this->guard->canAccessItem($user, $resource, VaultAccessAction::Share),
-            $resource instanceof VaultFolder => $resource->getId() === $resourceId && !$resource->isDeleted() && $this->guard->canAccessFolder($user, $resource, VaultAccessAction::Share),
+            $resource instanceof VaultItem   => !$resource->isDeleted() && $this->guard->canAccessItem($user, $resource, VaultAccessAction::Share),
+            $resource instanceof VaultFolder => !$resource->isDeleted() && $this->guard->canAccessFolder($user, $resource, VaultAccessAction::Share),
             default                          => false,
         };
         if (!$allowed) {
@@ -101,5 +109,13 @@ final readonly class VaultGrantCommands implements VaultGrantCommandsInterface
         }
 
         return array_map(static fn (VaultGrant $grant): VaultGrantView => VaultViews::grant($grant), $this->grants->listForResource($resourceType, $resourceId));
+    }
+
+    /**
+     * The item or folder with exactly this id (byte for byte), or null.
+     */
+    private function resource(VaultResourceType $type, string $resourceId): VaultItem|VaultFolder|null
+    {
+        return VaultRowLock::find($this->entityManager, $type === VaultResourceType::Item ? VaultItem::class : VaultFolder::class, $resourceId);
     }
 }

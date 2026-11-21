@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use Nowo\VaultBundle\Dto\VaultItemCriteria;
 use Nowo\VaultBundle\Enum\VaultItemSort;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultTrashFilter;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
@@ -27,6 +28,7 @@ use function array_keys;
 use function array_map;
 use function assert;
 use function str_repeat;
+use function strtoupper;
 
 /**
  * 2.1.0 (DDD-host checklist B1, B7, B8): a host drives personal items through the id-based ports only (a user
@@ -119,6 +121,12 @@ final class ItemCommandsAndQueryKernelTest extends KernelTestCase
         self::assertSame(0, $this->query()->count($mine->withTitle('mail 3')), 'exact title, byte for byte');
         self::assertSame([], $this->query()->find($mine->withTitle('mail 3'))->items);
         self::assertSame(0, $this->query()->count(VaultItemCriteria::forUser($this->id('bob'))));
+        // Byte-exact owner ids (audit YF-L4): a padded or non-canonical variant of alice's id matches nothing, also in
+        // the totals, and an id that cannot be an integer key is no database error.
+        self::assertSame(0, $this->query()->count(VaultItemCriteria::forUser('0' . $this->id('alice'))));
+        self::assertSame(0, $this->query()->find(VaultItemCriteria::forUser('0' . $this->id('alice')))->total);
+        self::assertSame(0, $this->query()->count(VaultItemCriteria::forUser('not-a-number')));
+        self::assertSame(0, $this->query()->count(VaultItemCriteria::forUser(strtoupper($this->id('alice')) . 'X')));
         self::assertSame(0, $this->query()->count(VaultItemCriteria::forOwnerKey($item->ownerKey)->withTrash(VaultTrashFilter::Trashed)));
 
         // Access by id.
@@ -130,9 +138,10 @@ final class ItemCommandsAndQueryKernelTest extends KernelTestCase
         self::assertFalse($this->access()->isItemReadOnly($alice, ''));
         self::assertTrue($this->access()->canAccessFolder($alice, $folder->id, VaultAccessAction::Edit));
         self::assertFalse($this->access()->canAccessFolder($alice, '', VaultAccessAction::Edit));
-        self::assertSame([$item->id], array_keys($this->access()->itemPermissions($alice, [$item->id, $item->id, 'missing'])));
+        self::assertSame([$item->id => VaultPermission::Admin, 'missing' => null], $this->access()->itemPermissions($alice, [$item->id, $item->id, 'missing']), 'unknown and denied answer alike');
+        self::assertSame([$item->id => null], $this->access()->itemPermissions($this->ref('dave'), [$item->id]));
         self::assertSame([], $this->access()->itemPermissions($alice, []));
-        self::assertSame([], $this->access()->itemPermissions(VaultUserRef::ofId('nobody'), [$item->id]));
+        self::assertSame([$item->id => null], $this->access()->itemPermissions(VaultUserRef::ofId('nobody'), [$item->id]));
         self::assertNull($this->access()->scopeAccess(VaultUserRef::ofId('nobody'), 'org-1'));
 
         // Trash, restore, purge.

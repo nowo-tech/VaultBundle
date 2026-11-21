@@ -14,6 +14,7 @@ use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultItemChangedException;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
 use Nowo\VaultBundle\Internal\VaultCommandsTrait;
+use Nowo\VaultBundle\Internal\VaultRowLock;
 use Nowo\VaultBundle\Internal\VaultViews;
 use Nowo\VaultBundle\Support\VaultItemEditToken;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
@@ -46,6 +47,7 @@ final readonly class VaultItemCommands implements VaultItemCommandsInterface
         private VaultUserReferenceResolverInterface $references,
         private EntityManagerInterface $entityManager,
         private ?VaultWriteUnit $writeUnit = null,
+        private ?VaultScopeItemLister $scopeItems = null,
     ) {
     }
 
@@ -78,6 +80,10 @@ final readonly class VaultItemCommands implements VaultItemCommandsInterface
         $title = self::requireText($title, self::MAX_TITLE_LENGTH, 'item title');
 
         return $this->inUnit(function () use ($user, $scope, $type, $title, $payload, $folderId, $tagNames): VaultItemView {
+            // The scope gate first: a non-member learns nothing about the scope's folders (audit YF-I1).
+            if ($this->guard->resolveScopeAccess($user, $scope)?->create !== true) {
+                throw new VaultAccessDeniedException();
+            }
             $folder = null;
             if ($folderId !== null) {
                 $folder = $this->folder($folderId) ?? throw new VaultOwnerException('The folder belongs to another owner.');
@@ -121,6 +127,12 @@ final readonly class VaultItemCommands implements VaultItemCommandsInterface
                 $folder = $this->folder($folderId);
                 if (!$folder instanceof VaultFolder || !$folder->getOwner()->equals($item->getOwner())) {
                     throw new VaultOwnerException('The folder belongs to another owner.');
+                }
+                // The page rule (audit YF-L3): a scope item only moves into a folder the actor may use, so a move never
+                // extends the folder's grants past what the actor could share (grantee list, policy, temporary caps).
+                $scope = $item->getOwnerScope();
+                if ($scope !== null && (!$this->scopeItems instanceof VaultScopeItemLister || $this->scopeItems->visibleFolders($user, $scope, [$folder]) === [])) {
+                    throw new VaultAccessDeniedException();
                 }
             }
 
@@ -186,12 +198,8 @@ final readonly class VaultItemCommands implements VaultItemCommandsInterface
      */
     private function lockedItem(string $itemId, bool $allowTrashed = false): VaultItem
     {
-        $item = $itemId !== '' ? $this->entityManager->find(VaultItem::class, $itemId) : null;
-        if (!$item instanceof VaultItem || $item->getId() !== $itemId) {
-            throw new VaultAccessDeniedException();
-        }
-        $this->writeUnit?->lockForUpdate($item);
-        if (!$allowTrashed && $item->isDeleted()) {
+        $item = VaultRowLock::find($this->entityManager, VaultItem::class, $itemId);
+        if (!$item instanceof VaultItem || (!$allowTrashed && $item->isDeleted())) {
             throw new VaultAccessDeniedException();
         }
 
@@ -203,9 +211,9 @@ final readonly class VaultItemCommands implements VaultItemCommandsInterface
      */
     private function folder(string $folderId): ?VaultFolder
     {
-        $folder = $folderId !== '' ? $this->entityManager->find(VaultFolder::class, $folderId) : null;
+        $folder = VaultRowLock::find($this->entityManager, VaultFolder::class, $folderId);
 
-        return $folder instanceof VaultFolder && $folder->getId() === $folderId && !$folder->isDeleted() ? $folder : null;
+        return $folder instanceof VaultFolder && !$folder->isDeleted() ? $folder : null;
     }
 
     /**

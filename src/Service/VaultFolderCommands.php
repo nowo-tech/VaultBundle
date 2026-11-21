@@ -11,6 +11,7 @@ use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
 use Nowo\VaultBundle\Internal\VaultCommandsTrait;
+use Nowo\VaultBundle\Internal\VaultRowLock;
 use Nowo\VaultBundle\Internal\VaultViews;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Support\VaultUserRefResolver;
@@ -64,6 +65,10 @@ final readonly class VaultFolderCommands implements VaultFolderCommandsInterface
         $name = self::requireText($name, self::MAX_NAME_LENGTH, 'folder name');
 
         return $this->inUnit(function () use ($user, $scope, $name, $parentId): VaultFolderView {
+            // The scope gate first: a non-member learns nothing about the scope's folders (audit YF-I1).
+            if ($this->guard->resolveScopeAccess($user, $scope)?->create !== true) {
+                throw new VaultAccessDeniedException();
+            }
             $parent = null;
             if ($parentId !== null) {
                 $parent = $this->find($parentId);
@@ -84,6 +89,12 @@ final readonly class VaultFolderCommands implements VaultFolderCommandsInterface
 
         return $this->inUnit(function () use ($user, $folderId, $name): VaultFolderView {
             $folder = $this->allowed($user, $folderId, VaultAccessAction::Edit, false);
+            // A folder's name is its owner's organisation (audit YF-I6, as the pages): the personal owner, or a scope
+            // member who may Share the folder; a Write grantee may not rename it.
+            $owner = $folder->getOwner();
+            if ($owner->isScope() ? !$this->guard->canAccessFolder($user, $folder, VaultAccessAction::Share) : !$owner->isUser($user)) {
+                throw new VaultAccessDeniedException();
+            }
 
             return VaultViews::folder($this->folders->rename($folder, $name));
         });
@@ -125,9 +136,6 @@ final readonly class VaultFolderCommands implements VaultFolderCommandsInterface
     private function allowed(UserInterface $user, string $folderId, VaultAccessAction $action, bool $allowTrashed): VaultFolder
     {
         $folder = $this->find($folderId);
-        if ($folder instanceof VaultFolder) {
-            $this->writeUnit?->lockForUpdate($folder);
-        }
         if (!$folder instanceof VaultFolder || (!$allowTrashed && $folder->isDeleted()) || !$this->guard->canAccessFolder($user, $folder, $action)) {
             throw new VaultAccessDeniedException();
         }
@@ -137,8 +145,7 @@ final readonly class VaultFolderCommands implements VaultFolderCommandsInterface
 
     private function find(string $folderId): ?VaultFolder
     {
-        $folder = $folderId !== '' ? $this->entityManager->find(VaultFolder::class, $folderId) : null;
-
-        return $folder instanceof VaultFolder && $folder->getId() === $folderId ? $folder : null;
+        // Row lock inside the unit; a folder deleted meanwhile is not found (audit YF-L1).
+        return VaultRowLock::find($this->entityManager, VaultFolder::class, $folderId);
     }
 }

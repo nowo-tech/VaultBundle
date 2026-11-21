@@ -33,7 +33,8 @@ interface VaultFolderCommandsInterface
     public function createInScope(VaultUserRef $actor, string $scope, string $name, ?string $parentId = null): VaultFolderView;
 
     /**
-     * Renames an active folder (Edit).
+     * Renames an active folder: its owner's organisation (the personal owner, or a scope member who may Share the
+     * folder; a Write grantee may not).
      */
     public function rename(VaultUserRef $actor, string $folderId, string $name): VaultFolderView;
 
