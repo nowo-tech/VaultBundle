@@ -668,9 +668,13 @@ final readonly class SeedOrganisationVault
 - **Query** (`VaultItemQueryInterface`: `find`, `count`, `findById`, `findByIds`) is a system read with no access check:
   filter by owner (`VaultItemCriteria::forUser($id)`, `forScope($key)` or `forOwnerKey('user:…' | 'scope:…')`), type,
   folder (or none), tag, exact title (byte for byte), title fragment, trash state, sort and page (at most 500 rows).
-  It reads one scalar row per candidate of the owner, re-checks the owner id and an exact title byte for byte in PHP,
-  then loads the page, so items, page and total agree. With the relation mapping and an integer user key, only the
-  canonical decimal id (`5`, not `05`) matches. Decide what a user may see with your own rules or with the access port
+  Where the database already compares the owner byte for byte and there is no exact title (a scope, or the id
+  mapping on a `creator_id` column with a binary NO PAD collation on MySQL / MariaDB, a deterministic one on
+  PostgreSQL, or SQLite), the page is read with SQL `LIMIT`/`OFFSET` and the total with SQL `COUNT` (2.1.1); the page's
+  owners are still re-checked in PHP. Otherwise (relation mapping, an exact title, a column that does not compare
+  exactly) it reads one scalar row per candidate of the owner, re-checks the owner id and an exact title byte for byte
+  in PHP, then loads the page. Either way items, page and total agree. With the relation mapping and an integer user
+  key, only the canonical decimal id (`5`, not `05`) matches. Decide what a user may see with your own rules or with the access port
   first.
 - **Access** (`VaultAccessCheckInterface`: `canAccessItem`, `canAccessFolder`, `isItemReadOnly`, `itemPermissions`,
   `scopeAccess`) answers `false` / null for an unknown user or resource.
