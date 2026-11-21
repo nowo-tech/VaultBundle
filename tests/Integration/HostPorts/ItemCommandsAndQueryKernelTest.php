@@ -24,7 +24,6 @@ use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 use function array_fill;
-use function array_keys;
 use function array_map;
 use function assert;
 use function str_repeat;

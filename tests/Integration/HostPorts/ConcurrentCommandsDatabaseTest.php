@@ -73,8 +73,8 @@ final class ConcurrentCommandsDatabaseTest extends KernelTestCase
     #[DataProvider('itemCommands')]
     public function anItemDeletedWhileTheCommandWaitsIsRefused(string $command): void
     {
-        $alice = $this->ref('alice');
-        $item  = $this->items()->create($alice, VaultItemType::Login, 'Doomed', self::PAYLOAD, null, ['tag']);
+        $alice         = $this->ref('alice');
+        $item          = $this->items()->create($alice, VaultItemType::Login, 'Doomed', self::PAYLOAD, null, ['tag']);
         $this->changes = 0;
 
         $writer = ConcurrentWriter::start($this->url, [['DELETE FROM vault_items WHERE id = ?', [$item->id]]], 1.5);
@@ -95,8 +95,8 @@ final class ConcurrentCommandsDatabaseTest extends KernelTestCase
     #[Test]
     public function aFolderDeletedWhileTheCommandWaitsIsRefused(): void
     {
-        $alice  = $this->ref('alice');
-        $folder = $this->folders()->create($alice, 'Doomed');
+        $alice         = $this->ref('alice');
+        $folder        = $this->folders()->create($alice, 'Doomed');
         $this->changes = 0;
 
         $writer = ConcurrentWriter::start($this->url, [['DELETE FROM vault_folders WHERE id = ?', [$folder->id]]], 1.5);
