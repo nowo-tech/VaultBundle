@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.1.1] - 2026-11-22](#211---2026-11-22)
 - [[2.1.0] - 2026-11-21](#210---2026-11-21)
 - [[2.0.0] - 2026-11-21](#200---2026-11-21)
 - [[1.21.2] - 2026-11-20](#1212---2026-11-20)
@@ -61,6 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-22
+
 ### Changed
 
 - **Query port pages in SQL where SQL is already exact** (audit YF-D1): `VaultItemQueryInterface::find()` and
@@ -81,6 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decides itself (an inexact resource id in `grant()`, an unknown or empty grant id in `revoke()`) now write the same
   `Vault grant refused.` notice as every other grant refusal (ids only; a revoke of an unknown grant logs its
   `grant_id` and no resource). The caller's answer is unchanged.
+
+[2.1.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.1.1
 
 ## [2.1.0] - 2026-11-21
 
@@ -1409,7 +1414,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.1.1...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
