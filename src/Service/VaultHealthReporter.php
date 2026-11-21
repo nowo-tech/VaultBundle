@@ -72,7 +72,7 @@ use function sodium_memzero;
  * - Breached: the optional host {@see VaultBreachCheckerInterface}; null when absent or failing.
  * - Cache: off unless `health.cache_ttl` > 0; then only the report (flags, titles, group numbers) is cached, per viewer.
  */
-final readonly class VaultHealthReporter implements VaultHealthReportProviderInterface, VaultHealthReporterInterface
+final readonly class VaultHealthReporter implements VaultHealthReportProviderInterface
 {
     /**
      * Stores the collaborators and the limits.
@@ -104,7 +104,7 @@ final readonly class VaultHealthReporter implements VaultHealthReportProviderInt
     /**
      * Report over the scope's login items the viewer may View.
      */
-    public function forScope(UserInterface $viewer, string $scope, ?VaultPasswordPolicy $policy = null): VaultHealthReport
+    private function scopeReport(UserInterface $viewer, string $scope, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
         $owner  = VaultOwner::scope($scope);
         $access = $this->accessGuard->resolveScopeAccess($viewer, $scope);
@@ -132,11 +132,11 @@ final readonly class VaultHealthReporter implements VaultHealthReportProviderInt
     }
 
     /**
-     * Report over the owner's personal login items.
+     * Report over the scope's login items the referenced viewer may View.
      */
     public function reportForScope(VaultUserRef $viewer, string $scope, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
-        return $this->forScope($this->userOf($viewer), $scope, $policy);
+        return $this->scopeReport($this->userOf($viewer), $scope, $policy);
     }
 
     /**
@@ -144,7 +144,7 @@ final readonly class VaultHealthReporter implements VaultHealthReportProviderInt
      */
     public function reportForPersonalVault(VaultUserRef $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
-        return $this->forPersonalVault($this->userOf($owner), $policy);
+        return $this->personalReport($this->userOf($owner), $policy);
     }
 
     /**
@@ -160,7 +160,7 @@ final readonly class VaultHealthReporter implements VaultHealthReportProviderInt
     /**
      * Health report of the login items of the owner personal vault.
      */
-    public function forPersonalVault(UserInterface $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
+    private function personalReport(UserInterface $owner, ?VaultPasswordPolicy $policy = null): VaultHealthReport
     {
         $items = $this->itemRepository->findByCreatorAndItemType($owner, VaultItemType::Login);
         $this->assertSize($items);

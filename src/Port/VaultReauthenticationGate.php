@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Port;
 
-use LogicException;
-use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
 use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
 use Nowo\VaultBundle\Security\VaultReauthProof;
 use Nowo\VaultBundle\Support\VaultUserRefs;
@@ -17,23 +15,20 @@ use function hash;
 use function is_string;
 
 /**
- * The re-authentication hook the decrypted export asks (1.19.0): the host's
- * {@see VaultReauthenticationProviderInterface} (given a {@see VaultReauthContext} built from the request), or the
- * deprecated {@see VaultReauthenticationCheckerInterface}, exactly as in 1.18. Never both: the build picks one.
+ * The re-authentication hook the decrypted export asks: the host's {@see VaultReauthenticationProviderInterface}
+ * (`export.reauth_checker`), given a {@see VaultReauthContext} built from the request.
+ *
+ * Since 2.0 the only interface asked (the deprecated `VaultReauthenticationCheckerInterface` was removed).
  *
  * @internal
  */
-final readonly class VaultReauthenticationGate implements VaultReauthenticationCheckerInterface
+final readonly class VaultReauthenticationGate
 {
     /**
-     * Selects the re-authentication provider or the deprecated checker.
+     * Wraps the re-authentication provider the build picked.
      */
-    public function __construct(
-        private string $mode,
-        private ?VaultReauthenticationCheckerInterface $legacy = null,
-        private ?VaultReauthenticationProviderInterface $policy = null,
-    ) {
-        VaultPortMode::assert($mode === VaultPortMode::BOTH ? '' : $mode, $legacy, $policy, 'export.reauth_checker');
+    public function __construct(private VaultReauthenticationProviderInterface $policy)
+    {
     }
 
     /**
@@ -41,11 +36,7 @@ final readonly class VaultReauthenticationGate implements VaultReauthenticationC
      */
     public function getProof(UserInterface $user, Request $request, string $purpose): ?VaultReauthProof
     {
-        if ($this->legacy instanceof VaultReauthenticationCheckerInterface && $this->mode === VaultPortMode::LEGACY) {
-            return $this->legacy->getProof($user, $request, $purpose);
-        }
-
-        return $this->provider()->proofFor(self::context($request, $purpose, $user));
+        return $this->policy->proofFor(self::context($request, $purpose, $user));
     }
 
     /**
@@ -53,13 +44,7 @@ final readonly class VaultReauthenticationGate implements VaultReauthenticationC
      */
     public function consume(VaultReauthProof $proof): void
     {
-        if ($this->legacy instanceof VaultReauthenticationCheckerInterface && $this->mode === VaultPortMode::LEGACY) {
-            $this->legacy->consume($proof);
-
-            return;
-        }
-
-        $this->provider()->consumeProof($proof);
+        $this->policy->consumeProof($proof);
     }
 
     /**
@@ -67,11 +52,7 @@ final readonly class VaultReauthenticationGate implements VaultReauthenticationC
      */
     public function getReauthenticationUrl(Request $request, string $purpose, string $returnTo): string
     {
-        if ($this->legacy instanceof VaultReauthenticationCheckerInterface && $this->mode === VaultPortMode::LEGACY) {
-            return $this->legacy->getReauthenticationUrl($request, $purpose, $returnTo);
-        }
-
-        return $this->provider()->reauthenticationUrl(self::context($request, $purpose, null), $returnTo);
+        return $this->policy->reauthenticationUrl(self::context($request, $purpose, null), $returnTo);
     }
 
     /**
@@ -90,10 +71,5 @@ final readonly class VaultReauthenticationGate implements VaultReauthenticationC
             $request->getPathInfo(),
             $session !== '' ? hash('sha256', $session) : '',
         );
-    }
-
-    private function provider(): VaultReauthenticationProviderInterface
-    {
-        return $this->policy ?? throw new LogicException('No 1.19 re-authentication provider is wired.'); // @codeCoverageIgnore
     }
 }

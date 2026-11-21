@@ -6,8 +6,9 @@ namespace Nowo\VaultBundle\Tests\E2E;
 
 use LogicException;
 use Nowo\VaultBundle\Controller\VaultManageController;
+use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
 use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\Kernel as AppKernel;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
@@ -51,10 +52,10 @@ final class VaultControllerGuardsTest extends WebTestCase
     public function testDenyingAccessCheckerBlocksEveryFeature(): void
     {
         $this->bootClient();
-        $checker = $this->createMock(VaultAccessCheckerInterface::class);
-        $checker->method('canList')->willReturn(false);
-        $checker->method('canCreate')->willReturn(false);
-        $controller = $this->controller(['accessChecker' => $checker]);
+        $checker = $this->createMock(VaultAccessPolicyInterface::class);
+        $checker->method('allowsList')->willReturn(false);
+        $checker->method('allowsCreate')->willReturn(false);
+        $controller = $this->controller(['accessChecker' => new VaultAccessCheckerGate($checker)]);
         $this->pushRequest($this->createUser('alice@example.com'));
 
         $this->expectException(AccessDeniedException::class);
@@ -67,9 +68,9 @@ final class VaultControllerGuardsTest extends WebTestCase
         $alice   = $this->createUser('alice@example.com');
         $item    = $this->createItem($alice, 'Item');
         $folder  = $this->createFolder($alice, 'Folder');
-        $checker = $this->createMock(VaultAccessCheckerInterface::class);
-        $checker->expects(self::never())->method('canList');
-        $controller = $this->controller(['accessChecker' => $checker, 'allowUnauthenticated' => true]);
+        $checker = $this->createMock(VaultAccessPolicyInterface::class);
+        $checker->expects(self::never())->method('allowsList');
+        $controller = $this->controller(['accessChecker' => new VaultAccessCheckerGate($checker), 'allowUnauthenticated' => true]);
         $request    = $this->pushRequest(null);
 
         self::assertSame(200, $controller->home()->getStatusCode());

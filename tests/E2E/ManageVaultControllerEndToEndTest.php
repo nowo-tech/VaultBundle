@@ -24,6 +24,7 @@ use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\EventSubscriber\ReadOnlyTitleSubscriber;
 use Nowo\VaultBundle\Tests\App\Kernel as AppKernel;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -292,8 +293,8 @@ final class ManageVaultControllerEndToEndTest extends WebTestCase
         $writeItem        = $this->createItem($alice, 'Writable', folder: $aliceFolder);
         $private          = $this->createItem($alice, 'Private');
         $grants           = self::getContainer()->get(VaultGrantService::class);
-        $grants->grant(VaultResourceType::Item, $readItem->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
-        $grants->grant(VaultResourceType::Item, $writeItem->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Write, $this->managed($alice));
+        GrantSeeder::grant($grants, VaultResourceType::Item, $readItem->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant($grants, VaultResourceType::Item, $writeItem->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Write, $this->managed($alice));
         $bobFolder = $this->createFolder($bob, 'Bob folder');
 
         $client->loginUser($bob);
@@ -368,7 +369,7 @@ final class ManageVaultControllerEndToEndTest extends WebTestCase
 
         // A grant of another resource cannot be revoked through this item.
         $other      = $this->createItem($alice, 'Other');
-        $otherGrant = self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $other->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        $otherGrant = GrantSeeder::grant(self::getContainer()->get(VaultGrantService::class), VaultResourceType::Item, $other->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
         $client->request('POST', $base . $otherGrant->getId() . '/revoke', ['_token' => $this->csrf($client, 'vault_revoke_grant_' . $otherGrant->getId())]);
         self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
 

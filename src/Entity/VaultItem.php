@@ -160,22 +160,6 @@ class VaultItem
     }
 
     /**
-     * Returns the user that owns the personal item.
-     *
-     * @deprecated since 1.16.0, use getOwner() (or getCreatedBy() for the audit creator)
-     *
-     * @throws VaultOwnerException for a scope item (it has no personal owner)
-     */
-    public function getCreator(): object
-    {
-        if ($this->creator === null) {
-            throw new VaultOwnerException('A scope item has no personal owner; use getOwner().');
-        }
-
-        return VaultUserId::wrap($this->creator);
-    }
-
-    /**
      * The owner: the user of a personal item, or the scope of a scope item (1.16.0).
      */
     public function getOwner(): VaultOwner

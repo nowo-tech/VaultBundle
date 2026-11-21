@@ -21,6 +21,8 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
+use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
@@ -28,14 +30,16 @@ use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\SodiumVaultPayloadCryptographer;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionAuthService;
 use Nowo\VaultBundle\Service\VaultBrowserExtensionLoginResolver;
 use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Service\VaultSharedItemResolver;
 use Nowo\VaultBundle\Service\VaultTrashService;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Nowo\VaultBundle\Tests\Support\RecordingLogger;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
 use PHPUnit\Framework\TestCase;
@@ -73,21 +77,21 @@ final class VaultServiceLoggingTest extends TestCase
 
         $results = [
             VaultBrowserExtensionAuthResult::failure('invalid'),
-            VaultBrowserExtensionAuthResult::success($user),
-            VaultBrowserExtensionAuthResult::success($user),
+            VaultBrowserExtensionAuthResult::authenticated(VaultUserRefs::fromUser($user)),
+            VaultBrowserExtensionAuthResult::authenticated(VaultUserRefs::fromUser($user)),
         ];
         $authenticator = $this->createMock(VaultBrowserExtensionAuthenticatorInterface::class);
         $authenticator->method('authenticate')->willReturnCallback(static function () use (&$results): VaultBrowserExtensionAuthResult {
             return array_shift($results);
         });
-        $access  = $this->createMock(VaultAccessCheckerInterface::class);
+        $access  = $this->createMock(VaultAccessPolicyInterface::class);
         $allowed = [true, false];
-        $access->method('canAccess')->willReturnCallback(static function () use (&$allowed): bool {
+        $access->method('allowsAccess')->willReturnCallback(static function () use (&$allowed): bool {
             return array_shift($allowed) ?? false;
         });
 
         $clock   = new MockClock('2031-02-03 04:05:06');
-        $service = new VaultBrowserExtensionAuthService($authenticator, $tokens, new EventDispatcher(), 600, $access, null, $clock, $logger);
+        $service = new VaultBrowserExtensionAuthService($authenticator, $tokens, new EventDispatcher(), 600, new VaultAccessCheckerGate($access), null, $clock, $logger);
 
         self::assertNull($service->login(self::USERNAME, self::PASSWORD));
         $issued = $service->login(self::USERNAME, self::PASSWORD);
@@ -169,8 +173,8 @@ final class VaultServiceLoggingTest extends TestCase
 
         $resolver = new VaultBrowserExtensionLoginResolver(
             $repo,
-            new VaultSharedItemResolver($grants, $repo, $teams),
-            new VaultAccessGuard($grants, $teams, new EventDispatcher()),
+            new VaultSharedItemResolver($grants, $repo, new VaultTeamMembershipGate($teams)),
+            new VaultAccessGuard($grants, new VaultTeamMembershipGate($teams), new EventDispatcher()),
             $cryptographer,
             new VaultLoginDomainMatcher(),
             3,
@@ -187,8 +191,8 @@ final class VaultServiceLoggingTest extends TestCase
         // Under the cap: nothing truncated, nothing logged; default logger is a no-op.
         $quiet = new VaultBrowserExtensionLoginResolver(
             $repo,
-            new VaultSharedItemResolver($grants, $repo, $teams),
-            new VaultAccessGuard($grants, $teams, new EventDispatcher()),
+            new VaultSharedItemResolver($grants, $repo, new VaultTeamMembershipGate($teams)),
+            new VaultAccessGuard($grants, new VaultTeamMembershipGate($teams), new EventDispatcher()),
             $cryptographer,
             new VaultLoginDomainMatcher(),
             2,
@@ -215,8 +219,8 @@ final class VaultServiceLoggingTest extends TestCase
 
         $resolver = new VaultBrowserExtensionLoginResolver(
             $repo,
-            new VaultSharedItemResolver($grants, $repo, $teams),
-            new VaultAccessGuard($grants, $teams, new EventDispatcher()),
+            new VaultSharedItemResolver($grants, $repo, new VaultTeamMembershipGate($teams)),
+            new VaultAccessGuard($grants, new VaultTeamMembershipGate($teams), new EventDispatcher()),
             $cryptographer,
             new VaultLoginDomainMatcher(),
         );
@@ -235,11 +239,11 @@ final class VaultServiceLoggingTest extends TestCase
         $logger  = new RecordingLogger();
         $service = new VaultGrantService($repo, $logger);
 
-        $grant        = $service->grant(VaultResourceType::Item, 'item-1', GranteeType::User, 'user-2', VaultPermission::Read, new TestUser('1'));
+        $grant        = GrantSeeder::grant($service, VaultResourceType::Item, 'item-1', GranteeType::User, 'user-2', VaultPermission::Read, new TestUser('1'));
         $existingRepo = $this->createMock(VaultGrantRepositoryInterface::class);
         $existingRepo->method('findOne')->willReturn($grant);
-        (new VaultGrantService($existingRepo, $logger))->grant(VaultResourceType::Item, 'item-1', GranteeType::User, 'user-2', VaultPermission::Write, new TestUser('1'));
-        $service->revoke($grant);
+        GrantSeeder::grant(new VaultGrantService($existingRepo, $logger), VaultResourceType::Item, 'item-1', GranteeType::User, 'user-2', VaultPermission::Write, new TestUser('1'));
+        GrantSeeder::revoke($service, $grant);
 
         self::assertSame(['Vault grant created.', 'Vault grant updated.', 'Vault grant revoked.'], $logger->messages());
         self::assertSame(['grant_create', 'grant_update', 'grant_revoke'], array_column(array_column($logger->records, 'context'), 'action'));

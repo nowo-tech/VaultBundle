@@ -27,16 +27,6 @@ final class VaultFolderAccessCheckEvent extends Event
     }
 
     /**
-     * Returns the user being checked.
-     *
-     * @deprecated since 1.19.0, use getUserRef() / getUserId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
-     */
-    public function getUser(): UserInterface
-    {
-        return $this->user;
-    }
-
-    /**
      * Returns the folder being accessed.
      */
     public function getFolder(): VaultFolder

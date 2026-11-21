@@ -24,7 +24,7 @@ final class VaultGrantChangeEvent extends Event
 
     /**
      * @param string|null $ownerKey {@see VaultOwner::key()} of the shared resource, null when it no longer exists
-     * @param string|null $actorId user id of the actor, null for a system change (purge, erasure, deprecated API)
+     * @param string|null $actorId user id of the actor, null for a system change (purge, erasure)
      * @param string|null $reason revoke reason (REASON_*), null for created / updated
      */
     public function __construct(

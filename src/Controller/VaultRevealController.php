@@ -8,9 +8,9 @@ use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultDecryptionFailedException;
 use Nowo\VaultBundle\Exception\VaultRevealRefusedException;
+use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultFieldRevealer;
 use Nowo\VaultBundle\Support\VaultAttachmentFilename;
@@ -38,7 +38,7 @@ final class VaultRevealController extends AbstractController
      * Stores the collaborators.
      */
     public function __construct(
-        private readonly VaultAccessCheckerInterface $accessChecker,
+        private readonly VaultAccessCheckerGate $accessChecker,
         private readonly VaultAccessGuard $accessGuard,
         private readonly VaultItemRepositoryInterface $itemRepository,
         private readonly VaultFieldRevealer $fieldRevealer,

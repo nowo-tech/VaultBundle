@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Nowo\VaultBundle\Security;
+namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -11,9 +11,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  *
  * Replace this interface in the container to integrate team-based or custom ACL logic.
  *
- * @deprecated since 1.19.0, implement {@see VaultAccessPolicyInterface} instead (framework-free, REQ-ARCH-001 rule 3); removed in 2.0.
+ * Test copy of the v1.18.0 interface (removed in 2.0), for the equivalence reference chain only.
  */
-interface VaultAccessCheckerInterface
+interface VaultAccessCheckerInterfaceV1180
 {
     /**
      * Whether the user may access the vault UI.

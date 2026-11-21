@@ -5,12 +5,12 @@ services:
         autoconfigure: true
         public: false
         # 1.19.0 (REQ-ARCH-001 rule 3): the vault services ask the host ports through internal gates, which ask the
-        # framework-free 1.19 interfaces, the deprecated ones (exactly as in 1.18) or both (VaultPortsPass).
+        # framework-free port interfaces (VaultPortsPass; the only ones since 2.0).
         bind:
-            Nowo\VaultBundle\Security\VaultAccessCheckerInterface: '@nowo_vault.port.access_checker'
-            Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface: '@nowo_vault.port.team_membership'
-            Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@nowo_vault.port.user_locator'
-            Nowo\VaultBundle\Service\VaultHealthReporterInterface: '@nowo_vault.port.health_reporter'
+            Nowo\VaultBundle\Port\VaultAccessCheckerGate: '@nowo_vault.port.access_checker'
+            Nowo\VaultBundle\Port\VaultTeamMembershipGate: '@nowo_vault.port.team_membership'
+            Nowo\VaultBundle\Port\VaultUserLocatorGate: '@nowo_vault.port.user_locator'
+            Nowo\VaultBundle\Port\VaultHealthReporterGate: '@nowo_vault.port.health_reporter'
 
     Nowo\VaultBundle\:
         resource: '../../'
@@ -147,9 +147,6 @@ services:
             $userClass: '%nowo_vault.user_class%'
             $managerName: '%nowo_vault.entity_manager%'
 
-    # 1.17.0: port for loading a host user by id; alias it to your own service when users are no Doctrine entities.
-    Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@Nowo\VaultBundle\Support\VaultUserLocator'
-
     Nowo\VaultBundle\Command\CheckDowngradeCommand:
         arguments:
             $managerName: '%nowo_vault.entity_manager%'
@@ -178,11 +175,6 @@ services:
             $sharingEnabled: '%nowo_vault.sharing.enabled%'
             $hostNoteTemplate: '%nowo_vault.web_ui.host_note_template%'
             $destructiveActionsInMenu: '%nowo_vault.web_ui.destructive_actions_in_menu%'
-
-    # Deprecated since 1.15: the nowo_vault_css_framework Twig global (the pages read nowo_ui_kit).
-    Nowo\VaultBundle\Twig\VaultExtension:
-        arguments:
-            $cssFramework: '%nowo_vault.css_framework%'
 
     # Form Kit injects FormOptionsMerger into tagged form types (FormOptionsMergerInjectorCompilerPass).
     Nowo\VaultBundle\Form\:

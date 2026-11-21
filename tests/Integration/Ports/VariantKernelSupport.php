@@ -20,6 +20,7 @@ use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\Ports\PortsUserDirectory;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -101,11 +102,11 @@ trait VariantKernelSupport
         $tags->syncItemTags($p, $alice, ['work']);
 
         $id = static fn (string $name): string => (string) UserIdResolver::getId($users[$name]);
-        $grants->grant(VaultResourceType::Item, $p->getId(), GranteeType::User, $id('bob'), VaultPermission::Read, $alice);
-        $grants->grant(VaultResourceType::Item, $p->getId(), GranteeType::Team, 'team-1', VaultPermission::Write, $alice);
-        $grants->grant(VaultResourceType::Folder, $folder->getId(), GranteeType::User, $id('frank'), VaultPermission::Admin, $alice);
-        $grants->grant(VaultResourceType::Item, $s->getId(), GranteeType::User, $id('frank'), VaultPermission::Admin, $alice);
-        $grants->grant(VaultResourceType::Item, $s->getId(), GranteeType::User, $id('erin'), VaultPermission::Write, $alice);
+        GrantSeeder::grant($grants, VaultResourceType::Item, $p->getId(), GranteeType::User, $id('bob'), VaultPermission::Read, $alice);
+        GrantSeeder::grant($grants, VaultResourceType::Item, $p->getId(), GranteeType::Team, 'team-1', VaultPermission::Write, $alice);
+        GrantSeeder::grant($grants, VaultResourceType::Folder, $folder->getId(), GranteeType::User, $id('frank'), VaultPermission::Admin, $alice);
+        GrantSeeder::grant($grants, VaultResourceType::Item, $s->getId(), GranteeType::User, $id('frank'), VaultPermission::Admin, $alice);
+        GrantSeeder::grant($grants, VaultResourceType::Item, $s->getId(), GranteeType::User, $id('erin'), VaultPermission::Write, $alice);
 
         return ['personal' => $p->getId(), 'in folder' => $pf->getId(), 'scope' => $s->getId(), 'folder' => $folder->getId()];
     }

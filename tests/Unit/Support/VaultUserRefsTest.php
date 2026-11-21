@@ -6,7 +6,6 @@ namespace Nowo\VaultBundle\Tests\Unit\Support;
 
 use LogicException;
 use Nowo\VaultBundle\Doctrine\VaultUserMapping;
-use Nowo\VaultBundle\Port\VaultPortMode;
 use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Support\VaultRefUser;
 use Nowo\VaultBundle\Support\VaultUserClassPolicy;
@@ -127,6 +126,6 @@ final class VaultUserRefsTest extends TestCase
             }
         };
 
-        return (new VaultUserLocatorGate(VaultPortMode::POLICY, null, $directory))->find((string) $answer->id);
+        return (new VaultUserLocatorGate($directory))->find((string) $answer->id);
     }
 }

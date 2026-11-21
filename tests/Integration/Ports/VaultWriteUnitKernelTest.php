@@ -4,11 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Integration\Ports;
 
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\Persistence\ManagerRegistry;
-use Doctrine\Persistence\ObjectManager;
-use LogicException;
-use Nowo\TransactionDoctrine\DoctrineTransactionRunner;
 use Nowo\VaultBundle\Doctrine\VaultWriteUnit;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
@@ -49,8 +44,8 @@ final class VaultWriteUnitKernelTest extends KernelTestCase
      */
     public static function modes(): iterable
     {
-        yield 'private entity manager' => ['private_relation_legacy'];
-        yield '1.18 mode (application manager)' => ['legacy_relation_legacy'];
+        // Since 2.0 the only mode (the 1.18 mode on the application manager was removed).
+        yield 'private entity manager' => ['private_relation_new'];
     }
 
     #[Test]
@@ -117,7 +112,7 @@ final class VaultWriteUnitKernelTest extends KernelTestCase
     #[Test]
     public function thePrivateUnitWritesOnlyThroughTheVaultManagerAndLeavesTheApplicationManagerAlone(): void
     {
-        [$container, $users] = $this->boot('private_relation_legacy');
+        [$container, $users] = $this->boot('private_relation_new');
         $host                = self::hostManager($container);
         $vault               = self::vaultManager($container);
         self::assertNotSame($host, $vault);
@@ -148,62 +143,37 @@ final class VaultWriteUnitKernelTest extends KernelTestCase
         self::assertSame(0, (int) $host->getConnection()->fetchOne('SELECT COUNT(*) FROM vault_items'));
     }
 
+    /**
+     * REQ-ARCH-001 rule 6 (the only mode since 2.0): a unit runs while the application holds unflushed changes, never
+     * flushes them, and leaves them pending.
+     */
     #[Test]
-    public function the118ModeRefusesToStartOverPendingApplicationChanges(): void
+    public function aUnitLeavesPendingApplicationChangesPending(): void
     {
-        [$container, $users] = $this->boot('legacy_relation_legacy');
+        [$container, $users] = $this->boot('private_relation_new');
         $carol               = $users['carol'];
         assert($carol instanceof User);
         $carol->setEmail('pending@example.com');
 
-        try {
-            $this->unit($container)->run(static fn (): null => null);
-            self::fail('pending host changes are refused');
-        } catch (LogicException $exception) {
-            self::assertSame(DoctrineTransactionRunner::HOST_PENDING_MESSAGE, $exception->getMessage());
-        }
+        $item = $this->unit($container)->run(fn (): VaultItem => $this->creator($container)->create(VaultItemType::Login, 'Next to pending', $users['alice'], ['password' => 'REDACTED-TEST']));
 
-        self::assertSame('carol@example.com', self::hostManager($container)->getConnection()->fetchOne('SELECT email FROM users WHERE id = ?', [$carol->getId()]), 'nothing was flushed');
+        $host = self::hostManager($container);
+        self::assertSame('carol@example.com', $host->getConnection()->fetchOne('SELECT email FROM users WHERE id = ?', [$carol->getId()]), 'nothing of the application was flushed');
+        $host->getUnitOfWork()->computeChangeSets();
+        self::assertTrue($host->getUnitOfWork()->isScheduledForUpdate($carol), 'the application change is still pending');
+        self::assertSame('Next to pending', $this->item($container, $item->getId())?->getTitle());
     }
 
     #[Test]
-    public function the118ModeReplacesAClosedApplicationManager(): void
+    public function aUnitBuiltWithoutDispatcherRunsOnTheGivenManager(): void
     {
-        [$container] = $this->boot('legacy_relation_legacy');
-        $doctrine    = $container->get('doctrine');
-        assert($doctrine instanceof ManagerRegistry);
-        $closed = self::hostManager($container);
-        $closed->close();
-
-        self::assertSame('ok', $this->unit($container)->run(static fn (): string => 'ok'));
-        $current = $doctrine->getManager();
-        self::assertInstanceOf(EntityManagerInterface::class, $current);
-        self::assertTrue($current->isOpen(), 'the closed manager was replaced (DoctrineBundle may reset its lazy service in place)');
-    }
-
-    #[Test]
-    public function aUnitBuiltWithoutRegistryNorDispatcherRunsOnTheGivenManager(): void
-    {
-        [$container, $users] = $this->boot('legacy_relation_legacy');
-        $host                = self::hostManager($container);
-        $unit                = new VaultWriteUnit($host, false);
+        [$container, $users] = $this->boot('private_relation_new');
+        $unit                = new VaultWriteUnit(self::vaultManager($container));
 
         $item = $unit->run(fn (): VaultItem => $this->creator($container)->create(VaultItemType::Login, 'Bare', $users['alice'], ['password' => 'REDACTED-TEST']));
         $unit->run(static fn () => $unit->lockForUpdate($item));
 
-        self::assertSame(1, (int) $host->getConnection()->fetchOne('SELECT COUNT(*) FROM vault_items'));
-    }
-
-    #[Test]
-    public function aRegistryWithoutAnOrmManagerFallsBackToTheGivenManager(): void
-    {
-        [$container, $users] = $this->boot('legacy_relation_legacy');
-        $host                = self::hostManager($container);
-        $registry            = $this->createStub(ManagerRegistry::class);
-        $registry->method('getManager')->willReturn($this->createStub(ObjectManager::class));
-        $unit = new VaultWriteUnit($host, false, $registry, 'default');
-
-        self::assertSame('ok', $unit->run(static fn (): string => 'ok'));
+        self::assertSame(1, (int) self::hostManager($container)->getConnection()->fetchOne('SELECT COUNT(*) FROM vault_items'));
     }
 
     /**

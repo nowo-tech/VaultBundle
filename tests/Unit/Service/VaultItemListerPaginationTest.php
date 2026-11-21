@@ -8,6 +8,7 @@ use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemListQueryEvent;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemPaginatorInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
@@ -117,7 +118,7 @@ final class VaultItemListerPaginationTest extends TestCase
 
         $lister = new VaultItemLister(
             $repo,
-            new VaultSharedItemResolver($grantRepo, $sharedRepo, new NullVaultTeamMembershipResolver()),
+            new VaultSharedItemResolver($grantRepo, $sharedRepo, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver())),
             new EventDispatcher(),
         );
 
@@ -154,7 +155,7 @@ final class VaultItemListerPaginationTest extends TestCase
         return new VaultSharedItemResolver(
             $this->createMock(VaultGrantRepositoryInterface::class),
             $this->createMock(VaultItemRepositoryInterface::class),
-            new NullVaultTeamMembershipResolver(),
+            new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()),
         );
     }
 

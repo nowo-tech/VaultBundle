@@ -111,22 +111,6 @@ class VaultFolder
     }
 
     /**
-     * Returns the user that owns the personal folder.
-     *
-     * @deprecated since 1.16.0, use getOwner() (or getCreatedBy() for the audit creator)
-     *
-     * @throws VaultOwnerException for a scope folder
-     */
-    public function getCreator(): object
-    {
-        if ($this->creator === null) {
-            throw new VaultOwnerException('A scope folder has no personal owner; use getOwner().');
-        }
-
-        return VaultUserId::wrap($this->creator);
-    }
-
-    /**
      * The owner: a user or a scope (1.16.0).
      */
     public function getOwner(): VaultOwner

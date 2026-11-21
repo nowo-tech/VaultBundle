@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\PersistentCollection;
 use Doctrine\ORM\Tools\SchemaTool;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
@@ -53,13 +54,17 @@ final class VaultItemRepositoryPaginationIntegrationTest extends KernelTestCase
         $this->bob   = (new User())->setEmail('bob@example.com')->setPassword('x');
         $entityManager->persist($this->alice);
         $entityManager->persist($this->bob);
+        $entityManager->flush();
+        // Vault rows belong to the vault's private manager (the only mode since 2.0); the users stay the application's.
+        $vault = self::getContainer()->get(VaultEntityManager::class);
+        self::assertInstanceOf(VaultEntityManager::class, $vault);
         $this->work = new VaultFolder('work', $this->alice);
         $this->red  = new VaultTag('red', $this->alice);
         $this->blue = new VaultTag('blue', $this->alice);
-        $entityManager->persist($this->work);
-        $entityManager->persist($this->red);
-        $entityManager->persist($this->blue);
-        $entityManager->flush();
+        $vault->persist($this->work);
+        $vault->persist($this->red);
+        $vault->persist($this->blue);
+        $vault->flush();
 
         $repository = self::getContainer()->get(VaultItemRepositoryInterface::class);
         self::assertInstanceOf(DoctrineOrmVaultItemRepository::class, $repository);

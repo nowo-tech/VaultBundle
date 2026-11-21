@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\App\Ports;
 
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
 /**
- * Users of a DDD host for the 1.19 port tests (id mapping, UUID ids, no Doctrine): the security user provider and the
- * deprecated user locator port.
+ * Users of a DDD host for the port tests (id mapping, UUID ids, no Doctrine): the security user provider (the vault
+ * reads them through {@see PortsUserDirectoryV119}).
  *
  * @implements UserProviderInterface<UserInterface>
  */
-final class PortsUserDirectory implements UserProviderInterface, VaultUserLocatorInterface
+final class PortsUserDirectory implements UserProviderInterface
 {
     /** @var array<string, string> e-mail => id */
     public const USERS = [

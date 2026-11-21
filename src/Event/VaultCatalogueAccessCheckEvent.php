@@ -26,16 +26,6 @@ final class VaultCatalogueAccessCheckEvent extends Event
     }
 
     /**
-     * The viewer.
-     *
-     * @deprecated since 1.19.0, use getUserRef() / getUserId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
-     */
-    public function getUser(): UserInterface
-    {
-        return $this->user;
-    }
-
-    /**
      * The scope key.
      */
     public function getScope(): string

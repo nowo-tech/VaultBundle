@@ -7,7 +7,7 @@ namespace Nowo\VaultBundle\Security;
 use Nowo\VaultBundle\Enum\VaultPermission;
 
 /**
- * A user's standing in a host scope (1.16.0), returned by {@see VaultScopeAccessResolverInterface::resolve()}.
+ * A user's standing in a host scope (1.16.0), returned by {@see VaultScopeAccessProviderInterface::scopeAccessOf()}.
  */
 final readonly class VaultScopeAccess
 {

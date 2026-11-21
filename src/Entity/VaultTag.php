@@ -88,22 +88,6 @@ class VaultTag
     }
 
     /**
-     * Returns the user that owns the personal tag.
-     *
-     * @deprecated since 1.16.0, use getOwner()
-     *
-     * @throws VaultOwnerException for a scope tag
-     */
-    public function getCreator(): object
-    {
-        if ($this->creator === null) {
-            throw new VaultOwnerException('A scope tag has no personal owner; use getOwner().');
-        }
-
-        return VaultUserId::wrap($this->creator);
-    }
-
-    /**
      * The id of the personal owner, or null for a scope tag (1.17.0). Works with both user mappings.
      */
     public function getCreatorId(): ?string

@@ -85,10 +85,9 @@ final class PortTwinsTest extends TestCase
         $user   = new TestUser('3');
         $result = VaultBrowserExtensionAuthResult::authenticated(new VaultUserRef('3', 'u', [], $user));
         self::assertTrue($result->isSuccess());
-        self::assertSame($user, $result->getUser());
         self::assertSame($user, $result->getUserRef()?->user());
         $byId = VaultBrowserExtensionAuthResult::authenticated(VaultUserRef::ofId('7', 'x', ['ROLE_ADMIN']));
-        self::assertNull($byId->getUser(), 'by id: no user until the vault resolves it');
+        self::assertNull($byId->getUserRef()?->user(), 'by id: no user until the vault resolves it');
         self::assertSame('7', $byId->getUserRef()?->id);
         self::assertNull(VaultBrowserExtensionAuthResult::failure('x')->getUserRef());
 

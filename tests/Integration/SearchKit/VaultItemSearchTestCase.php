@@ -34,18 +34,21 @@ use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultSearchScopesEvent;
+use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
+use Nowo\VaultBundle\Port\VaultScopeAccessGate;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultGrantRepository;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
+use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
+use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Support\DoctrineVaultUserReferenceResolver;
-use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultUserClassPolicy;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Routing\Generator\UrlGenerator;
@@ -143,18 +146,18 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
                 $event->deny();
             }
         });
-        $this->scopeCache = new RequestScopedScopeAccessCache(new class($this) implements VaultScopeAccessResolverInterface {
+        $this->scopeCache = new RequestScopedScopeAccessCache(new VaultScopeAccessGate(new class($this) implements VaultScopeAccessProviderInterface {
             public function __construct(private readonly VaultItemSearchTestCase $test)
             {
             }
 
-            public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
+            public function scopeAccessOf(VaultUserRef $user, string $scope): ?VaultScopeAccess
             {
                 ++$this->test->resolverCalls;
 
-                return $this->test->scopeAccess((string) UserIdResolver::getId($user), $scope);
+                return $this->test->scopeAccess((string) $user->id, $scope);
             }
-        });
+        }));
     }
 
     /**
@@ -225,14 +228,14 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
         $em    = self::em();
         $users = new DoctrineVaultUserReferenceResolver(static::userClass()[0], new VaultUserClassPolicy(static::userClass()[0], [], static::userMapping()), static::userMapping());
         $teams = $this->teamResolver();
-        $guard = new VaultAccessGuard(new DoctrineOrmVaultGrantRepository($em, users: $users), $teams, $this->vaultEvents, $this->scopeCache, null, $users);
+        $guard = new VaultAccessGuard(new DoctrineOrmVaultGrantRepository($em, users: $users), new VaultTeamMembershipGate($teams), $this->vaultEvents, $this->scopeCache, null, $users);
 
         return new VaultItemSearchDefinition(
             $em,
             new VaultSearchViewers($users, $this->tokens),
             $guard,
-            $this->accessChecker(),
-            $teams,
+            new VaultAccessCheckerGate($this->accessChecker()),
+            new VaultTeamMembershipGate($teams),
             self::urls(),
             eventDispatcher: $this->vaultEvents,
             translator: $translator,
@@ -275,29 +278,29 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
         );
     }
 
-    private function accessChecker(): VaultAccessCheckerInterface
+    private function accessChecker(): VaultAccessPolicyInterface
     {
-        return new class($this) implements VaultAccessCheckerInterface {
+        return new class($this) implements VaultAccessPolicyInterface {
             public function __construct(private readonly VaultItemSearchTestCase $test)
             {
             }
 
-            public function canAccess(?UserInterface $user = null): bool
+            public function allowsAccess(?VaultUserRef $user = null): bool
             {
-                return $user instanceof UserInterface;
+                return $user instanceof VaultUserRef;
             }
 
-            public function canCreate(?UserInterface $user = null): bool
+            public function allowsCreate(?VaultUserRef $user = null): bool
             {
                 return false;
             }
 
-            public function canList(?UserInterface $user = null): bool
+            public function allowsList(?VaultUserRef $user = null): bool
             {
-                return $user instanceof UserInterface && $this->test->listAllowed();
+                return $user instanceof VaultUserRef && $this->test->listAllowed();
             }
 
-            public function canRevoke(?UserInterface $user = null): bool
+            public function allowsRevoke(?VaultUserRef $user = null): bool
             {
                 return false;
             }
@@ -312,16 +315,16 @@ abstract class VaultItemSearchTestCase extends EntitySearchProviderTestCase
         return $this->listAllowed;
     }
 
-    private function teamResolver(): VaultTeamMembershipResolverInterface
+    private function teamResolver(): VaultTeamMembershipProviderInterface
     {
-        return new class($this) implements VaultTeamMembershipResolverInterface {
+        return new class($this) implements VaultTeamMembershipProviderInterface {
             public function __construct(private readonly VaultItemSearchTestCase $test)
             {
             }
 
-            public function getTeamIdsForUser(UserInterface $user): array
+            public function teamIdsOf(VaultUserRef $user): array
             {
-                return $this->test->teamsOf((string) UserIdResolver::getId($user));
+                return $this->test->teamsOf((string) $user->id);
             }
         };
     }

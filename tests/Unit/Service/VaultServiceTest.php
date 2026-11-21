@@ -14,6 +14,7 @@ use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemListQueryEvent;
 use Nowo\VaultBundle\Event\VaultItemListResultEvent;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
@@ -27,6 +28,7 @@ use Nowo\VaultBundle\Service\VaultItemUpdater;
 use Nowo\VaultBundle\Service\VaultSharedItemResolver;
 use Nowo\VaultBundle\Service\VaultTrashService;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
@@ -127,14 +129,14 @@ final class VaultServiceTest extends TestCase
         $repo->method('findByResource')->willReturn([$existing]);
 
         $service = new VaultGrantService($repo);
-        $created = $service->grant(VaultResourceType::Item, 'res-1', GranteeType::User, '2', VaultPermission::Read, $owner);
+        $created = GrantSeeder::grant($service, VaultResourceType::Item, 'res-1', GranteeType::User, '2', VaultPermission::Read, $owner);
         self::assertSame(VaultPermission::Read, $created->getPermission());
 
-        $updated = $service->grant(VaultResourceType::Item, 'res-1', GranteeType::User, '2', VaultPermission::Write, $owner);
+        $updated = GrantSeeder::grant($service, VaultResourceType::Item, 'res-1', GranteeType::User, '2', VaultPermission::Write, $owner);
         self::assertSame(VaultPermission::Write, $updated->getPermission());
 
         self::assertSame([$existing], $service->listForResource(VaultResourceType::Item, 'res-1'));
-        $service->revoke($existing);
+        GrantSeeder::revoke($service, $existing);
     }
 
     public function testItemListerBranches(): void
@@ -153,7 +155,7 @@ final class VaultServiceTest extends TestCase
         $shared = new VaultSharedItemResolver(
             $grantRepo,
             $this->createMock(VaultItemRepositoryInterface::class),
-            new NullVaultTeamMembershipResolver(),
+            new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()),
         );
 
         $dispatcher = new EventDispatcher();
@@ -171,7 +173,7 @@ final class VaultServiceTest extends TestCase
         $sharedItemRepo->method('findByIdsForViewer')->willReturn([$item]);
         $sharedLister = new VaultItemLister(
             $repo,
-            new VaultSharedItemResolver($sharedGrantRepo, $sharedItemRepo, new NullVaultTeamMembershipResolver()),
+            new VaultSharedItemResolver($sharedGrantRepo, $sharedItemRepo, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver())),
             $dispatcher,
         );
         self::assertSame(1, $sharedLister->list($user, sharedOnly: true)['total']);
@@ -197,7 +199,7 @@ final class VaultServiceTest extends TestCase
         $lister = new VaultItemLister($repo, new VaultSharedItemResolver(
             $this->createMock(VaultGrantRepositoryInterface::class),
             $this->createMock(VaultItemRepositoryInterface::class),
-            new NullVaultTeamMembershipResolver(),
+            new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()),
         ), $dispatcher);
 
         $result = $lister->list($viewer);

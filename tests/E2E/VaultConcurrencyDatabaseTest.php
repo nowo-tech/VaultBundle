@@ -42,7 +42,7 @@ use function strtoupper;
 
 /**
  * REQ-RUNTIME-003 on a database server (MySQL 8.4, MariaDB 11.4, PostgreSQL 16; VAULT_TEST_DATABASE_URL), with two
- * connections, with the private entity manager and in the 1.18 mode:
+ * connections, with the private entity manager (the only mode since 2.0; the 1.18 mode was removed):
  *
  * - two people editing one item: a page opened before the other save is refused (409, VAULT_ITEM_CHANGED), and a save
  *   that waits for the other one keeps its secrets (no lost update);
@@ -74,7 +74,6 @@ final class VaultConcurrencyDatabaseTest extends WebTestCase
     public static function modes(): iterable
     {
         yield 'private entity manager' => ['private'];
-        yield '1.18 mode' => ['legacy'];
     }
 
     protected function tearDown(): void

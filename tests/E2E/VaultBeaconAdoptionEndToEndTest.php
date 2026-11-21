@@ -16,6 +16,7 @@ use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Tests\App\BeaconAdoptionKernel;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -53,8 +54,8 @@ final class VaultBeaconAdoptionEndToEndTest extends WebTestCase
         $folder = $this->createFolder($alice, 'Work');
         // Grants created through the service keep working (only the UI and its endpoints are off).
         $grants      = self::getContainer()->get(VaultGrantService::class);
-        $itemGrant   = $grants->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, 'someone', VaultPermission::Read, $this->managed($alice));
-        $folderGrant = $grants->grant(VaultResourceType::Folder, $folder->getId(), GranteeType::User, 'someone', VaultPermission::Read, $this->managed($alice));
+        $itemGrant   = GrantSeeder::grant($grants, VaultResourceType::Item, $item->getId(), GranteeType::User, 'someone', VaultPermission::Read, $this->managed($alice));
+        $folderGrant = GrantSeeder::grant($grants, VaultResourceType::Folder, $folder->getId(), GranteeType::User, 'someone', VaultPermission::Read, $this->managed($alice));
         $client->loginUser($alice);
 
         foreach (['/tools/vault/items/' . $item->getId() . '/share', '/tools/vault/folders/' . $folder->getId() . '/share'] as $url) {
@@ -87,7 +88,7 @@ final class VaultBeaconAdoptionEndToEndTest extends WebTestCase
         $alice  = $this->createUser('alice@example.com');
         $item   = $this->createItem($alice, 'Mail');
         $folder = $this->createFolder($alice, 'Work');
-        self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, 'someone', VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant(self::getContainer()->get(VaultGrantService::class), VaultResourceType::Item, $item->getId(), GranteeType::User, 'someone', VaultPermission::Read, $this->managed($alice));
         $client->loginUser($alice);
 
         $home = $client->request('GET', '/tools/vault');

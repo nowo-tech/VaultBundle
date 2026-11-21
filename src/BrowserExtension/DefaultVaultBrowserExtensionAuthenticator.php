@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\BrowserExtension;
 
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\Exception\AccountStatusException;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
@@ -60,6 +61,6 @@ final readonly class DefaultVaultBrowserExtensionAuthenticator implements VaultB
             return VaultBrowserExtensionAuthResult::failure('Invalid credentials.');
         }
 
-        return VaultBrowserExtensionAuthResult::success($user);
+        return VaultBrowserExtensionAuthResult::authenticated(VaultUserRefs::fromUser($user));
     }
 }

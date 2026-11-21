@@ -28,16 +28,6 @@ final class VaultItemListResultEvent extends Event
     }
 
     /**
-     * Returns the user viewing the list.
-     *
-     * @deprecated since 1.19.0, use getViewerRef() / getViewerId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
-     */
-    public function getViewer(): UserInterface
-    {
-        return $this->viewer;
-    }
-
-    /**
      * Returns the listed items.
      *
      * @return list<VaultItem>

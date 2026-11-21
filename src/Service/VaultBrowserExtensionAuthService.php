@@ -11,12 +11,13 @@ use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthResult;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Event\VaultBrowserExtensionAuthEvent;
 use Nowo\VaultBundle\Event\VaultEvents;
+use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Support\UserIdResolver;
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Support\VaultUserRefResolver;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -51,12 +52,12 @@ final readonly class VaultBrowserExtensionAuthService
         private VaultExtensionTokenRepositoryInterface $tokenRepository,
         private EventDispatcherInterface $eventDispatcher,
         private int $tokenTtlSeconds,
-        private ?VaultAccessCheckerInterface $accessChecker = null,
+        private ?VaultAccessCheckerGate $accessChecker = null,
         private ?UserCheckerInterface $userChecker = null,
         private ?ClockInterface $clock = null,
         private ?LoggerInterface $logger = null,
         private ?VaultUserReferenceResolverInterface $users = null,
-        private ?VaultUserLocatorInterface $userLocator = null,
+        private ?VaultUserLocatorGate $userLocator = null,
         private ?VaultUserRefResolver $refs = null,
     ) {
     }
@@ -82,8 +83,8 @@ final readonly class VaultBrowserExtensionAuthService
             return null;
         }
 
-        $user = $result->getUser();
         $ref  = $result->getUserRef();
+        $user = $ref instanceof VaultUserRef ? VaultUserRefs::toUser($ref) : null;
         if (!$user instanceof UserInterface && $ref instanceof VaultUserRef) {
             // 1.19.0 (NJ-1): a result by id alone is looked up again; its identity and roles come from the directory.
             $user = $this->refs?->resolve($ref);
@@ -153,12 +154,12 @@ final readonly class VaultBrowserExtensionAuthService
     }
 
     /**
-     * Vault role gate ({@see VaultAccessCheckerInterface::canAccess()}) and the firewall user checker (disabled,
+     * Vault role gate ({@see VaultAccessCheckerGate::canAccess()}) and the firewall user checker (disabled,
      * locked, expired accounts), both evaluated for the token's user.
      */
     private function isStillAllowed(UserInterface $user): bool
     {
-        if ($this->accessChecker instanceof VaultAccessCheckerInterface && !$this->accessChecker->canAccess($user)) {
+        if ($this->accessChecker instanceof VaultAccessCheckerGate && !$this->accessChecker->canAccess($user)) {
             return false;
         }
 

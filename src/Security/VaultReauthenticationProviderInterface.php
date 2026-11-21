@@ -7,14 +7,12 @@ namespace Nowo\VaultBundle\Security;
 use Nowo\VaultBundle\ValueObject\VaultReauthContext;
 
 /**
- * Fresh interactive re-authentication before the decrypted personal export (1.19.0): the framework-free twin of the
- * deprecated {@see VaultReauthenticationCheckerInterface} (REQ-ARCH-001 rule 3: a {@see VaultReauthContext} instead of
- * the Symfony `Request` and `UserInterface`).
+ * Fresh interactive re-authentication before the decrypted personal export (1.19.0; since 2.0 the only re-authentication
+ * port: the deprecated `VaultReauthenticationCheckerInterface` was removed). Framework-free (REQ-ARCH-001 rule 3: a
+ * {@see VaultReauthContext} instead of the Symfony `Request` and `UserInterface`).
  *
- * Point `nowo_vault.export.reauth_checker` at a service implementing it. A service that implements both interfaces is
- * asked through this one, unless a decorator of the deprecated interface is registered: then the deprecated interface
- * stays the one asked (registering a decorator of the deprecated interface together with another service behind this
- * one fails the build). The bundle validates every proof itself ({@see VaultReauthProofValidator}).
+ * Point `nowo_vault.export.reauth_checker` at a service implementing it; a configured service that does not implement
+ * it fails the build. The bundle validates every proof itself ({@see VaultReauthProofValidator}).
  */
 interface VaultReauthenticationProviderInterface
 {

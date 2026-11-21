@@ -110,7 +110,7 @@
         }
     },
     "suggest": {
-        "doctrine/mongodb-odm-bundle": "Planned future platform support when nowo_vault.database.platform is mongodb (not implemented in 1.x).",
+        "doctrine/mongodb-odm-bundle": "Planned future platform support when nowo_vault.database.platform is mongodb (not implemented yet).",
         "nowo-tech/doctrine-encrypt-bundle": "Encrypts vault_settings.encryption_key at rest when storing the vault master key in the database.",
         "nowo-tech/password-strength-bundle": "Strength policy, live feedback, and generator for login password fields.",
         "nowo-tech/password-toggle-bundle": "Show/hide toggle for login password fields (used with password-strength-bundle).",

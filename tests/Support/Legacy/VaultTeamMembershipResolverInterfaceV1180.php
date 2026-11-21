@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Nowo\VaultBundle\Security;
+namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -12,9 +12,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * Implement in the application or register a custom service id in
  * nowo_vault.team_membership_resolver.
  *
- * @deprecated since 1.19.0, implement {@see VaultTeamMembershipProviderInterface} instead (framework-free, REQ-ARCH-001 rule 3); removed in 2.0.
+ * Test copy of the v1.18.0 interface (removed in 2.0), for the equivalence reference chain only.
  */
-interface VaultTeamMembershipResolverInterface
+interface VaultTeamMembershipResolverInterfaceV1180
 {
     /**
      * Returns the ids of the teams the user belongs to.

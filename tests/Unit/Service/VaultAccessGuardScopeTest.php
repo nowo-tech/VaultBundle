@@ -15,15 +15,19 @@ use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemAccessCheckEvent;
+use Nowo\VaultBundle\Port\VaultScopeAccessGate;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\Tests\Stub\InMemoryGrantRepository;
 use Nowo\VaultBundle\Tests\Stub\TestTeamMembershipResolver;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -111,7 +115,7 @@ final class VaultAccessGuardScopeTest extends TestCase
         $repo  = $this->createMock(VaultGrantRepositoryInterface::class);
         $repo->method('findByResource')->willReturn([$grant]);
         $repo->method('findByGrantee')->willReturn([$grant]);
-        $guard = new VaultAccessGuard($repo, new TestTeamMembershipResolver([]), $this->dispatcher, null, $this->clock);
+        $guard = new VaultAccessGuard($repo, new VaultTeamMembershipGate(new TestTeamMembershipResolver([])), $this->dispatcher, null, $this->clock);
 
         self::assertFalse($guard->canAccessItem(new TestUser('2'), $item, VaultAccessAction::View));
     }
@@ -157,7 +161,7 @@ final class VaultAccessGuardScopeTest extends TestCase
         $grant  = new VaultGrant(VaultResourceType::Folder, $folder->getId(), GranteeType::User, '2', VaultPermission::Read, $owner);
         $repo   = $this->createMock(VaultGrantRepositoryInterface::class);
         $repo->method('findByResource')->willReturn([$grant]);
-        $guard = new VaultAccessGuard($repo, new TestTeamMembershipResolver([]), $this->dispatcher);
+        $guard = new VaultAccessGuard($repo, new VaultTeamMembershipGate(new TestTeamMembershipResolver([])), $this->dispatcher);
 
         self::assertTrue($guard->canAccessFolder(new TestUser('2'), $folder, VaultAccessAction::View));
         self::assertTrue($guard->canAccessFolder($owner, $folder, VaultAccessAction::Purge));
@@ -207,7 +211,7 @@ final class VaultAccessGuardScopeTest extends TestCase
     public function testScopeMembershipIsMemoizedPerRequestAndReset(): void
     {
         $this->members['2']['org-1'] = new VaultScopeAccess(VaultPermission::Read);
-        $cache                       = new RequestScopedScopeAccessCache($this->resolver());
+        $cache                       = new RequestScopedScopeAccessCache(new VaultScopeAccessGate($this->resolver()));
         $user                        = new TestUser('2');
 
         self::assertInstanceOf(VaultScopeAccess::class, $cache->resolve($user, 'org-1'));
@@ -220,7 +224,7 @@ final class VaultAccessGuardScopeTest extends TestCase
         $cache->reset();
         self::assertNull($cache->resolve($user, 'org-1'), 'Leaving the scope takes effect on the next request.');
         self::assertSame(2, $this->resolves);
-        self::assertNull((new NullVaultScopeAccessResolver())->resolve($user, 'org-1'));
+        self::assertNull((new NullVaultScopeAccessResolver())->scopeAccessOf(VaultUserRefs::fromUser($user), 'org-1'));
     }
 
     public function testScopeViewMapFromIds(): void
@@ -240,7 +244,7 @@ final class VaultAccessGuardScopeTest extends TestCase
 
         $repo = $this->createMock(VaultGrantRepositoryInterface::class);
         $repo->method('findByResource')->willReturnCallback(fn (VaultResourceType $type, string $id): array => $this->grants->findByResource($type, $id));
-        $legacy = new VaultAccessGuard($repo, new TestTeamMembershipResolver(['2' => ['ops']]), $this->dispatcher, new RequestScopedScopeAccessCache($this->resolver()), $this->clock);
+        $legacy = new VaultAccessGuard($repo, new VaultTeamMembershipGate(new TestTeamMembershipResolver(['2' => ['ops']])), $this->dispatcher, new RequestScopedScopeAccessCache(new VaultScopeAccessGate($this->resolver())), $this->clock);
         self::assertSame(['i1' => true, 'i2' => true, 'i3' => false], $legacy->resolveScopeViewMap($user, 'org-1', $items));
 
         $this->members['2']['org-1'] = new VaultScopeAccess(VaultPermission::Read, true);
@@ -261,20 +265,20 @@ final class VaultAccessGuardScopeTest extends TestCase
             {
             }
         };
-        $resolver = new class implements VaultScopeAccessResolverInterface {
-            public function resolve(UserInterface $user, string $scope): VaultScopeAccess
+        $resolver = new class implements VaultScopeAccessProviderInterface {
+            public function scopeAccessOf(VaultUserRef $user, string $scope): VaultScopeAccess
             {
                 return new VaultScopeAccess(null, true);
             }
         };
-        $guard = new VaultAccessGuard($this->grants, new TestTeamMembershipResolver([]), $this->dispatcher, new RequestScopedScopeAccessCache($resolver), $this->clock);
+        $guard = new VaultAccessGuard($this->grants, new VaultTeamMembershipGate(new TestTeamMembershipResolver([])), $this->dispatcher, new RequestScopedScopeAccessCache(new VaultScopeAccessGate($resolver)), $this->clock);
         self::assertSame(['i1' => false], $guard->resolveScopeViewMap($anonymous, 'org-1', ['i1' => null]));
     }
 
     public function testWithoutScopeCacheNobodyIsAMember(): void
     {
         $item  = VaultItem::forScope(VaultItemType::Login, 'Stripe', 'org-1', null, 'c');
-        $guard = new VaultAccessGuard($this->grants, new TestTeamMembershipResolver([]), $this->dispatcher);
+        $guard = new VaultAccessGuard($this->grants, new VaultTeamMembershipGate(new TestTeamMembershipResolver([])), $this->dispatcher);
 
         self::assertNull($guard->resolveScopeAccess(new TestUser('2'), 'org-1'));
         self::assertFalse($guard->canAccessItem(new TestUser('2'), $item, VaultAccessAction::View));
@@ -286,24 +290,24 @@ final class VaultAccessGuardScopeTest extends TestCase
      */
     private function guard(array $teams = []): VaultAccessGuard
     {
-        return new VaultAccessGuard($this->grants, new TestTeamMembershipResolver($teams), $this->dispatcher, new RequestScopedScopeAccessCache($this->resolver()), $this->clock);
+        return new VaultAccessGuard($this->grants, new VaultTeamMembershipGate(new TestTeamMembershipResolver($teams)), $this->dispatcher, new RequestScopedScopeAccessCache(new VaultScopeAccessGate($this->resolver())), $this->clock);
     }
 
-    private function resolver(): VaultScopeAccessResolverInterface
+    private function resolver(): VaultScopeAccessProviderInterface
     {
         return new class(function (string $id, string $scope): ?VaultScopeAccess {
             ++$this->resolves;
 
             return $this->members[$id][$scope] ?? null;
-        }) implements VaultScopeAccessResolverInterface {
+        }) implements VaultScopeAccessProviderInterface {
 
             public function __construct(private readonly Closure $lookup)
             {
             }
 
-            public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
+            public function scopeAccessOf(VaultUserRef $user, string $scope): ?VaultScopeAccess
             {
-                return ($this->lookup)($user instanceof TestUser ? $user->getId() : '', $scope);
+                return ($this->lookup)($user->id ?? '', $scope);
             }
         };
     }

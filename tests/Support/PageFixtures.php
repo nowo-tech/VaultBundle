@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Support;
 
 use DateTimeImmutable;
-use Doctrine\Persistence\ManagerRegistry;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use Nowo\VaultBundle\Dto\VaultCatalogueEntry;
 use Nowo\VaultBundle\Dto\VaultCataloguePage;
 use Nowo\VaultBundle\Dto\VaultGranteeChoice;
@@ -498,9 +498,10 @@ final class PageFixtures
     private static function managed(VaultFolder $folder): VaultFolder
     {
         self::forms();
-        $doctrine = self::$container?->get('doctrine');
-        assert($doctrine instanceof ManagerRegistry);
-        $doctrine->getManager()->persist($folder);
+        // The folder choices are read through the vault's private entity manager (the only mode since 2.0).
+        $manager = self::$container?->get(VaultEntityManager::class);
+        assert($manager instanceof VaultEntityManager);
+        $manager->persist($folder);
 
         return $folder;
     }

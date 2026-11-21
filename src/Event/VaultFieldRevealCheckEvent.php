@@ -31,16 +31,6 @@ final class VaultFieldRevealCheckEvent extends Event
     }
 
     /**
-     * The user asking for the value.
-     *
-     * @deprecated since 1.19.0, use getUserRef() / getUserId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
-     */
-    public function getUser(): UserInterface
-    {
-        return $this->user;
-    }
-
-    /**
      * The item (its payload is not decrypted yet).
      */
     public function getItem(): VaultItem

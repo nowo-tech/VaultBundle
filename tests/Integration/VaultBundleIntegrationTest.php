@@ -11,13 +11,12 @@ use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionResponseFactory;
 use Nowo\VaultBundle\Command\PurgeExtensionTokensCommand;
 use Nowo\VaultBundle\Command\ReencryptVaultPayloadsCommand;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\VaultBundle;
 use PHPUnit\Framework\TestCase;
 use stdClass;
@@ -45,12 +44,12 @@ final class VaultBundleIntegrationTest extends TestCase
             'encryption_key' => self::ENCRYPTION_KEY,
         ]], $container);
 
-        self::assertTrue($container->hasAlias(VaultAccessCheckerInterface::class));
+        self::assertTrue($container->hasDefinition(VaultPortsPass::GATE_PREFIX . 'access_checker'));
         self::assertTrue($container->hasDefinition(VaultRouteLoader::class));
         self::assertTrue($container->hasAlias(VaultItemRepositoryInterface::class));
         self::assertTrue($container->hasAlias(VaultGrantRepositoryInterface::class));
         self::assertTrue($container->hasAlias(VaultExtensionTokenRepositoryInterface::class));
-        self::assertTrue($container->hasAlias(VaultTeamMembershipResolverInterface::class));
+        self::assertTrue($container->hasDefinition(VaultPortsPass::GATE_PREFIX . 'team_membership'));
         self::assertFalse($container->getParameter('nowo_vault.security.allow_unauthenticated'));
     }
 
@@ -84,8 +83,8 @@ final class VaultBundleIntegrationTest extends TestCase
             'security'                 => ['access_checker' => 'app.vault.access'],
         ]], $container);
 
-        self::assertSame('app.vault.access', (string) $container->getAlias(VaultAccessCheckerInterface::class));
-        self::assertSame('app.vault.teams', (string) $container->getAlias(VaultTeamMembershipResolverInterface::class));
+        self::assertSame('app.vault.access', $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'access_checker.service'));
+        self::assertSame('app.vault.teams', $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'team_membership.service'));
     }
 
     public function testMaintenanceCommandsAreRegisteredInContainer(): void
@@ -143,7 +142,7 @@ final class VaultBundleIntegrationTest extends TestCase
         self::assertTrue($container->hasDefinition('nowo_vault.access_checker.allow_all'));
         self::assertSame(
             'nowo_vault.access_checker.allow_all',
-            (string) $container->getAlias(VaultAccessCheckerInterface::class),
+            $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'access_checker.service'),
         );
         self::assertTrue($container->getParameter('nowo_vault.security.allow_unauthenticated'));
     }

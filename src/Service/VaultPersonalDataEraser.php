@@ -22,9 +22,9 @@ use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultPersonalDataErasedEvent;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -66,7 +66,7 @@ final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserI
         private VaultGrantService $grantService,
         private VaultGrantRepositoryInterface $grantRepository,
         private ?EventDispatcherInterface $eventDispatcher = null,
-        private ?VaultUserLocatorInterface $userLocator = null,
+        private ?VaultUserLocatorGate $userLocator = null,
         private ?ClockInterface $clock = null,
         private ?LoggerInterface $logger = null,
         private ?string $managerName = null,

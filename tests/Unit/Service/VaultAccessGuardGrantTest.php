@@ -15,6 +15,7 @@ use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultFolderAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemAccessCheckEvent;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
@@ -62,7 +63,7 @@ final class VaultAccessGuardGrantTest extends TestCase
 
         $guard = new VaultAccessGuard(
             $repo,
-            new TestTeamMembershipResolver(['9' => ['team-a']]),
+            new VaultTeamMembershipGate(new TestTeamMembershipResolver(['9' => ['team-a']])),
             new EventDispatcher(),
         );
 
@@ -125,7 +126,7 @@ final class VaultAccessGuardGrantTest extends TestCase
 
         $user  = new TestUser('1');
         $item  = new VaultItem(VaultItemType::Login, 'Blocked', $user, 'c');
-        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new NullVaultTeamMembershipResolver(), $dispatcher);
+        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $dispatcher);
 
         self::assertFalse($guard->canAccessItem($user, $item, VaultAccessAction::View));
     }
@@ -139,7 +140,7 @@ final class VaultAccessGuardGrantTest extends TestCase
 
         $user   = new TestUser('1');
         $folder = new VaultFolder('Folder', $user);
-        $guard  = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new NullVaultTeamMembershipResolver(), $dispatcher);
+        $guard  = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $dispatcher);
 
         self::assertFalse($guard->canAccessFolder($user, $folder, VaultAccessAction::View));
     }
@@ -179,7 +180,7 @@ final class VaultAccessGuardGrantTest extends TestCase
         $repo->method('findByResource')->willReturn([]);
         $repo->method('findByGrantee')->willReturn([$grant]);
 
-        $guard = new VaultAccessGuard($repo, new NullVaultTeamMembershipResolver(), new EventDispatcher());
+        $guard = new VaultAccessGuard($repo, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), new EventDispatcher());
 
         self::assertTrue($guard->canAccessItem($viewer, $item, VaultAccessAction::View));
     }
@@ -222,7 +223,7 @@ final class VaultAccessGuardGrantTest extends TestCase
         );
         $repo->method('findByGrantee')->willReturn([]);
 
-        $guard = new VaultAccessGuard($repo, new TestTeamMembershipResolver(['9' => ['team-b']]), new EventDispatcher());
+        $guard = new VaultAccessGuard($repo, new VaultTeamMembershipGate(new TestTeamMembershipResolver(['9' => ['team-b']])), new EventDispatcher());
 
         self::assertTrue($guard->canAccessItem($viewer, $item, VaultAccessAction::Edit));
     }
@@ -270,6 +271,6 @@ final class VaultAccessGuardGrantTest extends TestCase
             )),
         );
 
-        return new VaultAccessGuard($repo, new NullVaultTeamMembershipResolver(), new EventDispatcher());
+        return new VaultAccessGuard($repo, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), new EventDispatcher());
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Security;
 
 use Nowo\VaultBundle\EventListener\VaultRequestBoundaryListener;
+use Nowo\VaultBundle\Port\VaultScopeAccessGate;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -13,7 +14,7 @@ use Symfony\Contracts\Service\ResetInterface;
 use function array_key_exists;
 
 /**
- * Memoizes {@see VaultScopeAccessResolverInterface::resolve()} per (user, scope) for one request, so membership is
+ * Memoizes {@see VaultScopeAccessGate::resolve()} per (user, scope) for one request, so membership is
  * re-evaluated on every request. The bundle clears it itself at the main `kernel.request`, `kernel.terminate`,
  * `console.terminate` and Messenger worker boundaries ({@see VaultRequestBoundaryListener},
  * 1.17.1), so it stays correct in FrankenPHP worker mode with kernel reset false; `kernel.reset` also clears it.
@@ -28,7 +29,7 @@ final class RequestScopedScopeAccessCache implements ResetInterface
      * Creates the cache around the host resolver.
      */
     public function __construct(
-        private readonly VaultScopeAccessResolverInterface $resolver,
+        private readonly VaultScopeAccessGate $resolver,
     ) {
     }
 

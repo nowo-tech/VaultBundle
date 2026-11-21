@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Tests\Unit\Event;
 
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthResult;
 use Nowo\VaultBundle\Event\VaultBrowserExtensionAuthEvent;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\TestCase;
 
@@ -24,7 +25,7 @@ final class VaultBrowserExtensionAuthEventTest extends TestCase
         $event = new VaultBrowserExtensionAuthEvent('demo', 'secret');
         self::assertFalse($event->isHandled());
 
-        $event->setResult(VaultBrowserExtensionAuthResult::success(new TestUser('1')));
+        $event->setResult(VaultBrowserExtensionAuthResult::authenticated(VaultUserRefs::fromUser(new TestUser('1'))));
         self::assertTrue($event->isHandled());
         self::assertTrue($event->getResult()?->isSuccess());
     }

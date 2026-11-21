@@ -32,7 +32,7 @@ final class VaultGrantListResolverTest extends TestCase
 
         $event = $resolver->resolveForItem($user, $item);
 
-        self::assertSame($user, $event->getGrantedBy());
+        self::assertSame($user, $event->getGrantedByRef()->user());
         self::assertSame(VaultResourceType::Item, $event->getResourceType());
         self::assertSame($item->getId(), $event->getResourceId());
         self::assertSame($item, $event->getItem());

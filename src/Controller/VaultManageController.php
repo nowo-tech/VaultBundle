@@ -32,10 +32,10 @@ use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Form\VaultItemSearchType;
 use Nowo\VaultBundle\Form\VaultPasswordGeneratorType;
 use Nowo\VaultBundle\Form\VaultShareType;
+use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
 use Nowo\VaultBundle\Repository\VaultItemFolderCounterInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
@@ -97,7 +97,7 @@ final class VaultManageController extends AbstractController
      * Stores the access, listing, persistence, crypto and configuration collaborators of the manage UI.
      */
     public function __construct(
-        private readonly VaultAccessCheckerInterface $accessChecker,
+        private readonly VaultAccessCheckerGate $accessChecker,
         private readonly VaultAccessGuard $accessGuard,
         private readonly VaultItemLister $itemLister,
         private readonly VaultItemCreator $itemCreator,

@@ -37,16 +37,6 @@ final class VaultGrantPolicyCheckEvent extends Event
     }
 
     /**
-     * The acting user.
-     *
-     * @deprecated since 1.19.0, use getActorRef() / getActorId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
-     */
-    public function getActor(): UserInterface
-    {
-        return $this->actor;
-    }
-
-    /**
      * Resource type.
      */
     public function getResourceType(): VaultResourceType

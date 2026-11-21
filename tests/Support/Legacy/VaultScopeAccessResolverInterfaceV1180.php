@@ -2,17 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Nowo\VaultBundle\Security;
+namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
+use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * Host hook (1.16.0): what a scope is, who belongs to it and with which baseline permission. The bundle calls it on
  * every request (memoized per request only), so a user who leaves a scope loses access at once.
  *
- * @deprecated since 1.19.0, implement {@see VaultScopeAccessProviderInterface} instead (framework-free, REQ-ARCH-001 rule 3); removed in 2.0.
+ * Test copy of the v1.18.0 interface (removed in 2.0), for the equivalence reference chain only.
  */
-interface VaultScopeAccessResolverInterface
+interface VaultScopeAccessResolverInterfaceV1180
 {
     /**
      * The user's standing in a scope, or null when the user is not a member (no access to anything in the scope,

@@ -7,7 +7,7 @@ namespace Nowo\VaultBundle\Tests\App;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUserDirectory;
 use Nowo\VaultBundle\Tests\App\EventSubscriber\CommitFirstSubscriber;
@@ -23,9 +23,8 @@ use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
 use const PHP_VERSION_ID;
 
 /**
- * REQ-RUNTIME-003 tests on a database server (VAULT_TEST_DATABASE_URL): a DDD host (`user_mapping: id`) whose
- * environment picks the vault's manager, `private` (the private entity manager) or `legacy` (the 1.18 mode, the
- * application's manager). {@see CommitFirstSubscriber} commits a write before the controller when the request carries
+ * REQ-RUNTIME-003 tests on a database server (VAULT_TEST_DATABASE_URL): a DDD host (`user_mapping: id`) with the
+ * vault's private entity manager (environment `private`, the only mode since 2.0). {@see CommitFirstSubscriber} commits a write before the controller when the request carries
  * its header (the committed-then-conflict case).
  */
 final class ConcurrencyKernel extends BaseKernel
@@ -47,8 +46,7 @@ final class ConcurrencyKernel extends BaseKernel
         foreach (['framework', 'translation', 'twig'] as $file) {
             $loader->load($this->getProjectDir() . '/config/packages/' . $file . '.yaml');
         }
-        $private = $this->environment === 'private';
-        $loader->load(static function (ContainerBuilder $container) use ($private): void {
+        $loader->load(static function (ContainerBuilder $container): void {
             $container->loadFromExtension('doctrine', [
                 'dbal' => ['url' => '%env(VAULT_TEST_DATABASE_URL)%'],
                 'orm'  => ['naming_strategy' => 'doctrine.orm.naming_strategy.underscore_number_aware'] + (PHP_VERSION_ID >= 80400 ? ['enable_native_lazy_objects' => true] : []),
@@ -64,10 +62,9 @@ final class ConcurrencyKernel extends BaseKernel
                 'encryption_key'    => '%env(VAULT_ENCRYPTION_KEY)%',
                 'browser_extension' => ['enabled' => true, 'user_provider' => DddUserDirectory::class],
                 'security'          => ['allow_unlisted_grantees' => true],
-                'database'          => ['private_entity_manager' => $private],
             ]);
             $container->register(DddUserDirectory::class, DddUserDirectory::class)->setPublic(true);
-            $container->setAlias(VaultUserLocatorInterface::class, DddUserDirectory::class);
+            $container->setAlias(VaultUserDirectoryInterface::class, DddUserDirectory::class);
             $container->register(CommitFirstSubscriber::class, CommitFirstSubscriber::class)->setAutowired(true)->setAutoconfigured(true);
         });
     }

@@ -10,6 +10,7 @@ use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterface;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigWriter;
 use Nowo\VaultBundle\DependencyInjection\Compiler\BrowserExtensionUserCheckerPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use Nowo\VaultBundle\Doctrine\VaultManagerRegistry;
@@ -24,8 +25,6 @@ use Nowo\VaultBundle\Repository\DoctrineOrmVaultItemRepository;
 use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Ui\VaultPages;
 use PHPUnit\Framework\TestCase;
@@ -67,9 +66,9 @@ final class VaultExtensionTest extends TestCase
 
         (new VaultExtension())->load([self::BASE_CONFIG], $container);
 
-        self::assertSame('nowo_vault.access_checker.default', (string) $container->getAlias(VaultAccessCheckerInterface::class));
+        self::assertSame('nowo_vault.access_checker.default', $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'access_checker.service'));
         self::assertSame(ConfigurableVaultAccessChecker::class, $container->getDefinition('nowo_vault.access_checker.default')->getClass());
-        self::assertSame(NullVaultTeamMembershipResolver::class, (string) $container->getAlias(VaultTeamMembershipResolverInterface::class));
+        self::assertSame(NullVaultTeamMembershipResolver::class, $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'team_membership.service'));
         self::assertSame('vault_items', $container->getParameter('nowo_vault.items_table'));
         self::assertSame('nowo_vault', (new VaultExtension())->getAlias());
     }
@@ -114,7 +113,7 @@ final class VaultExtensionTest extends TestCase
         self::assertTrue($container->hasDefinition(VaultExtension::COMMIT_TRACKING_MIDDLEWARE));
         self::assertSame('bundle', $container->getParameter(VaultExtension::COMMIT_TRACKING_PARAMETER));
         self::assertTrue($container->hasDefinition(VaultWriteUnit::class));
-        self::assertFalse($container->getDefinition(VaultWriteUnit::class)->getArgument(1), 'the 1.18 mode by default');
+        self::assertSame(VaultEntityManager::class, (string) $container->getDefinition(VaultWriteUnit::class)->getArgument(0), 'the private manager, the only mode since 2.0');
         foreach (VaultExtension::DEFERRED_EVENT_SERVICES as $service) {
             self::assertSame(DeferredVaultEventDispatcher::class, (string) $container->getDefinition($service)->getArgument('$eventDispatcher'), $service);
         }
@@ -176,8 +175,8 @@ final class VaultExtensionTest extends TestCase
             'security'                 => ['access_checker' => 'app.access_checker'],
         ]], $container);
 
-        self::assertSame('app.access_checker', (string) $container->getAlias(VaultAccessCheckerInterface::class));
-        self::assertSame('app.team_resolver', (string) $container->getAlias(VaultTeamMembershipResolverInterface::class));
+        self::assertSame('app.access_checker', $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'access_checker.service'));
+        self::assertSame('app.team_resolver', $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'team_membership.service'));
     }
 
     public function testAllowUnauthenticatedIsRejectedInProd(): void
@@ -196,7 +195,7 @@ final class VaultExtensionTest extends TestCase
 
         (new VaultExtension())->load([self::BASE_CONFIG + ['security' => ['allow_unauthenticated' => true]]], $container);
 
-        self::assertSame('nowo_vault.access_checker.allow_all', (string) $container->getAlias(VaultAccessCheckerInterface::class));
+        self::assertSame('nowo_vault.access_checker.allow_all', $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'access_checker.service'));
         self::assertSame(AllowAllVaultAccessChecker::class, $container->getDefinition('nowo_vault.access_checker.allow_all')->getClass());
     }
 
@@ -216,19 +215,19 @@ final class VaultExtensionTest extends TestCase
 
         $custom = $this->securedContainer();
         (new VaultExtension())->load([self::BASE_CONFIG + ['security' => $empty + ['access_checker' => 'app.checker']]], $custom);
-        self::assertSame('app.checker', (string) $custom->getAlias(VaultAccessCheckerInterface::class));
+        self::assertSame('app.checker', $custom->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'access_checker.service'));
 
         $oneRole = $this->securedContainer();
         (new VaultExtension())->load([self::BASE_CONFIG + ['security' => ['delete_roles' => ['ROLE_X']] + $empty]], $oneRole);
-        self::assertSame('nowo_vault.access_checker.default', (string) $oneRole->getAlias(VaultAccessCheckerInterface::class));
+        self::assertSame('nowo_vault.access_checker.default', $oneRole->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'access_checker.service'));
     }
 
-    public function testWebUiParametersAndDeprecatedCssFramework(): void
+    public function testWebUiParameters(): void
     {
         $container = $this->securedContainer();
-        (new VaultExtension())->load([self::BASE_CONFIG + ['css_framework' => 'bootstrap', 'web_ui' => ['enabled' => false, 'layout_template' => 'base.html.twig', 'templates' => ['items' => 'vault/items.html.twig'], 'path_prefix' => '/admin']]], $container);
+        (new VaultExtension())->load([self::BASE_CONFIG + ['web_ui' => ['enabled' => false, 'layout_template' => 'base.html.twig', 'templates' => ['items' => 'vault/items.html.twig'], 'path_prefix' => '/admin']]], $container);
 
-        self::assertSame('bootstrap5', $container->getParameter('nowo_vault.css_framework'));
+        self::assertFalse($container->hasParameter('nowo_vault.css_framework'), 'the deprecated css_framework parameter was removed in 2.0');
         self::assertFalse($container->getParameter('nowo_vault.web_ui.enabled'));
         self::assertSame('base.html.twig', $container->getParameter('nowo_vault.web_ui.layout_template'));
         self::assertSame(['items' => 'vault/items.html.twig'], $container->getParameter('nowo_vault.web_ui.templates'));
@@ -241,7 +240,6 @@ final class VaultExtensionTest extends TestCase
 
         $default = $this->securedContainer();
         (new VaultExtension())->load([self::BASE_CONFIG], $default);
-        self::assertSame('tabler', $default->getParameter('nowo_vault.css_framework'));
         self::assertTrue($default->getParameter('nowo_vault.web_ui.enabled'));
         self::assertNull($default->getParameter('nowo_vault.web_ui.layout_template'));
     }
@@ -311,12 +309,12 @@ final class VaultExtensionTest extends TestCase
         self::assertSame('NowoVaultBundle', $formKit['profiles']['vault']['translation_domain']);
         self::assertTrue($formKit['profiles']['vault']['convention_requires_translation']);
 
-        // REQ-UI-003: the CSS stack is inherited from nowo_ui_kit; nothing is seeded without the deprecated key.
+        // REQ-UI-003: the CSS stack is inherited from nowo_ui_kit; the vault seeds nothing there.
         self::assertSame([], $container->getExtensionConfig('nowo_ui_kit'));
         self::assertSame(['class' => 'nowo-ui-input'], $formKit['profiles']['vault']['defaults']['attr']);
     }
 
-    public function testPrivateEntityManagerIsOptInAndTheDefaultIsDeprecated(): void
+    public function testThePrivateEntityManagerIsTheOnlyMode(): void
     {
         $deprecations = [];
         set_error_handler(static function (int $type, string $message) use (&$deprecations): bool {
@@ -327,25 +325,32 @@ final class VaultExtensionTest extends TestCase
         try {
             $default = $this->container(['SecurityBundle' => SecurityBundle::class]);
             (new VaultExtension())->load([self::BASE_CONFIG], $default);
-            self::assertFalse($default->getParameter('nowo_vault.private_entity_manager'));
-            self::assertFalse($default->hasDefinition(VaultEntityManager::class), 'unset keeps the 1.18 wiring');
-            self::assertSame('doctrine.orm.default_entity_manager', (string) $default->getDefinition(DoctrineOrmVaultItemRepository::class)->getArgument('$entityManager'));
-            self::assertStringContainsString('Not setting "nowo_vault.database.private_entity_manager" is deprecated', $deprecations[0] ?? '');
+            self::assertSame([], $deprecations, 'unset: no deprecation since 2.0');
+            self::assertFalse($default->hasParameter('nowo_vault.private_entity_manager'));
+            self::assertTrue($default->hasDefinition(VaultEntityManager::class));
+            self::assertSame('default', $default->getDefinition(VaultEntityManager::class)->getArgument(1));
+            self::assertSame(VaultEntityManager::class, (string) $default->getDefinition(DoctrineOrmVaultItemRepository::class)->getArgument('$entityManager'));
+            self::assertSame(VaultManagerRegistry::class, (string) $default->getDefinition(DoctrineOrmVaultItemRepository::class)->getArgument('$registry'));
+            self::assertSame(VaultManagerRegistry::class, (string) $default->getDefinition(VaultPersonalDataEraser::class)->getArgument('$registry'));
+            self::assertSame(VaultEntityManager::class, (string) $default->getDefinition(VaultItemFormType::class)->getArgument('$folderManager'));
+            self::assertEquals([new Reference(VaultEntityManager::class), new Reference(DeferredVaultEventDispatcher::class), new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE)], $default->getDefinition(VaultWriteUnit::class)->getArguments());
 
+            // Q4: true stays valid in 2.x as a no-op, with a deprecation (removed in 3.0).
             $private = $this->container(['SecurityBundle' => SecurityBundle::class]);
             (new VaultExtension())->load([self::BASE_CONFIG, ['database' => ['private_entity_manager' => true, 'entity_manager' => 'vault']]], $private);
-            self::assertTrue($private->hasDefinition(VaultEntityManager::class));
             self::assertSame('vault', $private->getDefinition(VaultEntityManager::class)->getArgument(1));
-            self::assertSame(VaultEntityManager::class, (string) $private->getDefinition(DoctrineOrmVaultItemRepository::class)->getArgument('$entityManager'));
-            self::assertSame(VaultManagerRegistry::class, (string) $private->getDefinition(DoctrineOrmVaultItemRepository::class)->getArgument('$registry'));
-            self::assertSame(VaultManagerRegistry::class, (string) $private->getDefinition(VaultPersonalDataEraser::class)->getArgument('$registry'));
-            self::assertSame(VaultEntityManager::class, (string) $private->getDefinition(VaultItemFormType::class)->getArgument('$folderManager'));
-            self::assertCount(1, $deprecations, 'true: no deprecation');
-
-            (new VaultExtension())->load([self::BASE_CONFIG, ['database' => ['private_entity_manager' => false]]], $this->container(['SecurityBundle' => SecurityBundle::class]));
-            self::assertStringContainsString('private_entity_manager: false" is deprecated', $deprecations[1] ?? '');
+            self::assertCount(1, $deprecations);
+            self::assertStringContainsString('The option has no effect since 2.0 (the private manager is the only mode); remove it.', $deprecations[0]);
         } finally {
             restore_error_handler();
+        }
+
+        try {
+            (new VaultExtension())->load([self::BASE_CONFIG, ['database' => ['private_entity_manager' => false]]], $this->container(['SecurityBundle' => SecurityBundle::class]));
+            self::fail('false must fail the build');
+        } catch (InvalidConfigurationException $exception) {
+            self::assertStringContainsString('private_entity_manager: false was removed in 2.0', $exception->getMessage());
+            self::assertStringContainsString('UPGRADING.md "To 2.0.0"', $exception->getMessage());
         }
 
         $this->expectException(InvalidConfigurationException::class);
@@ -391,45 +396,6 @@ final class VaultExtensionTest extends TestCase
         self::assertCount(2, $configs);
         self::assertArrayNotHasKey('css_framework', $configs[0]);
         self::assertArrayHasKey('vault', $configs[0]['profiles']);
-    }
-
-    public function testPrependMapsBootstrapToBootstrap5ForUiKit(): void
-    {
-        $container = new ContainerBuilder();
-        $container->registerExtension($this->fakeExtension('nowo_ui_kit'));
-        $container->registerExtension($this->fakeExtension('nowo_vault'));
-        $container->prependExtensionConfig('nowo_vault', ['css_framework' => 'bootstrap']);
-
-        (new VaultExtension())->prepend($container);
-
-        self::assertSame(['css_framework' => 'bootstrap5', 'icon_set' => 'bootstrap-icons'], $container->getExtensionConfig('nowo_ui_kit')[0]);
-    }
-
-    public function testPrependSeedsOnlyMissingUiKitKey(): void
-    {
-        $container = new ContainerBuilder();
-        $container->registerExtension($this->fakeExtension('nowo_ui_kit'));
-        $container->registerExtension($this->fakeExtension('nowo_vault'));
-        $container->prependExtensionConfig('nowo_ui_kit', ['css_framework' => 'tailwind']);
-        $container->prependExtensionConfig('nowo_vault', ['css_framework' => 'tabler']);
-
-        (new VaultExtension())->prepend($container);
-
-        self::assertSame(['icon_set' => 'tabler-icons'], $container->getExtensionConfig('nowo_ui_kit')[0]);
-    }
-
-    public function testPrependLeavesUiKitAloneWhenHostSetBothKeys(): void
-    {
-        $container = new ContainerBuilder();
-        $container->registerExtension($this->fakeExtension('nowo_ui_kit'));
-        $container->registerExtension($this->fakeExtension('nowo_vault'));
-        $container->prependExtensionConfig('nowo_ui_kit', ['icon_set' => 'bootstrap-icons']);
-        $container->prependExtensionConfig('nowo_ui_kit', ['css_framework' => 'tailwind']);
-        $container->prependExtensionConfig('nowo_vault', ['css_framework' => 'tabler']);
-
-        (new VaultExtension())->prepend($container);
-
-        self::assertCount(2, $container->getExtensionConfig('nowo_ui_kit'));
     }
 
     public function testPrependRegistersTheRowActionsPartialOnlyWithTheMenuOption(): void

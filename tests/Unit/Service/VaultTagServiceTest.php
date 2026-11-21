@@ -95,7 +95,7 @@ final class VaultTagServiceTest extends TestCase
         $tag     = $service->findOrCreate($user, 'my   new  tag');
 
         self::assertSame('my new tag', $tag->getName());
-        self::assertSame($user, $tag->getCreator());
+        self::assertSame($user, $tag->getOwner()->getUser());
     }
 
     public function testFindOrCreateRejectsBlankName(): void

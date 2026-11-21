@@ -24,6 +24,8 @@ use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemChangeEvent;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
+use Nowo\VaultBundle\Port\VaultScopeAccessGate;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
@@ -33,7 +35,7 @@ use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultFolderService;
@@ -48,6 +50,7 @@ use Nowo\VaultBundle\Service\VaultTagService;
 use Nowo\VaultBundle\Support\VaultUserLocator;
 use Nowo\VaultBundle\Tests\Stub\InMemoryGrantRepository;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use stdClass;
@@ -63,7 +66,7 @@ final class Vault116ServicesTest extends TestCase
 {
     public function testScopeListingsNeedTheDoctrineRepositories(): void
     {
-        $guard = new VaultAccessGuard(new InMemoryGrantRepository(), new NullVaultTeamMembershipResolver(), new EventDispatcher());
+        $guard = new VaultAccessGuard(new InMemoryGrantRepository(), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), new EventDispatcher());
 
         foreach ([
             fn (): array => (new VaultFolderService($this->createStub(VaultFolderRepositoryInterface::class)))->listForScope('org-1'),
@@ -83,7 +86,7 @@ final class Vault116ServicesTest extends TestCase
     public function testScopeListingRefusesNonMembers(): void
     {
         $items = $this->createStubForIntersectionOfInterfaces([VaultItemRepositoryInterface::class, VaultScopeItemRepositoryInterface::class]);
-        $guard = new VaultAccessGuard(new InMemoryGrantRepository(), new NullVaultTeamMembershipResolver(), new EventDispatcher());
+        $guard = new VaultAccessGuard(new InMemoryGrantRepository(), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), new EventDispatcher());
 
         $this->expectException(VaultAccessDeniedException::class);
         (new VaultScopeItemLister($items, $guard))->list(new TestUser('1'), 'org-1');
@@ -93,13 +96,13 @@ final class Vault116ServicesTest extends TestCase
     {
         $registry = $this->createStub(ManagerRegistry::class);
         $registry->method('getManager')->willReturn($this->createStub(ObjectManager::class));
-        $resolver = new class implements VaultScopeAccessResolverInterface {
-            public function resolve(UserInterface $user, string $scope): VaultScopeAccess
+        $resolver = new class implements VaultScopeAccessProviderInterface {
+            public function scopeAccessOf(VaultUserRef $user, string $scope): VaultScopeAccess
             {
                 return new VaultScopeAccess(null, true);
             }
         };
-        $guard = new VaultAccessGuard(new InMemoryGrantRepository(), new NullVaultTeamMembershipResolver(), new EventDispatcher(), new RequestScopedScopeAccessCache($resolver));
+        $guard = new VaultAccessGuard(new InMemoryGrantRepository(), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), new EventDispatcher(), new RequestScopedScopeAccessCache(new VaultScopeAccessGate($resolver)));
 
         $this->expectException(LogicException::class);
         (new VaultCatalogue($registry, $guard, new EventDispatcher()))->page(new TestUser('1'), 'org-1', new VaultCatalogueQuery());
@@ -135,7 +138,7 @@ final class Vault116ServicesTest extends TestCase
         $items->method('findByIdsForViewer')->willReturn([$personal, $scope]);
         $items->method('findByIdsForViewerAndItemType')->willReturn([$scope]);
 
-        $resolver = new VaultSharedItemResolver($grants, $items, new NullVaultTeamMembershipResolver());
+        $resolver = new VaultSharedItemResolver($grants, $items, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()));
         self::assertSame([$personal], $resolver->resolve(new TestUser('2')));
         self::assertSame([], $resolver->resolveByItemType(new TestUser('2'), VaultItemType::Login));
     }
@@ -192,10 +195,11 @@ final class Vault116ServicesTest extends TestCase
         $registry->method('getManager')->willReturn($manager);
         $locator = new VaultUserLocator($registry, TestUser::class);
 
-        self::assertInstanceOf(UserInterface::class, $locator->find('1'));
-        self::assertNull($locator->find('2'), 'Not a UserInterface.');
-        self::assertNull($locator->find('boom'));
-        self::assertNull($locator->find(''));
+        self::assertInstanceOf(UserInterface::class, $locator->findUser('1')?->user());
+        self::assertSame('1', $locator->findUser('1')?->id);
+        self::assertNull($locator->findUser('2'), 'Not a UserInterface.');
+        self::assertNull($locator->findUser('boom'));
+        self::assertNull($locator->findUser(''));
     }
 
     public function testCheckDowngradeWithoutAnOrmManager(): void

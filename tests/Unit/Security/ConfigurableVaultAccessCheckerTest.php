@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Tests\Unit\Security;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
 use PHPUnit\Framework\TestCase;
@@ -33,10 +34,10 @@ final class ConfigurableVaultAccessCheckerTest extends TestCase
             'delete_roles' => [],
         ]));
 
-        self::assertTrue($checker->canAccess());
-        self::assertTrue($checker->canCreate());
-        self::assertTrue($checker->canList());
-        self::assertTrue($checker->canRevoke());
+        self::assertTrue($checker->allowsAccess());
+        self::assertTrue($checker->allowsCreate());
+        self::assertTrue($checker->allowsList());
+        self::assertTrue($checker->allowsRevoke());
     }
 
     public function testRoleBasedPermissions(): void
@@ -54,10 +55,10 @@ final class ConfigurableVaultAccessCheckerTest extends TestCase
             'delete_roles' => ['ROLE_VAULT_DELETE'],
         ]));
 
-        self::assertTrue($checker->canAccess());
-        self::assertTrue($checker->canCreate());
-        self::assertTrue($checker->canList());
-        self::assertFalse($checker->canRevoke());
+        self::assertTrue($checker->allowsAccess());
+        self::assertTrue($checker->allowsCreate());
+        self::assertTrue($checker->allowsList());
+        self::assertFalse($checker->allowsRevoke());
     }
 
     public function testDeniesWhenNoMatchingRole(): void
@@ -73,10 +74,10 @@ final class ConfigurableVaultAccessCheckerTest extends TestCase
             'delete_roles' => ['ROLE_VAULT_DELETE'],
         ]));
 
-        self::assertFalse($checker->canAccess());
-        self::assertFalse($checker->canCreate());
-        self::assertFalse($checker->canList());
-        self::assertFalse($checker->canRevoke());
+        self::assertFalse($checker->allowsAccess());
+        self::assertFalse($checker->allowsCreate());
+        self::assertFalse($checker->allowsList());
+        self::assertFalse($checker->allowsRevoke());
     }
 
     /**
@@ -110,8 +111,8 @@ final class ConfigurableVaultAccessCheckerTest extends TestCase
             'delete_roles' => [],
         ]));
 
-        self::assertTrue($checker->canAccess($alice));
-        self::assertFalse($checker->canAccess(new TestUser('2', 'bob@example.com', ['ROLE_USER'])));
+        self::assertTrue($checker->allowsAccess(VaultUserRefs::fromUser($alice)));
+        self::assertFalse($checker->allowsAccess(VaultUserRefs::fromUser(new TestUser('2', 'bob@example.com', ['ROLE_USER']))));
     }
 
     public function testCurrentUserUsesTheRequestToken(): void
@@ -130,6 +131,6 @@ final class ConfigurableVaultAccessCheckerTest extends TestCase
             'delete_roles' => [],
         ]));
 
-        self::assertTrue($checker->canAccess($alice));
+        self::assertTrue($checker->allowsAccess(VaultUserRefs::fromUser($alice)));
     }
 }

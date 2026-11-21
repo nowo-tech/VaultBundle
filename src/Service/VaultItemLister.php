@@ -11,6 +11,7 @@ use Nowo\VaultBundle\Event\VaultItemListResultEvent;
 use Nowo\VaultBundle\Repository\VaultItemPaginatorInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Support\VaultUserRefResolver;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -56,6 +57,8 @@ final readonly class VaultItemLister
     ): array {
         $queryEvent = new VaultItemListQueryEvent($viewer, $viewer, $folderId, $trashOnly, $sharedOnly, $this->refs instanceof VaultUserRefResolver ? $this->refs->resolve(...) : null);
         $this->eventDispatcher->dispatch($queryEvent, VaultEvents::ITEM_LIST_QUERY);
+        // The listener's subject (setListSubjectRef() keeps a user object, or refuses the reference).
+        $subject = VaultUserRefs::toUser($queryEvent->getListSubjectRef()) ?? $viewer;
 
         $offset    = $perPage === null ? 0 : (max(1, $page) - 1) * $perPage;
         $isSearch  = $searchQuery !== null && $searchQuery !== '';
@@ -71,7 +74,7 @@ final readonly class VaultItemLister
             && $this->itemRepository instanceof VaultItemPaginatorInterface
         ) {
             $pageResult = $this->itemRepository->paginateByCreator(
-                $queryEvent->getListSubject(),
+                $subject,
                 $trashOnly ? null : $folderId,
                 $trashOnly ? null : $tagFilter,
                 $trashOnly,
@@ -84,15 +87,15 @@ final readonly class VaultItemLister
             if ($sharedOnly) {
                 $items = $this->sharedItemResolver->resolve($viewer);
             } elseif ($trashOnly) {
-                $items = $this->itemRepository->findDeletedByCreator($queryEvent->getListSubject());
+                $items = $this->itemRepository->findDeletedByCreator($subject);
             } elseif ($isSearch) {
-                $items = $this->itemRepository->searchByTitleOrTag($queryEvent->getListSubject(), $searchQuery);
+                $items = $this->itemRepository->searchByTitleOrTag($subject, $searchQuery);
             } elseif ($tagFilter !== null) {
-                $items = $this->itemRepository->findByCreatorAndTag($queryEvent->getListSubject(), $tagFilter, $folderId);
+                $items = $this->itemRepository->findByCreatorAndTag($subject, $tagFilter, $folderId);
             } elseif ($folderId !== null) {
-                $items = $this->itemRepository->findByCreatorAndFolder($queryEvent->getListSubject(), $folderId);
+                $items = $this->itemRepository->findByCreatorAndFolder($subject, $folderId);
             } else {
-                $items = $this->itemRepository->findByCreator($queryEvent->getListSubject());
+                $items = $this->itemRepository->findByCreator($subject);
             }
 
             $total = count($items);

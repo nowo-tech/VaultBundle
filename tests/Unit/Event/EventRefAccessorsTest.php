@@ -94,11 +94,11 @@ final class EventRefAccessorsTest extends TestCase
         self::assertSame('u-1', $event->getListSubjectId());
 
         $event->setListSubjectRef(VaultUserRef::ofId('u-2', 'forged', ['ROLE_ADMIN']));
-        self::assertSame($found, $event->getListSubject(), 'resolved again: the reference only names the id');
+        self::assertSame($found, $event->getListSubjectRef()->user(), 'resolved again: the reference only names the id');
         self::assertSame('u-2', $event->getListSubjectRef()->id);
         $other = new TestUser('u-3');
         $event->setListSubjectRef(new VaultUserRef('u-3', '', [], $other));
-        self::assertSame($other, $event->getListSubject());
+        self::assertSame($other, $event->getListSubjectRef()->user());
 
         $this->expectException(InvalidArgumentException::class);
         $event->setListSubjectRef(new VaultUserRef(null));

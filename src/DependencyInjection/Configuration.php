@@ -22,12 +22,9 @@ use function array_keys;
 use function array_map;
 use function implode;
 use function in_array;
-use function is_array;
-use function is_bool;
 use function is_string;
 use function preg_match;
 use function sprintf;
-use function trigger_deprecation;
 
 /**
  * Configuration tree for VaultBundle.
@@ -36,11 +33,16 @@ final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_vault';
 
-    /** 1.x default layout (removed in 1.15; mapped to null = nowo_ui_kit.layouts.admin). */
-    public const LEGACY_DEFAULT_LAYOUT = '@NowoVaultBundle/layout.html.twig';
-
-    /** @var list<string> */
-    public const CSS_FRAMEWORKS = ['bootstrap', 'bootstrap4', 'bootstrap5', 'tailwind', 'foundation', 'custom', 'tabler', 'none'];
+    /**
+     * Root keys removed in 2.0 (deprecated since 1.15, REQ-UI-003) and what replaces each one.
+     *
+     * @var array<string, string>
+     */
+    public const REMOVED_ROOT_KEYS = [
+        'route_prefix'  => 'set nowo_vault.web_ui.path_prefix',
+        'templates'     => 'set nowo_vault.web_ui.layout_template (null = nowo_ui_kit.layouts.admin) and nowo_vault.web_ui.templates.<page> (templates.index is web_ui.templates.home)',
+        'css_framework' => 'set nowo_ui_kit.css_framework (and nowo_ui_kit.icon_set); the nowo_vault_css_framework Twig global was removed too',
+    ];
 
     /**
      * Builds the `nowo_vault` configuration tree.
@@ -53,7 +55,7 @@ final class Configuration implements ConfigurationInterface
         $root
             ->beforeNormalization()
                 ->ifArray()
-                ->then(static fn (array $v): array => self::mapDeprecatedKeys($v))
+                ->then(static fn (array $v): array => self::refuseRemovedKeys($v))
             ->end();
         $this->addUserClassToPaginationSections($root);
         $this->addMaxAttachmentBytesToDashboardRouteSections($root);
@@ -102,12 +104,6 @@ final class Configuration implements ConfigurationInterface
                     ->isRequired()
                     ->cannotBeEmpty()
                 ->end()
-                ->enumNode('css_framework')
-                    ->info('Deprecated since 1.15: the CSS stack is inherited from nowo_ui_kit.css_framework (copied there when the host did not set it).')
-                    ->values(self::CSS_FRAMEWORKS)
-                    ->defaultNull()
-                    ->setDeprecated('nowo-tech/vault-bundle', '1.15', 'The "%path%" option is deprecated, set "nowo_ui_kit.css_framework" instead (REQ-UI-003).')
-                ->end()
                 ->arrayNode('web_ui')
                     ->info('Manage Web UI (REQ-UI-003 canonical keys).')
                     ->addDefaultsIfNotSet()
@@ -121,7 +117,7 @@ final class Configuration implements ConfigurationInterface
                             ->defaultValue('')
                         ->end()
                         ->scalarNode('layout_template')
-                            ->info('Layout the manage pages extend. Null (default) = nowo_ui_kit.layouts.admin. A 1.x layout without the UiKit canonical blocks is wrapped in a deprecated bridge.')
+                            ->info('Layout the manage pages extend. Null (default) = nowo_ui_kit.layouts.admin. It must render the UiKit canonical blocks (since 2.0 a 1.x layout without them fails the page; the bridge was removed).')
                             ->defaultNull()
                         ->end()
                         ->booleanNode('destructive_actions_in_menu')
@@ -205,7 +201,7 @@ final class Configuration implements ConfigurationInterface
                     ->end()
                 ->end()
                 ->scalarNode('team_membership_resolver')
-                    ->info('Service id implementing VaultTeamMembershipResolverInterface. Null uses no teams.')
+                    ->info('Service id implementing VaultTeamMembershipProviderInterface. Null uses no teams.')
                     ->defaultNull()
                 ->end()
                 ->arrayNode('database')
@@ -224,12 +220,13 @@ final class Configuration implements ConfigurationInterface
                             ->info('Doctrine entity manager that maps the vault entities (the source of the private entity manager since 1.19.0: its connection, mapping and event manager).')
                             ->defaultValue('default')
                         ->end()
-                        ->scalarNode('private_entity_manager')
-                            ->info('1.19.0: true = the vault reads and writes its rows through its own private entity manager on the connection of database.entity_manager, so a vault write never flushes, clears or resets an application manager (REQ-ARCH-001 rule 6; recommended, the only mode in 2.0). false = the 1.18 behaviour (the vault flushes database.entity_manager itself). Unset = false with a deprecation; false is deprecated too.')
-                            ->defaultNull()
+                        ->booleanNode('private_entity_manager')
+                            ->info('Has no effect since 2.0: the vault always reads and writes its rows through its own private entity manager on the connection of database.entity_manager, so a vault write never flushes, clears or resets an application manager (REQ-ARCH-001 rule 6). true is accepted (deprecated, removed in 3.0); false fails the build.')
+                            ->defaultTrue()
+                            ->setDeprecated('nowo-tech/vault-bundle', '2.0', 'The option has no effect since 2.0 (the private manager is the only mode); remove it.')
                             ->validate()
-                                ->ifTrue(static fn (mixed $value): bool => !is_bool($value))
-                                ->thenInvalid('nowo_vault.database.private_entity_manager must be true or false, got %s.')
+                                ->ifTrue(static fn (mixed $value): bool => $value === false)
+                                ->thenInvalid('nowo_vault.database.private_entity_manager: false was removed in 2.0: the vault always reads and writes its rows through its private entity manager (your pending changes are no longer flushed by the vault). Remove the option, load vault rows through the vault repositories or by id, and see UPGRADING.md "To 2.0.0".')
                             ->end()
                         ->end()
                         ->enumNode('mapping_type')
@@ -350,7 +347,7 @@ final class Configuration implements ConfigurationInterface
                             ->defaultFalse()
                         ->end()
                         ->scalarNode('access_resolver')
-                            ->info('Service id implementing VaultScopeAccessResolverInterface (who belongs to a scope, with which baseline permission). Required when enabled.')
+                            ->info('Service id implementing VaultScopeAccessProviderInterface (who belongs to a scope, with which baseline permission). Required when enabled.')
                             ->defaultNull()
                         ->end()
                     ->end()
@@ -508,7 +505,7 @@ final class Configuration implements ConfigurationInterface
                     ->addDefaultsIfNotSet()
                     ->children()
                         ->booleanNode('enabled')->info('Registers the personal_export routes (needs reauth_checker).')->defaultFalse()->end()
-                        ->scalarNode('reauth_checker')->info('Service id implementing VaultReauthenticationCheckerInterface. Required when enabled.')->defaultNull()->end()
+                        ->scalarNode('reauth_checker')->info('Service id implementing VaultReauthenticationProviderInterface. Required when enabled.')->defaultNull()->end()
                         ->integerNode('reauth_max_age')->info('Seconds a re-authentication stays fresh (at most 900).')->defaultValue(300)->min(1)->max(900)->end()
                         ->arrayNode('accepted_primary_factors')
                             ->info('Primary factors accepted in the proof (e.g. password, sso_reauth).')
@@ -949,56 +946,26 @@ final class Configuration implements ConfigurationInterface
     }
 
     /**
-     * Maps the 1.x keys deprecated by the UiKit page contract (REQ-UI-003) onto `web_ui` before normalization:
-     * `route_prefix` => `web_ui.path_prefix`, `templates.layout` => `web_ui.layout_template` (the removed 1.x default
-     * layout => null), `templates.<page>` => `web_ui.templates.<page>` (`templates.index` => `home`). Canonical keys
-     * set in the same file win.
+     * Refuses the root keys removed in 2.0 (deprecated since 1.15 by the UiKit page contract, REQ-UI-003) with what to
+     * set instead, rather than the generic "unrecognized option" error.
      *
      * @param array<string, mixed> $v
      *
+     * @throws InvalidConfigurationException when a removed key is set
+     *
      * @return array<string, mixed>
      */
-    private static function mapDeprecatedKeys(array $v): array
+    private static function refuseRemovedKeys(array $v): array
     {
-        $webUi = is_array($v['web_ui'] ?? null) ? $v['web_ui'] : [];
-
-        if (array_key_exists('route_prefix', $v)) {
-            trigger_deprecation('nowo-tech/vault-bundle', '1.15', 'The "nowo_vault.route_prefix" option is deprecated, use "nowo_vault.web_ui.path_prefix" instead.');
-            if (!array_key_exists('path_prefix', $webUi)) {
-                $webUi['path_prefix'] = $v['route_prefix'];
+        $lines = [];
+        foreach (self::REMOVED_ROOT_KEYS as $key => $instead) {
+            if (array_key_exists($key, $v)) {
+                $lines[] = sprintf('"%s.%s" (%s)', self::ALIAS, $key, $instead);
             }
-            unset($v['route_prefix']);
         }
 
-        if (array_key_exists('templates', $v)) {
-            trigger_deprecation('nowo-tech/vault-bundle', '1.15', 'The "nowo_vault.templates" options are deprecated, use "nowo_vault.web_ui.layout_template" and "nowo_vault.web_ui.templates.<page>" instead.');
-            $templates = is_array($v['templates']) ? $v['templates'] : [];
-            if (array_key_exists('layout', $templates)) {
-                if (!array_key_exists('layout_template', $webUi)) {
-                    $webUi['layout_template'] = $templates['layout'] === self::LEGACY_DEFAULT_LAYOUT ? null : $templates['layout'];
-                }
-                unset($templates['layout']);
-            }
-            if (array_key_exists('index', $templates)) {
-                $templates['home'] ??= $templates['index'];
-                unset($templates['index']);
-            }
-            $pages = is_array($webUi['templates'] ?? null) ? $webUi['templates'] : [];
-            foreach ($templates as $page => $template) {
-                // The 1.x defaults equal the bundle templates: nothing to override.
-                if (array_key_exists($page, $pages) || $template === (VaultPages::TEMPLATES[$page] ?? null)) {
-                    continue;
-                }
-                $pages[$page] = $template;
-            }
-            if ($pages !== []) {
-                $webUi['templates'] = $pages;
-            }
-            unset($v['templates']);
-        }
-
-        if ($webUi !== []) {
-            $v['web_ui'] = $webUi;
+        if ($lines !== []) {
+            throw new InvalidConfigurationException(sprintf('These options were deprecated since 1.15 and are removed in 2.0: %s. See UPGRADING.md "To 2.0.0".', implode('; ', $lines)));
         }
 
         return $v;

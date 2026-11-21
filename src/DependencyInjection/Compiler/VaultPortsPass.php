@@ -7,64 +7,48 @@ namespace Nowo\VaultBundle\DependencyInjection\Compiler;
 use LogicException;
 use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
 use Nowo\VaultBundle\Port\VaultHealthReporterGate;
-use Nowo\VaultBundle\Port\VaultPortMode;
 use Nowo\VaultBundle\Port\VaultReauthenticationGate;
 use Nowo\VaultBundle\Port\VaultScopeAccessGate;
 use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Port\VaultUserLocatorGate;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
-use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
 use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
-use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
 use Nowo\VaultBundle\Service\VaultHealthReportProviderInterface;
 use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use ReflectionClass;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
-use function class_exists;
+use function array_search;
 use function implode;
-use function is_a;
 use function is_string;
 use function sprintf;
-use function trigger_deprecation;
 
 /**
- * Wires the six host ports that have a framework-free 1.19 twin (REQ-ARCH-001 rule 3) behind the bundle's internal
- * gates (`nowo_vault.port.<name>`), which the vault services use instead of the ports themselves.
+ * Wires the six framework-free host ports (REQ-ARCH-001 rule 3) behind the bundle's internal gates
+ * (`nowo_vault.port.<name>`), which the vault services use instead of the ports themselves.
  *
- * | Port | 1.19 interface | Deprecated interface | Both asked |
- * |---|---|---|---|
- * | `access_checker` | {@see VaultAccessPolicyInterface} | {@see VaultAccessCheckerInterface} | both must allow |
- * | `team_membership` | {@see VaultTeamMembershipProviderInterface} | {@see VaultTeamMembershipResolverInterface} | team ids both return |
- * | `scope_access` | {@see VaultScopeAccessProviderInterface} | {@see VaultScopeAccessResolverInterface} | weaker standing |
- * | `reauthentication` | {@see VaultReauthenticationProviderInterface} | {@see VaultReauthenticationCheckerInterface} | never (build fails) |
- * | `user_locator` | {@see VaultUserDirectoryInterface} | {@see VaultUserLocatorInterface} | never (build fails) |
- * | `health_reporter` | {@see VaultHealthReportProviderInterface} | {@see VaultHealthReporterInterface} | never (build fails) |
+ * | Port | Interface | Configured by |
+ * |---|---|---|
+ * | `access_checker` | {@see VaultAccessPolicyInterface} | `security.access_checker` (built-in: role lists) |
+ * | `team_membership` | {@see VaultTeamMembershipProviderInterface} | `team_membership_resolver` (built-in: no teams) |
+ * | `scope_access` | {@see VaultScopeAccessProviderInterface} | `scopes.access_resolver` (built-in: no scope) |
+ * | `reauthentication` | {@see VaultReauthenticationProviderInterface} | `export.reauth_checker` (no built-in) |
+ * | `user_locator` | {@see VaultUserDirectoryInterface} | your alias of the interface (built-in: Doctrine lookup) |
+ * | `health_reporter` | {@see VaultHealthReportProviderInterface} | your alias of the interface (built-in: the reporter) |
  *
  * For each port, the service behind it is the one the configuration names (or the built-in), unless the application
- * aliased the deprecated interface to another service (1.18 style, e.g. the user locator): then that one.
+ * aliased the interface itself: its service then wins over a built-in, and with a configured (non built-in) service
+ * that is another one the build fails (keep only one). The interface is aliased to that service; decorators of the
+ * interface or of the service apply as usual.
  *
- * - its class implements the 1.19 interface: the 1.19 interface is aliased to it and asked; the deprecated alias stays
- *   only when the class also implements the deprecated interface (otherwise it is removed, and a decorator of it fails
- *   the build: it would wrap nothing);
- * - its class implements only the deprecated interface: it is asked exactly as in 1.18 (a deprecation at build time,
- *   except for built-ins); a decorator of the 1.19 interface then fails the build (it would wrap nothing);
- * - its class implements neither: the build fails; a class unknown before compilation (factory, synthetic) is asked
- *   through the deprecated interface, as in 1.18, without a deprecation;
- * - the application aliased the 1.19 interface itself: its service wins over a built-in (the deprecated alias then
- *   points at it when it implements the deprecated interface, and is removed otherwise); with a configured (non
- *   built-in) service that is another one, the build fails (keep only one);
- * - a decorator of the deprecated interface always runs: the deprecated interface stays asked. For the access ports
- *   (access checker, team membership, scope access) it is asked together with the 1.19 interface when that one is
- *   served by another implementation or decorated (the weaker answer wins, fail closed); for the other ports the build
- *   fails when the 1.19 interface is served by another service.
+ * Since 2.0 the deprecated twins are gone: a service behind a port whose class does not implement the interface, or
+ * cannot be loaded (a class that still implements a removed interface cannot), fails the build, and so does a
+ * decorator whose class does not implement it. The removed ids themselves are refused by {@see RemovedPortsPass}. A
+ * class unknown before compilation (factory, synthetic) is not checked here (its gate refuses it when built).
  *
  * Runs before optimization: the application's aliases and decorators are loaded, decorators are not applied yet.
  *
@@ -72,41 +56,23 @@ use function trigger_deprecation;
  */
 final class VaultPortsPass implements CompilerPassInterface
 {
-    /** Parameter prefix: `nowo_vault.port.<name>.service` (service id or null = inactive), `.built_in`, `.option`, `.mode`. */
+    /** Parameter prefix: `nowo_vault.port.<name>.service` (service id or null = inactive), `.built_in`, `.option`. */
     public const PARAMETER_PREFIX = 'nowo_vault.port.';
 
     /** Service id prefix of the gates. */
     public const GATE_PREFIX = 'nowo_vault.port.';
 
     /**
-     * @var array<string, array{legacy: class-string, policy: class-string, gate: class-string, both: bool}>
+     * @var array<string, array{policy: class-string, gate: class-string}>
      */
     public const PORTS = [
-        'access_checker'   => ['legacy' => VaultAccessCheckerInterface::class, 'policy' => VaultAccessPolicyInterface::class, 'gate' => VaultAccessCheckerGate::class, 'both' => true],
-        'team_membership'  => ['legacy' => VaultTeamMembershipResolverInterface::class, 'policy' => VaultTeamMembershipProviderInterface::class, 'gate' => VaultTeamMembershipGate::class, 'both' => true],
-        'scope_access'     => ['legacy' => VaultScopeAccessResolverInterface::class, 'policy' => VaultScopeAccessProviderInterface::class, 'gate' => VaultScopeAccessGate::class, 'both' => true],
-        'reauthentication' => ['legacy' => VaultReauthenticationCheckerInterface::class, 'policy' => VaultReauthenticationProviderInterface::class, 'gate' => VaultReauthenticationGate::class, 'both' => false],
-        'user_locator'     => ['legacy' => VaultUserLocatorInterface::class, 'policy' => VaultUserDirectoryInterface::class, 'gate' => VaultUserLocatorGate::class, 'both' => false],
-        'health_reporter'  => ['legacy' => VaultHealthReporterInterface::class, 'policy' => VaultHealthReportProviderInterface::class, 'gate' => VaultHealthReporterGate::class, 'both' => false],
+        'access_checker'   => ['policy' => VaultAccessPolicyInterface::class, 'gate' => VaultAccessCheckerGate::class],
+        'team_membership'  => ['policy' => VaultTeamMembershipProviderInterface::class, 'gate' => VaultTeamMembershipGate::class],
+        'scope_access'     => ['policy' => VaultScopeAccessProviderInterface::class, 'gate' => VaultScopeAccessGate::class],
+        'reauthentication' => ['policy' => VaultReauthenticationProviderInterface::class, 'gate' => VaultReauthenticationGate::class],
+        'user_locator'     => ['policy' => VaultUserDirectoryInterface::class, 'gate' => VaultUserLocatorGate::class],
+        'health_reporter'  => ['policy' => VaultHealthReportProviderInterface::class, 'gate' => VaultHealthReporterGate::class],
     ];
-
-    /** The port interfaces (their decorators are handled as port decorators). */
-    private const INTERFACES = [
-        VaultAccessCheckerInterface::class            => true,
-        VaultAccessPolicyInterface::class             => true,
-        VaultTeamMembershipResolverInterface::class   => true,
-        VaultTeamMembershipProviderInterface::class   => true,
-        VaultScopeAccessResolverInterface::class      => true,
-        VaultScopeAccessProviderInterface::class      => true,
-        VaultReauthenticationCheckerInterface::class  => true,
-        VaultReauthenticationProviderInterface::class => true,
-        VaultUserLocatorInterface::class              => true,
-        VaultUserDirectoryInterface::class            => true,
-        VaultHealthReporterInterface::class           => true,
-        VaultHealthReportProviderInterface::class     => true,
-    ];
-
-    private const PACKAGE = 'nowo-tech/vault-bundle';
 
     /**
      * @throws LogicException on an ambiguous or impossible wiring (see the class comment)
@@ -127,191 +93,75 @@ final class VaultPortsPass implements CompilerPassInterface
                 continue;
             }
 
-            $mode = $this->wire($container, $name, $port, $configured);
-            $container->setParameter(self::PARAMETER_PREFIX . $name . '.mode', $mode);
-            $container->getDefinition($gateId)
-                ->setArguments([
-                    $mode,
-                    $mode === VaultPortMode::POLICY ? null : new Reference($port['legacy']),
-                    $mode === VaultPortMode::LEGACY ? null : new Reference($port['policy']),
-                ]);
+            $this->wire($container, $name, $port['policy'], $configured);
+            $container->getDefinition($gateId)->setArguments([new Reference($port['policy'])]);
         }
     }
 
     /**
-     * Aliases both interfaces of one port and returns the mode its gate uses.
+     * Aliases the port interface to the service behind it and checks that service and its decorators.
      *
-     * @param array{legacy: class-string, policy: class-string, gate: class-string, both: bool} $port
+     * @param class-string $policy
      */
-    private function wire(ContainerBuilder $container, string $name, array $port, string $configured): string
+    private function wire(ContainerBuilder $container, string $name, string $policy, string $configured): void
     {
-        $legacy           = $port['legacy'];
-        $policy           = $port['policy'];
-        $option           = $container->hasParameter(self::PARAMETER_PREFIX . $name . '.option') ? $container->getParameter(self::PARAMETER_PREFIX . $name . '.option') : $name;
-        $option           = is_string($option) ? $option : $name;
-        $builtIn          = $container->hasParameter(self::PARAMETER_PREFIX . $name . '.built_in') && (bool) $container->getParameter(self::PARAMETER_PREFIX . $name . '.built_in');
-        $hostAlias        = $container->hasAlias($policy) || $container->hasDefinition($policy);
-        $legacyDecorators = $this->decoratorsOf($container, $legacy);
-        $policyDecorators = $this->decoratorsOf($container, $policy);
+        $option  = $container->hasParameter(self::PARAMETER_PREFIX . $name . '.option') ? $container->getParameter(self::PARAMETER_PREFIX . $name . '.option') : $name;
+        $option  = is_string($option) ? $option : $name;
+        $builtIn = $container->hasParameter(self::PARAMETER_PREFIX . $name . '.built_in') && (bool) $container->getParameter(self::PARAMETER_PREFIX . $name . '.built_in');
 
-        // The application's own alias of the deprecated interface (1.18 style) names the service behind the port.
-        $service    = $configured;
-        $hostLegacy = $container->hasAlias($legacy) && $this->resolve($container, $legacy) !== $this->resolve($container, $configured);
-        if ($hostLegacy) {
-            $service = (string) $container->getAlias($legacy);
-            $builtIn = false;
-        }
-
-        $class            = $this->classOf($container, $service);
-        $implementsPolicy = $class !== null && is_a($class, $policy, true);
-        $implementsLegacy = $class === null || is_a($class, $legacy, true);
-        if ($class !== null && !$implementsPolicy && !$implementsLegacy) {
-            throw new LogicException(sprintf('nowo_vault: the service "%s" (%s) behind %s must implement "%s".', $service, $class, $option, $policy));
-        }
-
-        if ($hostAlias) {
+        $service = $configured;
+        if ($container->hasAlias($policy) || $container->hasDefinition($policy)) {
             $hostService = $this->resolve($container, $policy);
-            $foreign     = $this->decoratorsWithout($container, $hostService, $policy, false);
-            if ($foreign !== []) {
-                throw new LogicException(sprintf('"%s" decorates "%s", which serves "%s", but does not implement it: implement "%s" on the decorator.', implode('", "', $foreign), $hostService, $policy, $policy));
+            if (!$builtIn && $hostService !== $this->resolve($container, $configured)) {
+                throw new LogicException(sprintf('"%s" is aliased to "%s" by the application and %s names "%s": keep only one of them.', $policy, $hostService, $option, $configured));
             }
-            if (!$builtIn && $hostService !== $this->resolve($container, $service)) {
-                throw new LogicException(sprintf('"%s" is aliased to "%s" by the application and %s names "%s": keep only one of them.', $policy, $hostService, $option, $service));
-            }
-            if ($legacyDecorators === []) {
-                $this->keepLegacyAliasOnlyIfImplemented($container, $legacy, $hostService);
-
-                return VaultPortMode::POLICY;
-            }
-
-            // A decorator of the deprecated interface keeps it asked. Its decorated service: the application's 1.19
-            // service when it implements the deprecated interface too, else the built-in / configured one.
-            $hostClass = $this->classOf($container, $hostService);
-            if ($hostClass !== null && is_a($hostClass, $legacy, true)) {
-                $container->setAlias($legacy, $hostService)->setPublic(false);
-            } elseif (!$implementsLegacy) {
-                throw new LogicException(sprintf('"%s" decorates the deprecated "%s", but no service behind %s implements it: decorate "%s" instead.', implode('", "', $legacyDecorators), $legacy, $option, $policy));
-            }
-
-            return $this->both($port, $name, $legacyDecorators, $policy, $legacy);
+            $service = $hostService;
+        } else {
+            $container->setAlias($policy, $service)->setPublic(false);
         }
 
-        // Audits NJ-3, NJV-2: a decorator (of the service, of the 1.19 interface or of another decorator) that lacks the
-        // 1.19 interface, or whose class is unknown at build time, replaces the service: only the deprecated interface
-        // can be asked, exactly as in 1.18.
-        $foreign = $implementsPolicy ? $this->decoratorsWithout($container, $service, $policy) : [];
+        $this->assertImplements($container, $service, $policy, $option);
+        $foreign = $this->decoratorsWithout($container, $service, $policy);
         if ($foreign !== []) {
-            trigger_deprecation(self::PACKAGE, '1.19', 'The vault service "%s" behind %s is decorated by "%s", which implements only the deprecated "%s": the deprecated interface is asked; implement "%s" on the decorator (the deprecated interface is removed in 2.0).', $service, $option, implode('", "', $foreign), $legacy, $policy);
-            if (!$hostLegacy) {
-                $container->setAlias($legacy, $service)->setPublic(false);
-            }
-            // Kept for a decorator of the 1.19 interface (it decorates something), never asked in this mode.
-            $container->setAlias($policy, $service)->setPublic(false);
-
-            return VaultPortMode::LEGACY;
+            throw new LogicException(sprintf('"%s" decorates the vault port %s ("%s", behind %s) but does not implement "%s": implement it on the decorator (the deprecated interfaces were removed in 2.0, see UPGRADING.md "To 2.0.0").', implode('", "', $foreign), $policy, $service, $option, $policy));
         }
-
-        if ($implementsPolicy) {
-            $container->setAlias($policy, $service)->setPublic(false);
-            if (!$implementsLegacy) {
-                if ($legacyDecorators !== []) {
-                    throw new LogicException(sprintf('"%s" decorates the deprecated "%s", but the service "%s" behind %s does not implement it: decorate "%s" instead.', implode('", "', $legacyDecorators), $legacy, $service, $option, $policy));
-                }
-                $container->removeAlias($legacy);
-
-                return VaultPortMode::POLICY;
-            }
-
-            if (!$hostLegacy) {
-                $this->aliasLegacy($container, $legacy, $service, $policy);
-            }
-            if ($legacyDecorators === []) {
-                return VaultPortMode::POLICY;
-            }
-
-            // The decorator wraps the same service: for the access ports both are asked, otherwise the deprecated one.
-            return $port['both'] ? $this->both($port, $name, $legacyDecorators, $policy, $legacy) : VaultPortMode::LEGACY;
-        }
-
-        if ($policyDecorators !== []) {
-            throw new LogicException(sprintf('"%s" decorates "%s", but the service "%s" behind %s does not implement it: implement "%s" on that service.', implode('", "', $policyDecorators), $policy, $service, $option, $policy));
-        }
-        if ($class !== null && !$builtIn) {
-            trigger_deprecation(self::PACKAGE, '1.19', 'The vault service "%s" (%s) behind %s implements only the deprecated "%s"; implement "%s" instead (the deprecated interface is removed in 2.0).', $service, $class, $option, $legacy, $policy);
-        }
-
-        return VaultPortMode::LEGACY;
     }
 
     /**
-     * Both interfaces asked (access ports), or a build failure for the other ports.
+     * Fails when the class of the service behind a port does not implement the interface, or cannot be loaded.
      *
-     * @param array{legacy: class-string, policy: class-string, gate: class-string, both: bool} $port
-     * @param list<string> $legacyDecorators
+     * @param class-string $policy
      */
-    private function both(array $port, string $name, array $legacyDecorators, string $policy, string $legacy): string
-    {
-        if (!$port['both']) {
-            throw new LogicException(sprintf('"%s" decorates the deprecated "%s" while "%s" is served by another service: the vault port %s asks only one of them. Decorate "%s" instead, or remove your alias of it.', implode('", "', $legacyDecorators), $legacy, $policy, $name, $policy));
-        }
-
-        trigger_deprecation(self::PACKAGE, '1.19', 'The vault port %s is decided by both "%s" and the deprecated "%s" (the weaker answer wins) because of the decorator(s) "%s" of the deprecated interface; migrate them to "%s" (the deprecated interface is removed in 2.0).', $name, $policy, $legacy, implode('", "', $legacyDecorators), $policy);
-
-        return VaultPortMode::BOTH;
-    }
-
-    /**
-     * The application's own 1.19 service serves the port: the deprecated alias points at it when its class implements
-     * the deprecated interface too, and is removed otherwise (it would name another implementation than the one asked).
-     */
-    private function keepLegacyAliasOnlyIfImplemented(ContainerBuilder $container, string $legacy, string $service): void
+    private function assertImplements(ContainerBuilder $container, string $service, string $policy, string $option): void
     {
         $class = $this->classOf($container, $service);
-        if ($class !== null && is_a($class, $legacy, true)) {
-            $container->setAlias($legacy, $service)->setPublic(false);
-
+        if ($class === null) {
             return;
         }
 
-        $container->removeAlias($legacy);
-    }
-
-    private function aliasLegacy(ContainerBuilder $container, string $legacy, string $service, string $policy): void
-    {
-        $container->setAlias($legacy, $service)
-            ->setPublic(false)
-            ->setDeprecated(self::PACKAGE, '1.19', 'The "%alias_id%" service alias is deprecated, use "' . $policy . '" instead (removed in 2.0).');
-    }
-
-    /**
-     * @return list<string> ids of the definitions that decorate the id
-     */
-    private function decoratorsOf(ContainerBuilder $container, string $id): array
-    {
-        $ids = [];
-        foreach ($container->getDefinitions() as $definitionId => $definition) {
-            if (($definition->getDecoratedService()[0] ?? null) === $id) {
-                $ids[] = (string) $definitionId;
-            }
+        $reflection = $container->getReflectionClass($class, false);
+        if (!$reflection instanceof ReflectionClass) {
+            $removed = array_search($policy, RemovedPortsPass::REMOVED_PORTS, true);
+            throw new LogicException(sprintf('nowo_vault: the class "%s" of the service "%s" behind %s cannot be loaded. A class that still implements the removed "%s" cannot load: implement "%s" instead (see UPGRADING.md "To 2.0.0").', $class, $service, $option, (string) $removed, $policy));
         }
-
-        return $ids;
+        if (!$reflection->implementsInterface($policy)) {
+            throw new LogicException(sprintf('nowo_vault: the service "%s" (%s) behind %s must implement "%s" (the deprecated interfaces were removed in 2.0, see UPGRADING.md "To 2.0.0").', $service, $class, $option, $policy));
+        }
     }
 
     /**
-     * Decorators of the service id itself, of an alias of it or of the 1.19 interface, and decorators of those
-     * decorators (to a fixpoint), whose class does not implement the interface (audits NJ-3, NJV-2). A decorator whose
-     * class cannot be known before compilation (factory, synthetic) counts as not implementing it when
-     * `$unknownIsForeign` is true.
+     * Decorators of the service id itself, of an alias of it or of the interface, and decorators of those decorators
+     * (to a fixpoint), whose class does not implement the interface or cannot be loaded. A decorator whose class cannot
+     * be known before compilation (factory, synthetic) is left to its gate.
      *
      * @return list<string>
      */
-    private function decoratorsWithout(ContainerBuilder $container, string $service, string $interface, bool $unknownIsForeign = true): array
+    private function decoratorsWithout(ContainerBuilder $container, string $service, string $interface): array
     {
         $target = $this->resolve($container, $service);
         $ids    = [$target => true, $interface => true];
         foreach ($container->getAliases() as $aliasId => $alias) {
-            if (!isset(self::INTERFACES[(string) $aliasId]) && $this->resolve($container, (string) $aliasId) === $target) {
+            if (!isset($this->policies()[(string) $aliasId]) && $this->resolve($container, (string) $aliasId) === $target) {
                 $ids[(string) $aliasId] = true;
             }
         }
@@ -328,13 +178,26 @@ final class VaultPortsPass implements CompilerPassInterface
                 $ids[$definitionId] = true;
                 $added              = true;
                 $class              = $this->classOf($container, $definitionId);
-                if ($class === null ? $unknownIsForeign : !is_a($class, $interface, true)) {
+                if ($class !== null && $container->getReflectionClass($class, false)?->implementsInterface($interface) !== true) {
                     $foreign[] = $definitionId;
                 }
             }
         } while ($added);
 
         return $foreign;
+    }
+
+    /**
+     * @return array<string, true> the port interfaces (an alias of one of them never names a service of another port)
+     */
+    private function policies(): array
+    {
+        $policies = [];
+        foreach (self::PORTS as $port) {
+            $policies[$port['policy']] = true;
+        }
+
+        return $policies;
     }
 
     private function resolve(ContainerBuilder $container, string $id): string
@@ -349,7 +212,8 @@ final class VaultPortsPass implements CompilerPassInterface
     }
 
     /**
-     * @return class-string|null null when the class cannot be known before the container is compiled
+     * @return string|null the class of the definition behind the id, null when it cannot be known before the container
+     *                     is compiled (no definition, factory, synthetic)
      */
     private function classOf(ContainerBuilder $container, string $service): ?string
     {
@@ -365,6 +229,6 @@ final class VaultPortsPass implements CompilerPassInterface
 
         $class = $container->getParameterBag()->resolveValue($definition->getClass() ?? $id);
 
-        return is_string($class) && class_exists($class) ? $class : null;
+        return is_string($class) ? $class : null;
     }
 }

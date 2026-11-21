@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Tests\Unit\Service;
 
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
@@ -30,7 +31,7 @@ final class VaultSharedItemResolverTest extends TestCase
             ->with([$item->getId()], $viewer)
             ->willReturn([$item]);
 
-        $resolver = new VaultSharedItemResolver($grants, $items, new NullVaultTeamMembershipResolver());
+        $resolver = new VaultSharedItemResolver($grants, $items, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()));
 
         self::assertSame([$item], $resolver->resolve($viewer));
     }
@@ -43,7 +44,7 @@ final class VaultSharedItemResolverTest extends TestCase
         $items = $this->createMock(VaultItemRepositoryInterface::class);
         $items->expects(self::never())->method('findByIdsForViewer');
 
-        $resolver = new VaultSharedItemResolver($grants, $items, new NullVaultTeamMembershipResolver());
+        $resolver = new VaultSharedItemResolver($grants, $items, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()));
 
         self::assertSame([], $resolver->resolve(new TestUser('9')));
     }
@@ -65,7 +66,7 @@ final class VaultSharedItemResolverTest extends TestCase
             ->willReturn([$login]);
         $items->expects(self::never())->method('findByIdsForViewer');
 
-        $resolver = new VaultSharedItemResolver($grants, $items, new NullVaultTeamMembershipResolver());
+        $resolver = new VaultSharedItemResolver($grants, $items, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()));
 
         self::assertSame([$login], $resolver->resolveByItemType($viewer, $itemType));
     }

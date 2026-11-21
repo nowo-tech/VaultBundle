@@ -31,7 +31,7 @@ final class VaultEntityUserIdsTest extends TestCase
         $item = new VaultItem(VaultItemType::Login, 'Bank', $alice, 'cipher');
         self::assertSame('alice', $item->getCreatorId());
         self::assertSame('alice', $item->getCreatedById());
-        self::assertSame($alice, $item->getCreator());
+        self::assertSame($alice, $item->getOwner()->getUser());
 
         $folder = new VaultFolder('Work', $alice);
         self::assertSame('alice', $folder->getCreatorId());
@@ -51,18 +51,18 @@ final class VaultEntityUserIdsTest extends TestCase
     public function testStoredIdsAreExposedAsVaultUserIds(): void
     {
         $item = new VaultItem(VaultItemType::Login, 'Bank', 'u-7', 'cipher');
-        self::assertEquals(new VaultUserId('u-7'), $item->getCreator());
+        self::assertEquals(new VaultUserId('u-7'), $item->getOwner()->getUser());
         self::assertEquals(new VaultUserId('u-7'), $item->getCreatedBy());
         self::assertSame('user:u-7', $item->getOwner()->key());
         self::assertTrue($item->getOwner()->isUser(new TestUser('u-7')));
 
         $folder = new VaultFolder('Work', 'u-7');
-        self::assertEquals(new VaultUserId('u-7'), $folder->getCreator());
+        self::assertEquals(new VaultUserId('u-7'), $folder->getOwner()->getUser());
         self::assertEquals(new VaultUserId('u-7'), $folder->getCreatedBy());
         self::assertSame('user:u-7', $folder->getOwner()->key());
 
         $tag = new VaultTag('prod', 'u-7');
-        self::assertEquals(new VaultUserId('u-7'), $tag->getCreator());
+        self::assertEquals(new VaultUserId('u-7'), $tag->getOwner()->getUser());
         self::assertSame('user:u-7', $tag->getOwner()->key());
 
         self::assertEquals(new VaultUserId('u-7'), (new VaultGrant(VaultResourceType::Item, 'i', GranteeType::User, 'bob', VaultPermission::Read, 'u-7'))->getCreatedBy());

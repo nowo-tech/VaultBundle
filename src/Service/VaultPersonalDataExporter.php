@@ -19,9 +19,9 @@ use Nowo\VaultBundle\Entity\VaultTag;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -46,7 +46,7 @@ final readonly class VaultPersonalDataExporter implements VaultPersonalDataExpor
      */
     public function __construct(
         private ManagerRegistry $registry,
-        private ?VaultUserLocatorInterface $userLocator = null,
+        private ?VaultUserLocatorGate $userLocator = null,
         private ?VaultAccessGuard $accessGuard = null,
         private ?VaultItemRepositoryInterface $itemRepository = null,
         private ?VaultFolderRepositoryInterface $folderRepository = null,

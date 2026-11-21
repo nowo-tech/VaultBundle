@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Integration\Contract;
 
+use LogicException;
 use Nowo\UiKitBundle\Test\PageContractTestCase;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
@@ -17,19 +18,17 @@ use Twig\Environment;
 use function implode;
 use function restore_error_handler;
 use function set_error_handler;
-use function str_contains;
-use function substr_count;
 
 use const E_DEPRECATED;
 use const E_USER_DEPRECATED;
 
 /**
- * Deprecated 1.x layouts (no UiKit canonical blocks; the 1.x pages filled `body`) keep working through the bridge: the
- * page renders inside the host `body` block, once, with title, assets and flashes mapped; canonical blocks the 1.x
- * layout renders itself are not printed twice. A layout with the canonical blocks is used as is.
+ * The layout contract (REQ-UI-003): a layout with the UiKit canonical blocks is used as is. Since 2.0 a 1.x layout (no
+ * canonical blocks; the 1.x pages filled `body`) fails the page with a message that says what to do: the bridge
+ * deprecated since 1.15 was removed.
  */
 #[CoversClass(VaultPages::class)]
-final class LegacyLayoutBridgeTest extends TestCase
+final class LayoutContractTest extends TestCase
 {
     public const LAYOUTS = [
         // A host layout written for 1.x: title, stylesheets, body, javascripts
@@ -44,44 +43,22 @@ final class LegacyLayoutBridgeTest extends TestCase
             . '{% block nowo_ui_flashes %}{% endblock %}{% block nowo_ui_content %}{% endblock %}{% block nowo_ui_modals %}{% endblock %}</div>',
     ];
 
-    public function testAPlainLegacyLayoutRendersThePageInItsBodyBlock(): void
+    /**
+     * 2.0: the bridge around 1.x layouts (deprecated since 1.15) was removed. A layout that does not render the UiKit
+     * canonical blocks fails the page with a message that says what to do, instead of rendering an empty page.
+     */
+    public function testALegacyLayoutFailsThePageWithWhatToDo(): void
     {
-        $twig  = $this->twig();
-        $pages = new VaultPages('legacy/plain.html.twig', $twig);
-
-        $deprecations = $this->deprecations(static fn (): ?string => $pages->layout());
-        self::assertSame([VaultPages::LEGACY_LAYOUT_BRIDGE], $deprecations['result']);
-        self::assertCount(1, $deprecations['messages']);
-        self::assertStringContainsString('legacy/plain.html.twig', $deprecations['messages'][0]);
-
-        $context = $this->deprecations(static fn (): array => PageFixtures::trash(false, PageFixtures::factory($pages)))['result'][0];
-        self::assertSame('legacy/plain.html.twig', $context['nowo_vault_legacy_layout']);
-        self::assertSame([], $context['nowo_vault_legacy_blocks']);
-
-        $html = $twig->render('@NowoVaultBundle/vault/trash.html.twig', $context);
-
-        self::assertSame(1, substr_count($html, 'data-host="plain"'));
-        self::assertMatchesRegularExpression('/<main data-host-main>.*data-testid="vault-trash"/s', $html);
-        self::assertSame(1, substr_count($html, 'data-testid="vault-trash"'));
-        self::assertStringContainsString('<title>Trash</title>', $html);
-        self::assertStringContainsString('data-host-css', $html);
-        self::assertStringContainsString('nowo-ui.css', $html);
-        self::assertStringContainsString('data-host-js', $html);
-        self::assertStringContainsString('data-nowo-ui-contract-partial="page_header"', $html);
-    }
-
-    public function testALayoutThatRendersTheFlashesDoesNotPrintThemTwice(): void
-    {
-        $twig    = $this->twig();
-        $pages   = new VaultPages('legacy/with-flashes.html.twig', $twig);
-        $context = $this->deprecations(static fn (): array => PageFixtures::shared(false, PageFixtures::factory($pages)))['result'][0];
-        self::assertSame(['nowo_ui_flashes'], $context['nowo_vault_legacy_blocks']);
-
-        $html = $twig->render('@NowoVaultBundle/vault/shared.html.twig', $context);
-
-        self::assertSame(1, substr_count($html, 'data-testid="vault-shared"'));
-        self::assertMatchesRegularExpression('/<div data-host-flashes>.*data-nowo-ui-contract-partial="page_header"/s', $html, 'page header before the content');
-        self::assertSame(1, substr_count($html, 'data-nowo-ui-contract-partial="page_header"'));
+        foreach (['legacy/plain.html.twig', 'legacy/with-flashes.html.twig'] as $layout) {
+            try {
+                (new VaultPages($layout, $this->twig()))->layout();
+                self::fail($layout . ' must fail');
+            } catch (LogicException $exception) {
+                self::assertStringContainsString('The layout "' . $layout . '" (nowo_vault.web_ui.layout_template) does not render the UiKit canonical blocks', $exception->getMessage());
+                self::assertStringContainsString('set nowo_vault.web_ui.layout_template to null', $exception->getMessage());
+                self::assertStringContainsString('UPGRADING.md "To 2.0.0"', $exception->getMessage());
+            }
+        }
     }
 
     public function testACanonicalLayoutIsUsedAsIs(): void
@@ -90,7 +67,7 @@ final class LegacyLayoutBridgeTest extends TestCase
         $pages = new VaultPages('canonical.html.twig', $twig);
 
         self::assertSame('canonical.html.twig', $pages->layout());
-        self::assertSame(['nowo_vault_legacy_layout' => null, 'nowo_vault_legacy_blocks' => [], 'nowo_vault_host_note_template' => null, 'nowo_vault_sharing_enabled' => true], $pages->context([]));
+        self::assertSame(['nowo_vault_host_note_template' => null, 'nowo_vault_sharing_enabled' => true], $pages->context([]));
 
         $html = $twig->render('@NowoVaultBundle/vault/trash.html.twig', PageFixtures::trash(false, PageFixtures::factory($pages)));
         self::assertStringContainsString('<div data-host-canonical><title>Trash</title>', $html);
@@ -122,7 +99,7 @@ final class LegacyLayoutBridgeTest extends TestCase
 
         $noTwig = new VaultPages('legacy/plain.html.twig');
         self::assertSame('legacy/plain.html.twig', $noTwig->layout());
-        self::assertSame(['nowo_vault_legacy_layout' => null, 'nowo_vault_legacy_blocks' => [], 'nowo_vault_host_note_template' => null, 'nowo_vault_sharing_enabled' => true], $noTwig->context([]));
+        self::assertSame(['nowo_vault_host_note_template' => null, 'nowo_vault_sharing_enabled' => true], $noTwig->context([]));
 
         self::assertNull((new VaultPages(''))->layout());
         self::assertNull((new VaultPages())->layout());
@@ -143,50 +120,12 @@ final class LegacyLayoutBridgeTest extends TestCase
         }, E_USER_DEPRECATED | E_DEPRECATED);
 
         try {
-            $legacy = new VaultPages('legacy/with-flashes.html.twig', $this->twig());
-            $legacy->layout();
-            $blocks = $legacy->context([])['nowo_vault_legacy_blocks'];
-            (new VaultPages('canonical.html.twig', $this->twig()))->layout();
+            self::assertSame('canonical.html.twig', (new VaultPages('canonical.html.twig', $this->twig()))->layout());
         } finally {
             restore_error_handler();
         }
 
-        self::assertSame(['nowo_ui_flashes'], $blocks);
-        foreach ($all as $message) {
-            self::assertStringNotContainsString('mergeGlobals', $message);
-        }
-        self::assertCount(1, $all, 'Only the bundle bridge deprecation of the 1.x layout is raised: ' . implode("\n", $all));
-        self::assertStringContainsString('UiKit canonical blocks', $all[0]);
-    }
-
-    /**
-     * Runs $callback and collects the user deprecations it triggers.
-     *
-     * @template T
-     *
-     * @param callable(): T $callback
-     *
-     * @return array{result: list<T>, messages: list<string>}
-     */
-    private function deprecations(callable $callback): array
-    {
-        $messages = [];
-        set_error_handler(static function (int $level, string $message) use (&$messages): bool {
-            // Only the bundle's deprecation (Twig reports its own API deprecations through the same channel).
-            if (str_contains($message, 'UiKit canonical blocks')) {
-                $messages[] = $message;
-            }
-
-            return true;
-        }, E_USER_DEPRECATED);
-
-        try {
-            $result = $callback();
-        } finally {
-            restore_error_handler();
-        }
-
-        return ['result' => [$result], 'messages' => $messages];
+        self::assertSame([], $all, 'No deprecation is raised: ' . implode("\n", $all));
     }
 
     private function twig(): Environment
@@ -206,7 +145,7 @@ final class LegacyLayoutBridgeTest extends TestCase
 
             protected static function inlineTemplates(): array
             {
-                return LegacyLayoutBridgeTest::LAYOUTS;
+                return LayoutContractTest::LAYOUTS;
             }
         };
 

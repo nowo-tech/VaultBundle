@@ -64,7 +64,7 @@ final class DefaultVaultBrowserExtensionAuthenticatorTest extends TestCase
         $result = $authenticator->authenticate('alice@example.com', 'secret');
 
         self::assertTrue($result->isSuccess());
-        self::assertSame('alice@example.com', $result->getUser()?->getUserIdentifier());
+        self::assertSame('alice@example.com', $result->getUserRef()?->identifier);
     }
 
     public function testWorksWithoutUserChecker(): void

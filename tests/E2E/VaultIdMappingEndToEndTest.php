@@ -33,10 +33,12 @@ use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
 use Nowo\VaultBundle\Service\VaultTagService;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUserDirectory;
 use Nowo\VaultBundle\Tests\App\Ddd\OtherDomainUser;
 use Nowo\VaultBundle\Tests\App\IdMappingKernel;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Nowo\VaultBundle\ValueObject\VaultUserId;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -112,7 +114,7 @@ final class VaultIdMappingEndToEndTest extends WebTestCase
         $item = $items[0];
         self::assertSame(DddUserDirectory::ALICE, $item->getCreatorId());
         self::assertSame(DddUserDirectory::ALICE, $item->getCreatedById());
-        self::assertInstanceOf(VaultUserId::class, $item->getCreator());
+        self::assertInstanceOf(VaultUserId::class, $item->getOwner()->getUser());
         self::assertInstanceOf(VaultUserId::class, $item->getCreatedBy());
         self::assertTrue($item->getOwner()->isUser($alice));
         self::assertSame('user:' . DddUserDirectory::ALICE, $item->getOwner()->key());
@@ -182,8 +184,8 @@ final class VaultIdMappingEndToEndTest extends WebTestCase
         $folder = $this->service(VaultFolderService::class)->create('Work', $alice);
         $item   = $this->creator()->create(VaultItemType::Login, 'Bank', $alice, ['password' => 'p'], $folder);
         $this->service(VaultTagService::class)->syncItemTags($item, $alice, ['prod']);
-        $grant = $this->service(VaultGrantService::class)->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, DddUserDirectory::BOB, VaultPermission::Read, $alice);
-        $this->service(VaultGrantService::class)->grant(VaultResourceType::Item, $this->creator()->create(VaultItemType::SecureNote, 'Bob note', $bob, ['note' => 'n'])->getId(), GranteeType::User, DddUserDirectory::ALICE, VaultPermission::Read, $bob);
+        $grant = GrantSeeder::grant($this->service(VaultGrantService::class), VaultResourceType::Item, $item->getId(), GranteeType::User, DddUserDirectory::BOB, VaultPermission::Read, $alice);
+        GrantSeeder::grant($this->service(VaultGrantService::class), VaultResourceType::Item, $this->creator()->create(VaultItemType::SecureNote, 'Bob note', $bob, ['note' => 'n'])->getId(), GranteeType::User, DddUserDirectory::ALICE, VaultPermission::Read, $bob);
         $this->em()->clear();
 
         self::assertSame(['Work'], array_map(static fn (VaultFolder $f): string => $f->getName(), $this->service(VaultFolderService::class)->listForCreator($alice)));
@@ -223,7 +225,7 @@ final class VaultIdMappingEndToEndTest extends WebTestCase
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
         $signedIn = $alice;
         $dispatcher->addListener(VaultEvents::BROWSER_EXTENSION_AUTH, static function (VaultBrowserExtensionAuthEvent $event) use (&$signedIn): void {
-            $event->setResult(VaultBrowserExtensionAuthResult::success($signedIn));
+            $event->setResult(VaultBrowserExtensionAuthResult::authenticated(VaultUserRefs::fromUser($signedIn)));
         });
         $auth = self::getContainer()->get('test.extension_auth');
         self::assertInstanceOf(VaultBrowserExtensionAuthService::class, $auth);

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\Stub;
 
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
+use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 
-final readonly class TestTeamMembershipResolver implements VaultTeamMembershipResolverInterface
+final readonly class TestTeamMembershipResolver implements VaultTeamMembershipProviderInterface
 {
     /** @param array<string, list<string>> $teamsByUserId */
     public function __construct(
@@ -15,14 +15,8 @@ final readonly class TestTeamMembershipResolver implements VaultTeamMembershipRe
     ) {
     }
 
-    public function getTeamIdsForUser(UserInterface $user): array
+    public function teamIdsOf(VaultUserRef $user): array
     {
-        if (!method_exists($user, 'getId')) {
-            return [];
-        }
-
-        $id = (string) $user->getId();
-
-        return $this->teamsByUserId[$id] ?? [];
+        return $user->id === null ? [] : $this->teamsByUserId[$user->id] ?? [];
     }
 }

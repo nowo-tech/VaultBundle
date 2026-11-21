@@ -19,13 +19,13 @@ use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultGrantPolicyCheckEvent;
 use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Support\UserIdResolver;
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -59,7 +59,7 @@ final readonly class VaultGrantService
         private ?VaultItemRepositoryInterface $itemRepository = null,
         private ?VaultFolderRepositoryInterface $folderRepository = null,
         private ?VaultGrantListResolver $grantListResolver = null,
-        private ?VaultUserLocatorInterface $userLocator = null,
+        private ?VaultUserLocatorGate $userLocator = null,
         private array $temporary = [],
     ) {
     }
@@ -128,23 +128,6 @@ final readonly class VaultGrantService
     }
 
     /**
-     * Creates a grant, or updates the permission of the existing grant for the same grantee.
-     *
-     * @deprecated since 1.16.0, use grantAs() (this method does not re-check the actor and creates permanent grants
-     *             only). It now emits GRANT_CREATED / GRANT_UPDATED (actor null).
-     */
-    public function grant(
-        VaultResourceType $resourceType,
-        string $resourceId,
-        GranteeType $granteeType,
-        string $granteeId,
-        VaultPermission $permission,
-        object $createdBy,
-    ): VaultGrant {
-        return $this->upsert($resourceType, $resourceId, $granteeType, $granteeId, $permission, null, $createdBy, null)[1];
-    }
-
-    /**
      * Revokes a grant on behalf of an actor (1.16.0): re-checks that the actor may Share the resource, then deletes
      * the row conditionally. Emits GRANT_REVOKED (reason `manual`) only when this call deleted it.
      *
@@ -157,16 +140,6 @@ final readonly class VaultGrantService
         $this->loadShareableResource($actor, $grant->getResourceType(), $grant->getResourceId(), allowTrashed: true);
 
         return $this->delete($grant, UserIdResolver::getId($actor), VaultGrantChangeEvent::REASON_MANUAL);
-    }
-
-    /**
-     * Deletes a grant (system revoke, no actor check).
-     *
-     * @deprecated since 1.16.0, use revokeAs(). It now emits GRANT_REVOKED (reason `manual`, actor null).
-     */
-    public function revoke(VaultGrant $grant): void
-    {
-        $this->delete($grant, null, VaultGrantChangeEvent::REASON_MANUAL);
     }
 
     /**

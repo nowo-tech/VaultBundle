@@ -12,9 +12,9 @@ use Nowo\VaultBundle\Event\VaultItemsExportedEvent;
 use Nowo\VaultBundle\EventListener\VaultNoStoreResponseListener;
 use Nowo\VaultBundle\Exception\VaultDecryptionFailedException;
 use Nowo\VaultBundle\Form\VaultPersonalExportType;
+use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
+use Nowo\VaultBundle\Port\VaultReauthenticationGate;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
-use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
 use Nowo\VaultBundle\Security\VaultReauthProof;
 use Nowo\VaultBundle\Security\VaultReauthProofValidator;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
@@ -65,13 +65,13 @@ final class VaultExportController extends AbstractController
      * @param list<string> $formats export.formats
      */
     public function __construct(
-        private readonly VaultAccessCheckerInterface $accessChecker,
+        private readonly VaultAccessCheckerGate $accessChecker,
         private readonly VaultPersonalExportStreamer $streamer,
         private readonly VaultReauthProofValidator $proofValidator,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly VaultRuntimeConfigProvider $runtimeConfig,
         private readonly CacheItemPoolInterface $cooldownPool,
-        private readonly ?VaultReauthenticationCheckerInterface $reauthChecker = null,
+        private readonly ?VaultReauthenticationGate $reauthChecker = null,
         private readonly array $formats = ['json', 'csv'],
         private readonly int $maxItems = 5000,
         private readonly int $maxBytes = 52428800,
@@ -222,7 +222,7 @@ final class VaultExportController extends AbstractController
         return $user;
     }
 
-    private function checker(): VaultReauthenticationCheckerInterface
+    private function checker(): VaultReauthenticationGate
     {
         return $this->reauthChecker ?? throw new LogicException('The vault export needs export.reauth_checker.');
     }

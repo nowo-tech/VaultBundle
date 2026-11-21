@@ -39,37 +39,6 @@ final class VaultItemListQueryEvent extends Event
     }
 
     /**
-     * Returns the user viewing the list.
-     *
-     * @deprecated since 1.19.0, use getViewerRef() / getViewerId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
-     */
-    public function getViewer(): UserInterface
-    {
-        return $this->viewer;
-    }
-
-    /**
-     * Returns the user whose items are listed.
-     *
-     * @deprecated since 1.19.0, use getListSubjectRef() / getListSubjectId(); removed in 2.0
-     */
-    public function getListSubject(): UserInterface
-    {
-        return $this->listSubject;
-    }
-
-    /**
-     * Changes the user whose items are listed.
-     *
-     * @deprecated since 1.19.0, use setListSubjectRef(); removed in 2.0
-     */
-    public function setListSubject(UserInterface $listSubject): void
-    {
-        // @igor-ignore - Request-scoped Event DTO; not a shared worker service.
-        $this->listSubject = $listSubject;
-    }
-
-    /**
      * Returns the folder filter, or null.
      */
     public function getFolderId(): ?string
@@ -167,8 +136,9 @@ final class VaultItemListQueryEvent extends Event
     }
 
     /**
-     * Same as {@see self::setListSubject()} with a framework-free reference (1.19.0): its user object, or the user its id
-     * resolves to through the vault's user locator port (audit NJ-1; the reference's roles are never used).
+     * Changes the user whose items are listed (1.19.0; since 2.0 the only setter: the deprecated `setListSubject()` was
+     * removed): the reference's user object, or the user its id resolves to through the vault's user locator port (audit
+     * NJ-1; the reference's roles are never used).
      *
      * @throws InvalidArgumentException when the reference stands for no known vault user
      */

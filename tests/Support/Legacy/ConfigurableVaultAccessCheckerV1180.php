@@ -3,19 +3,18 @@
 declare(strict_types=1);
 
 // Literal copy of v1.18.0 src/Security/ConfigurableVaultAccessChecker.php (equivalence reference of 1.19.0): only the namespace, the class name and the
-// imports differ. Never edit the logic.
+// imports differ (since 2.0 the removed port interfaces are their test copies, *InterfaceV1180). Never edit the logic.
 
 namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Role-based default implementation of {@see VaultAccessCheckerInterface}.
+ * Role-based default implementation of {@see VaultAccessCheckerInterfaceV1180}.
  */
-final readonly class ConfigurableVaultAccessCheckerV1180 implements VaultAccessCheckerInterface
+final readonly class ConfigurableVaultAccessCheckerV1180 implements VaultAccessCheckerInterfaceV1180
 {
     /**
      * Creates the checker with Symfony Security and the runtime configuration provider.

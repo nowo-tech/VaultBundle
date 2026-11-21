@@ -31,6 +31,7 @@ use Nowo\VaultBundle\Tests\App\EventSubscriber\ScopesKernelListeners;
 use Nowo\VaultBundle\Tests\App\ScopesKernel;
 use Nowo\VaultBundle\Tests\App\Security\TestScopeAccessResolver;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -131,7 +132,7 @@ final class VaultRevealCatalogueEndToEndTest extends WebTestCase
             if ($event->getField() === 'cvv') {
                 self::assertSame('reveal', $event->getPurpose());
                 self::assertSame('web', $event->getChannel());
-                self::assertSame('alice@example.com', $event->getUser()->getUserIdentifier());
+                self::assertSame('alice@example.com', $event->getUserRef()->identifier);
                 self::assertSame('Card', $event->getItem()->getTitle());
                 $event->deny();
             }
@@ -156,11 +157,11 @@ final class VaultRevealCatalogueEndToEndTest extends WebTestCase
         $bob    = $this->createUser('bob@example.com');
         $marker = $this->marker();
         $item   = $this->createItem($alice, 'Mail', VaultItemType::Login, ['username' => 'ops', 'password' => $marker, 'websites' => ['https://mail.example']]);
-        self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant(self::getContainer()->get(VaultGrantService::class), VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
         $checks = [];
         $this->onEvent(VaultEvents::ITEM_FIELD_REVEAL_CHECK, static function (VaultFieldRevealCheckEvent $event) use (&$checks, $alice): void {
             $checks[] = [$event->getField(), $event->getPurpose(), $event->getChannel()];
-            if ($event->getUser()->getUserIdentifier() !== $alice->getUserIdentifier()) {
+            if ($event->getUserRef()->identifier !== $alice->getUserIdentifier()) {
                 $event->deny();
             }
         });
@@ -310,7 +311,7 @@ final class VaultRevealCatalogueEndToEndTest extends WebTestCase
         $alice                                                                   = $this->createUser('alice@example.com');
         TestScopeAccessResolver::$members[(string) $alice->getId()][self::SCOPE] = new VaultScopeAccess(VaultPermission::Admin, true, true, true);
         $item                                                                    = $this->createItem($alice, 'Mail');
-        $grant                                                                   = self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, '99', VaultPermission::Read, $this->managed($alice));
+        $grant                                                                   = GrantSeeder::grant(self::getContainer()->get(VaultGrantService::class), VaultResourceType::Item, $item->getId(), GranteeType::User, '99', VaultPermission::Read, $this->managed($alice));
         $folder                                                                  = $this->createFolder($alice, 'Docs');
         $client->loginUser($alice);
 
@@ -348,7 +349,7 @@ final class VaultRevealCatalogueEndToEndTest extends WebTestCase
         $trashed = $creator->createInScope($this->managed($alice), VaultItemType::Login, 'Old', self::SCOPE, []);
         $card    = $creator->createInScope($this->managed($alice), VaultItemType::CreditCard, 'Company card', self::SCOPE, ['cvv' => $marker]);
         self::getContainer()->get(VaultTrashService::class)->moveItemToTrash($trashed);
-        self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $card->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant(self::getContainer()->get(VaultGrantService::class), VaultResourceType::Item, $card->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
         $this->em()->flush();
 
         $catalogue = self::getContainer()->get(VaultCatalogue::class);
@@ -404,7 +405,7 @@ final class VaultRevealCatalogueEndToEndTest extends WebTestCase
             for ($i = 0; $i < $size; ++$i) {
                 $item = self::getContainer()->get(VaultItemCreator::class)->createInScope($this->managed($alice), VaultItemType::Login, 'I' . $i, self::SCOPE, []);
                 if ($i % 3 === 0) {
-                    self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+                    GrantSeeder::grant(self::getContainer()->get(VaultGrantService::class), VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
                 }
             }
             $this->em()->clear();
@@ -431,7 +432,7 @@ final class VaultRevealCatalogueEndToEndTest extends WebTestCase
         $catalogue = self::getContainer()->get(VaultCatalogue::class);
         $this->onEvent(VaultEvents::CATALOGUE_ACCESS_CHECK, static function (VaultCatalogueAccessCheckEvent $event): void {
             self::assertSame(self::SCOPE, $event->getScope());
-            self::assertSame('alice@example.com', $event->getUser()->getUserIdentifier());
+            self::assertSame('alice@example.com', $event->getUserRef()->identifier);
             $event->grant();
         });
         self::assertSame(0, $catalogue->page($this->managed($alice), self::SCOPE, new VaultCatalogueQuery())->total);
