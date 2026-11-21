@@ -353,18 +353,32 @@ final readonly class VaultGrantService
     }
 
     /**
+     * Logs an `actor_cannot_share` refusal the 2.1 grant commands decide before reaching grantAs() / revokeAs() (an
+     * inexact resource id, an unknown grant), with the same notice as every other refusal (audit YF-D4), and throws.
+     * A refused revoke of an unknown grant has no resource: the grant id is logged instead.
+     *
+     * @internal for {@see VaultGrantCommands}
+     *
+     * @throws VaultGrantRefusedException always, with `actor_cannot_share`
+     */
+    public function refuseCannotShare(UserInterface $actor, ?VaultResourceType $type, ?string $resourceId, ?string $grantId = null): never
+    {
+        $this->refuse(VaultGrantRefusedException::ACTOR_CANNOT_SHARE, UserIdResolver::getId($actor), $type, $resourceId, $grantId);
+    }
+
+    /**
      * Logs the refusal (notice, ids only) and throws.
      */
-    private function refuse(string $code, ?string $actorId, VaultResourceType $type, string $resourceId): never
+    private function refuse(string $code, ?string $actorId, ?VaultResourceType $type, ?string $resourceId, ?string $grantId = null): never
     {
         $this->logger()->notice('Vault grant refused.', [
             'bundle'        => 'nowo_vault',
             'action'        => 'grant_refused',
             'code'          => $code,
             'actor_id'      => $actorId,
-            'resource_type' => $type->value,
+            'resource_type' => $type?->value,
             'resource_id'   => $resourceId,
-        ]);
+        ] + ($grantId !== null ? ['grant_id' => $grantId] : []));
 
         throw new VaultGrantRefusedException($code);
     }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Tests\Integration\HostPorts;
 
 use InvalidArgumentException;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
+use Nowo\VaultBundle\Doctrine\VaultWriteUnit;
 use Nowo\VaultBundle\Dto\VaultItemCriteria;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
@@ -14,9 +16,18 @@ use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
+use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
+use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
+use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultTagRepositoryInterface;
+use Nowo\VaultBundle\Service\VaultAccessGuard;
+use Nowo\VaultBundle\Service\VaultGrantCommands;
 use Nowo\VaultBundle\Service\VaultGrantResult;
+use Nowo\VaultBundle\Service\VaultGrantService;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
+use Nowo\VaultBundle\Support\VaultUserRefResolver;
 use Nowo\VaultBundle\Tests\App\VariantKernel;
+use Nowo\VaultBundle\Tests\Support\RecordingLogger;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Nowo\VaultBundle\View\VaultFolderView;
 use Nowo\VaultBundle\View\VaultGrantView;
@@ -25,6 +36,8 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
+use function array_filter;
+use function array_values;
 use function assert;
 use function str_repeat;
 use function strtoupper;
@@ -189,6 +202,65 @@ final class ScopeFoldersGrantsKernelTest extends KernelTestCase
         $this->tagCommands()->delete($alice, $work->getId());
         self::assertSame([], $this->query()->findById($item->id)?->tagNames);
         $this->assertThrows(VaultAccessDeniedException::class, fn () => $this->tagCommands()->delete($alice, $work->getId()), 'gone');
+    }
+
+    /**
+     * Audit YF-D4: the refusals the grant commands decide themselves (an inexact resource id, an unknown grant) write
+     * the same notice as every refusal of the grant service, ids only.
+     */
+    #[Test]
+    public function refusalsOfTheCommandsAreLogged(): void
+    {
+        $this->bootVariant('private_id_new');
+        $logger = new RecordingLogger();
+        $alice  = $this->ref('alice');
+        $item   = $this->items()->create($alice, VaultItemType::Login, 'Shared', self::PAYLOAD);
+        $grants = $this->grantCommandsLoggingTo($logger);
+
+        $this->assertRefused(fn (): VaultGrantView => $grants->grant($alice, VaultResourceType::Item, strtoupper($item->id), GranteeType::User, $this->id('bob'), VaultPermission::Read), 'case variant');
+        $this->assertRefused(static fn (): bool => $grants->revoke($alice, 'missing-grant'), 'unknown grant');
+        $this->assertRefused(static fn (): bool => $grants->revoke($alice, ''), 'empty grant id');
+        $this->assertRefused(fn (): VaultGrantView => $grants->grant($this->ref('bob'), VaultResourceType::Item, $item->id, GranteeType::User, $this->id('carol'), VaultPermission::Read), 'not shareable');
+
+        $notice = static fn (string $actor, array $context): array => ['level' => 'notice', 'message' => 'Vault grant refused.', 'context' => ['bundle' => 'nowo_vault', 'action' => 'grant_refused', 'code' => VaultGrantRefusedException::ACTOR_CANNOT_SHARE, 'actor_id' => $actor] + $context];
+        self::assertSame([
+            $notice($this->id('alice'), ['resource_type' => 'item', 'resource_id' => strtoupper($item->id)]),
+            $notice($this->id('alice'), ['resource_type' => null, 'resource_id' => null, 'grant_id' => 'missing-grant']),
+            $notice($this->id('alice'), ['resource_type' => null, 'resource_id' => null, 'grant_id' => '']),
+            $notice($this->id('bob'), ['resource_type' => 'item', 'resource_id' => $item->id]),
+        ], array_values(array_filter($logger->records, static fn (array $record): bool => $record['message'] === 'Vault grant refused.')));
+    }
+
+    /**
+     * The grant commands of the container, on a grant service that logs to the given logger.
+     */
+    private function grantCommandsLoggingTo(RecordingLogger $logger): VaultGrantCommands
+    {
+        $get = function (string $id): object {
+            $service = $this->container->get($id);
+            assert($service !== null);
+
+            return $service;
+        };
+        $repository = $get(VaultGrantRepositoryInterface::class);
+        $guard      = $get(VaultAccessGuard::class);
+        $itemRepo   = $get(VaultItemRepositoryInterface::class);
+        $folderRepo = $get(VaultFolderRepositoryInterface::class);
+        $refs       = $get(VaultUserRefResolver::class);
+        $references = $get(VaultUserReferenceResolverInterface::class);
+        $manager    = $get(VaultEntityManager::class);
+        $unit       = $get(VaultWriteUnit::class);
+        assert($repository instanceof VaultGrantRepositoryInterface && $guard instanceof VaultAccessGuard && $itemRepo instanceof VaultItemRepositoryInterface && $folderRepo instanceof VaultFolderRepositoryInterface);
+        assert($refs instanceof VaultUserRefResolver && $references instanceof VaultUserReferenceResolverInterface && $manager instanceof VaultEntityManager && $unit instanceof VaultWriteUnit);
+
+        return new VaultGrantCommands(
+            new VaultGrantService($repository, $logger, accessGuard: $guard, itemRepository: $itemRepo, folderRepository: $folderRepo),
+            $guard,
+            $refs,
+            $references,
+            $manager,
+            $unit,
+        );
     }
 
     private function assertRefused(callable $call, string $case): void

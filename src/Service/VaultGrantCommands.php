@@ -16,7 +16,6 @@ use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
-use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
 use Nowo\VaultBundle\Internal\VaultCommandsTrait;
 use Nowo\VaultBundle\Internal\VaultRowLock;
 use Nowo\VaultBundle\Internal\VaultViews;
@@ -62,8 +61,9 @@ final readonly class VaultGrantCommands implements VaultGrantCommandsInterface
         return $this->inUnit(function () use ($user, $resourceType, $resourceId, $granteeType, $granteeId, $permission, $expiresAt): VaultGrantView {
             // Exact resource id (audit YF-L2): a case or padding variant the database would match is refused like a
             // resource the actor may not share, so no grant row is ever stored with a variant id.
+            // Logged like every other refusal (audit YF-D4).
             if ($this->resource($resourceType, $resourceId) === null) {
-                throw new VaultGrantRefusedException(VaultGrantRefusedException::ACTOR_CANNOT_SHARE);
+                $this->grants->refuseCannotShare($user, $resourceType, $resourceId);
             }
             // grantAs() re-checks Share and every sharing rule; it refuses with VaultGrantRefusedException.
             $result = $this->grants->grantAs($user, $resourceType, $resourceId, $granteeType, $granteeId, $permission, $expiresAt);
@@ -86,8 +86,9 @@ final readonly class VaultGrantCommands implements VaultGrantCommandsInterface
         return $this->inUnit(function () use ($user, $grantId): bool {
             $grant = $grantId !== '' ? $this->grants->findById($grantId) : null;
             if (!$grant instanceof VaultGrant || $grant->getId() !== $grantId) {
-                // The same answer as a grant of a resource the actor may not share (audit YF-I1).
-                throw new VaultGrantRefusedException(VaultGrantRefusedException::ACTOR_CANNOT_SHARE);
+                // The same answer as a grant of a resource the actor may not share (audit YF-I1), logged like every
+                // other refusal (audit YF-D4).
+                $this->grants->refuseCannotShare($user, null, null, $grantId);
             }
 
             // revokeAs() re-checks Share on the resource; it refuses with VaultGrantRefusedException.

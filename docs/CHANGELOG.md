@@ -61,6 +61,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Query port pages in SQL where SQL is already exact** (audit YF-D1): `VaultItemQueryInterface::find()` and
+  `count()` read one page with SQL `LIMIT`/`OFFSET` and the total with SQL `COUNT` instead of one scalar row per
+  candidate of the owner (O(owner size), about 100k rows for a large scope). Only where the database compares the
+  owner byte for byte and there is no exact-title filter: a scope owner, or the id mapping when the live `creator_id`
+  column has the binary NO PAD collation (MySQL `utf8mb4_0900_bin`, MariaDB `utf8mb4_nopad_bin`, read from
+  `information_schema` on every call, `varchar` only), a deterministic collation on a `varchar` / `text` column
+  (PostgreSQL, outside a transaction: a failed catalog read would abort it) or is on SQLite. Any other platform and a
+  failing catalog read keep the exact path (audit YL-L1, YL-L2). The page and the total are two statements. The page's owners are
+  still re-checked with `===` in PHP, and a row that fails the re-check answers through the exact path. The relation
+  mapping, an exact title, SQL Server and a column without its binary collation keep the exact path; both paths return
+  the same items, pages and totals (tests with look-alike rows on MySQL, MariaDB and PostgreSQL).
+
+### Fixed
+
+- **Grant command refusals are logged** (audit YF-D4): the `actor_cannot_share` refusals `VaultGrantCommandsInterface`
+  decides itself (an inexact resource id in `grant()`, an unknown or empty grant id in `revoke()`) now write the same
+  `Vault grant refused.` notice as every other grant refusal (ids only; a revoke of an unknown grant logs its
+  `grant_id` and no resource). The caller's answer is unchanged.
+
 ## [2.1.0] - 2026-11-21
 
 Target: **2.1.0** (minor, additive: DDD-host checklist B1, B4, B7, B8; REQ-ARCH-001 rules 1, 3 and 7). Nothing is
