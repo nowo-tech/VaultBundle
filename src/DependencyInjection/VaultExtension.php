@@ -304,7 +304,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             }
         }
 
-        $this->registerWriteUnit($container, $emRef);
+        $this->registerWriteUnit($container, $emRef, (bool) $config['events']['after_host_commit']);
         $this->registerHostPorts($container, $emRef);
         $this->registerSearchKit($config['search_kit'], (bool) $config['scopes']['enabled'], $container, $emRef, $registryRef, $emName);
         $this->registerConflictAnswer($container, $config['conflict_response']);
@@ -587,11 +587,12 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
      * the vault's private manager) and the dispatcher of the write services, which holds their change notifications
      * until the unit has committed ({@see DeferredVaultEventDispatcher}).
      */
-    private function registerWriteUnit(ContainerBuilder $container, Reference $emRef): void
+    private function registerWriteUnit(ContainerBuilder $container, Reference $emRef, bool $afterHostCommit): void
     {
-        // 2.1.0 (B4): with the connection hook (doctrine/dbal 4) the notifications also wait for the application's
-        // commit; the connection of the private manager reports it (PrivateEntityManagerMiddleware).
-        $hook = PrivateEntityManagerPass::supportsRollbackMiddleware();
+        // 2.1.0 (B4, opt-in `events.after_host_commit`): with the connection hook (doctrine/dbal 4) the notifications
+        // also wait for the application's commit; the connection of the private manager reports it
+        // (PrivateEntityManagerMiddleware). Off (the default until 3.0): the 2.0 timing.
+        $hook = $afterHostCommit && PrivateEntityManagerPass::supportsRollbackMiddleware();
         $container->setDefinition(DeferredVaultEventDispatcher::class, (new Definition(DeferredVaultEventDispatcher::class, [
             new Reference('event_dispatcher'),
             $hook ? new Reference(VaultEntityManager::class) : null,

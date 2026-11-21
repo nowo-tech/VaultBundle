@@ -104,7 +104,7 @@ From **2.0.0** (target 2.1.0, minor):
 composer update nowo-tech/vault-bundle
 ```
 
-Nothing to change: no configuration, schema, template or signature changes.
+Nothing to change: no schema, template or signature change, and no default behaviour change (one new opt-in option).
 
 - **New id-based ports** for a DDD / hexagonal host: `VaultItemCommandsInterface`, `VaultFolderCommandsInterface`,
   `VaultGrantCommandsInterface`, `VaultTagCommandsInterface`, `VaultItemQueryInterface` and
@@ -115,11 +115,18 @@ Nothing to change: no configuration, schema, template or signature changes.
   `VaultItemCreator`, `VaultItemUpdater::update()`, `VaultFolderService`, `VaultTagService::syncItemTags()` /
   `deleteForCreator()`, `VaultTrashService`, `VaultGrantService::grantAs()` / `revokeAs()` and the `VaultAccessGuard`
   checks. No runtime deprecation is triggered.
-- **Event timing inside your transaction** (doctrine/dbal 4): if your code opens a transaction on the vault's
-  connection and calls the vault inside it, the change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`,
-  `GRANT_*`) now arrive after your commit (at the next vault change outside a transaction or at the end of the request,
-  message or command) and never when you roll back. A listener that relied on running inside that transaction must
-  now open its own. Outside your transactions nothing changes.
+- **Opt-in: events after your commit** (doctrine/dbal 4): with `events.after_host_commit: true`, when your code opens
+  a transaction on the vault's connection and calls the vault inside it, the change events (`ITEM_CHANGED`,
+  `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`) arrive after your commit (at the next vault change outside a transaction
+  or at the end of the request, message or command) and never when you roll back. A listener that relies on running
+  inside that transaction must then open its own. The default stays `false` (2.0 timing) in 2.x and **becomes `true` in
+  3.0**: turn it on now to be ready.
+
+  ```yaml
+  nowo_vault:
+      events:
+          after_host_commit: true
+  ```
 
 ## To 2.0.0
 

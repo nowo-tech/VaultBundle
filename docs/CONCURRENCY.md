@@ -32,10 +32,10 @@ residual risks.
   own savepoint (`VaultSavepoint`, 1.19).
 - **Notifications after the commit.** The change events of the vault (`ITEM_CHANGED`, `FOLDER_CHANGED`,
   `TAG_CHANGED`, `GRANT_*`) dispatched during a unit are held until the unit has committed, and dropped when it fails
-  (`DeferredVaultEventDispatcher`). Since 2.1.0, inside an application transaction (where the unit is a savepoint)
+  (`DeferredVaultEventDispatcher`). With `events.after_host_commit: true` (2.1.0 opt-in, default from 3.0), inside an application transaction (where the unit is a savepoint)
   they wait for the application's outermost commit, follow its released and rolled-back savepoints, are dropped when
   it rolls back, and are dispatched at the next idle point (never inside the commit call). doctrine/dbal 4 only (the
-  private manager's connection hook); with DBAL 3 they are released when the unit ends. The check and veto events
+  private manager's connection hook); with the option off, or DBAL 3, they are released when the unit ends. The check and veto events
   (access checks, list queries, grant policy) are dispatched at once, since their listeners answer the vault.
 - **Exact keys.** Owner, creator, grantee and scope ids compare byte for byte (binary collation with
   `user_mapping: id`, post-filters on the secret, GDPR and token paths; REQ-SEC-006 / LQ rule since 1.17 and 1.19.3).

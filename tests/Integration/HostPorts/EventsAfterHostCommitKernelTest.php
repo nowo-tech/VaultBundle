@@ -21,7 +21,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use function assert;
 
 /**
- * 2.1.0 (DDD-host checklist B4, REQ-ARCH-001 rule 7): inside a transaction of the application, the vault's change
+ * 2.1.0 (DDD-host checklist B4, REQ-ARCH-001 rule 7), opt-in `events.after_host_commit: true`: inside a transaction of the application, the vault's change
  * notifications wait for the application's commit (the vault's unit is only a savepoint there), are dropped when it
  * rolls back, follow released and rolled-back savepoints, and are dispatched at the next idle point, never inside the
  * commit call. doctrine/dbal 4 (the connection hook); with DBAL 3 the 1.20 behaviour stays.
@@ -43,7 +43,7 @@ final class EventsAfterHostCommitKernelTest extends KernelTestCase
 
     protected function setUp(): void
     {
-        $this->bootVariant('private_relation_new');
+        $this->bootVariant($this->name() === 'theDefaultKeepsTheTimingOf20' ? 'private_relation_new' : 'private_relation_new_ahc');
         $dispatcher = $this->container->get('event_dispatcher');
         assert($dispatcher instanceof EventDispatcherInterface);
         $dispatcher->addListener(VaultEvents::ITEM_CHANGED, function (VaultItemChangeEvent $event): void {
@@ -52,6 +52,15 @@ final class EventsAfterHostCommitKernelTest extends KernelTestCase
         $dispatcher->addListener(VaultEvents::FOLDER_CHANGED, function (VaultFolderChangeEvent $event): void {
             $this->seen[] = 'folder:' . $event->getKind();
         });
+    }
+
+    /**
+     * `events.after_host_commit: false` (the default until 3.0): the 2.0 timing on every DBAL version.
+     */
+    #[Test]
+    public function theDefaultKeepsTheTimingOf20(): void
+    {
+        $this->assertTheDbal3Behaviour();
     }
 
     #[Test]
@@ -144,7 +153,7 @@ final class EventsAfterHostCommitKernelTest extends KernelTestCase
     }
 
     /**
-     * doctrine/dbal 3 (no connection hook): the 2.0 behaviour, the notifications leave when the vault's unit ends, even
+     * The option off, or doctrine/dbal 3 (no connection hook): the 2.0 behaviour, the notifications leave when the vault's unit ends, even
      * inside the application's transaction (the database CI jobs run with --fail-on-skipped, so this is asserted, not
      * skipped).
      */

@@ -376,13 +376,13 @@ Since 1.19.0 every hook event that carries the user also gives it as a framework
 list, policy and share events) and the ids of its resources (`getItemId()`, `getFolderId()`, `getOwnerKey()`,
 `VaultItemListResultEvent::getItemIds()`). The `UserInterface` getters were removed in 2.0 (deprecated since 1.19).
 
-The change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`) are dispatched after the commit. Since
-2.1.0 that holds inside your own transaction too: when the vault writes while your code has a transaction open on the
-vault's connection (the vault's unit is then a savepoint), the events wait for your commit and are dropped if you roll
-back (a rolled-back savepoint drops the events written inside it). Committed events are dispatched at the next idle
-point: the next vault change outside a transaction, or the end of the request, Messenger message or console command,
-never inside the commit call. This needs doctrine/dbal 4 (the connection hook); with DBAL 3 the events are dispatched
-when the vault's unit ends, as in 2.0.
+The change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`) are dispatched after the vault's commit.
+Inside a transaction your own code opened on the vault's connection (the vault's unit is then a savepoint) they leave
+when the vault's unit ends, unless you opt in to `events.after_host_commit: true` (2.1.0, the default from 3.0): then they
+wait for your commit, are dropped if you roll back (a rolled-back savepoint drops the events written inside it), and
+committed events are dispatched at the next idle point: the next vault change outside a transaction, or the end of the
+request, Messenger message or console command, never inside the commit call. doctrine/dbal 4 only (see
+[CONFIGURATION](CONFIGURATION.md#event-timing-events)).
 
 ## Lists and pagination
 
@@ -663,6 +663,10 @@ final readonly class SeedOrganisationVault
   Decide what a user may see with your own rules or with the access port first.
 - **Access** (`VaultAccessCheckInterface`: `canAccessItem`, `canAccessFolder`, `isItemReadOnly`, `itemPermissions`,
   `scopeAccess`) answers `false` / null for an unknown user or resource.
+- **Feature roles are yours to gate.** The ports apply the per-resource rules only (ownership, scope membership,
+  grants, the access-check and read-only events). The role checks of the vault pages (`security.*_roles` or your
+  `VaultAccessPolicyInterface`: access, create, list, revoke) are UI gates: check them in your use case before calling
+  a port when your users need them.
 
 The entity / `UserInterface` signatures of `VaultItemCreator`, `VaultItemUpdater`, `VaultFolderService`,
 `VaultTagService`, `VaultTrashService`, `VaultGrantService::grantAs()` / `revokeAs()` and `VaultAccessGuard` stay for the

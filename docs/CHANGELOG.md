@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Target: **2.1.0** (minor, additive: DDD-host checklist B1, B4, B7, B8; REQ-ARCH-001 rules 1, 3 and 7). Nothing is
-removed and no signature changes; see [UPGRADING](UPGRADING.md#unreleased).
+removed, no signature or default behaviour changes; see [UPGRADING](UPGRADING.md#unreleased).
 
 ### Added
 
@@ -81,16 +81,14 @@ removed and no signature changes; see [UPGRADING](UPGRADING.md#unreleased).
   `isItemReadOnly`, `itemPermissions`, `scopeAccess`) for a `VaultUserRef` and resource ids, with the decisions of
   `VaultAccessGuard`.
 - `VaultItemUpdater::move()` (internal to the item command port).
-
-### Changed
-
-- **Change events after the application's commit** (B4, REQ-ARCH-001 rule 7): when the vault writes inside a
-  transaction your code opened on the vault's connection (the vault's unit is then a savepoint), `ITEM_CHANGED`,
-  `FOLDER_CHANGED`, `TAG_CHANGED` and `GRANT_*` now wait for your outermost commit instead of firing when the vault's
-  unit ends; a rollback (or a rolled-back savepoint around the write) drops them. Committed events are dispatched at
-  the next idle point (the next vault change outside a transaction, or the end of the request, message or command),
-  never inside the commit call. doctrine/dbal 4 only; with DBAL 3 nothing changes. Worker mode: what is held is
-  released or dropped at every boundary and emptied at the next main request.
+- **Opt-in `events.after_host_commit`** (B4, REQ-ARCH-001 rule 7; default `false`, the 2.0 timing; the default becomes
+  `true` in 3.0): when on, the change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`) written
+  inside a transaction your code opened on the vault's connection (the vault's unit is then a savepoint) wait for your
+  outermost commit instead of firing when the vault's unit ends; a rollback (or a rolled-back savepoint around the
+  write) drops them. Committed events are dispatched at the next idle point (the next vault change outside a
+  transaction, or the end of the request, message or command), never inside the commit call. doctrine/dbal 4 only;
+  with DBAL 3 the option has no effect. Worker mode: what is held is released or dropped at every boundary and emptied
+  at the next main request.
 
 ### Deprecated
 

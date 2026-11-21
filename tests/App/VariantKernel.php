@@ -72,6 +72,7 @@ use const PHP_VERSION_ID;
  * - `_worker`: the services resetter is replaced by a no-op (FrankenPHP worker mode with the resetter bypassed);
  * - `_db`: the database server of VAULT_TEST_DATABASE_URL instead of a SQLite file;
  * - `_404`: `security.deny_status: 404`;
+ * - `_ahc`: `events.after_host_commit: true` (2.1.0, opt-in);
  * - 2.0 removed paths, each of which must fail the build: `_rmchecker` (`security.access_checker` names a class that
  *   still implements the removed access port), `_rmalias` (the application aliases the removed user locator id),
  *   `_rmaccess` / `_rmlocator` / `_rmscope` (application classes that still implement a removed port, registered by
@@ -107,6 +108,8 @@ final class VariantKernel extends BaseKernel
 
     private readonly int $denyStatus;
 
+    private readonly bool $afterHostCommit;
+
     private readonly ?string $removed;
 
     /** @var array{0: string, 1: string}|null [mode, port] of a `_compat<mode><port>` variant */
@@ -123,6 +126,7 @@ final class VariantKernel extends BaseKernel
         $this->worker                    = in_array('worker', $parts, true);
         $this->server                    = in_array('db', $parts, true);
         $this->denyStatus                = in_array('404', $parts, true) ? 404 : 403;
+        $this->afterHostCommit           = in_array('ahc', $parts, true);
         $removed                         = array_values(array_intersect($parts, ['rmchecker', 'rmalias', 'rmaccess', 'rmlocator', 'rmscope', 'pemfalse']));
         $this->removed                   = $removed[0] ?? null;
         $compat                          = null;
@@ -159,8 +163,9 @@ final class VariantKernel extends BaseKernel
         $deny    = $this->denyStatus;
         $removed = $this->removed;
         $compat  = $this->compat;
+        $ahc     = $this->afterHostCommit;
         $url     = $this->server ? '%env(VAULT_TEST_DATABASE_URL)%' : 'sqlite:///%kernel.cache_dir%/variant.db';
-        $loader->load(static function (ContainerBuilder $container) use ($byId, $xml, $ports, $worker, $url, $deny, $removed, $compat): void {
+        $loader->load(static function (ContainerBuilder $container) use ($byId, $xml, $ports, $worker, $url, $deny, $removed, $compat, $ahc): void {
             $orm = ['naming_strategy' => 'doctrine.orm.naming_strategy.underscore_number_aware'] + (PHP_VERSION_ID >= 80400 ? ['enable_native_lazy_objects' => true] : []);
             if (!$byId) {
                 $orm['mappings'] = ['TestUser' => ['type' => 'attribute', 'dir' => '%kernel.project_dir%/Entity', 'prefix' => 'Nowo\\VaultBundle\\Tests\\App\\Entity', 'is_bundle' => false]];
@@ -182,6 +187,7 @@ final class VariantKernel extends BaseKernel
                 'database'       => ['mapping_type' => $xml ? 'xml' : 'attribute'],
                 'security'       => ['deny_status' => $deny, 'allow_unlisted_grantees' => true, 'access_roles' => ['ROLE_USER'], 'create_roles' => ['ROLE_USER'], 'list_roles' => ['ROLE_USER'], 'delete_roles' => ['ROLE_USER']],
                 'scopes'         => ['enabled' => true, 'access_resolver' => 'app.vault_ports'],
+                'events'         => ['after_host_commit' => $ahc],
             ];
             $container->register('app.vault_ports', PolicyHostPorts::class)->setPublic(true);
             if ($ports !== 'builtin') {
