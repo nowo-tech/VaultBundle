@@ -51,6 +51,10 @@ final class RemovedPortsPassTest extends TestCase
         $unknown->register('app.factory', stdClass::class)->setFactory('app_factory');
         $unknown->setAlias($port, 'app.factory');
         $this->assertFails($unknown, $port, $twin, ['"app.factory" is registered under it or aliased to it'], 'a class unknown before compilation is never accepted');
+
+        $missing = new ContainerBuilder();
+        $missing->setAlias($port, 'app.missing');
+        $this->assertFails($missing, $port, $twin, ['"app.missing" is registered under it or aliased to it'], 'an alias of a service that does not exist is never accepted');
     }
 
     /**
