@@ -1,7 +1,9 @@
-# REQ-DEMO-014: UiKit's default theme, unchanged (no CSS framework, no CDN, no token override); the demo shell
-# (templates/base.html.twig) is the admin layout of every Vault page. Icons are inline SVG (no icon font from a CDN).
+# REQ-DEMO-014: UiKit's default theme, unchanged (no CSS framework, no CDN, no token override); the demo platform shell
+# (templates/base.html.twig) is the admin and guest layout of every Vault page. Icons are inline SVG (no icon font).
 nowo_ui_kit:
     css_framework: custom
+    base_stylesheet: true
     icon_set: svg_inline
     layouts:
         admin: base.html.twig
+        guest: base.html.twig
