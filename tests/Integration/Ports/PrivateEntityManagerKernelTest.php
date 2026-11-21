@@ -42,7 +42,7 @@ use function assert;
  * flushes, clears, closes or resets the application's manager; a failed vault write closes only the private manager,
  * which comes back on the next call; a host transaction includes the vault rows (rolled back with it, the private
  * identity map is replaced) and a failing vault statement inside it rolls back to its own savepoint; a unit-of-work
- * boundary drops pending vault changes and logs them. The 1.18 wiring is shown flushing the host changes, for contrast.
+ * boundary drops pending vault changes and logs them. Since 2.0 the only mode (the 1.18 wiring was removed).
  */
 final class PrivateEntityManagerKernelTest extends KernelTestCase
 {
@@ -56,7 +56,7 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
     #[Test]
     public function aVaultWriteNeverFlushesTheApplicationsPendingChanges(): void
     {
-        [$container, $users] = $this->boot('private_relation_legacy');
+        [$container, $users] = $this->boot('private_relation_new');
         $host                = self::hostManager($container);
         $alice               = $users['carol'];
         assert($alice instanceof User);
@@ -75,22 +75,9 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
     }
 
     #[Test]
-    public function the118WiringFlushesThem(): void
-    {
-        [$container, $users] = $this->boot('legacy_relation_legacy');
-        $alice               = $users['carol'];
-        assert($alice instanceof User);
-        $alice->setEmail('flushed-by-the-vault@example.com');
-
-        self::seedVault($container, $users);
-
-        self::assertSame('flushed-by-the-vault@example.com', self::hostManager($container)->getConnection()->fetchOne('SELECT email FROM users WHERE id = ?', [$alice->getId()]), '1.18 behaviour, kept by private_entity_manager: false');
-    }
-
-    #[Test]
     public function aFailedVaultWriteClosesOnlyThePrivateManager(): void
     {
-        [$container, $users] = $this->boot('private_relation_legacy');
+        [$container, $users] = $this->boot('private_relation_new');
         $host                = self::hostManager($container);
         $vault               = self::vaultManager($container);
         assert($vault instanceof VaultEntityManager);
@@ -127,7 +114,7 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
     #[Test]
     public function aHostTransactionIncludesTheVaultRowsAndARollbackReplacesTheIdentityMap(): void
     {
-        [$container, $users] = $this->boot('private_relation_legacy');
+        [$container, $users] = $this->boot('private_relation_new');
         $vault               = self::vaultManager($container);
         assert($vault instanceof VaultEntityManager);
         $connection = self::hostManager($container)->getConnection();
@@ -160,7 +147,7 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
     public function anUnrelatedHostRollbackNeverBreaksTheNextVaultSave(): void
     {
         // Audit NJ-2 repro: load an item, the application rolls back a transaction of its own, edit, save.
-        [$container, $users] = $this->boot('private_relation_legacy');
+        [$container, $users] = $this->boot('private_relation_new');
         $ids                 = self::seedVault($container, $users);
         $connection          = self::hostManager($container)->getConnection();
         $vault               = self::vaultManager($container);
@@ -196,7 +183,7 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
     public function aRollbackOfBulkWritesOrLoadsOfThePrivateManagerMakesItStale(): void
     {
         // Audit NJV-1: a grant upgrade is a bulk DQL update plus refresh(), outside flush().
-        [$container, $users] = $this->boot('private_relation_legacy');
+        [$container, $users] = $this->boot('private_relation_new');
         $ids                 = self::seedVault($container, $users);
         $connection          = self::hostManager($container)->getConnection();
         $vault               = self::vaultManager($container);
@@ -227,7 +214,7 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
     #[Test]
     public function aBoundaryDropsPendingVaultChangesAndLogsThem(): void
     {
-        [$container, $users] = $this->boot('private_relation_legacy');
+        [$container, $users] = $this->boot('private_relation_new');
         $ids                 = self::seedVault($container, $users);
         $doctrine            = $container->get('doctrine');
         assert($doctrine instanceof ManagerRegistry);
@@ -258,7 +245,7 @@ final class PrivateEntityManagerKernelTest extends KernelTestCase
     #[Test]
     public function updatesThroughTheServicesAreSavedByThePrivateManager(): void
     {
-        [$container, $users] = $this->boot('private_relation_legacy');
+        [$container, $users] = $this->boot('private_relation_new');
         $ids                 = self::seedVault($container, $users);
         $updater             = $container->get(VaultItemUpdater::class);
         assert($updater instanceof VaultItemUpdater);

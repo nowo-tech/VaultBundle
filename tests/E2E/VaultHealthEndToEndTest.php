@@ -21,6 +21,7 @@ use Nowo\VaultBundle\Tests\App\EventSubscriber\ScopesKernelListeners;
 use Nowo\VaultBundle\Tests\App\ScopesKernel;
 use Nowo\VaultBundle\Tests\App\Security\TestScopeAccessResolver;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -72,7 +73,7 @@ final class VaultHealthEndToEndTest extends WebTestCase
         $mine   = $this->scopeItem($alice, 'Visible weak', $marker);
         $this->scopeItem($alice, 'Invisible twin', $marker);
         $this->scopeItem($alice, 'Strong', $this->compliant());
-        self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $mine->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant(self::getContainer()->get(VaultGrantService::class), VaultResourceType::Item, $mine->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
 
         $generated = [];
         ScopesKernelListeners::add(VaultEvents::HEALTH_REPORT_GENERATED, static function (VaultHealthReportGeneratedEvent $event) use (&$generated): void {

@@ -12,6 +12,7 @@ use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Tests\App\ConfigStorageKernel;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -46,7 +47,7 @@ final class VaultDenyStatusEndToEndTest extends WebTestCase
         $bob    = $this->createUser('bob@example.com');
         $item   = $this->createItem($alice, 'Mail');
         $folder = $this->createFolder($alice, 'Work');
-        $grant  = self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, 'someone', VaultPermission::Read, $this->managed($alice));
+        $grant  = GrantSeeder::grant(self::getContainer()->get(VaultGrantService::class), VaultResourceType::Item, $item->getId(), GranteeType::User, 'someone', VaultPermission::Read, $this->managed($alice));
 
         $client->loginUser($bob);
         foreach (['/tools/vault/items/' . $item->getId(), '/tools/vault/items/' . $item->getId() . '/edit', '/tools/vault/items/' . $item->getId() . '/share', '/tools/vault/folders/' . $folder->getId() . '/share'] as $url) {

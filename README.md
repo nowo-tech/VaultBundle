@@ -20,8 +20,8 @@ This bundle is **FrankenPHP worker mode friendly**, including kernel reset false
 - Folders with share and trash; item soft-delete with restore/purge
 - **Tags** — label items, filter and search by tag
 - `VaultGrant` for users and teams (read / write / admin) + share UI
-- `VaultTeamMembershipResolverInterface` for team-based grants
-- **Scope vaults** — items, folders and tags owned by a project or organization of the host (`VaultScopeAccessResolverInterface`, membership checked on every request)
+- `VaultTeamMembershipProviderInterface` for team-based grants
+- **Scope vaults** — items, folders and tags owned by a project or organization of the host (`VaultScopeAccessProviderInterface`, membership checked on every request)
 - **Catalogue** — metadata-only list of a scope's items (no payload loaded) so members can request access
 - **On-demand reveal** — Show / Copy per secret field and attachment download, audited and rate limited; no secret in the page
 - **Temporary grants** — `grantAs()` with an expiry enforced on every read, `nowo:vault:grants:purge-expired`, grant audit events

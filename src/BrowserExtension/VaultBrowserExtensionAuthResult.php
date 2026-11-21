@@ -12,11 +12,12 @@ use Symfony\Component\Security\Core\User\UserInterface;
 /**
  * Immutable outcome of a browser extension login attempt (authenticated user or failure reason).
  *
- * 1.19.0 (REQ-ARCH-001 rule 3): a successful result can be built from a framework-free {@see VaultUserRef}
- * ({@see self::authenticated()}) and read as one ({@see self::getUserRef()}). With a user object, that object is the
- * user (the vault's class policy applies, as in 1.18). A reference by id alone carries no trust (audit NJ-1): the vault
- * looks the id up again through its user locator port and uses that answer's identity and roles (never the
- * reference's); an unknown id gets no token.
+ * 1.19.0 (REQ-ARCH-001 rule 3): a successful result is built from a framework-free {@see VaultUserRef}
+ * ({@see self::authenticated()}) and read as one ({@see self::getUserRef()}); since 2.0 that is the only way (the
+ * deprecated `success(UserInterface)` and `getUser()` were removed). With a user object, that object is the user (the
+ * vault's class policy applies). A reference by id alone carries no trust (audit NJ-1): the vault looks the id up again
+ * through its user locator port and uses that answer's identity and roles (never the reference's); an unknown id gets no
+ * token.
  */
 final readonly class VaultBrowserExtensionAuthResult
 {
@@ -26,16 +27,6 @@ final readonly class VaultBrowserExtensionAuthResult
         private ?string $failureReason = null,
         private ?VaultUserRef $ref = null,
     ) {
-    }
-
-    /**
-     * Builds a successful result carrying the authenticated user.
-     *
-     * @deprecated since 1.19.0, use authenticated() with a VaultUserRef (no Symfony type); removed in 2.0
-     */
-    public static function success(UserInterface $user): self
-    {
-        return new self(true, $user);
     }
 
     /**
@@ -68,16 +59,6 @@ final readonly class VaultBrowserExtensionAuthResult
     public function isSuccess(): bool
     {
         return $this->success;
-    }
-
-    /**
-     * Returns the authenticated user, or null when the attempt failed.
-     *
-     * @deprecated since 1.19.0, use getUserRef(); removed in 2.0
-     */
-    public function getUser(): ?UserInterface
-    {
-        return $this->user;
     }
 
     /**

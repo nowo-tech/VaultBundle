@@ -24,10 +24,10 @@ use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultFolderAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultSearchScopesEvent;
+use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\ResolvesEntityManagerTrait;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\VaultBundle;
@@ -101,8 +101,8 @@ final class VaultItemSearchDefinition extends EntitySearchDefinition
         private readonly EntityManagerInterface $entityManager,
         private readonly VaultSearchViewers $viewers,
         private readonly VaultAccessGuard $accessGuard,
-        private readonly VaultAccessCheckerInterface $accessChecker,
-        private readonly VaultTeamMembershipResolverInterface $teams,
+        private readonly VaultAccessCheckerGate $accessChecker,
+        private readonly VaultTeamMembershipGate $teams,
         private readonly UrlGeneratorInterface $urls,
         private readonly ?ManagerRegistry $registry = null,
         private readonly ?string $managerName = null,

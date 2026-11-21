@@ -9,6 +9,7 @@ use Nowo\VaultBundle\DependencyInjection\Compiler\ConditionalMappingPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\ExportLockFactoryPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
+use Nowo\VaultBundle\DependencyInjection\Compiler\RemovedPortsPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\VaultCommitTrackingPass;
 use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
@@ -30,6 +31,9 @@ final class VaultBundle extends Bundle
      */
     public function build(ContainerBuilder $container): void
     {
+        // 2.0: first of all (before any pass can drop a definition), so a removed port the application still wires or
+        // implements fails with its own message.
+        $container->addCompilerPass(new RemovedPortsPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 1000);
         $container->addCompilerPass(new TwigPathsPass());
         $container->addCompilerPass(new BrowserExtensionUserCheckerPass());
         $container->addCompilerPass(new CsrfProtectionPass());

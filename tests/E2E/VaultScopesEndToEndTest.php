@@ -44,6 +44,7 @@ use Nowo\VaultBundle\Tests\App\EventSubscriber\VaultEventRecorderSubscriber;
 use Nowo\VaultBundle\Tests\App\ScopesKernel;
 use Nowo\VaultBundle\Tests\App\Security\TestScopeAccessResolver;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Nowo\VaultBundle\Tests\Support\SodiumVaultPayloadCryptographerTestKey;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -139,7 +140,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $this->member($alice, new VaultScopeAccess(VaultPermission::Admin, create: true));
         $scopeItem = $this->creator()->createInScope($this->managed($alice), VaultItemType::Login, 'Stripe', self::SCOPE, []);
         $personal  = $this->createItem($alice, 'Mine');
-        $grant     = $this->grants()->grant(VaultResourceType::Item, $scopeItem->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        $grant     = GrantSeeder::grant($this->grants(), VaultResourceType::Item, $scopeItem->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
         $ids       = [$scopeItem->getId(), $personal->getId(), $grant->getId()];
 
         $connection = $this->em()->getConnection();
@@ -165,7 +166,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $this->member($alice, new VaultScopeAccess(VaultPermission::Admin, create: true));
         $this->member($bob, new VaultScopeAccess(null));
         $item = $this->creator()->createInScope($this->managed($alice), VaultItemType::Login, 'Stripe', self::SCOPE, ['username' => 'u', 'password' => 'p', 'websites' => ['https://stripe.example']]);
-        $this->grants()->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant($this->grants(), VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
 
         $client->loginUser($bob);
         $client->request('GET', '/tools/vault/items/' . $item->getId());
@@ -320,7 +321,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $this->bootClient();
         $alice                                = $this->createUser('alice@example.com');
         $item                                 = $this->createItem($alice, 'Mail');
-        $grant                                = $this->grants()->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, '30', VaultPermission::Read, $this->managed($alice));
+        $grant                                = GrantSeeder::grant($this->grants(), VaultResourceType::Item, $item->getId(), GranteeType::User, '30', VaultPermission::Read, $this->managed($alice));
         $id                                   = $item->getId();
         VaultEventRecorderSubscriber::$events = [];
 
@@ -337,7 +338,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         self::assertSame($id, $revoked->getResourceId());
 
         $folder = $this->createFolder($alice, 'Docs');
-        $this->grants()->grant(VaultResourceType::Folder, $folder->getId(), GranteeType::User, '31', VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant($this->grants(), VaultResourceType::Folder, $folder->getId(), GranteeType::User, '31', VaultPermission::Read, $this->managed($alice));
         $managedFolder = self::getContainer()->get(VaultFolderService::class)->find($folder->getId());
         self::assertInstanceOf(VaultFolder::class, $managedFolder);
         $trash->purgeFolder($managedFolder);
@@ -364,7 +365,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $this->member($alice, new VaultScopeAccess(VaultPermission::Admin, create: true));
         $item = $this->creator()->createInScope($this->managed($alice), VaultItemType::Login, 'Stripe', self::SCOPE, []);
         $this->creator()->createInScope($this->managed($alice), VaultItemType::Login, 'Not granted', self::SCOPE, []);
-        $this->grants()->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant($this->grants(), VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
         $crawler = $client->request('GET', '/tools/vault/scopes/' . self::SCOPE);
         self::assertResponseIsSuccessful();
         self::assertSame('no-store, private', $client->getResponse()->headers->get('Cache-Control'));
@@ -397,8 +398,8 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $secret  = $this->creator()->createInScope($this->managed($alice), VaultItemType::Login, 'Not granted', self::SCOPE, [], $hidden);
         $this->tags()->syncItemTags($seen, $this->managed($alice), ['tagseen']);
         $this->tags()->syncItemTags($secret, $this->managed($alice), ['tagmarkroot']);
-        $this->grants()->grant(VaultResourceType::Item, $seen->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
-        $this->grants()->grant(VaultResourceType::Folder, $admined->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Admin, $this->managed($alice));
+        GrantSeeder::grant($this->grants(), VaultResourceType::Item, $seen->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant($this->grants(), VaultResourceType::Folder, $admined->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Admin, $this->managed($alice));
 
         $client->loginUser($bob);
         $client->request('GET', '/tools/vault/scopes/' . self::SCOPE);
@@ -434,7 +435,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $child   = $folders->createInScope($this->managed($admin), 'ChildMARKok', self::SCOPE, $parent);
         $shared  = $folders->createInScope($this->managed($admin), 'SharedMARKfolder', self::SCOPE);
         $granted = $this->creator()->createInScope($this->managed($admin), VaultItemType::Login, 'Granted to bob', self::SCOPE, [], $child);
-        $this->grants()->grant(VaultResourceType::Item, $granted->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($admin));
+        GrantSeeder::grant($this->grants(), VaultResourceType::Item, $granted->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($admin));
 
         // Read grantee (cannot organise): the view page lists the current folder only.
         $client->loginUser($bob);
@@ -447,8 +448,8 @@ final class VaultScopesEndToEndTest extends WebTestCase
         }
 
         // Admin grant on the item (may organise): folders of visible items (with ancestors) and Share folders only.
-        $this->grants()->grant(VaultResourceType::Item, $granted->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Admin, $this->managed($admin));
-        $this->grants()->grant(VaultResourceType::Folder, $shared->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Admin, $this->managed($admin));
+        GrantSeeder::grant($this->grants(), VaultResourceType::Item, $granted->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Admin, $this->managed($admin));
+        GrantSeeder::grant($this->grants(), VaultResourceType::Folder, $shared->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Admin, $this->managed($admin));
         $client->request('GET', '/tools/vault/items/' . $granted->getId() . '/edit');
         self::assertResponseIsSuccessful();
         $html = (string) $client->getResponse()->getContent();
@@ -598,7 +599,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $client = $this->bootClient();
         $alice  = $this->createUser('alice@example.com');
         $folder = $this->createFolder($alice, 'Docs');
-        $grant  = $this->grants()->grant(VaultResourceType::Folder, $folder->getId(), GranteeType::User, '40', VaultPermission::Read, $this->managed($alice));
+        $grant  = GrantSeeder::grant($this->grants(), VaultResourceType::Folder, $folder->getId(), GranteeType::User, '40', VaultPermission::Read, $this->managed($alice));
         $client->loginUser($alice);
 
         $client->request('POST', '/tools/vault/folders/' . $folder->getId() . '/grants/' . $grant->getId() . '/revoke', ['_token' => $this->csrf($client, 'vault_revoke_grant_' . $grant->getId())]);
@@ -673,7 +674,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         self::assertStringContainsString('is not allowed for this resource', (string) $client->getResponse()->getContent());
 
         $this->member($bob, new VaultScopeAccess(null));
-        $grant = $this->grants()->grant(VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        $grant = GrantSeeder::grant($this->grants(), VaultResourceType::Item, $item->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
 
         // Share is lost between the page check and the service re-check (one request): the deny status, nothing revoked.
         ShareRevocationSubscriber::arm(1);
@@ -748,7 +749,7 @@ final class VaultScopesEndToEndTest extends WebTestCase
         $now    = $this->clock()->now();
         self::assertSame([], $grants->findActiveForGrantees([], [], '1', [], $now));
         self::assertSame([], $grants->findActiveForGrantees(['x'], [], null, [], $now));
-        $team = $this->grants()->grant(VaultResourceType::Folder, $folder->getId(), GranteeType::Team, 'ops', VaultPermission::Read, $this->managed($alice));
+        $team = GrantSeeder::grant($this->grants(), VaultResourceType::Folder, $folder->getId(), GranteeType::Team, 'ops', VaultPermission::Read, $this->managed($alice));
         self::assertCount(1, $grants->findActiveForGrantees([], [$folder->getId()], null, ['ops'], $now));
 
         // An update of a row deleted meanwhile reports false and detaches the stale entity.

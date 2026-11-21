@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Support;
 
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -26,7 +27,7 @@ final readonly class VaultUserRefResolver
      * Keeps the user locator used to look up references by id.
      */
     public function __construct(
-        private ?VaultUserLocatorInterface $userLocator = null,
+        private ?VaultUserLocatorGate $userLocator = null,
     ) {
     }
 
@@ -39,7 +40,7 @@ final readonly class VaultUserRefResolver
         if ($user instanceof UserInterface) {
             return $user;
         }
-        if ($ref->id === null || !$this->userLocator instanceof VaultUserLocatorInterface) {
+        if ($ref->id === null || !$this->userLocator instanceof VaultUserLocatorGate) {
             return null;
         }
 

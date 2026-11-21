@@ -39,7 +39,6 @@ use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Integration\PasswordStrengthIntegration;
 use Nowo\VaultBundle\Integration\TagInputIntegration;
 use Nowo\VaultBundle\Internal\DeferredVaultEventDispatcher;
-use Nowo\VaultBundle\Port\VaultPortMode;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultExtensionTokenRepository;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultFolderRepository;
 use Nowo\VaultBundle\Repository\DoctrineOrmVaultGrantRepository;
@@ -60,22 +59,17 @@ use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\RuntimeKeyVaultPayloadCryptographer;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
-use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
 use Nowo\VaultBundle\Security\VaultReauthProofValidator;
 use Nowo\VaultBundle\Security\VaultRevealRateLimiter;
 use Nowo\VaultBundle\Security\VaultRuntimeConfigResolver;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
-use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Service\VaultItemUpdater;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
@@ -108,7 +102,6 @@ use function is_array;
 use function is_bool;
 use function is_string;
 use function rtrim;
-use function sprintf;
 
 /**
  * Loads the bundle configuration, registers parameters and wires repositories, security and integrations.
@@ -194,9 +187,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.user_class', $config['user_class']);
         $container->setParameter('nowo_vault.accepted_user_classes', $config['accepted_user_classes']);
         $container->setParameter('nowo_vault.user_mapping', $config['user_mapping']);
-        // Deprecated since 1.15 (REQ-UI-003: the pages read the CSS stack from nowo_ui_kit); kept for the deprecated
-        // nowo_vault_css_framework Twig global.
-        $container->setParameter('nowo_vault.css_framework', $this->cssFramework($config['css_framework']) ?? 'tabler');
         $container->setParameter('nowo_vault.web_ui.enabled', (bool) $config['web_ui']['enabled']);
         $container->setParameter('nowo_vault.web_ui.layout_template', $config['web_ui']['layout_template']);
         $container->setParameter('nowo_vault.web_ui.templates', $config['web_ui']['templates']);
@@ -271,25 +261,16 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             $teamResolverId = NullVaultTeamMembershipResolver::class;
             $container->setDefinition(NullVaultTeamMembershipResolver::class, new Definition(NullVaultTeamMembershipResolver::class));
         }
-        $container->setAlias(VaultTeamMembershipResolverInterface::class, $teamResolverId);
         $this->registerPort($container, 'team_membership', $teamResolverId, $teamBuiltIn, 'nowo_vault.team_membership_resolver');
         $this->registerPort($container, 'user_locator', VaultUserLocator::class, true, 'the user locator (VaultUserDirectoryInterface)');
 
-        // 1.19.0 (REQ-ARCH-001 rule 6): the private entity manager (default) or the 1.18 wiring (deprecated opt-out).
-        $private = $database['private_entity_manager'] === true;
-        if ($database['private_entity_manager'] === null) {
-            trigger_deprecation('nowo-tech/vault-bundle', '1.19', 'Not setting "nowo_vault.database.private_entity_manager" is deprecated: it keeps the 1.18 behaviour (the vault flushes the "%s" entity manager on its own writes, including your pending changes) and becomes true in 2.0. Set it to true (recommended, see UPGRADING.md "To 1.19.0").', $emName);
-        } elseif (!$private) {
-            trigger_deprecation('nowo-tech/vault-bundle', '1.19', '"nowo_vault.database.private_entity_manager: false" is deprecated: the private entity manager becomes the only mode in 2.0.');
-        }
-        $container->setParameter('nowo_vault.private_entity_manager', $private);
-        $emRef       = $private ? new Reference(VaultEntityManager::class) : new Reference(sprintf('doctrine.orm.%s_entity_manager', $emName));
-        $registryRef = $private ? new Reference(VaultManagerRegistry::class) : new Reference('doctrine');
-        if ($private) {
-            $this->registerPrivateEntityManager($container, $emName);
-        }
+        // REQ-ARCH-001 rule 6: the vault reads and writes its rows through its private entity manager, the only mode since
+        // 2.0 (database.private_entity_manager: false and the 1.18 wiring on database.entity_manager were removed).
+        $emRef       = new Reference(VaultEntityManager::class);
+        $registryRef = new Reference(VaultManagerRegistry::class);
+        $this->registerPrivateEntityManager($container, $emName);
         $cachePool = (string) $configStorage['cache_pool'];
-        $this->registerUserMapping($config, $emName, $container, $private ? $registryRef : new Reference('doctrine', ContainerInterface::NULL_ON_INVALID_REFERENCE));
+        $this->registerUserMapping($config, $emName, $container, $registryRef);
 
         foreach ([
             DoctrineOrmVaultItemRepository::class           => VaultItemRepositoryInterface::class,
@@ -310,7 +291,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             }
         }
 
-        $this->registerWriteUnit($container, $private, $emRef, $registryRef, $emName);
+        $this->registerWriteUnit($container, $emRef);
         $this->registerSearchKit($config['search_kit'], (bool) $config['scopes']['enabled'], $container, $emRef, $registryRef, $emName);
         $this->registerConflictAnswer($container, $config['conflict_response']);
 
@@ -383,7 +364,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
                 ->setAutowired(true));
         }
 
-        $container->setAlias(VaultAccessCheckerInterface::class, $accessCheckerId);
         $this->registerPort($container, 'access_checker', $accessCheckerId, $accessBuiltIn, 'nowo_vault.security.access_checker');
 
         $authenticatorId = $browserExtension['authenticator'] ?? null;
@@ -465,14 +445,13 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
     {
         $resolverId = $scopes['access_resolver'] ?? null;
         if ($scopes['enabled'] && (!is_string($resolverId) || $resolverId === '')) {
-            throw new LogicException('nowo_vault.scopes.enabled requires nowo_vault.scopes.access_resolver (a service implementing VaultScopeAccessResolverInterface).');
+            throw new LogicException('nowo_vault.scopes.enabled requires nowo_vault.scopes.access_resolver (a service implementing VaultScopeAccessProviderInterface).');
         }
 
         if (!$scopes['enabled']) {
             $resolverId = NullVaultScopeAccessResolver::class;
             $container->setDefinition(NullVaultScopeAccessResolver::class, new Definition(NullVaultScopeAccessResolver::class));
         }
-        $container->setAlias(VaultScopeAccessResolverInterface::class, $resolverId);
         $this->registerPort($container, 'scope_access', (string) $resolverId, !$scopes['enabled'], 'nowo_vault.scopes.access_resolver');
         $container->setDefinition(RequestScopedScopeAccessCache::class, (new Definition(RequestScopedScopeAccessCache::class))
             ->setArgument('$resolver', new Reference(VaultPortsPass::GATE_PREFIX . 'scope_access'))
@@ -524,7 +503,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$maxItems', $health['max_items'])
             ->setArgument('$minIntervalSeconds', $health['min_interval_seconds'])
             ->setArgument('$breachCacheTtl', $health['breach_cache_ttl']);
-        $container->setAlias(VaultHealthReporterInterface::class, VaultHealthReporter::class);
         $this->registerPort($container, 'health_reporter', VaultHealthReporter::class, true, 'the health reporter (VaultHealthReportProviderInterface)');
     }
 
@@ -539,9 +517,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $checkerId = $export['reauth_checker'];
         if ($export['enabled']) {
             if (!is_string($checkerId) || $checkerId === '') {
-                throw new LogicException('nowo_vault.export.enabled requires nowo_vault.export.reauth_checker (a service implementing VaultReauthenticationCheckerInterface); there is no default.');
+                throw new LogicException('nowo_vault.export.enabled requires nowo_vault.export.reauth_checker (a service implementing VaultReauthenticationProviderInterface); there is no default.');
             }
-            $container->setAlias(VaultReauthenticationCheckerInterface::class, $checkerId);
             $this->registerPort($container, 'reauthentication', $checkerId, false, 'nowo_vault.export.reauth_checker');
             /** @var list<string> $enabled */
             $enabled = $container->getParameter('nowo_vault.enabled_optional_route_keys');
@@ -593,18 +570,15 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
 
     /**
      * 1.20 (REQ-RUNTIME-003 rule 1): the vault's write unit ({@see VaultWriteUnit}, one transaction per user action on
-     * the vault's manager) and the dispatcher of the write services, which holds their change notifications until the
-     * unit has committed ({@see DeferredVaultEventDispatcher}).
+     * the vault's private manager) and the dispatcher of the write services, which holds their change notifications
+     * until the unit has committed ({@see DeferredVaultEventDispatcher}).
      */
-    private function registerWriteUnit(ContainerBuilder $container, bool $private, Reference $emRef, Reference $registryRef, string $emName): void
+    private function registerWriteUnit(ContainerBuilder $container, Reference $emRef): void
     {
         $container->setDefinition(DeferredVaultEventDispatcher::class, (new Definition(DeferredVaultEventDispatcher::class, [new Reference('event_dispatcher')]))
             ->addTag('kernel.reset', ['method' => 'reset']));
         $container->setDefinition(VaultWriteUnit::class, new Definition(VaultWriteUnit::class, [
             $emRef,
-            $private,
-            $registryRef,
-            $emName,
             new Reference(DeferredVaultEventDispatcher::class),
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
         ]));
@@ -655,8 +629,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
     }
 
     /**
-     * The vault's private entity manager (1.19.0, REQ-ARCH-001 rule 6): the repositories and the services that read or
-     * write vault rows ({@see VaultManagerRegistry}) use {@see VaultEntityManager}, created on the connection,
+     * The vault's private entity manager (1.19.0, REQ-ARCH-001 rule 6; the only mode since 2.0): the repositories and the
+     * services that read or write vault rows ({@see VaultManagerRegistry}) use {@see VaultEntityManager}, created on the connection,
      * configuration and event manager of `database.entity_manager`, so a vault write never flushes, clears or resets an
      * application manager. The manager is dropped at every unit-of-work boundary ({@see VaultUnitOfWorkSubscriber}) and
      * at `kernel.reset`; the rollback middleware is attached to its connection by {@see PrivateEntityManagerPass}
@@ -691,8 +665,8 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
     }
 
     /**
-     * One host port with a 1.19 framework-free twin (REQ-ARCH-001 rule 3): the service the configuration names (or the
-     * built-in) and the internal gate the vault services use; {@see VaultPortsPass} picks the interface(s) to ask.
+     * One framework-free host port (REQ-ARCH-001 rule 3): the service the configuration names (or the built-in) and the
+     * internal gate the vault services use; {@see VaultPortsPass} aliases the port interface and checks the service.
      */
     private function registerPort(ContainerBuilder $container, string $name, string $serviceId, bool $builtIn, string $option): void
     {
@@ -702,7 +676,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setDefinition(VaultPortsPass::GATE_PREFIX . $name, (new Definition(VaultPortsPass::PORTS[$name]['gate']))
             ->setAutowired(false)
             ->setPublic(false)
-            ->setArguments([VaultPortMode::LEGACY, new Reference(VaultPortsPass::PORTS[$name]['legacy']), null]));
+            ->setArguments([new Reference(VaultPortsPass::PORTS[$name]['policy'])]));
     }
 
     /**
@@ -726,18 +700,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         }
 
         throw new LogicException('nowo_vault.security: every role list (admin_roles, access_roles, create_roles, list_roles, delete_roles) is empty, so nobody could use the vault. Configure at least one role or a security.access_checker service.');
-    }
-
-    /**
-     * Normalised deprecated css_framework (bootstrap => bootstrap5), null when not set.
-     */
-    private function cssFramework(mixed $value): ?string
-    {
-        if (!is_string($value) || $value === '') {
-            return null;
-        }
-
-        return $value === 'bootstrap' ? 'bootstrap5' : $value;
     }
 
     /**
@@ -835,7 +797,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ]);
         }
 
-        $this->prependUiKitDefaults($container);
         if ($container->hasExtension('nowo_ui_kit') && $this->destructiveActionsInMenu($container)) {
             // 1.18.0 web_ui.destructive_actions_in_menu: the vault row_actions partial (delegates to the host / kit
             // partial; draws the actions marked with VaultPages::ROW_MENU_ATTRIBUTE in a kebab menu). A host value for
@@ -933,47 +894,6 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
 
         if ($seed !== []) {
             $container->prependExtensionConfig('nowo_form_kit', $seed);
-        }
-    }
-
-    /**
-     * When UiKit is installed and the host set the deprecated css_framework (REQ-UI-003: the CSS stack is inherited
-     * from nowo_ui_kit), copy it to nowo_ui_kit.css_framework (and the matching icon set) unless the host set them.
-     * processConfiguration() is avoided: encryption_key is required and may be unset during an early prepend.
-     */
-    private function prependUiKitDefaults(ContainerBuilder $container): void
-    {
-        if (!$container->hasExtension('nowo_ui_kit')) {
-            return;
-        }
-
-        $framework = null;
-        foreach ($container->getExtensionConfig(Configuration::ALIAS) as $cfg) {
-            if (is_string($cfg['css_framework'] ?? null)) {
-                $framework = $this->cssFramework($cfg['css_framework']);
-            }
-        }
-        if ($framework === null) {
-            return;
-        }
-
-        $hostHasCssFramework = false;
-        $hostHasIconSet      = false;
-        foreach ($container->getExtensionConfig('nowo_ui_kit') as $cfg) {
-            $hostHasCssFramework = $hostHasCssFramework || array_key_exists('css_framework', $cfg);
-            $hostHasIconSet      = $hostHasIconSet || array_key_exists('icon_set', $cfg);
-        }
-
-        $defaults = [];
-        if (!$hostHasCssFramework) {
-            $defaults['css_framework'] = $framework;
-        }
-        if (!$hostHasIconSet) {
-            $defaults['icon_set'] = $framework === 'tabler' ? 'tabler-icons' : 'bootstrap-icons';
-        }
-
-        if ($defaults !== []) {
-            $container->prependExtensionConfig('nowo_ui_kit', $defaults);
         }
     }
 }

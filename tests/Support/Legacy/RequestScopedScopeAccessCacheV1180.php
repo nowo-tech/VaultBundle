@@ -3,13 +3,12 @@
 declare(strict_types=1);
 
 // Literal copy of v1.18.0 src/Security/RequestScopedScopeAccessCache.php (equivalence reference of 1.19.0): only the namespace, the class name and the
-// imports differ. Never edit the logic.
+// imports differ (since 2.0 the removed port interfaces are their test copies, *InterfaceV1180). Never edit the logic.
 
 namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
 use Nowo\VaultBundle\EventListener\VaultRequestBoundaryListener;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -18,7 +17,7 @@ use Symfony\Contracts\Service\ResetInterface;
 use function array_key_exists;
 
 /**
- * Memoizes {@see VaultScopeAccessResolverInterface::resolve()} per (user, scope) for one request, so membership is
+ * Memoizes {@see VaultScopeAccessResolverInterfaceV1180::resolve()} per (user, scope) for one request, so membership is
  * re-evaluated on every request. The bundle clears it itself at the main `kernel.request`, `kernel.terminate`,
  * `console.terminate` and Messenger worker boundaries ({@see VaultRequestBoundaryListener},
  * 1.17.1), so it stays correct in FrankenPHP worker mode with kernel reset false; `kernel.reset` also clears it.
@@ -33,7 +32,7 @@ final class RequestScopedScopeAccessCacheV1180 implements ResetInterface
      * Creates the cache around the host resolver.
      */
     public function __construct(
-        private readonly VaultScopeAccessResolverInterface $resolver,
+        private readonly VaultScopeAccessResolverInterfaceV1180 $resolver,
     ) {
     }
 

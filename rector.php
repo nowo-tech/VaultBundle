@@ -11,6 +11,8 @@ return RectorConfig::configure()
         __DIR__ . '/demo',
         __DIR__ . '/tests/App/var',
         __DIR__ . '/tests/Fixtures/OptionalBundles',
+        // 2.0: application classes that still implement a removed port (they cannot be loaded; the build must fail).
+        __DIR__ . '/tests/Support/Removed',
         // Optional packages are probed by class-name strings: a ::class constant of a class that may be absent is
         // what these files avoid (the test stand-ins in tests/Fixtures would otherwise make Rector rewrite them).
         StringClassNameToClassConstantRector::class => [

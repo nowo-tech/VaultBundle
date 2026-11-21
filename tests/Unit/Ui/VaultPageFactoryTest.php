@@ -193,7 +193,7 @@ final class VaultPageFactoryTest extends TestCase
         self::assertSame('vault.runtime_config.last_update', $this->labelKey($sections[0]->intro));
         self::assertNull($this->factory->runtimeConfig(new FormView(), null, null)->sections[0]->intro);
 
-        self::assertSame(['page' => 1, 'nowo_vault_legacy_layout' => null, 'nowo_vault_legacy_blocks' => [], 'nowo_vault_host_note_template' => null, 'nowo_vault_sharing_enabled' => true], $this->factory->context(['page' => 1]));
+        self::assertSame(['page' => 1, 'nowo_vault_host_note_template' => null, 'nowo_vault_sharing_enabled' => true], $this->factory->context(['page' => 1]));
     }
 
     /**

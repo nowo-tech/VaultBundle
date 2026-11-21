@@ -16,11 +16,11 @@ use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultFolderAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemReadOnlyEvent;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
@@ -46,7 +46,7 @@ final readonly class VaultAccessGuard
      */
     public function __construct(
         private VaultGrantRepositoryInterface $grantRepository,
-        private VaultTeamMembershipResolverInterface $teamMembershipResolver,
+        private VaultTeamMembershipGate $teamMembershipResolver,
         private EventDispatcherInterface $eventDispatcher,
         private ?RequestScopedScopeAccessCache $scopeAccess = null,
         private ?ClockInterface $clock = null,

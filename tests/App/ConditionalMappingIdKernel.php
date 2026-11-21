@@ -10,7 +10,7 @@ use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUserDirectory;
 use Nowo\VaultBundle\Tests\App\EventSubscriber\VaultEventRecorderSubscriber;
@@ -69,7 +69,7 @@ final class ConditionalMappingIdKernel extends BaseKernel
                 'database'          => ['conditional_mapping' => true],
             ]);
             $container->register(DddUserDirectory::class, DddUserDirectory::class)->setPublic(true);
-            $container->setAlias(VaultUserLocatorInterface::class, DddUserDirectory::class);
+            $container->setAlias(VaultUserDirectoryInterface::class, DddUserDirectory::class);
             $container->register(VaultEventRecorderSubscriber::class, VaultEventRecorderSubscriber::class)->setAutoconfigured(true);
             $container->setAlias('test.personal_data_exporter', VaultPersonalDataExporter::class)->setPublic(true);
             $container->setAlias('test.personal_data_eraser', VaultPersonalDataEraser::class)->setPublic(true);

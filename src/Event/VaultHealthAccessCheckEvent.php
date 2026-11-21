@@ -26,16 +26,6 @@ final class VaultHealthAccessCheckEvent extends Event
     }
 
     /**
-     * The viewer.
-     *
-     * @deprecated since 1.19.0, use getUserRef() / getUserId() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
-     */
-    public function getUser(): UserInterface
-    {
-        return $this->user;
-    }
-
-    /**
      * Owner key (`scope:<key>`).
      */
     public function getOwnerKey(): string

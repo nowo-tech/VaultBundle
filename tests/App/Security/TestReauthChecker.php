@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\App\Security;
 
-use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
+use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
 use Nowo\VaultBundle\Security\VaultReauthProof;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Security\Core\User\UserInterface;
+use Nowo\VaultBundle\ValueObject\VaultReauthContext;
 
 use function in_array;
 use function rawurlencode;
@@ -17,7 +16,7 @@ use function rawurlencode;
  * reboots between requests). `$honest = false` keeps returning consumed proofs (a buggy host), so the bundle's own
  * replay list is exercised.
  */
-final class TestReauthChecker implements VaultReauthenticationCheckerInterface
+final class TestReauthChecker implements VaultReauthenticationProviderInterface
 {
     public static ?VaultReauthProof $proof = null;
 
@@ -33,7 +32,7 @@ final class TestReauthChecker implements VaultReauthenticationCheckerInterface
         self::$honest   = true;
     }
 
-    public function getProof(UserInterface $user, Request $request, string $purpose): ?VaultReauthProof
+    public function proofFor(VaultReauthContext $context): ?VaultReauthProof
     {
         $proof = self::$proof;
         if (!$proof instanceof VaultReauthProof || (self::$honest && in_array($proof->proofId, self::$consumed, true))) {
@@ -43,13 +42,13 @@ final class TestReauthChecker implements VaultReauthenticationCheckerInterface
         return $proof;
     }
 
-    public function consume(VaultReauthProof $proof): void
+    public function consumeProof(VaultReauthProof $proof): void
     {
         self::$consumed[] = $proof->proofId;
     }
 
-    public function getReauthenticationUrl(Request $request, string $purpose, string $returnTo): string
+    public function reauthenticationUrl(VaultReauthContext $context, string $returnTo): string
     {
-        return '/reauth?purpose=' . rawurlencode($purpose) . '&return=' . rawurlencode($returnTo);
+        return '/reauth?purpose=' . rawurlencode($context->purpose) . '&return=' . rawurlencode($returnTo);
     }
 }

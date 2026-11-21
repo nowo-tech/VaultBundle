@@ -3,17 +3,16 @@
 declare(strict_types=1);
 
 // Literal copy of v1.18.0 src/Security/AllowAllVaultAccessChecker.php (equivalence reference of 1.19.0): only the namespace, the class name and the
-// imports differ. Never edit the logic.
+// imports differ (since 2.0 the removed port interfaces are their test copies, *InterfaceV1180). Never edit the logic.
 
 namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * Permissive checker used only when security.allow_unauthenticated is true (demo/dev).
  */
-final class AllowAllVaultAccessCheckerV1180 implements VaultAccessCheckerInterface
+final class AllowAllVaultAccessCheckerV1180 implements VaultAccessCheckerInterfaceV1180
 {
     /**
      * Always allows access to the vault UI.

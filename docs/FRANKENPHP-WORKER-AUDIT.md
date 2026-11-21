@@ -10,6 +10,7 @@
 | Remediation (2026-09-23) | W-01, W-02, W-03 (bundle side), W-04 resolved; W-05 accepted. Regression tests simulate consecutive requests on the same service instances without `reset()` |
 | Update (2026-11-11, 1.17.1) | W-06 (scope membership memo cleared only by `kernel.reset`) resolved: the bundle clears it at the request, terminate, console and Messenger boundaries, so it no longer depends on the services resetter (REQ-RUNTIME-002). Note: with the stock Symfony kernel, `FRANKENPHP_RESET_KERNEL=false` still runs `services_resetter` before every request (`Kernel::handle()` → `boot()`); the memo leaked only where the resetter does not run (host removes/bypasses it or drives `http_kernel` directly, long-running console commands, `messenger:consume --no-reset`). Worker test `VaultScopeWorkerRevocationTest` |
 | Update (2026-11-12, 1.19.0) | W-07: the opt-in private entity manager (`database.private_entity_manager: true`, `Doctrine\VaultEntityManager`) is bundle-owned and dropped at every unit-of-work boundary by `EventListener\VaultUnitOfWorkSubscriber` (start and end of the main request, Messenger received / handled / failed, outermost console command with a depth counter and a message-in-flight flag), so no vault row loaded for one request is served to the next and a closed manager is never reused; `kernel.reset` also drops it. The 1.19 port value objects keep their hidden values in `Internal\HiddenValues` (a static `WeakMap` keyed by the per-call VO: entries die with the VO). Igor: 224 service files, 0 KO. Worker test `Integration\Ports\WorkerKeptAliveKernelTest`: one kernel, `services_resetter` replaced by a no-op, 600 requests alternating two users (relation mapping and the DDD host: id + XML mapping), each response holds only that user's items, a grant revoked between two requests is never served from a stale identity map, the private manager is dropped after every request, memory growth < 3 MiB over the run |
+| Update (2026-11-21, 2.0.0) | W-07 is the only mode: `database.private_entity_manager: false` and the 1.18 wiring were removed, so no vault write goes through an application manager. The port gates (`Port\*Gate`) are stateless adapters of the framework-free ports (no mode, no deprecated port); the Twig global extension was removed. No new per-request state. |
 
 ## Table of contents
 
@@ -17,13 +18,6 @@
 - [Summary](#summary)
 - [Services reviewed](#services-reviewed)
 - [Findings](#findings)
-  - [W-01 — Merged runtime config (and encryption key) memoized per worker with no reset (High)](#w-01--merged-runtime-config-and-encryption-key-memoized-per-worker-with-no-reset-high)
-  - [W-02 — Item read-only decisions cached across requests and users' lifetimes (High)](#w-02--item-read-only-decisions-cached-across-requests-and-users-lifetimes-high)
-  - [W-03 — Repositories rely on Doctrine's resetter for the EntityManager (Medium, scenario B)](#w-03--repositories-rely-on-doctrines-resetter-for-the-entitymanager-medium-scenario-b)
-  - [W-04 — Route loader refuses a second load in the same process (Low)](#w-04--route-loader-refuses-a-second-load-in-the-same-process-low)
-  - [W-05 — Key material stays in worker memory (Info)](#w-05--key-material-stays-in-worker-memory-info)
-  - [W-06 — Scope membership memo cleared only by kernel.reset (High)](#w-06--scope-membership-memo-cleared-only-by-kernelreset-high)
-  - [W-07 — Private entity manager and port value objects (1.19.0)](#w-07--private-entity-manager-and-port-value-objects-1190)
 - [Usage recommendations in worker mode](#usage-recommendations-in-worker-mode)
 - [Re-audit triggers](#re-audit-triggers)
 
@@ -74,7 +68,6 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 | 12 services in `Service/` (`VaultItemLister`, `VaultSharedItemResolver`, `VaultBrowserExtensionLoginResolver`, `VaultBrowserExtensionAuthService`, `VaultItemCreator`, `VaultItemUpdater`, `VaultTagService`, `VaultFolderService`, `VaultGrantService`, `VaultGrantListResolver`, `VaultTrashService`, `VaultPayloadReencryptionService`) plus `VaultPasswordGenerator` | yes | none (`readonly` or no properties) | ✅ | ✅ |
 | 6 `Repository\DoctrineOrm*Repository` | yes | none; resolve the manager from `doctrine` (`ManagerRegistry`) per call, reset when closed | ✅ | ✅ (identity map: application responsibility, see W-03) |
 | `Doctrine\VaultMetadataListener` (`loadClassMetadata`) | yes | none (`readonly` table names) | ✅ | ✅ |
-| `Twig\VaultExtension` (globals) | yes | none; one constant global `nowo_vault_css_framework` | ✅ | ✅ |
 | `Ui\VaultPages`, `Ui\VaultPageFactory` (REQ-UI-003 view models) | yes | none (`readonly`: layout template, Twig, router); view models are plain data built per request | ✅ | ✅ |
 | `DependencyInjection\Compiler\CsrfProtectionPass` | compile time only | none | N/A | N/A |
 | `Form\VaultItemFormType`, `Form\VaultShareType` | yes | FormKit trait fields (merger, profile name, bound builder restored in `finally`) | ✅ | ✅ |
@@ -131,7 +124,7 @@ No other findings. The browser extension rate limiter, Bearer tokens and CSRF ch
 
 ### W-07 — Private entity manager and port value objects (1.19.0)
 
-**Status: by design (opt-in private manager).** With `database.private_entity_manager: true` the vault writes through
+**Status: by design (private manager, the only mode since 2.0).** The vault writes through
 a bundle-owned entity manager (REQ-ARCH-001 rule 6, REQ-RUNTIME-002 rule 4). `VaultUnitOfWorkSubscriber` drops it at the
 start of every main request (priority 4096) and at `kernel.terminate` (sub-requests share their main request), when a
 Messenger message is received and after it is handled or failed, and when the outermost console command starts and
@@ -153,8 +146,8 @@ in a `WeakMap` keyed by the VO.
 - Set FrankenPHP `max_requests` (or `FRANKENPHP_LOOP_MAX`) to recycle workers; this bounds identity-map growth when nothing clears it.
 - Use a cache pool shared by all workers (`cache.app` on a shared filesystem, Redis) for `config_storage.cache_pool`, `browser_extension.login_rate_limit.cache_pool` and `security.secret_access_rate_limit.cache_pool`; a per-worker pool (e.g. `cache.adapter.array`) would split rate-limit counters between workers.
 - Since 1.17.1 the bundle clears its only memo at the request boundary itself (W-06), so it stays correct where the services resetter does not run (host without `services_resetter`, long-running commands, `messenger:consume --no-reset`). Stock FrankenPHP worker mode, including `FRANKENPHP_RESET_KERNEL=false`, still runs the resetter before every request.
-- Prefer `database.private_entity_manager: true` (1.19.0): the vault's identity map is then dropped at every boundary by the bundle itself (W-07).
-- Custom port implementations (`VaultAccessPolicyInterface`, `VaultTeamMembershipProviderInterface`, `VaultScopeAccessProviderInterface`, `VaultUserDirectoryInterface`, their deprecated twins and `VaultBrowserExtensionAuthenticatorInterface`) must be stateless, or clear their state at the request boundary (implementing `ResetInterface` alone is not enough where the services resetter does not run). A scope resolver should read memberships from the database on every call, not from collections cached on a managed user entity.
+- The vault's identity map (its private manager, the only mode since 2.0) is dropped at every boundary by the bundle itself (W-07).
+- Custom port implementations (`VaultAccessPolicyInterface`, `VaultTeamMembershipProviderInterface`, `VaultScopeAccessProviderInterface`, `VaultUserDirectoryInterface` and `VaultBrowserExtensionAuthenticatorInterface`) must be stateless, or clear their state at the request boundary (implementing `ResetInterface` alone is not enough where the services resetter does not run). A scope resolver should read memberships from the database on every call, not from collections cached on a managed user entity.
 - The demo (`demo/symfony8/Caddyfile`) already runs FrankenPHP in worker mode with `watch`.
 
 ## Re-audit triggers

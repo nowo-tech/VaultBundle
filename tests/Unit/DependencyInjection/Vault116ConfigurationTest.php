@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Tests\Unit\DependencyInjection;
 
 use LogicException;
 use Nowo\VaultBundle\Controller\VaultExportController;
+use Nowo\VaultBundle\DependencyInjection\Compiler\VaultPortsPass;
 use Nowo\VaultBundle\DependencyInjection\Configuration;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
@@ -13,11 +14,8 @@ use Nowo\VaultBundle\Security\ConfigVaultPasswordPolicyResolver;
 use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
-use Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface;
 use Nowo\VaultBundle\Security\VaultReauthProofValidator;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
-use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
 use Nowo\VaultBundle\Tests\Support\SodiumVaultPayloadCryptographerTestKey;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -114,7 +112,7 @@ final class Vault116ConfigurationTest extends TestCase
     {
         $container = $this->load([]);
 
-        self::assertSame(NullVaultScopeAccessResolver::class, (string) $container->getAlias(VaultScopeAccessResolverInterface::class));
+        self::assertSame(NullVaultScopeAccessResolver::class, $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'scope_access.service'));
         self::assertSame(['item_attachment'], $container->getParameter('nowo_vault.enabled_optional_route_keys'));
         self::assertTrue($container->getDefinition(RequestScopedScopeAccessCache::class)->hasTag('kernel.reset'));
         self::assertFalse($container->getParameter('nowo_vault.grants.temporary.ui'));
@@ -124,7 +122,7 @@ final class Vault116ConfigurationTest extends TestCase
     {
         $container = $this->load(['scopes' => ['enabled' => true, 'access_resolver' => 'app.scope_resolver'], 'grants' => ['temporary' => ['ui' => true]]]);
 
-        self::assertSame('app.scope_resolver', (string) $container->getAlias(VaultScopeAccessResolverInterface::class));
+        self::assertSame('app.scope_resolver', $container->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'scope_access.service'));
         self::assertSame(['item_attachment', ...VaultExtension::SCOPE_ROUTE_KEYS], $container->getParameter('nowo_vault.enabled_optional_route_keys'));
         self::assertSame([...VaultExtension::SCOPE_ROUTE_KEYS, 'catalogue', 'health', 'item_attachment', 'personal_export', 'personal_export_download'], VaultRouteLoader::OPTIONAL_ROUTE_KEYS);
         self::assertTrue($container->getParameter('nowo_vault.grants.temporary.ui'));
@@ -154,10 +152,10 @@ final class Vault116ConfigurationTest extends TestCase
 
         $off = $this->load([]);
         self::assertNotContains('personal_export', $off->getParameter('nowo_vault.enabled_optional_route_keys'));
-        self::assertFalse($off->hasAlias(VaultReauthenticationCheckerInterface::class));
+        self::assertNull($off->hasParameter(VaultPortsPass::PARAMETER_PREFIX . 'reauthentication.service') ? $off->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'reauthentication.service') : null);
 
         $on = $this->load(['export' => ['enabled' => true, 'reauth_checker' => 'app.reauth', 'reauth_max_age' => 900, 'formats' => ['csv'], 'max_items' => 10, 'cooldown_seconds' => 0, 'cache_pool' => 'app.pool', 'accepted_primary_factors' => self::PRIMARY_FACTORS]]);
-        self::assertSame('app.reauth', (string) $on->getAlias(VaultReauthenticationCheckerInterface::class));
+        self::assertSame('app.reauth', $on->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'reauthentication.service'));
         self::assertSame(['item_attachment', 'personal_export', 'personal_export_download'], $on->getParameter('nowo_vault.enabled_optional_route_keys'));
         $validator = $on->getDefinition(VaultReauthProofValidator::class);
         self::assertSame(900, $validator->getArgument('$maxAge'));
@@ -205,7 +203,7 @@ final class Vault116ConfigurationTest extends TestCase
 
         $default = $this->load([]);
         self::assertSame(ConfigVaultPasswordPolicyResolver::class, (string) $default->getAlias(VaultPasswordPolicyResolverInterface::class));
-        self::assertSame(VaultHealthReporter::class, (string) $default->getAlias(VaultHealthReporterInterface::class));
+        self::assertSame(VaultHealthReporter::class, $default->getParameter(VaultPortsPass::PARAMETER_PREFIX . 'health_reporter.service'));
         self::assertNotContains('health', $default->getParameter('nowo_vault.enabled_optional_route_keys'));
         self::assertNull($default->getDefinition(VaultHealthReporter::class)->getArgument('$breachChecker'));
 

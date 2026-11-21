@@ -24,14 +24,14 @@
 | Master key | Server compromise | Store `VAULT_ENCRYPTION_KEY` in secrets manager; [rotate with a re-encryption plan](ENCRYPTION-KEY-ROTATION.md) |
 | Extension login | Brute force | `browser_extension.login_rate_limit` (cache-backed, enabled by default) |
 | Extension tokens | DB growth / leaked tokens | Short `token_ttl`, cron `nowo:vault:extension-tokens:purge`, HTTPS |
-| Manage routes | Unauthorized access | Symfony firewall + `VaultAccessCheckerInterface`. Keep `security.allow_unauthenticated: false` in production (demo-only AllowAll bypass). |
+| Manage routes | Unauthorized access | Symfony firewall + `VaultAccessPolicyInterface`. Keep `security.allow_unauthenticated: false` in production (demo-only AllowAll bypass). |
 | Item/folder ACL | IDOR | Owner (user or scope membership) + active `VaultGrant` + events |
-| Scope membership | A user who left a scope keeps access | Membership resolved on every request (`VaultScopeAccessResolverInterface`, memoized per request only); a non-member is denied everything, grants included |
+| Scope membership | A user who left a scope keeps access | Membership resolved on every request (`VaultScopeAccessProviderInterface`, memoized per request only); a non-member is denied everything, grants included |
 | Temporary grants | Access after expiry, escalation | Expiry checked on every read against the clock (no purge lag); temporary grants capped at `write`; never replace a permanent grant |
 | Secret fields | Disclosure in HTML / caches | Never rendered; per-field reveal (CSRF, View, rate limit, `ITEM_REVEALED`); `no-store` on every bundle response |
 | Share form | Cross-tenant grants | Fail closed without a `GRANT_LIST_QUERY` listener |
 | Attachments | Oversized uploads | `max_attachment_bytes` limit |
-| Team grants | Wrong team access | Implement `VaultTeamMembershipResolverInterface` carefully |
+| Team grants | Wrong team access | Implement `VaultTeamMembershipProviderInterface` carefully |
 
 ## Access control
 
@@ -132,7 +132,7 @@ Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time;
 | Parallel POSTs with one proof (SEC-004 FQ-I1) | With `export.lock_factory` (default `lock.factory`) the proof check, consume, used-proof list and cooldown run under a per-user lock; without symfony/lock the window is two requests of the same session, and an atomic host `consume()` closes it |
 | The eraser leaves orphans or relies on cascades | Explicit ordered deletes, one transaction per batch, tests over the six tables; grants given on scope resources are kept with `created_by_id = NULL` |
 
-**Host obligations** for `VaultReauthenticationCheckerInterface` (the bundle cannot verify them): list in `factors` only
+**Host obligations** for `VaultReauthenticationProviderInterface` (the bundle cannot verify them): list in `factors` only
 the factors verified in the re-auth step (never at login, never through remember-me or an SSO session reuse); read
 `mfaEnrolled` from the store, not from the session; protect the re-auth page against CSRF and rate-limit it; regenerate
 the session id **before** recording `sessionBinding`; follow `returnTo` only when it is a same-origin path; return a
@@ -206,9 +206,8 @@ Before tagging a release, confirm:
 | **Dependencies** | `composer audit` run; issues triaged. |
 | **Logging** | Logs do not print encryption keys, tokens, or vault payloads. |
 | **Cryptography** | Unique `VAULT_ENCRYPTION_KEY` per environment; rotation plan documented. |
-| **Permissions / exposure** | `VaultAccessCheckerInterface` and grants configured for production roles. |
+| **Permissions / exposure** | `VaultAccessPolicyInterface` and grants configured for production roles. |
 | **Limits / DoS** | `max_attachment_bytes`, extension login rate limit, token TTL and purge cron. |
 | **AI security audit (REQ-SEC-004)** | **Pass (good)** / Low — re-audit 2026-08-20 (one-time session key, manage CSRF, Flex access_control, Bearer extension documented). |
-
 
 See [examples/AccessControl.md](examples/AccessControl.md).

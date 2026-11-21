@@ -18,6 +18,7 @@ use Nowo\VaultBundle\Event\VaultItemListQueryEvent;
 use Nowo\VaultBundle\Event\VaultItemListResultEvent;
 use Nowo\VaultBundle\Event\VaultItemReadOnlyEvent;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use PHPUnit\Framework\TestCase;
 
 final class VaultEventsTest extends TestCase
@@ -63,13 +64,13 @@ final class VaultEventsTest extends TestCase
         $item    = new VaultItem(VaultItemType::SecureNote, 'Note', $subject, 'c');
         $event   = new VaultItemListQueryEvent($viewer, $subject, 'folder-1', trashOnly: true);
 
-        self::assertSame($viewer, $event->getViewer());
+        self::assertSame($viewer, $event->getViewerRef()->user());
         self::assertSame('folder-1', $event->getFolderId());
         self::assertTrue($event->isTrashOnly());
         self::assertFalse($event->hasOverride());
 
-        $event->setListSubject(new TestUser('5'));
-        self::assertSame('5', $event->getListSubject()->getId());
+        $event->setListSubjectRef(new VaultUserRef('5', '', [], new TestUser('5')));
+        self::assertSame('5', $event->getListSubjectId());
         $event->overrideResult([$item], 1);
         self::assertTrue($event->hasOverride());
         self::assertSame([$item], $event->getOverrideItems());
@@ -95,7 +96,7 @@ final class VaultEventsTest extends TestCase
         $item  = new VaultItem(VaultItemType::Contact, 'Contact', $user, 'c');
         $event = new VaultItemReadOnlyEvent($user, $item);
 
-        self::assertSame($user, $event->getUser());
+        self::assertSame($user, $event->getUserRef()->user());
         self::assertSame($item, $event->getItem());
         self::assertFalse($event->isReadOnly());
         $event->markReadOnly();
@@ -116,7 +117,7 @@ final class VaultEventsTest extends TestCase
         $item  = new VaultItem(VaultItemType::Login, 'X', $user, 'c');
         $event = new VaultItemAccessCheckEvent($user, $item, VaultAccessAction::Delete, true);
 
-        self::assertSame($user, $event->getUser());
+        self::assertSame($user, $event->getUserRef()->user());
         self::assertSame($item, $event->getItem());
         self::assertSame(VaultAccessAction::Delete, $event->getAction());
         self::assertTrue($event->isGranted());
@@ -128,7 +129,7 @@ final class VaultEventsTest extends TestCase
         $folder = new VaultFolder('F', $user);
         $event  = new VaultFolderAccessCheckEvent($user, $folder, VaultAccessAction::Purge, false);
 
-        self::assertSame($user, $event->getUser());
+        self::assertSame($user, $event->getUserRef()->user());
         self::assertSame($folder, $event->getFolder());
         self::assertSame(VaultAccessAction::Purge, $event->getAction());
         self::assertFalse($event->isGranted());
@@ -138,7 +139,7 @@ final class VaultEventsTest extends TestCase
     {
         $user  = new TestUser('10');
         $event = new VaultItemListResultEvent($user, [], 0);
-        self::assertSame($user, $event->getViewer());
+        self::assertSame($user, $event->getViewerRef()->user());
     }
 
     public function testGrantListQueryEvent(): void

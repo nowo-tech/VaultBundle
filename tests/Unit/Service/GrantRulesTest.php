@@ -21,13 +21,16 @@ use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultGrantListQueryEvent;
 use Nowo\VaultBundle\Event\VaultGrantPolicyCheckEvent;
 use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
+use Nowo\VaultBundle\Port\VaultScopeAccessGate;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultGrantListResolver;
 use Nowo\VaultBundle\Service\VaultGrantResult;
@@ -35,7 +38,9 @@ use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Support\VaultUserLocator;
 use Nowo\VaultBundle\Tests\Stub\InMemoryGrantRepository;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Nowo\VaultBundle\Tests\Support\RecordingLogger;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
@@ -215,7 +220,7 @@ final class GrantRulesTest extends TestCase
             self::assertSame(GranteeType::User, $event->getGranteeType());
             self::assertSame(VaultPermission::Read, $event->getPermission());
             self::assertNull($event->getExpiresAt());
-            self::assertSame('owner@example.com', $event->getActor()->getUserIdentifier());
+            self::assertSame('owner@example.com', $event->getActorRef()->identifier);
             self::assertNotSame('', $event->getResourceId());
             self::assertFalse($event->isDenied());
             $event->deny('team_self_grant');
@@ -297,8 +302,8 @@ final class GrantRulesTest extends TestCase
             $actors[] = $event->getActorId();
         });
         $service = $this->service();
-        $grant   = $service->grant(VaultResourceType::Item, $this->item->getId(), GranteeType::User, '2', VaultPermission::Read, $this->owner);
-        $service->revoke($grant);
+        $grant   = GrantSeeder::grant($service, VaultResourceType::Item, $this->item->getId(), GranteeType::User, '2', VaultPermission::Read, $this->owner);
+        GrantSeeder::revoke($service, $grant);
 
         self::assertSame([null], $actors);
         self::assertSame([VaultEvents::GRANT_CREATED, VaultEvents::GRANT_REVOKED], $this->events);
@@ -344,8 +349,8 @@ final class GrantRulesTest extends TestCase
         });
         $this->grants = new InMemoryGrantRepository();
         $service      = new VaultGrantService($legacy, null, $this->dispatcher, $this->clock, null, $this->items(), $this->folders());
-        $service->grant(VaultResourceType::Item, $this->item->getId(), GranteeType::User, '2', VaultPermission::Read, $this->owner);
-        $service->grant(VaultResourceType::Folder, 'gone', GranteeType::User, '2', VaultPermission::Read, $this->owner);
+        GrantSeeder::grant($service, VaultResourceType::Item, $this->item->getId(), GranteeType::User, '2', VaultPermission::Read, $this->owner);
+        GrantSeeder::grant($service, VaultResourceType::Folder, 'gone', GranteeType::User, '2', VaultPermission::Read, $this->owner);
 
         self::assertSame(['user:1', null], $owners);
     }
@@ -420,17 +425,17 @@ final class GrantRulesTest extends TestCase
      */
     private function service(array $temporary = [], bool $allowUnlisted = true): VaultGrantService
     {
-        $resolver = new class(fn (string $id, string $scope): ?VaultScopeAccess => $this->members[$id][$scope] ?? null) implements VaultScopeAccessResolverInterface {
+        $resolver = new class(fn (string $id, string $scope): ?VaultScopeAccess => $this->members[$id][$scope] ?? null) implements VaultScopeAccessProviderInterface {
             public function __construct(private readonly Closure $lookup)
             {
             }
 
-            public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
+            public function scopeAccessOf(VaultUserRef $user, string $scope): ?VaultScopeAccess
             {
-                return ($this->lookup)($user instanceof TestUser ? $user->getId() : '', $scope);
+                return ($this->lookup)($user->id ?? '', $scope);
             }
         };
-        $guard   = new VaultAccessGuard($this->grants, new NullVaultTeamMembershipResolver(), $this->dispatcher, new RequestScopedScopeAccessCache($resolver), $this->clock);
+        $guard   = new VaultAccessGuard($this->grants, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $this->dispatcher, new RequestScopedScopeAccessCache(new VaultScopeAccessGate($resolver)), $this->clock);
         $manager = $this->createMock(ObjectManager::class);
         $manager->method('find')->willReturnCallback(static fn (string $class, string $id): ?UserInterface => $id === '404' ? null : new TestUser($id, 'u' . $id . '@example.com'));
         $registry = $this->createMock(ManagerRegistry::class);
@@ -445,7 +450,7 @@ final class GrantRulesTest extends TestCase
             $this->items(),
             $this->folders(),
             new VaultGrantListResolver($this->dispatcher, $allowUnlisted),
-            new VaultUserLocator($registry, TestUser::class),
+            new VaultUserLocatorGate(new VaultUserLocator($registry, TestUser::class)),
             $temporary,
         );
     }

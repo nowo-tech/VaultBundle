@@ -7,10 +7,10 @@ namespace Nowo\VaultBundle\Service;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_filter;
@@ -27,7 +27,7 @@ final readonly class VaultSharedItemResolver
     public function __construct(
         private VaultGrantRepositoryInterface $grantRepository,
         private VaultItemRepositoryInterface $itemRepository,
-        private VaultTeamMembershipResolverInterface $teamMembershipResolver,
+        private VaultTeamMembershipGate $teamMembershipResolver,
         private ?VaultAccessGuard $accessGuard = null,
     ) {
     }

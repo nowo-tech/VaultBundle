@@ -29,8 +29,8 @@ use function ksort;
 use function sprintf;
 
 /**
- * The vault's private entity manager (1.19.0, REQ-ARCH-001 rule 6; opt-in with `database.private_entity_manager: true`
- * until 2.0, where it becomes the only mode).
+ * The vault's private entity manager (1.19.0, REQ-ARCH-001 rule 6; the only mode since 2.0: the opt-out
+ * `database.private_entity_manager: false` was removed).
  *
  * Up to 1.18 the vault repositories and services wrote through the application's entity manager named by
  * `database.entity_manager` (default `default`): saving an item flushed every change the application had left pending

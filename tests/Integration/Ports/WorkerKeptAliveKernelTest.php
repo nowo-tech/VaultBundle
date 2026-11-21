@@ -13,6 +13,7 @@ use Nowo\VaultBundle\Service\VaultGrantService;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Tests\App\VariantKernel;
 use Nowo\VaultBundle\Tests\App\Worker\NoopServicesResetter;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -53,7 +54,6 @@ final class WorkerKeptAliveKernelTest extends WebTestCase
     {
         yield 'relation mapping, 1.19 ports, private manager' => ['private_relation_new_worker'];
         yield 'DDD host: id + XML mapping, private manager' => ['private_idxml_new_worker'];
-        yield 'default persistence (1.18 wiring), 1.19 ports' => ['legacy_relation_new_worker'];
     }
 
     #[Test]
@@ -124,7 +124,7 @@ final class WorkerKeptAliveKernelTest extends WebTestCase
         assert($grants instanceof VaultGrantRepositoryInterface && $service instanceof VaultGrantService);
         $grant = $grants->findOne(VaultResourceType::Item, $itemId, GranteeType::User, $bobId);
         assert($grant instanceof VaultGrant);
-        $service->revoke($grant);
+        GrantSeeder::revoke($service, $grant);
     }
 
     #[Test]

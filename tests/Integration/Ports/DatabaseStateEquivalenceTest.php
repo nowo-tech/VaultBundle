@@ -18,6 +18,7 @@ use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultGrantService;
+use Nowo\VaultBundle\Service\VaultItemLister;
 use Nowo\VaultBundle\Service\VaultItemUpdater;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
@@ -32,6 +33,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function array_map;
 use function assert;
 use function count;
 use function get_object_vars;
@@ -48,10 +50,11 @@ use function usort;
 use const JSON_THROW_ON_ERROR;
 
 /**
- * 1.19.0 database state equivalence: the same sequence of vault writes (create, tag, folders, grants, update, move,
- * trash, restore, purge, revoke, GDPR export and erasure) leaves exactly the same rows with the 1.18 wiring and with the
- * private entity manager, in the relation and id mappings. Ids, timestamps and ciphertexts are normalised (random by
- * design); payloads are compared decrypted.
+ * Database state equivalence (1.19.0; since 2.0 on the private entity manager only, the 1.18 wiring was removed): the
+ * same sequence of vault writes (create, tag, folders, grants, update, move, trash, restore, purge, share and revoke,
+ * search, GDPR export and erasure) leaves exactly the same rows with the attribute and the XML mapping, in the relation
+ * mapping (the users are entities of the application's manager, written through the private manager by reference) and
+ * in the id mapping. Ids, timestamps and ciphertexts are normalised (random by design); payloads are compared decrypted.
  *
  * Runs on SQLite in the default suite and on MySQL, MariaDB and PostgreSQL in the CI job "Id mapping on database
  * servers" (group database, VAULT_TEST_DATABASE_URL).
@@ -73,9 +76,8 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
      */
     public static function pairs(): iterable
     {
-        yield 'relation mapping' => ['legacy_relation_legacy', 'private_relation_new'];
-        yield 'id mapping' => ['legacy_id_legacy', 'private_id_new'];
-        yield 'id mapping, XML' => ['legacy_id_legacy', 'private_idxml_new'];
+        yield 'relation mapping: attributes and XML' => ['private_relation_new', 'private_relxml_new'];
+        yield 'id mapping: attributes and XML' => ['private_id_new', 'private_idxml_new'];
     }
 
     #[Test]
@@ -134,6 +136,9 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         $ids   = self::seedVault($container, $users);
         $id    = static fn (string $name): string => (string) UserIdResolver::getId($users[$name]);
         $alice = $users['alice'];
+        // Relation mapping: the users are rows of the application's manager; no vault write may add or remove one.
+        $countUsers   = static fn (): ?int => $byId ? null : (int) self::hostManager($container)->getConnection()->fetchOne('SELECT COUNT(*) FROM users');
+        $usersAtStart = $countUsers();
 
         $items           = $container->get(VaultItemRepositoryInterface::class);
         $updater         = $container->get(VaultItemUpdater::class);
@@ -150,6 +155,11 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         $updater->update($personal, 'Title-P2', ['username' => 'u2', 'password' => 'REDACTED-TEST-2'], $second, $alice);
         $tags->syncItemTags($personal, $alice, ['work', 'home']);
         $folders->rename($second, 'Folder-G2');
+        $lister = $container->get(VaultItemLister::class);
+        assert($lister instanceof VaultItemLister);
+        $found = array_map(static fn (VaultItem $item): string => $item->getTitle(), $lister->list($alice, searchQuery: 'Title-P2')['items']);
+        self::assertSame(['Title-P2'], $found, 'search by title, through the private manager');
+        self::assertSame(['Title-P2'], array_map(static fn (VaultItem $item): string => $item->getTitle(), $lister->list($alice, searchQuery: 'home')['items']), 'search by tag');
 
         $inFolder = $items->findById($ids['in folder']);
         assert($inFolder instanceof VaultItem);
@@ -170,6 +180,10 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         $export = $exporter->export($id('alice'));
         $eraser->erase($id('frank'));
         $erased = $eraser->erase($id('alice'));
+        self::assertSame($usersAtStart, $countUsers(), 'the vault never writes the application\'s users');
+        if (!$byId) {
+            self::assertSame(count($users), $usersAtStart);
+        }
 
         return [['written' => $beforeErasure, 'erased' => $this->dump($container, $users)], json_encode([$this->normaliseExport($export), get_object_vars($erased)], JSON_THROW_ON_ERROR)];
     }

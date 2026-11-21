@@ -11,12 +11,11 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Role-based default implementation of {@see VaultAccessPolicyInterface} and of the deprecated
- * {@see VaultAccessCheckerInterface}: both give the same answer for the same user (1.19.0; the reference's user object,
- * which is the one the bundle would have passed to the deprecated interface). A reference without a user object is
- * denied (audit NJ-1: its role names come from the caller and are never trusted).
+ * Role-based default implementation of {@see VaultAccessPolicyInterface}: the roles of the reference's user object (the
+ * Symfony user the vault works with). A reference without a user object is denied (audit NJ-1: its role names come
+ * from the caller and are never trusted).
  */
-final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicyInterface, VaultAccessCheckerInterface
+final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicyInterface
 {
     /**
      * Creates the checker with Symfony Security and the runtime configuration provider.
@@ -30,7 +29,7 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicy
     /**
      * Whether the user holds an admin role or one of the configured access_roles.
      */
-    public function canAccess(?UserInterface $user = null): bool
+    private function canAccess(?UserInterface $user): bool
     {
         if ($this->isAdmin($user)) {
             return true;
@@ -42,7 +41,7 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicy
     /**
      * Whether the user holds an admin role or one of the configured create_roles.
      */
-    public function canCreate(?UserInterface $user = null): bool
+    private function canCreate(?UserInterface $user): bool
     {
         if ($this->isAdmin($user)) {
             return true;
@@ -54,7 +53,7 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicy
     /**
      * Whether the user holds an admin role or one of the configured list_roles.
      */
-    public function canList(?UserInterface $user = null): bool
+    private function canList(?UserInterface $user): bool
     {
         if ($this->isAdmin($user)) {
             return true;
@@ -66,7 +65,7 @@ final readonly class ConfigurableVaultAccessChecker implements VaultAccessPolicy
     /**
      * Whether the user holds an admin role or one of the configured delete_roles.
      */
-    public function canRevoke(?UserInterface $user = null): bool
+    private function canRevoke(?UserInterface $user): bool
     {
         if ($this->isAdmin($user)) {
             return true;

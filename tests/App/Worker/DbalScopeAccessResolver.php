@@ -7,9 +7,8 @@ namespace Nowo\VaultBundle\Tests\App\Worker;
 use Doctrine\DBAL\Connection;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
-use Nowo\VaultBundle\Support\UserIdResolver;
-use Symfony\Component\Security\Core\User\UserInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 
 use function is_array;
 use function is_string;
@@ -19,7 +18,7 @@ use function is_string;
  * with plain SQL behind the bundle's back (as another request, worker or admin tool would). Counts its instances and
  * calls.
  */
-final class DbalScopeAccessResolver implements VaultScopeAccessResolverInterface
+final class DbalScopeAccessResolver implements VaultScopeAccessProviderInterface
 {
     public const TABLE = 'test_scope_member';
 
@@ -34,12 +33,12 @@ final class DbalScopeAccessResolver implements VaultScopeAccessResolverInterface
         ++self::$instances;
     }
 
-    public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
+    public function scopeAccessOf(VaultUserRef $user, string $scope): ?VaultScopeAccess
     {
         ++self::$calls;
         $row = $this->connection->fetchAssociative(
             'SELECT permission, can_create FROM ' . self::TABLE . ' WHERE user_id = ? AND scope = ?',
-            [(string) UserIdResolver::getId($user), $scope],
+            [(string) $user->id, $scope],
         );
         if (!is_array($row) || !is_string($row['permission'])) {
             return null;

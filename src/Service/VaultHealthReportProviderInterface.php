@@ -12,8 +12,8 @@ use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
 
 /**
- * Password health report (1.19.0): the framework-free twin of the deprecated {@see VaultHealthReporterInterface}
- * (REQ-ARCH-001 rule 3). Implemented by the bundle ({@see VaultHealthReporter}); call it from your code with
+ * Password health report (1.19.0; since 2.0 the only health port: the deprecated `VaultHealthReporterInterface` was
+ * removed). Framework-free (REQ-ARCH-001 rule 3). Implemented by the bundle ({@see VaultHealthReporter}); call it from your code with
  * {@see VaultUserRef} (e.g. `VaultUserRef::ofId($userId)`), or alias it to your own implementation (a zero-knowledge
  * client strategy).
  */

@@ -13,9 +13,10 @@ use Throwable;
  * Loads a host user by id (`nowo_vault.user_class`), e.g. to check that a user grantee belongs to a scope (1.16.0).
  *
  * 1.17.0: reads through the entity manager that maps `user_class` (the vault's one when none does).
- * 1.19.0: also the built-in {@see VaultUserDirectoryInterface} (same lookup, the user as a {@see VaultUserRef}).
+ * 1.19.0: the built-in {@see VaultUserDirectoryInterface} (the user as a {@see VaultUserRef}; since 2.0 the only port it
+ * implements).
  */
-final readonly class VaultUserLocator implements VaultUserDirectoryInterface, VaultUserLocatorInterface
+final readonly class VaultUserLocator implements VaultUserDirectoryInterface
 {
     /**
      * @param class-string $userClass
@@ -32,7 +33,7 @@ final readonly class VaultUserLocator implements VaultUserDirectoryInterface, Va
      */
     public function findUser(string $id): ?VaultUserRef
     {
-        $user = $this->find($id);
+        $user = $this->load($id);
 
         return $user instanceof UserInterface ? VaultUserRefs::fromUser($user) : null;
     }
@@ -40,7 +41,7 @@ final readonly class VaultUserLocator implements VaultUserDirectoryInterface, Va
     /**
      * The user with this id, or null (unknown id, or an id of the wrong type).
      */
-    public function find(string $id): ?UserInterface
+    private function load(string $id): ?UserInterface
     {
         if ($id === '') {
             return null;

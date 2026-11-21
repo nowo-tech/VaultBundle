@@ -20,27 +20,25 @@ use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemReadOnlyEvent;
 use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
-use Nowo\VaultBundle\Port\VaultPortMode;
 use Nowo\VaultBundle\Port\VaultScopeAccessGate;
 use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultSettingsRepositoryInterface;
 use Nowo\VaultBundle\Security\AllowAllVaultAccessChecker;
 use Nowo\VaultBundle\Security\ConfigurableVaultAccessChecker;
 use Nowo\VaultBundle\Security\NullVaultScopeAccessResolver;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Support\DoctrineVaultUserReferenceResolver;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultUserClassPolicy;
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
 use Nowo\VaultBundle\Support\VaultUserRefResolver;
+use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\Tests\App\Ddd\OtherDomainUser;
 use Nowo\VaultBundle\Tests\Stub\InMemoryGrantRepository;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
@@ -49,6 +47,8 @@ use Nowo\VaultBundle\Tests\Support\Legacy\ConfigurableVaultAccessCheckerV1180;
 use Nowo\VaultBundle\Tests\Support\Legacy\DoctrineVaultUserReferenceResolverV1180;
 use Nowo\VaultBundle\Tests\Support\Legacy\RequestScopedScopeAccessCacheV1180;
 use Nowo\VaultBundle\Tests\Support\Legacy\VaultAccessGuardV1180;
+use Nowo\VaultBundle\Tests\Support\Legacy\VaultScopeAccessResolverInterfaceV1180;
+use Nowo\VaultBundle\Tests\Support\Legacy\VaultTeamMembershipResolverInterfaceV1180;
 use Nowo\VaultBundle\Tests\Support\Legacy\VaultUserClassPolicyV1180;
 use Nowo\VaultBundle\Tests\Support\VaultRuntimeConfigFactory;
 use Nowo\VaultBundle\ValueObject\VaultUserRef;
@@ -62,7 +62,6 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_diff_assoc;
-use function array_filter;
 use function array_keys;
 use function array_values;
 use function count;
@@ -74,12 +73,13 @@ use function strtolower;
 use function var_export;
 
 /**
- * 1.19.0 equivalence (REQ-ARCH-001 rule 3): every access decision of the vault (ownership, user and team grants on items
- * and folders, folder grants across owners, expired grants, scope membership and baselines, read-only and access-check
- * listeners, the permission and scope-view maps, and the role-based feature checks) is the same as the literal v1.18.0
- * copies in tests/Support/Legacy, whichever way the host wires its ports: only the deprecated interfaces, only the 1.19
- * ones, a class implementing both, a decorator of the deprecated one (both asked), or the built-ins. Relation and id
- * user mappings are both covered, as are foreign user classes, ids that differ only by case, and users without an id.
+ * 1.19.0 equivalence (REQ-ARCH-001 rule 3), kept in 2.0: every access decision of the vault (ownership, user and team
+ * grants on items and folders, folder grants across owners, expired grants, scope membership and baselines, read-only
+ * and access-check listeners, the permission and scope-view maps, and the role-based feature checks) is the same as the
+ * literal v1.18.0 copies in tests/Support/Legacy (asked through test copies of the removed 1.x interfaces), with a host
+ * on the framework-free ports or the built-ins: removing the deprecated interfaces in 2.0 changed no decision. Relation
+ * and id user mappings are both covered, as are foreign user classes, ids that differ only by case, and users without an
+ * id.
  *
  * A mutation check of the decision path runs this test: scripts/mutation-check-access-matrix.php.
  */
@@ -96,7 +96,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
     public static function wirings(): iterable
     {
         foreach ([VaultUserMapping::RELATION, VaultUserMapping::ID] as $mapping) {
-            foreach (['legacy', 'policy-new-only', 'policy-both-implemented', 'both-asked', 'built-in'] as $wiring) {
+            foreach (['policy', 'built-in'] as $wiring) {
                 yield $mapping . ' / ' . $wiring => [$mapping, $wiring];
             }
         }
@@ -115,30 +115,6 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
     }
 
     /**
-     * Both interfaces asked with DIFFERENT answers (a decorator of the deprecated port that answers otherwise): the
-     * decisions equal v1.18.0 with a host whose answers are the weaker of the two (team ids both return; not a member when
-     * either says so, the lower baseline, each flag only when both set it).
-     *
-     * @return iterable<string, array{string}>
-     */
-    public static function mappings(): iterable
-    {
-        yield 'relation' => [VaultUserMapping::RELATION];
-        yield 'id' => [VaultUserMapping::ID];
-    }
-
-    #[Test]
-    #[DataProvider('mappings')]
-    public function bothAskedEqualsV1180WithTheWeakerAnswers(string $mapping): void
-    {
-        $reference = $this->decisions($mapping, 'weaker-reference', true);
-        $current   = $this->decisions($mapping, 'both-diverging', false);
-
-        self::assertSame([], array_diff_assoc($reference, $current), 'decisions that differ: ' . implode(', ', array_keys(array_diff_assoc($reference, $current))));
-        self::assertSame($reference, $current);
-    }
-
-    /**
      * Audit NJ-1: a reference given by id alone never decides by itself. The role checker denies every feature to it
      * (whatever roles it claims, even with the token user's id), and the vault resolves its id through the user
      * locator: the answer is the located user (its own roles), or nothing for an unknown id or an answer for another id.
@@ -152,7 +128,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
         $security->method('isGranted')->willReturn(true);
         $security->method('isGrantedForUser')->willReturn(true);
         $provider = new VaultRuntimeConfigProvider(VaultRuntimeConfigFactory::baseline(['security' => ['admin_roles' => ['ROLE_VAULT_ADMIN'], 'access_roles' => [], 'create_roles' => [], 'list_roles' => [], 'delete_roles' => []]]), false, $this->createMock(VaultSettingsRepositoryInterface::class), new ArrayAdapter());
-        $gate     = new VaultAccessCheckerGate(VaultPortMode::POLICY, null, new ConfigurableVaultAccessChecker($security, $provider));
+        $gate     = new VaultAccessCheckerGate(new ConfigurableVaultAccessChecker($security, $provider));
         $policy   = new ConfigurableVaultAccessChecker($security, $provider);
         foreach (['u-token', 'u-alice', 'U-ALICE'] as $id) {
             $forged = VaultUserRef::ofId($id, 'token@example.com', ['ROLE_VAULT_ADMIN']);
@@ -169,25 +145,25 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
                 $byId[(string) UserIdResolver::getId($user)] = $user;
             }
         }
-        $locator = new class($byId) implements VaultUserLocatorInterface {
+        $directory = new class($byId) implements VaultUserDirectoryInterface {
             /** @param array<string, UserInterface> $users */
             public function __construct(private readonly array $users)
             {
             }
 
-            public function find(string $id): ?UserInterface
+            public function findUser(string $id): ?VaultUserRef
             {
                 // A sloppy host lookup: case-insensitive.
                 foreach ($this->users as $userId => $user) {
                     if (strtolower((string) $userId) === strtolower($id)) {
-                        return $user;
+                        return VaultUserRefs::fromUser($user);
                     }
                 }
 
                 return null;
             }
         };
-        $resolver = new VaultUserRefResolver($locator);
+        $resolver = new VaultUserRefResolver(new VaultUserLocatorGate($directory));
         foreach ($users as $name => $user) {
             $id = UserIdResolver::getId($user);
             if ($id === null || $user instanceof OtherDomainUser) {
@@ -209,9 +185,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
      */
     public static function checkerWirings(): iterable
     {
-        foreach (['legacy', 'policy', 'both-asked'] as $wiring) {
-            yield $wiring => [$wiring];
-        }
+        yield 'policy' => ['policy'];
     }
 
     #[Test]
@@ -248,8 +222,8 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             $legacyChecker = new ConfigurableVaultAccessCheckerV1180($security, $provider);
             $builtIn       = new ConfigurableVaultAccessChecker($security, $provider);
             $gates         = [
-                'configurable' => $this->checkerGate($wiring, $builtIn, $builtIn),
-                'allow all'    => $this->checkerGate($wiring, new AllowAllVaultAccessChecker(), new AllowAllVaultAccessChecker()),
+                'configurable' => new VaultAccessCheckerGate($builtIn),
+                'allow all'    => new VaultAccessCheckerGate(new AllowAllVaultAccessChecker()),
             ];
             $references = ['configurable' => $legacyChecker, 'allow all' => new AllowAllVaultAccessCheckerV1180()];
 
@@ -268,15 +242,6 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
         self::assertContains(true, $reference);
         self::assertContains(false, $reference);
         self::assertSame([], array_diff_assoc($reference, $current), 'feature checks that differ from v1.18.0: ' . implode(', ', array_keys(array_diff_assoc($reference, $current))));
-    }
-
-    private function checkerGate(string $wiring, VaultAccessCheckerInterface $legacy, object $policy): VaultAccessCheckerGate
-    {
-        return match ($wiring) {
-            'legacy' => new VaultAccessCheckerGate(VaultPortMode::LEGACY, $legacy),
-            'policy' => new VaultAccessCheckerGate(VaultPortMode::POLICY, null, $policy), // @phpstan-ignore argument.type
-            default  => new VaultAccessCheckerGate(VaultPortMode::BOTH, $legacy, $policy), // @phpstan-ignore argument.type
-        };
     }
 
     /**
@@ -305,24 +270,18 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             ? new DoctrineVaultUserReferenceResolverV1180(TestUser::class, new VaultUserClassPolicyV1180(TestUser::class, [], $mapping), $mapping)
             : new DoctrineVaultUserReferenceResolver(TestUser::class, new VaultUserClassPolicy(TestUser::class, [], $mapping), $mapping);
 
-        [$legacyTeam, $newTeam, $bothTeam, $legacyScope, $newScope, $bothScope] = $this->hosts();
-        [$otherTeam, $otherScope, $weakerTeam, $weakerScope]                    = $this->divergingHosts();
+        [$legacyTeam, $newTeam, $legacyScope, $newScope] = $this->hosts();
         if ($reference) {
             [$team, $scope] = match ($wiring) {
-                'built-in'         => [new NullVaultTeamMembershipResolver(), new NullVaultScopeAccessResolver()],
-                'weaker-reference' => [$weakerTeam, $weakerScope],
-                default            => [$legacyTeam, $legacyScope],
+                'built-in' => [$this->nullLegacyTeams(), $this->nullLegacyScopes()],
+                default    => [$legacyTeam, $legacyScope],
             };
             $guard   = new VaultAccessGuardV1180($grants, $team, $this->dispatcher($labels), new RequestScopedScopeAccessCacheV1180($scope), $clock, $resolver);
             $teamIds = $team;
         } else {
             [$teamGate, $scopeGate] = match ($wiring) {
-                'legacy'                  => [new VaultTeamMembershipGate(VaultPortMode::LEGACY, $legacyTeam), new VaultScopeAccessGate(VaultPortMode::LEGACY, $legacyScope)],
-                'policy-new-only'         => [new VaultTeamMembershipGate(VaultPortMode::POLICY, null, $newTeam), new VaultScopeAccessGate(VaultPortMode::POLICY, null, $newScope)],
-                'policy-both-implemented' => [new VaultTeamMembershipGate(VaultPortMode::POLICY, null, $bothTeam), new VaultScopeAccessGate(VaultPortMode::POLICY, null, $bothScope)],
-                'both-asked'              => [new VaultTeamMembershipGate(VaultPortMode::BOTH, $legacyTeam, $bothTeam), new VaultScopeAccessGate(VaultPortMode::BOTH, $bothScope, $newScope)],
-                'both-diverging'          => [new VaultTeamMembershipGate(VaultPortMode::BOTH, $otherTeam, $newTeam), new VaultScopeAccessGate(VaultPortMode::BOTH, $otherScope, $newScope)],
-                default                   => [new VaultTeamMembershipGate(VaultPortMode::POLICY, null, new NullVaultTeamMembershipResolver()), new VaultScopeAccessGate(VaultPortMode::POLICY, null, new NullVaultScopeAccessResolver())],
+                'policy' => [new VaultTeamMembershipGate($newTeam), new VaultScopeAccessGate($newScope)],
+                default  => [new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), new VaultScopeAccessGate(new NullVaultScopeAccessResolver())],
             };
             $guard   = new VaultAccessGuard($grants, $teamGate, $this->dispatcher($labels), new RequestScopedScopeAccessCache($scopeGate), $clock, $resolver);
             $teamIds = $teamGate;
@@ -471,13 +430,13 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
     {
         $dispatcher = new EventDispatcher();
         $dispatcher->addListener(VaultEvents::ITEM_READ_ONLY_RESOLVE, static function (VaultItemReadOnlyEvent $event) use ($labels): void {
-            if (UserIdResolver::getId($event->getUser()) === 'u-carol' && ($labels[$event->getItem()->getId()] ?? '') === 'alice personal') {
+            if ($event->getUserId() === 'u-carol' && ($labels[$event->getItem()->getId()] ?? '') === 'alice personal') {
                 $event->markReadOnly();
             }
         });
         $dispatcher->addListener(VaultEvents::ITEM_ACCESS_CHECK, static function (VaultItemAccessCheckEvent $event) use ($labels): void {
             $label = $labels[$event->getItem()->getId()] ?? '';
-            $user  = UserIdResolver::getId($event->getUser());
+            $user  = $event->getUserId();
             if ($user === 'u-dave' && $label === 'org-1 item in folder') {
                 $event->deny();
             }
@@ -493,87 +452,32 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
     }
 
     /**
-     * A deprecated-port decorator that answers otherwise than the host (more teams, fewer teams, other standings), and
-     * the v1.18 hosts that answer the weaker of the two.
-     *
-     * @return array{VaultTeamMembershipResolverInterface, VaultScopeAccessResolverInterface, VaultTeamMembershipResolverInterface, VaultScopeAccessResolverInterface}
+     * The v1.18.0 built-ins (no teams, no scope), behind the test copies of the removed interfaces.
      */
-    private function divergingHosts(): array
+    private function nullLegacyTeams(): VaultTeamMembershipResolverInterfaceV1180
     {
-        $other      = ['u-carol' => ['team-1', 'team-2'], 'u-erin' => ['team-1'], 'u-bob' => ['team-1'], 'U-ALICE' => []];
-        $otherScope = static fn (?string $id, string $scope): ?VaultScopeAccess => match ([$id, $scope]) {
-            ['u-dave', 'org-1']  => new VaultScopeAccess(VaultPermission::Admin, true, true, true),
-            ['u-erin', 'org-1']  => new VaultScopeAccess(VaultPermission::Read, false, true, true),
-            ['u-carol', 'org-1'] => new VaultScopeAccess(VaultPermission::Write),
-            ['u-frank', 'org-1'] => new VaultScopeAccess(VaultPermission::Admin, true, true, true),
-            ['u-carol', 'org-2'] => null,
-            ['U-ALICE', 'org-2'] => new VaultScopeAccess(VaultPermission::Read, true),
-            ['u-alice', 'org-1'] => new VaultScopeAccess(VaultPermission::Write, true, false, true),
-            default              => null,
-        };
-        $base = $this->hosts();
-        $mine = static fn (?string $id): array => self::TEAMS[$id ?? ''] ?? [];
-
-        $otherTeamHost = new class($other) implements VaultTeamMembershipResolverInterface {
-            /** @param array<string, list<string>> $teams */
-            public function __construct(private readonly array $teams)
-            {
-            }
-
+        return new class implements VaultTeamMembershipResolverInterfaceV1180 {
             public function getTeamIdsForUser(UserInterface $user): array
             {
-                return $this->teams[(string) UserIdResolver::getId($user)] ?? [];
+                return [];
             }
         };
-        $otherScopeHost = new class($otherScope) implements VaultScopeAccessResolverInterface {
-            public function __construct(private readonly Closure $scopes)
-            {
-            }
+    }
 
+    private function nullLegacyScopes(): VaultScopeAccessResolverInterfaceV1180
+    {
+        return new class implements VaultScopeAccessResolverInterfaceV1180 {
             public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
             {
-                return ($this->scopes)(UserIdResolver::getId($user), $scope);
+                return null;
             }
         };
-        $weakerTeam = new class($other, $mine) implements VaultTeamMembershipResolverInterface {
-            /** @param array<string, list<string>> $other */
-            public function __construct(private readonly array $other, private readonly Closure $mine)
-            {
-            }
-
-            public function getTeamIdsForUser(UserInterface $user): array
-            {
-                $mine = ($this->mine)(UserIdResolver::getId($user));
-
-                return array_values(array_filter($this->other[(string) UserIdResolver::getId($user)] ?? [], static fn (string $team): bool => in_array($team, $mine, true)));
-            }
-        };
-        $weakerScope = new class($otherScopeHost, $base[3]) implements VaultScopeAccessResolverInterface {
-            public function __construct(private readonly VaultScopeAccessResolverInterface $left, private readonly VaultScopeAccessResolverInterface $right)
-            {
-            }
-
-            public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
-            {
-                $a = $this->left->resolve($user, $scope);
-                $b = $this->right->resolve($user, $scope);
-                if (!$a instanceof VaultScopeAccess || !$b instanceof VaultScopeAccess) {
-                    return null;
-                }
-                $rank     = ['read' => 1, 'write' => 2, 'admin' => 3];
-                $baseline = !$a->baseline instanceof VaultPermission || !$b->baseline instanceof VaultPermission ? null : ($rank[$a->baseline->value] <= $rank[$b->baseline->value] ? $a->baseline : $b->baseline);
-
-                return new VaultScopeAccess($baseline, $a->catalogue && $b->catalogue, $a->health && $b->health, $a->create && $b->create);
-            }
-        };
-
-        return [$otherTeamHost, $otherScopeHost, $weakerTeam, $weakerScope];
     }
 
     /**
-     * The same host answers behind each interface: deprecated only, 1.19 only, and a class implementing both.
+     * The same host answers behind the v1.18.0 interfaces (reference chain) and the framework-free ports.
      *
-     * @return array{VaultTeamMembershipResolverInterface, VaultTeamMembershipProviderInterface, VaultTeamMembershipProviderInterface&VaultTeamMembershipResolverInterface, VaultScopeAccessResolverInterface, VaultScopeAccessProviderInterface, VaultScopeAccessProviderInterface&VaultScopeAccessResolverInterface}
+     * @return array{VaultTeamMembershipResolverInterfaceV1180, VaultTeamMembershipProviderInterface, VaultScopeAccessResolverInterfaceV1180, VaultScopeAccessProviderInterface}
      */
     private function hosts(): array
     {
@@ -589,7 +493,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
             default              => null,
         });
 
-        $legacyTeam = new class($teams) implements VaultTeamMembershipResolverInterface {
+        $legacyTeam = new class($teams) implements VaultTeamMembershipResolverInterfaceV1180 {
             public function __construct(private readonly Closure $teams)
             {
             }
@@ -609,22 +513,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
                 return ($this->teams)($user->id);
             }
         };
-        $bothTeam = new class($teams) implements VaultTeamMembershipResolverInterface, VaultTeamMembershipProviderInterface {
-            public function __construct(private readonly Closure $teams)
-            {
-            }
-
-            public function getTeamIdsForUser(UserInterface $user): array
-            {
-                return ($this->teams)(UserIdResolver::getId($user));
-            }
-
-            public function teamIdsOf(VaultUserRef $user): array
-            {
-                return ($this->teams)($user->id);
-            }
-        };
-        $legacyScope = new class($scopes) implements VaultScopeAccessResolverInterface {
+        $legacyScope = new class($scopes) implements VaultScopeAccessResolverInterfaceV1180 {
             public function __construct(private readonly Closure $scopes)
             {
             }
@@ -644,22 +533,7 @@ final class AccessDecisionEquivalenceMatrixTest extends TestCase
                 return ($this->scopes)(is_string($user->id) ? $user->id : null, $scope);
             }
         };
-        $bothScope = new class($scopes) implements VaultScopeAccessResolverInterface, VaultScopeAccessProviderInterface {
-            public function __construct(private readonly Closure $scopes)
-            {
-            }
 
-            public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
-            {
-                return ($this->scopes)(UserIdResolver::getId($user), $scope);
-            }
-
-            public function scopeAccessOf(VaultUserRef $user, string $scope): ?VaultScopeAccess
-            {
-                return ($this->scopes)($user->id, $scope);
-            }
-        };
-
-        return [$legacyTeam, $newTeam, $bothTeam, $legacyScope, $newScope, $bothScope];
+        return [$legacyTeam, $newTeam, $legacyScope, $newScope];
     }
 }

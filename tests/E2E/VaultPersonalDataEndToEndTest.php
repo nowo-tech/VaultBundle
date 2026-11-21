@@ -6,7 +6,6 @@ namespace Nowo\VaultBundle\Tests\E2E;
 
 use DateTimeImmutable;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
-use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultPermission;
@@ -14,6 +13,7 @@ use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultPersonalDataErasedEvent;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultGrantService;
@@ -29,6 +29,7 @@ use Nowo\VaultBundle\Tests\App\EventSubscriber\VaultEventRecorderSubscriber;
 use Nowo\VaultBundle\Tests\App\ScopesKernel;
 use Nowo\VaultBundle\Tests\App\Security\TestScopeAccessResolver;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 use function array_column;
@@ -113,7 +114,7 @@ final class VaultPersonalDataEndToEndTest extends WebTestCase
 
         // Without a locatable user (deleted meanwhile), or without the guard, no received-grant title.
         self::assertSame([], self::getContainer()->get('test.personal_data_exporter')->export('999999')['grants_received']);
-        $bare = new VaultPersonalDataExporter(self::getContainer()->get('doctrine'), self::getContainer()->get(VaultUserLocator::class));
+        $bare = new VaultPersonalDataExporter(self::getContainer()->get('doctrine'), new VaultUserLocatorGate(self::getContainer()->get(VaultUserLocator::class)));
         self::assertSame([null, null, null], array_column($bare->export((string) $alice->getId())['grants_received'], 'title'));
         self::assertNotSame([], $bob);
     }
@@ -191,25 +192,25 @@ final class VaultPersonalDataEndToEndTest extends WebTestCase
         $folders                                                                 = self::getContainer()->get(VaultFolderService::class);
 
         $parent = $this->createFolder($alice, 'Parent');
-        $child  = $folders->create('Child', $this->managed($alice), $this->em()->find(VaultFolder::class, $parent->getId()));
+        $child  = $folders->create('Child', $this->managed($alice), $this->findFolder($parent->getId()));
         $mail   = $this->createItem($alice, 'Mail', VaultItemType::Login, ['password' => $this->marker], $parent);
         self::getContainer()->get(VaultTagService::class)->syncItemTags($this->findItem($mail->getId()) ?? self::fail(), $this->managed($alice), ['work']);
         $this->em()->flush();
         $this->createItem($alice, 'Doc', VaultItemType::SecureNote, ['content' => $this->marker], $child);
         $old = $this->createItem($alice, 'Old', VaultItemType::Login, ['password' => $this->marker]);
         self::getContainer()->get(VaultTrashService::class)->moveItemToTrash($this->findItem($old->getId()) ?? self::fail());
-        $grants->grant(VaultResourceType::Item, $mail->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
-        $grants->grant(VaultResourceType::Folder, $parent->getId(), GranteeType::Team, 'team-1', VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant($grants, VaultResourceType::Item, $mail->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant($grants, VaultResourceType::Folder, $parent->getId(), GranteeType::Team, 'team-1', VaultPermission::Read, $this->managed($alice));
 
         $scopeItem = self::getContainer()->get(VaultItemCreator::class)->createInScope($this->managed($alice), VaultItemType::Login, 'Scope', self::SCOPE, ['password' => $this->marker]);
         $folders->createInScope($this->managed($alice), 'Scope folder', self::SCOPE);
-        $grants->grant(VaultResourceType::Item, $scopeItem->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
+        GrantSeeder::grant($grants, VaultResourceType::Item, $scopeItem->getId(), GranteeType::User, (string) $bob->getId(), VaultPermission::Read, $this->managed($alice));
 
         $bobItem    = $this->createItem($bob, 'Bob mail');
         $bobTrashed = $this->createItem($bob, 'Bob old');
         $bobFolder  = $this->createFolder($bob, 'Bob docs');
         foreach ([[VaultResourceType::Item, $bobItem->getId()], [VaultResourceType::Item, $bobTrashed->getId()], [VaultResourceType::Folder, $bobFolder->getId()]] as [$type, $resourceId]) {
-            $grants->grant($type, $resourceId, GranteeType::User, (string) $alice->getId(), VaultPermission::Read, $this->managed($bob));
+            GrantSeeder::grant($grants, $type, $resourceId, GranteeType::User, (string) $alice->getId(), VaultPermission::Read, $this->managed($bob));
         }
         self::getContainer()->get(VaultTrashService::class)->moveItemToTrash($this->findItem($bobTrashed->getId()) ?? self::fail());
 

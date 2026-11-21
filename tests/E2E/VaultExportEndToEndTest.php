@@ -26,6 +26,7 @@ use Nowo\VaultBundle\Tests\App\ScopesKernel;
 use Nowo\VaultBundle\Tests\App\Security\TestReauthChecker;
 use Nowo\VaultBundle\Tests\App\Security\TestScopeAccessResolver;
 use Nowo\VaultBundle\Tests\E2E\Support\VaultWebTestTrait;
+use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -167,7 +168,7 @@ final class VaultExportEndToEndTest extends WebTestCase
         $trashed = $this->createItem($alice, 'Old', VaultItemType::Login, ['password' => 'TRASHED' . $marker]);
         self::getContainer()->get(VaultTrashService::class)->moveItemToTrash($this->findItem($trashed->getId()) ?? self::fail());
         $shared = $this->createItem($bob, 'Bob shares', VaultItemType::Login, ['password' => 'SHARED' . $marker]);
-        self::getContainer()->get(VaultGrantService::class)->grant(VaultResourceType::Item, $shared->getId(), GranteeType::User, (string) $alice->getId(), VaultPermission::Read, $this->managed($bob));
+        GrantSeeder::grant(self::getContainer()->get(VaultGrantService::class), VaultResourceType::Item, $shared->getId(), GranteeType::User, (string) $alice->getId(), VaultPermission::Read, $this->managed($bob));
         self::getContainer()->get(VaultItemCreator::class)->createInScope($this->managed($alice), VaultItemType::Login, 'Scope', self::SCOPE, ['password' => 'SCOPE' . $marker]);
 
         $exported = [];
@@ -355,6 +356,8 @@ final class VaultExportEndToEndTest extends WebTestCase
         $this->em()->getConnection()->executeStatement('UPDATE vault_items SET ciphertext = ? WHERE id = ?', [base64_encode(str_repeat('x', 64)), $bad->getId()]);
         $this->em()->getConnection()->executeStatement("UPDATE vault_items SET created_at = '2020-01-01 00:00:00' WHERE title = 'Good'");
         $this->em()->clear();
+        // The rows changed behind the vault's back: drop its private manager, as the next request would.
+        $this->vaultManager()->reset();
         $streamer = self::getContainer()->get(VaultPersonalExportStreamer::class);
 
         foreach (['json' => '{"format":"nowo-vault-export"', 'csv' => '"type","title"'] as $format => $start) {

@@ -3,6 +3,14 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Before you upgrade](#before-you-upgrade)
+  - [Private manager only](#private-manager-only)
+  - [Ports](#ports)
+  - [Events](#events)
+  - [Configuration, templates and Twig global](#configuration-templates-and-twig-global)
+  - [Removed](#removed)
+  - [Kept](#kept)
+  - [1.x support](#1x-support)
 - [To 1.21.2](#to-1212)
 - [To 1.21.1](#to-1211)
 - [To 1.21.0](#to-1210)
@@ -16,7 +24,7 @@
 - [To 1.19.0](#to-1190)
   - [What changes for you](#what-changes-for-you)
   - [Framework-free ports](#framework-free-ports)
-  - [Events](#events)
+  - [Events](#events-1)
   - [Private entity manager (opt-in)](#private-entity-manager-opt-in)
   - [XML mapping](#xml-mapping)
 - [To 1.18.0](#to-1180)
@@ -88,6 +96,210 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+From **1.21.x** (major):
+
+```bash
+composer require nowo-tech/vault-bundle:^2.0 -W
+```
+
+2.0 contains only changes that 1.x announced through deprecation notices: an application that runs the last 1.x
+minor without deprecation notices from this bundle upgrades without code changes. After 2.0.0 is released, the 1.x
+line receives security fixes for 6 months: fixes rated Moderate and above are backported to the last 1.x minor;
+Low ones are fixed in 2.x only.
+
+No schema change, no asset change. **Security is unchanged:** encryption, key rotation (`nowo:vault:reencrypt`),
+re-authentication proofs, reveal limits, the decrypted-export lock, the browser-extension tokens and every access
+decision (ownership, grants, scopes, read-only, `deny_status`) are those of 1.21. The removed paths below either had
+the same answers (the framework-free ports, tested against the 1.21.2 answers) or fail the container build.
+
+### Before you upgrade
+
+On 1.21, clear every deprecation notice of this bundle. They are raised when the container is built (they show in
+`bin/console debug:container --deprecations`, not in the request log), except the layout notice, which is raised when
+a vault page renders:
+
+- `Not setting "nowo_vault.database.private_entity_manager" is deprecated: it keeps the 1.18 behaviour (the vault
+  flushes the "…" entity manager on its own writes, including your pending changes) and becomes true in 2.0. Set it to
+  true (recommended, see UPGRADING.md "To 1.19.0").` and `"nowo_vault.database.private_entity_manager: false" is
+  deprecated: the private entity manager becomes the only mode in 2.0.`: set `private_entity_manager: true` on 1.21,
+  run your tests, then follow [Private manager only](#private-manager-only) below;
+- `The vault service "…" (…) behind … implements only the deprecated "…"; implement "…" instead (the deprecated
+  interface is removed in 2.0).`, `The vault service "…" behind … is decorated by "…", which implements only the
+  deprecated "…" …`, `The vault port … is decided by both "…" and the deprecated "…" (the weaker answer wins) …` and
+  `The "…" service alias is deprecated, use "…" instead (removed in 2.0).`: move the service, the decorator or the
+  injection to the framework-free interface ([Ports](#ports));
+- `The "nowo_vault.route_prefix" option is deprecated, use "nowo_vault.web_ui.path_prefix" instead.`, `The
+  "nowo_vault.templates" options are deprecated, use "nowo_vault.web_ui.layout_template" and
+  "nowo_vault.web_ui.templates.<page>" instead.` and `The "nowo_vault.css_framework" option is deprecated, set
+  "nowo_ui_kit.css_framework" instead (REQ-UI-003).`: see [Configuration, templates and Twig global](#configuration-templates-and-twig-global);
+- `The layout "…" does not render the UiKit canonical blocks (nowo_ui_page_header, nowo_ui_content, ...); it is wrapped
+  in a deprecated bridge. …` (raised at render time): render the canonical blocks, extend
+  `@NowoUiKit/layout/admin.html.twig`, or set `nowo_vault.web_ui.layout_template: null`.
+
+The 1.16 members (`getCreator()`, `VaultGrantService::grant()` / `revoke()`) and the 1.19 event and result members
+(`UserInterface` getters) carry `@deprecated` without a runtime notice: search your code for them
+([Removed](#removed)).
+
+### Private manager only
+
+The vault always reads and writes its rows through its own private entity manager on the connection, mapping and
+event manager of `database.entity_manager` (REQ-ARCH-001 rule 6; the opt-in of 1.19, recommended since then).
+
+| `database.private_entity_manager` | 1.21 | 2.0 |
+| --- | --- | --- |
+| unset | the 1.18 wiring (the vault flushes your manager), deprecation | the private manager |
+| `true` | the private manager | the private manager; the option is deprecated (no effect, removed in 3.0) |
+| `false` | the 1.18 wiring, deprecation | **the container build fails** |
+
+There is no way to keep the 1.18 wiring. **Your pending changes are no longer flushed by the vault**: code that
+changed its own entities and relied on a vault write (create, edit, share, trash, erase…) to flush them must flush
+them itself; set `private_entity_manager: true` on 1.21 first and run your tests. Check these code patterns:
+
+- **Vault entities from your own manager.** An item, folder, tag or grant loaded through your entity manager (your
+  repository, `$em->find(VaultItem::class, …)`, an association of one of your entities) and given to a vault service
+  (`VaultItemUpdater`, `VaultTrashService`, `VaultGrantService`, …) fails with Doctrine's *entity is not managed* /
+  *new entity found through the relationship*. Load vault rows through the vault repositories
+  (`VaultItemRepositoryInterface::findById()`, …) or by id.
+- **Changing a vault entity and flushing your manager** persists nothing: write through the vault services or
+  repositories. Changes still pending in the private manager at the end of a request, message or command are dropped
+  and logged as a warning (entity classes and counts).
+- **Your entities pointing at vault entities** (a `ManyToOne` / `OneToOne` to `VaultItem`, `VaultFolder`, …) must take
+  `$yourEntityManager->getReference(VaultItem::class, $id)`, never the instance a vault service returned (it belongs to
+  the private manager: your flush would fail with *new entity found through the relationship*). Storing the id is
+  simpler.
+- **Your users (relation mapping).** The vault stores a `user_class` instance of your manager as a reference of the
+  same id in the private manager. `getOwner()->getUser()`, `getCreatedBy()` and the browser-extension Bearer user are
+  objects of the private manager: compare users by id, and never persist or associate them through your own manager
+  (re-load them by id).
+- **A failed vault write no longer resets your manager** (1.18 reset it to recover): it closes only the private
+  manager, which comes back on the next call.
+- **Doctrine listeners** on the vault entities receive the private manager (`$args->getObjectManager()`).
+- **Forms:** an `EntityType` of vault entities in your own forms must use the vault's manager or plain ids.
+- In FrankenPHP worker mode (kernel reset on or off) the private manager is dropped at every boundary: main request,
+  terminate, Messenger message, console command and `kernel.reset`.
+
+### Ports
+
+The six host ports that took a Symfony `UserInterface` or `Request` were deprecated in 1.19 and are removed; implement
+their framework-free twins (same configuration keys):
+
+| Removed (deprecated since 1.19.0) | Implement instead |
+|---|---|
+| `Security\VaultAccessCheckerInterface::canAccess/canCreate/canList/canRevoke(?UserInterface)` | `Security\VaultAccessPolicyInterface::allowsAccess/allowsCreate/allowsList/allowsRevoke(?VaultUserRef)` |
+| `Security\VaultTeamMembershipResolverInterface::getTeamIdsForUser(UserInterface)` | `Security\VaultTeamMembershipProviderInterface::teamIdsOf(VaultUserRef)` |
+| `Security\VaultScopeAccessResolverInterface::resolve(UserInterface, string)` | `Security\VaultScopeAccessProviderInterface::scopeAccessOf(VaultUserRef, string)` |
+| `Security\VaultReauthenticationCheckerInterface::getProof(UserInterface, Request, string)`, `consume()`, `getReauthenticationUrl(Request, …)` | `Security\VaultReauthenticationProviderInterface::proofFor(VaultReauthContext)`, `consumeProof()`, `reauthenticationUrl(VaultReauthContext, string)` |
+| `Support\VaultUserLocatorInterface::find(string): ?UserInterface` | `Support\VaultUserDirectoryInterface::findUser(string): ?VaultUserRef` |
+| `Service\VaultHealthReporterInterface::forScope/forPersonalVault(UserInterface, …)` | `Service\VaultHealthReportProviderInterface::reportForScope/reportForPersonalVault(VaultUserRef, …)` |
+
+`$ref->user()` is your security user inside an adapter (see "To 1.19.0", [Framework-free ports](#framework-free-ports)).
+What fails the container build, with a message naming the service and the interface to implement:
+
+- a service configured behind a port (`security.access_checker`, `team_membership_resolver`, `scopes.access_resolver`,
+  `export.reauth_checker`) or aliased to a port interface whose class does not implement it;
+- a class that still implements a removed interface (it cannot be loaded), whether named by the configuration or
+  registered by resource discovery (`#[AsAlias]`, `#[AsDecorator]`). A class that implemented both
+  interfaces must drop the removed one;
+- an alias of a removed interface id (e.g. your `Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@App\…'`
+  alias) whose class does **not** implement the twin, or whose class cannot be known before compilation (a factory).
+  In 1.x that alias picked your lookup; it is never ignored silently;
+- a service **registered under** a removed interface id (e.g. `Nowo\VaultBundle\Security\VaultAccessCheckerInterface:
+  { class: App\VaultAccess }`). 1.21 replaced that definition with its own alias of the id, so it never served the
+  port: the built-in did. Using it now would change who gets access, so the build fails instead: alias the twin to it
+  if you want it to serve the port, or remove it;
+- a decorator of a removed interface id;
+- a decorator of a port (of the interface or of the service behind it) whose class does not implement the interface.
+
+**Your alias of a removed id, when the class already implements the twin** (the 1.17 way to replace the user lookup,
+kept by many 1.19 hosts whose class moved to the twin): it keeps working until 3.0. The vault aliases the twin to that
+service and raises a deprecation when the container is built (`bin/console debug:container --deprecations`):
+
+> The service id "Nowo\VaultBundle\Support\VaultUserLocatorInterface" was removed in 2.0; the vault uses
+> "App\Directory" (which implements "Nowo\VaultBundle\Support\VaultUserDirectoryInterface") through that interface.
+> Alias "Nowo\VaultBundle\Support\VaultUserDirectoryInterface" instead (the old id is accepted until 3.0).
+
+Rename the alias to the twin to clear it. This applies to aliases only: a service registered under a removed id fails
+the build (see above). When you alias the twin as well, both must name the same service: two different services fail
+the build (keep only the alias of the twin).
+
+**Decorators.** The 1.19 bridge that asked a decorator of a deprecated access port *together with* the 1.19 interface
+("both are asked, the weaker answer wins") is removed: decorate the framework-free interface instead (for example
+`#[AsDecorator(VaultAccessPolicyInterface::class)]`). A decorator that only narrows access keeps narrowing it; there is
+no path where a removed decorator is skipped and access widens (the build fails instead).
+
+**Built-ins.** `ConfigurableVaultAccessChecker`, `AllowAllVaultAccessChecker`, `NullVaultTeamMembershipResolver`,
+`NullVaultScopeAccessResolver`, `VaultUserLocator` and `VaultHealthReporter` implement only the framework-free
+interfaces: their removed-interface methods (`canAccess()`, `getTeamIdsForUser()`, `resolve()`, `find()`,
+`forScope()`, `forPersonalVault()`) are gone. Inject the port interfaces, not the built-in classes.
+
+**Services you build yourself.** Constructor arguments of vault services that were typed with a removed interface
+(`VaultAccessGuard`, `VaultSharedItemResolver`, `VaultGrantService`, `VaultBrowserExtensionAuthService`,
+`VaultPersonalDataExporter`, `VaultPersonalDataEraser`, `RequestScopedScopeAccessCache`, the controllers) now take the
+bundle's internal gate of that port (`Port\Vault…Gate`, service `nowo_vault.port.<name>`), which wraps your port
+implementation. Get these services from the container instead of building them.
+
+### Events
+
+The `UserInterface` getters of the hook events (deprecated since 1.19.0) are removed; the entity getters stay. Read
+the framework-free accessors (the reference's `user()` is the user object the vault checked):
+
+| Event | Removed | Use |
+|---|---|---|
+| `VaultItemAccessCheckEvent`, `VaultFolderAccessCheckEvent`, `VaultItemReadOnlyEvent`, `VaultFieldRevealCheckEvent`, `VaultCatalogueAccessCheckEvent`, `VaultHealthAccessCheckEvent` | `getUser()` | `getUserRef()` / `getUserId()` |
+| `VaultItemListQueryEvent` | `getViewer()`, `getListSubject()`, `setListSubject(UserInterface)` | `getViewerRef()` / `getViewerId()`, `getListSubjectRef()` / `getListSubjectId()`, `setListSubjectRef(VaultUserRef)` |
+| `VaultItemListResultEvent` | `getViewer()` | `getViewerRef()` / `getViewerId()` |
+| `VaultGrantPolicyCheckEvent` | `getActor()` | `getActorRef()` / `getActorId()` |
+| `VaultGrantListQueryEvent` | `getGrantedBy()` | `getGrantedByRef()` / `getGrantedById()` |
+| `BrowserExtension\VaultBrowserExtensionAuthResult` | `success(UserInterface)`, `getUser()` | `authenticated(VaultUserRef)` (`new VaultUserRef($id, $identifier, $roles, $user)` keeps your user object), `getUserRef()` |
+
+### Configuration, templates and Twig global
+
+The keys deprecated since 1.15 fail the container build with the key to set instead:
+
+| Removed (deprecated since 1.15.0) | Replacement |
+| --- | --- |
+| `nowo_vault.route_prefix` | `nowo_vault.web_ui.path_prefix` |
+| `nowo_vault.templates.layout` | `nowo_vault.web_ui.layout_template` (null = `nowo_ui_kit.layouts.admin`) |
+| `nowo_vault.templates.<page>` | `nowo_vault.web_ui.templates.<page>` (`index` → `home`) |
+| `nowo_vault.css_framework` | `nowo_ui_kit.css_framework` / `icon_set` (no longer copied there by the vault) |
+| Twig global `nowo_vault_css_framework` (class `Twig\VaultExtension`) | `nowo_ui_kit.css_framework` |
+| Container parameter `nowo_vault.css_framework` | `nowo_ui_kit.css_framework` |
+| `vault/_legacy_layout.html.twig` (the bridge around a 1.x layout) and the page variables `nowo_vault_legacy_layout` / `nowo_vault_legacy_blocks` | a layout that renders the UiKit canonical blocks |
+
+**Layouts.** `web_ui.layout_template: null` (the default) renders the pages in `nowo_ui_kit.layouts.admin`, as before.
+A configured layout must render the UiKit canonical blocks (`nowo_ui_page_header`, `nowo_ui_content`, …; see
+[TEMPLATES.md](TEMPLATES.md)). A 1.x layout that renders `{% block body %}` instead is no longer wrapped: the page
+fails with a `LogicException` that says what to do (it never renders an empty page).
+
+### Removed
+
+| Removed | Deprecated since | Replacement |
+| --- | --- | --- |
+| `database.private_entity_manager: false` (the 1.18 wiring on `database.entity_manager`) | 1.19.0 | none: the private manager ([Private manager only](#private-manager-only)) |
+| The six ports and their service aliases ([Ports](#ports)) | 1.19.0 | their framework-free twins |
+| Your alias of a removed port id | 1.19.0 | alias the twin; with a class that implements the twin the old alias still works with a deprecation until 3.0 ([Ports](#ports)) |
+| A service registered under a removed port id (never used by 1.21: the built-in served the port) | 1.19.0 | the build fails: alias the twin to it to use it, or remove it ([Ports](#ports)) |
+| Container parameter `nowo_vault.private_entity_manager` | 1.19.0 | none (always the private manager) |
+| The event and result user members ([Events](#events)) | 1.19.0 | the `…Ref()` / `…Id()` accessors |
+| `VaultItem::getCreator()`, `VaultFolder::getCreator()`, `VaultTag::getCreator()` | 1.16.0 | `getOwner()` (`getUser()`, `getScope()`, `key()`), `getCreatorId()`, or `getCreatedBy()` (audit creator) |
+| `VaultGrantService::grant()` / `revoke()` | 1.16.0 | `grantAs($actor, …, ?$expiresAt)` / `revokeAs($actor, $grant)` (they re-check that the actor may Share) |
+| `route_prefix`, `templates.*`, `css_framework`, the Twig global and the layout bridge ([Configuration](#configuration-templates-and-twig-global)) | 1.15.0 | the `web_ui.*` keys, `nowo_ui_kit.*` |
+
+### Kept
+
+- `database.private_entity_manager: true` is accepted (no effect, deprecated since 2.0, removed in 3.0); remove it.
+- Your alias of a removed port id whose class implements the twin is accepted (deprecated since 2.0, removed in 3.0);
+  alias the twin instead.
+- `database.entity_manager` keeps naming the source manager of the private one (connection, mapping, listeners, SQL
+  filters).
+- The id rules: byte-for-byte user ids in `user_mapping: id` (1.19.3) and the cross-class owner checks (1.17) are
+  unchanged.
+
+### 1.x support
+
+After 2.0.0 is released, the 1.x line receives security fixes for 6 months: fixes rated Moderate and above are
+backported to the last 1.x minor; Low ones are fixed in 2.x only. See [SECURITY.md](SECURITY.md).
 
 ## To 1.21.2
 

@@ -30,7 +30,7 @@ final class VaultOwnerEntitiesTest extends TestCase
         self::assertTrue($item->isPersonal());
         self::assertNull($item->getOwnerScope());
         self::assertSame('user:1', $item->getOwner()->key());
-        self::assertSame($alice, $item->getCreator());
+        self::assertSame($alice, $item->getOwner()->getUser());
         self::assertSame($alice, $item->getCreatedBy());
         self::assertEquals($item->getCreatedAt(), $item->getSecretChangedAt());
         self::assertFalse($item->isCatalogueHidden());
@@ -50,8 +50,7 @@ final class VaultOwnerEntitiesTest extends TestCase
         $item->setCatalogueHidden(true);
         self::assertTrue($item->isCatalogueHidden());
 
-        $this->expectException(VaultOwnerException::class);
-        $item->getCreator();
+        self::assertNull($item->getOwner()->getUser(), 'a scope item has no personal owner');
     }
 
     public function testItemNeedsExactlyOneOwner(): void
@@ -89,14 +88,13 @@ final class VaultOwnerEntitiesTest extends TestCase
         $scope    = VaultFolder::forScope('Shared', 'org-1', null);
 
         self::assertSame('user:1', $personal->getOwner()->key());
-        self::assertSame($alice, $personal->getCreator());
+        self::assertSame($alice, $personal->getOwner()->getUser());
         self::assertSame($alice, $personal->getCreatedBy());
         self::assertNull($personal->getOwnerScope());
         self::assertSame('org-1', $scope->getOwnerScope());
         self::assertNull($scope->getCreatedBy());
 
-        $this->expectException(VaultOwnerException::class);
-        $scope->getCreator();
+        self::assertNull($scope->getOwner()->getUser(), 'a scope row has no personal owner');
     }
 
     public function testTagOwners(): void
@@ -105,14 +103,13 @@ final class VaultOwnerEntitiesTest extends TestCase
         $tag   = new VaultTag('work', $alice);
         $scope = VaultTag::forScope('prod', 'org-1');
 
-        self::assertSame($alice, $tag->getCreator());
+        self::assertSame($alice, $tag->getOwner()->getUser());
         self::assertSame('user:1', $tag->getOwner()->key());
         self::assertNull($tag->getOwnerScope());
         self::assertSame('org-1', $scope->getOwnerScope());
         self::assertSame('scope:org-1', $scope->getOwner()->key());
 
-        $this->expectException(VaultOwnerException::class);
-        $scope->getCreator();
+        self::assertNull($scope->getOwner()->getUser(), 'a scope row has no personal owner');
     }
 
     public function testGrantExpiryIsStrict(): void

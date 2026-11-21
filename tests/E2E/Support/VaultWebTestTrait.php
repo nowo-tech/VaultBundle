@@ -6,9 +6,11 @@ namespace Nowo\VaultBundle\Tests\E2E\Support;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultItemCreator;
@@ -65,7 +67,8 @@ trait VaultWebTestTrait
         /** @var VaultItemCreator $creator */
         $creator = self::getContainer()->get(VaultItemCreator::class);
 
-        $folder = $folder instanceof VaultFolder ? $this->em()->find(VaultFolder::class, $folder->getId()) : null;
+        // Vault rows are loaded through the vault (its private manager), never through the application's manager.
+        $folder = $folder instanceof VaultFolder ? $this->findFolder($folder->getId()) : null;
 
         return $creator->create($type, $title, $this->managed($user), $payload + ['username' => 'u', 'password' => 'REDACTED-TEST', 'websites' => ['https://example.com']], $folder);
     }
@@ -95,10 +98,29 @@ trait VaultWebTestTrait
         $repo = self::getContainer()->get(VaultItemRepositoryInterface::class);
         $item = $repo->findById($id);
         if ($item instanceof VaultItem) {
-            $this->em()->refresh($item);
+            $this->vaultManager()->refresh($item);
         }
 
         return $item;
+    }
+
+    private function findFolder(string $id): ?VaultFolder
+    {
+        /** @var VaultFolderRepositoryInterface $repo */
+        $repo = self::getContainer()->get(VaultFolderRepositoryInterface::class);
+
+        return $repo->findById($id);
+    }
+
+    /**
+     * The vault's private entity manager (the only mode since 2.0): vault rows are refreshed and written through it.
+     */
+    private function vaultManager(): VaultEntityManager
+    {
+        /** @var VaultEntityManager $manager */
+        $manager = self::getContainer()->get(VaultEntityManager::class);
+
+        return $manager;
     }
 
     private function csrf(KernelBrowser $client, string $tokenId): string

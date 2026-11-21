@@ -21,7 +21,8 @@ final class ConfigurationTest extends TestCase
 
         self::assertSame('App\\Entity\\User', $config['user_class']);
         self::assertSame('vault_', $config['table_prefix']);
-        self::assertNull($config['css_framework']);
+        self::assertArrayNotHasKey('css_framework', $config);
+        self::assertTrue($config['database']['private_entity_manager'], 'no effect since 2.0');
         self::assertSame(['enabled' => true, 'path_prefix' => '', 'layout_template' => null, 'destructive_actions_in_menu' => false, 'host_note_template' => null, 'templates' => []], $config['web_ui']);
         // 1.18.0 defaults keep the 1.17 behaviour.
         self::assertSame(['enabled' => true], $config['sharing']);
@@ -41,70 +42,28 @@ final class ConfigurationTest extends TestCase
         self::assertSame('/tools/vault/items/{id}/reveal/{field}', $config['routes']['item_reveal']['path']);
     }
 
-    public function testCssFrameworkAccepted(): void
+    /**
+     * 2.0: the keys deprecated since 1.15 fail with what to set instead (not the generic "unrecognized option").
+     */
+    public function testTheRemovedKeysFailWithWhatToSetInstead(): void
     {
-        $config = (new Processor())->processConfiguration(new Configuration(), [[
-            'user_class'     => 'App\\Entity\\User',
-            'encryption_key' => SodiumVaultPayloadCryptographerTestKey::VALID,
-            'css_framework'  => 'bootstrap5',
-        ]]);
+        foreach ([
+            'route_prefix'  => ['route_prefix' => '/admin'],
+            'templates'     => ['templates' => ['layout' => 'base.html.twig']],
+            'css_framework' => ['css_framework' => 'bootstrap5'],
+        ] as $key => $extra) {
+            try {
+                $this->process($extra);
+                self::fail($key . ' must fail');
+            } catch (InvalidConfigurationException $exception) {
+                self::assertStringContainsString('These options were deprecated since 1.15 and are removed in 2.0: "nowo_vault.' . $key . '" (', $exception->getMessage());
+                self::assertStringContainsString(Configuration::REMOVED_ROOT_KEYS[$key], $exception->getMessage());
+                self::assertStringContainsString('UPGRADING.md "To 2.0.0"', $exception->getMessage());
+            }
+        }
 
-        self::assertSame('bootstrap5', $config['css_framework']);
-    }
-
-    public function testInvalidCssFrameworkRejected(): void
-    {
-        $this->expectException(InvalidConfigurationException::class);
-
-        (new Processor())->processConfiguration(new Configuration(), [[
-            'user_class'     => 'App\\Entity\\User',
-            'encryption_key' => SodiumVaultPayloadCryptographerTestKey::VALID,
-            'css_framework'  => 'material',
-        ]]);
-    }
-
-    public function testDeprecatedKeysAreMappedOntoWebUi(): void
-    {
-        $config = $this->process([
-            'route_prefix' => '/admin',
-            'templates'    => [
-                'layout' => 'base.html.twig',
-                'index'  => 'vault/home.html.twig',
-                'items'  => '@NowoVaultBundle/vault/items.html.twig',
-                'trash'  => 'vault/trash.html.twig',
-            ],
-        ]);
-
-        self::assertSame('/admin', $config['web_ui']['path_prefix']);
-        self::assertSame('base.html.twig', $config['web_ui']['layout_template']);
-        // The 1.x defaults (items) are dropped; index is the alias of home.
-        self::assertEqualsCanonicalizing(['home' => 'vault/home.html.twig', 'trash' => 'vault/trash.html.twig'], $config['web_ui']['templates']);
-        self::assertArrayNotHasKey('templates', $config);
-        self::assertArrayNotHasKey('route_prefix', $config);
-    }
-
-    public function testCanonicalKeysWinOverTheDeprecatedOnes(): void
-    {
-        $config = $this->process([
-            'route_prefix' => '/old',
-            'templates'    => ['layout' => Configuration::LEGACY_DEFAULT_LAYOUT, 'home' => 'old/home.html.twig', 'index' => 'old/index.html.twig', 'shared' => 'old/shared.html.twig'],
-            'web_ui'       => ['path_prefix' => '/new', 'layout_template' => 'new.html.twig', 'templates' => ['home' => 'new/home.html.twig']],
-        ]);
-
-        self::assertSame('/new', $config['web_ui']['path_prefix']);
-        self::assertSame('new.html.twig', $config['web_ui']['layout_template']);
-        self::assertSame(['home' => 'new/home.html.twig', 'shared' => 'old/shared.html.twig'], $config['web_ui']['templates']);
-    }
-
-    public function testTheRemovedDefaultLayoutMapsToTheUiKitLayout(): void
-    {
-        $config = $this->process(['templates' => ['layout' => Configuration::LEGACY_DEFAULT_LAYOUT, 'home' => '@NowoVaultBundle/vault/home.html.twig']]);
-
-        self::assertNull($config['web_ui']['layout_template']);
-        self::assertSame([], $config['web_ui']['templates']);
-
-        $nonArray = $this->process(['templates' => null]);
-        self::assertSame([], $nonArray['web_ui']['templates']);
+        $this->expectExceptionMessage('"nowo_vault.route_prefix" (set nowo_vault.web_ui.path_prefix); "nowo_vault.css_framework"');
+        $this->process(['route_prefix' => '/a', 'css_framework' => 'tabler']);
     }
 
     public function testUnknownPageTemplatesAreRejected(): void

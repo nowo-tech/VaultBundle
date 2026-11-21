@@ -223,7 +223,7 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         $item    = new VaultItem(VaultItemType::Login, 'Unsaved owner', $user, 'c');
         $private->persist($item);
 
-        self::assertSame($user, $item->getCreator(), 'no id yet: no reference, Doctrine refuses it at flush as before');
+        self::assertSame($user, $item->getOwner()->getUser(), 'no id yet: no reference, Doctrine refuses it at flush as before');
         $private->clear();
     }
 

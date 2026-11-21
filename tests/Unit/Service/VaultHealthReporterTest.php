@@ -21,6 +21,9 @@ use Nowo\VaultBundle\Event\VaultHealthReportGeneratedEvent;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultHealthThrottledException;
 use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
+use Nowo\VaultBundle\Port\VaultScopeAccessGate;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultScopeItemRepositoryInterface;
 use Nowo\VaultBundle\Security\ConfigVaultPasswordPolicyResolver;
@@ -29,10 +32,10 @@ use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultBreachCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultHealthReporter;
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
 use Nowo\VaultBundle\Support\VaultUserRefResolver;
 use Nowo\VaultBundle\Support\VaultUserRefs;
 use Nowo\VaultBundle\Tests\Stub\InMemoryGrantRepository;
@@ -48,7 +51,6 @@ use stdClass;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 use function bin2hex;
 use function random_bytes;
@@ -103,7 +105,7 @@ final class VaultHealthReporterTest extends TestCase
         $this->dispatcher->addListener(VaultEvents::HEALTH_REPORT_GENERATED, static function (VaultHealthReportGeneratedEvent $event) use (&$events): void {
             $events[] = $event;
         });
-        $report = $this->reporter()->forScope(new TestUser('1'), self::SCOPE);
+        $report = $this->reporter()->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE);
 
         self::assertSame(7, $report->examined);
         self::assertSame(0, $report->skipped);
@@ -142,7 +144,7 @@ final class VaultHealthReporterTest extends TestCase
         $hidden = $this->item('Invisible', $this->marker);
         $this->grants->save(new VaultGrant(VaultResourceType::Item, $mine->getId(), GranteeType::User, '2', VaultPermission::Read, null));
 
-        $report = $this->reporter()->forScope(new TestUser('2'), self::SCOPE);
+        $report = $this->reporter()->reportForScope(VaultUserRefs::fromUser(new TestUser('2')), self::SCOPE);
 
         self::assertSame(1, $report->examined);
         self::assertSame(1, $report->skipped);
@@ -174,7 +176,7 @@ final class VaultHealthReporterTest extends TestCase
         $cache    = new ArrayAdapter();
         $reporter = $this->reporter(breachChecker: $checker, cache: $cache);
 
-        $report  = $reporter->forScope(new TestUser('1'), self::SCOPE);
+        $report  = $reporter->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE);
         $byTitle = $this->byTitle($report->items);
         self::assertTrue($byTitle['Breached']->breached);
         self::assertFalse($byTitle['Fine']->breached);
@@ -182,7 +184,7 @@ final class VaultHealthReporterTest extends TestCase
         self::assertSame(1, $report->skipped, 'An undecryptable item is skipped, never reported.');
         self::assertSame(1, $report->breachedCount());
 
-        $again = $reporter->forScope(new TestUser('1'), self::SCOPE);
+        $again = $reporter->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE);
         self::assertSame(3, $checker->calls, 'The second report comes from the cache.');
         self::assertEquals($report, $again);
         foreach ($cache->getValues() as $value) {
@@ -212,23 +214,23 @@ final class VaultHealthReporterTest extends TestCase
         $cache    = new ArrayAdapter();
         $reporter = new VaultHealthReporter($this->scopeRepository(), $this->guard(), $this->crypto(), $this->dispatcher, new ConfigVaultPasswordPolicyResolver(), $checker, null, $cache, 0, 2000, $this->clock, $this->logger, 10, 3600);
 
-        $reporter->forScope(new TestUser('1'), self::SCOPE);
+        $reporter->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE);
         self::assertSame(3, $checker->calls);
         try {
-            $reporter->forScope(new TestUser('1'), self::SCOPE);
+            $reporter->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE);
             self::fail('Throttled within the window.');
         } catch (VaultHealthThrottledException $exception) {
             self::assertSame(10, $exception->getRetryAfter());
         }
         // Another viewer is not throttled, and the cached breach answers (not the failure) are reused.
         $this->members['2'][self::SCOPE] = new VaultScopeAccess(VaultPermission::Admin, health: true);
-        $reporter->forScope(new TestUser('2'), self::SCOPE);
+        $reporter->reportForScope(VaultUserRefs::fromUser(new TestUser('2')), self::SCOPE);
         self::assertSame(4, $checker->calls, 'Only the failed lookup is retried.');
 
         // After the window: allowed again; a secret change invalidates that item's breach answer.
         $this->clock->modify('+11 seconds');
         $breached->markSecretChanged($this->clock->now());
-        self::assertTrue($this->byTitle($reporter->forScope(new TestUser('1'), self::SCOPE)->items)['Breached']->breached);
+        self::assertTrue($this->byTitle($reporter->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE)->items)['Breached']->breached);
         self::assertSame(6, $checker->calls);
         foreach ($cache->getValues() as $key => $value) {
             self::assertStringNotContainsString($this->marker, $key . serialize($value));
@@ -241,26 +243,26 @@ final class VaultHealthReporterTest extends TestCase
         $this->item('A', 'x');
         $this->item('B', 'y');
         try {
-            $this->reporter(maxItems: 1)->forScope(new TestUser('1'), self::SCOPE);
+            $this->reporter(maxItems: 1)->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE);
             self::fail('Too large');
         } catch (VaultHealthTooLargeException $exception) {
             self::assertStringContainsString('2 login items', $exception->getMessage());
         }
 
         $this->members['3'][self::SCOPE] = new VaultScopeAccess(VaultPermission::Read, health: false);
-        $this->assertDenied(fn (): VaultHealthReport => $this->reporter()->forScope(new TestUser('3'), self::SCOPE));
-        $this->assertDenied(fn (): VaultHealthReport => $this->reporter()->forScope(new TestUser('9'), self::SCOPE));
+        $this->assertDenied(fn (): VaultHealthReport => $this->reporter()->reportForScope(VaultUserRefs::fromUser(new TestUser('3')), self::SCOPE));
+        $this->assertDenied(fn (): VaultHealthReport => $this->reporter()->reportForScope(VaultUserRefs::fromUser(new TestUser('9')), self::SCOPE));
 
         $this->dispatcher->addListener(VaultEvents::HEALTH_ACCESS_CHECK, static function (VaultHealthAccessCheckEvent $event): void {
             self::assertSame('scope:org-1', $event->getOwnerKey());
-            if ($event->getUser()->getUserIdentifier() === 'u3@example.com') {
+            if ($event->getUserRef()->identifier === 'u3@example.com') {
                 $event->grant();
             } else {
                 $event->deny();
             }
         });
-        self::assertSame(2, $this->reporter()->forScope(new TestUser('3', 'u3@example.com'), self::SCOPE)->examined);
-        $this->assertDenied(fn (): VaultHealthReport => $this->reporter()->forScope(new TestUser('1'), self::SCOPE));
+        self::assertSame(2, $this->reporter()->reportForScope(VaultUserRefs::fromUser(new TestUser('3', 'u3@example.com')), self::SCOPE)->examined);
+        $this->assertDenied(fn (): VaultHealthReport => $this->reporter()->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE));
     }
 
     public function testPersonalVaultAndPolicies(): void
@@ -273,14 +275,14 @@ final class VaultHealthReporterTest extends TestCase
         $crypto   = $this->crypto();
         $reporter = new VaultHealthReporter($repository, $this->guard(), $crypto, $this->dispatcher, new ConfigVaultPasswordPolicyResolver(new VaultPasswordPolicy(4, 1, null)), clock: $this->clock);
 
-        $report = $reporter->forPersonalVault($owner);
+        $report = $reporter->reportForPersonalVault(VaultUserRefs::fromUser($owner));
         self::assertSame('user:5', $report->owner->key());
         self::assertFalse($report->items[0]->weak, 'Policy: 4 characters, 1 class.');
         self::assertFalse($report->items[0]->old, 'No max age.');
-        self::assertTrue($reporter->forPersonalVault($owner, new VaultPasswordPolicy(20, 4))->items[0]->weak, 'An explicit policy wins.');
+        self::assertTrue($reporter->reportForPersonalVault(VaultUserRefs::fromUser($owner), new VaultPasswordPolicy(20, 4))->items[0]->weak, 'An explicit policy wins.');
 
         $this->expectException(LogicException::class);
-        $reporter->forScope(new TestUser('1'), self::SCOPE);
+        $reporter->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE);
     }
 
     public function testThe119PortTakesFrameworkFreeReferences(): void
@@ -290,9 +292,9 @@ final class VaultHealthReporterTest extends TestCase
         $this->payloads[$items[0]->getId()] = ['password' => 'short'];
         $repository                         = $this->createStub(VaultItemRepositoryInterface::class);
         $repository->method('findByCreatorAndItemType')->willReturn($items);
-        $locator = $this->createStub(VaultUserLocatorInterface::class);
-        $locator->method('find')->willReturnCallback(static fn (string $id): ?TestUser => $id === '5' ? $owner : null);
-        $reporter = new VaultHealthReporter($repository, $this->guard(), $this->crypto(), $this->dispatcher, new ConfigVaultPasswordPolicyResolver(), clock: $this->clock, refs: new VaultUserRefResolver($locator));
+        $locator = $this->createStub(VaultUserDirectoryInterface::class);
+        $locator->method('findUser')->willReturnCallback(static fn (string $id): ?VaultUserRef => $id === '5' ? VaultUserRefs::fromUser($owner) : null);
+        $reporter = new VaultHealthReporter($repository, $this->guard(), $this->crypto(), $this->dispatcher, new ConfigVaultPasswordPolicyResolver(), clock: $this->clock, refs: new VaultUserRefResolver(new VaultUserLocatorGate($locator)));
 
         self::assertSame('user:5', $reporter->reportForPersonalVault(VaultUserRefs::fromUser($owner))->owner->key());
         self::assertSame('user:5', $reporter->reportForPersonalVault(VaultUserRef::ofId('5'))->owner->key(), 'a reference by id, resolved through the locator');
@@ -326,7 +328,7 @@ final class VaultHealthReporterTest extends TestCase
             }
         };
 
-        $report = $this->reporter(evaluator: $evaluator)->forScope(new TestUser('1'), self::SCOPE);
+        $report = $this->reporter(evaluator: $evaluator)->reportForScope(VaultUserRefs::fromUser(new TestUser('1')), self::SCOPE);
         self::assertSame(['require_digit', 'min_classes'], $report->items[0]->weakReasons);
         self::assertSame(12, $evaluator->minLength);
     }
@@ -392,18 +394,18 @@ final class VaultHealthReporterTest extends TestCase
 
     private function guard(): VaultAccessGuard
     {
-        $resolver = new class(fn (string $id, string $scope): ?VaultScopeAccess => $this->members[$id][$scope] ?? null) implements VaultScopeAccessResolverInterface {
+        $resolver = new class(fn (string $id, string $scope): ?VaultScopeAccess => $this->members[$id][$scope] ?? null) implements VaultScopeAccessProviderInterface {
             public function __construct(private readonly Closure $lookup)
             {
             }
 
-            public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
+            public function scopeAccessOf(VaultUserRef $user, string $scope): ?VaultScopeAccess
             {
-                return ($this->lookup)($user instanceof TestUser ? $user->getId() : '', $scope);
+                return ($this->lookup)($user->id ?? '', $scope);
             }
         };
 
-        return new VaultAccessGuard($this->grants, new NullVaultTeamMembershipResolver(), $this->dispatcher, new RequestScopedScopeAccessCache($resolver), $this->clock);
+        return new VaultAccessGuard($this->grants, new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $this->dispatcher, new RequestScopedScopeAccessCache(new VaultScopeAccessGate($resolver)), $this->clock);
     }
 
     private function reporter(?VaultBreachCheckerInterface $breachChecker = null, ?ArrayAdapter $cache = null, int $maxItems = 2000, ?object $evaluator = null): VaultHealthReporter

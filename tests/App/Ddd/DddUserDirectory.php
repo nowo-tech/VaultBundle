@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Tests\App\Ddd;
 
-use Nowo\VaultBundle\Support\VaultUserLocatorInterface;
+use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
@@ -13,22 +14,22 @@ use function str_starts_with;
 use function substr;
 
 /**
- * The DDD host's user directory (1.17.0 tests): the security user provider and the vault user locator port, backed
+ * The DDD host's user directory (1.17.0 tests): the security user provider and the vault user directory port, backed
  * by a fixed list (no Doctrine). Users of {@see OtherDomainUser} sign in with an `admin-` prefix; `id:<id>` signs in a
  * {@see DddUser} with that exact id.
  *
  * @implements UserProviderInterface<UserInterface>
  */
-final class DddUserDirectory implements UserProviderInterface, VaultUserLocatorInterface
+final class DddUserDirectory implements UserProviderInterface, VaultUserDirectoryInterface
 {
     public const ALICE = '0b5f2c1e-1111-4a1a-8a1a-000000000001';
     public const BOB   = '0b5f2c1e-2222-4a1a-8a1a-000000000002';
 
-    public function find(string $id): ?UserInterface
+    public function findUser(string $id): ?VaultUserRef
     {
         foreach (self::users() as $user) {
             if ($user->getId() === $id) {
-                return $user;
+                return new VaultUserRef($user->getId(), $user->getUserIdentifier(), $user->getRoles(), $user);
             }
         }
 

@@ -10,10 +10,10 @@ use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultItemReadOnlyEvent;
+use Nowo\VaultBundle\Port\VaultTeamMembershipGate;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Security\NullVaultTeamMembershipResolver;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
-use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -28,7 +28,7 @@ final class VaultAccessGuardTest extends TestCase
             $event->markReadOnly();
         });
 
-        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new NullVaultTeamMembershipResolver(), $dispatcher);
+        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $dispatcher);
         $user  = new TestUser('42');
         $item  = new VaultItem(VaultItemType::Login, 'Demo', $user, 'cipher');
 
@@ -47,7 +47,7 @@ final class VaultAccessGuardTest extends TestCase
             }
         });
 
-        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new NullVaultTeamMembershipResolver(), $dispatcher);
+        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $dispatcher);
         $user  = new TestUser('7');
         $item  = new VaultItem(VaultItemType::SecureNote, 'Note', $user, 'cipher');
 
@@ -64,7 +64,7 @@ final class VaultAccessGuardTest extends TestCase
             }
         });
 
-        $guard  = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new NullVaultTeamMembershipResolver(), $dispatcher);
+        $guard  = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $dispatcher);
         $user   = new TestUser('1');
         $open   = new VaultItem(VaultItemType::Login, 'open', $user, 'c1');
         $locked = new VaultItem(VaultItemType::Login, 'locked', $user, 'c2');
@@ -85,7 +85,7 @@ final class VaultAccessGuardTest extends TestCase
             }
         });
 
-        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new NullVaultTeamMembershipResolver(), $dispatcher);
+        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $dispatcher);
         $user  = new TestUser('42');
         $item  = new VaultItem(VaultItemType::Login, 'Demo', $user, 'cipher');
 
@@ -106,12 +106,12 @@ final class VaultAccessGuardTest extends TestCase
     {
         $dispatcher = new EventDispatcher();
         $dispatcher->addListener(VaultEvents::ITEM_READ_ONLY_RESOLVE, static function (VaultItemReadOnlyEvent $event): void {
-            if (UserIdResolver::getId($event->getUser()) === '2') {
+            if ($event->getUserId() === '2') {
                 $event->markReadOnly();
             }
         });
 
-        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new NullVaultTeamMembershipResolver(), $dispatcher);
+        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $dispatcher);
         $owner = new TestUser('1');
         $other = new TestUser('2');
         $item  = new VaultItem(VaultItemType::Login, 'Demo', $owner, 'cipher');
@@ -128,7 +128,7 @@ final class VaultAccessGuardTest extends TestCase
             $event->markReadOnly();
         });
 
-        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new NullVaultTeamMembershipResolver(), $dispatcher);
+        $guard = new VaultAccessGuard($this->createMock(VaultGrantRepositoryInterface::class), new VaultTeamMembershipGate(new NullVaultTeamMembershipResolver()), $dispatcher);
         $user  = new InMemoryUser('anonymous', null);
         $item  = new VaultItem(VaultItemType::Login, 'Demo', new TestUser('1'), 'cipher');
 

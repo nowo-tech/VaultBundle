@@ -6,7 +6,6 @@ namespace Nowo\VaultBundle\Tests\App\EventSubscriber;
 
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemReadOnlyEvent;
-use Nowo\VaultBundle\Support\UserIdResolver;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 use function str_starts_with;
@@ -26,7 +25,7 @@ final class ReadOnlyTitleSubscriber implements EventSubscriberInterface
     public function onReadOnlyResolve(VaultItemReadOnlyEvent $event): void
     {
         $item = $event->getItem();
-        if (str_starts_with($item->getTitle(), self::PREFIX) && !UserIdResolver::isSameUser($item->getCreator(), $event->getUser())) {
+        if (str_starts_with($item->getTitle(), self::PREFIX) && $item->getCreatorId() !== $event->getUserId()) {
             $event->markReadOnly();
         }
     }

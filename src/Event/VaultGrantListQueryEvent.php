@@ -43,16 +43,6 @@ final class VaultGrantListQueryEvent extends Event
     }
 
     /**
-     * Returns the user that is sharing the resource.
-     *
-     * @deprecated since 1.19.0, use getGrantedByRef() / getGrantedById() (no Symfony type, REQ-ARCH-001 rule 3); removed in 2.0
-     */
-    public function getGrantedBy(): UserInterface
-    {
-        return $this->grantedBy;
-    }
-
-    /**
      * Returns the shared resource type.
      */
     public function getResourceType(): VaultResourceType

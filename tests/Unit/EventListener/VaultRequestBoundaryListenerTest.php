@@ -7,11 +7,13 @@ namespace Nowo\VaultBundle\Tests\Unit\EventListener;
 use Nowo\VaultBundle\DependencyInjection\VaultExtension;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\EventListener\VaultRequestBoundaryListener;
+use Nowo\VaultBundle\Port\VaultScopeAccessGate;
 use Nowo\VaultBundle\Security\RequestScopedScopeAccessCache;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
 use Nowo\VaultBundle\Tests\Stub\TestUser;
 use Nowo\VaultBundle\Tests\Support\SodiumVaultPayloadCryptographerTestKey;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
@@ -22,7 +24,6 @@ use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_column;
 use function in_array;
@@ -117,16 +118,16 @@ final class VaultRequestBoundaryListenerTest extends TestCase
      */
     private function listener(): array
     {
-        $cache = new RequestScopedScopeAccessCache(new class($this) implements VaultScopeAccessResolverInterface {
+        $cache = new RequestScopedScopeAccessCache(new VaultScopeAccessGate(new class($this) implements VaultScopeAccessProviderInterface {
             public function __construct(private readonly VaultRequestBoundaryListenerTest $test)
             {
             }
 
-            public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
+            public function scopeAccessOf(VaultUserRef $user, string $scope): ?VaultScopeAccess
             {
                 return $this->test->lookup($scope);
             }
-        });
+        }));
 
         return [$cache, new VaultRequestBoundaryListener([$cache])];
     }

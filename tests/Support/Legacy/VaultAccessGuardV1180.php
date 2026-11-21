@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Literal copy of v1.18.0 src/Service/VaultAccessGuard.php (equivalence reference of 1.19.0): only the namespace, the class name and the
-// imports differ. Never edit the logic.
+// imports differ (since 2.0 the removed port interfaces are their test copies, *InterfaceV1180). Never edit the logic.
 
 namespace Nowo\VaultBundle\Tests\Support\Legacy;
 
@@ -22,7 +22,6 @@ use Nowo\VaultBundle\Event\VaultItemReadOnlyEvent;
 use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultTeamMembershipResolverInterface;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
@@ -48,7 +47,7 @@ final readonly class VaultAccessGuardV1180
      */
     public function __construct(
         private VaultGrantRepositoryInterface $grantRepository,
-        private VaultTeamMembershipResolverInterface $teamMembershipResolver,
+        private VaultTeamMembershipResolverInterfaceV1180 $teamMembershipResolver,
         private EventDispatcherInterface $eventDispatcher,
         private ?RequestScopedScopeAccessCacheV1180 $scopeAccess = null,
         private ?ClockInterface $clock = null,

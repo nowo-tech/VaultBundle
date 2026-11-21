@@ -23,13 +23,9 @@ residual risks.
   item and its tags (create and edit), a scope item with its catalogue flag and tags, and a folder trash with the items
   it detaches. The other writes are one `flush()` or one SQL statement each, which the database runs in one
   transaction (see the table). Grant revocations and purges already ran in `wrapInTransaction()`.
-- **Your entity manager is never cleared or reset while it is open.** With the private entity manager
-  (`database.private_entity_manager: true`, recommended) the vault writes only through its own manager, and a failed
-  unit clears or recreates only that one. In the deprecated 1.18 mode the vault writes through
-  `database.entity_manager`, the application's manager: the write unit then uses
-  `DoctrineTransactionRunner::forHostEntityManager()`, which never closes, clears or resets an open manager and replaces
-  a closed one through the registry. It refuses to start while that manager holds changes the application did not
-  flush (LogicException), since a failed unit would otherwise drop them.
+- **Your entity manager is never flushed, cleared or reset.** The vault writes only through its own private entity
+  manager (the only mode since 2.0), and a failed unit clears or recreates only that one. Changes your application left
+  pending in its own manager stay pending.
 - **Nested units repair themselves.** Inside an application transaction a unit is a savepoint: after a failure the
   runner rolls back to it and repairs the nesting level (savepoint-aware; a lost savepoint after a MySQL deadlock is
   never treated as success). The vault's DBAL and bulk DQL writes inside an application transaction already used their
@@ -135,8 +131,7 @@ nowo_vault:
   vault keeps its own ledger (audit UE3-CF-2).
 - `bundle` wraps the connection of `database.entity_manager` and of every other manager whose mapping covers
   `Nowo\VaultBundle\Entity` (audit UE3-CF-1); never the host's other connections.
-- `database.private_entity_manager: true` (recommended) makes the write unit run on the vault's own manager; in the
-  deprecated 1.18 mode it runs on yours and refuses to start over your unflushed changes.
+- The write unit runs on the vault's own manager (since 2.0 always; the 1.18 mode on yours was removed).
 - A host that answers 503 for lock conflicts sets `status: 503`; the codes and headers stay the same.
 
 ## Retries
@@ -145,7 +140,7 @@ nowo_vault:
   first.
 - The vault's write unit runs once (no automatic retry). It is a `DoctrineTransactionRunner`, not transaction-doctrine's
   replaying `WriteUnit`, so `forManagers()` does not apply: the runner only ever repairs the manager it runs on (the
-  vault's private manager, or forgets its own entities in yours in the 1.18 mode). A kernel test checks that a failed
+  vault's private manager). A kernel test checks that a failed
   unit writes only through the vault's manager (transaction-doctrine audit UI2-1).
 - Conflicts are detected through transaction-doctrine's bounded walk (`findConflict()`, `ThrowableWalk`, 1.7.1): the
   `getPrevious()` chain and Messenger's wrapped exceptions, each throwable once, at most 256. A host that aliases nowo-tech/transaction-contract's runner to
@@ -159,7 +154,7 @@ nowo_vault:
 
 - `tests/E2E/VaultConcurrencyDatabaseTest.php` (group `database`): two connections (a second connection of the test,
   and a separate PHP process for the writer that commits while the request waits) on MySQL 8.4, MariaDB 11.4 and
-  PostgreSQL 16, with the private entity manager and in the 1.18 mode:
+  PostgreSQL 16, with the private entity manager:
   - a page opened before another save is refused (`VAULT_ITEM_CHANGED`) and the other save is kept;
   - a save that waits for another one keeps that one's password (no lost update);
   - a locked item answers 409 `CONFLICT_001` + `Retry-After` with nothing saved, and the retry works on the same
@@ -171,7 +166,8 @@ nowo_vault:
   Every session sets `innodb_lock_wait_timeout` / `lock_timeout`, so a hang fails fast.
 - Unit and kernel tests: the conflict mapping (`VaultConflictListenerTest`: every lock-conflict SQLSTATE / code, 002
   after a commit, JSON shapes, unique violations and lost connections not mapped, host routes untouched), the commit
-  tracking pass, the write unit in both modes (`VaultWriteUnitKernelTest`) and the deferred notifications.
+  tracking pass, the write unit (`VaultWriteUnitKernelTest`, including a unit that leaves the application's pending
+  changes pending) and the deferred notifications.
 - CI job **Databases on MySQL 8.4 / MariaDB 11.4 / PostgreSQL 16 - DBAL 3 / 4** (`--fail-on-skipped`) is a required
   check, with the **Dependency floor** job (lowest nowo-tech/transaction-* versions, demo lock).
 - Locally: `make test-with-db DB=mysql`, `DB=mariadb`, `DB=postgres`.
@@ -191,5 +187,5 @@ nowo_vault:
 - **Inside your transaction.** When you call the vault inside your own transaction, the vault's unit is a savepoint:
   its notifications are dispatched when the savepoint is released, before your commit. If you then roll back, the
   listeners have seen a change that did not happen.
-- **FrankenPHP and the 1.18 mode.** In the 1.18 mode a vault page action refuses to start while your manager holds
-  unflushed changes (LogicException, 500). Use the private entity manager.
+- **Pending changes of your own.** The vault never flushes them (2.0): code that relied on a vault write to flush its
+  own entities must flush them itself (see [UPGRADING](UPGRADING.md#private-manager-only)).

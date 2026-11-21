@@ -21,14 +21,14 @@ use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
 use Nowo\VaultBundle\Form\VaultItemFormType;
 use Nowo\VaultBundle\Form\VaultItemSearchType;
+use Nowo\VaultBundle\Port\VaultAccessCheckerGate;
+use Nowo\VaultBundle\Port\VaultHealthReporterGate;
 use Nowo\VaultBundle\Routing\VaultRouteLoader;
-use Nowo\VaultBundle\Security\VaultAccessCheckerInterface;
 use Nowo\VaultBundle\Security\VaultPasswordPolicyResolverInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultFolderService;
-use Nowo\VaultBundle\Service\VaultHealthReporterInterface;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Service\VaultScopeItemLister;
 use Nowo\VaultBundle\Service\VaultTagService;
@@ -70,7 +70,7 @@ final class VaultScopeController extends AbstractController
      * Stores the scope collaborators and the deny status.
      */
     public function __construct(
-        private readonly VaultAccessCheckerInterface $accessChecker,
+        private readonly VaultAccessCheckerGate $accessChecker,
         private readonly VaultAccessGuard $accessGuard,
         private readonly VaultScopeItemLister $scopeItemLister,
         private readonly VaultItemCreator $itemCreator,
@@ -85,7 +85,7 @@ final class VaultScopeController extends AbstractController
         private readonly ?VaultPageFactory $pageFactory = null,
         private readonly ?VaultCatalogue $catalogue = null,
         private readonly int $cataloguePerPage = 50,
-        private readonly ?VaultHealthReporterInterface $healthReporter = null,
+        private readonly ?VaultHealthReporterGate $healthReporter = null,
         private readonly ?VaultPasswordPolicyResolverInterface $passwordPolicyResolver = null,
         /** 1.20: one transaction per item save (REQ-RUNTIME-003). */
         private readonly ?VaultWriteUnit $writeUnit = null,
@@ -205,7 +205,7 @@ final class VaultScopeController extends AbstractController
         $user = $this->member($scope);
 
         try {
-            $report = ($this->healthReporter ?? throw new LogicException('The scope health page needs the VaultHealthReporterInterface service.'))->forScope($user, $scope);
+            $report = ($this->healthReporter ?? throw new LogicException('The scope health page needs the health report port (VaultHealthReportProviderInterface).'))->forScope($user, $scope);
         } catch (VaultAccessDeniedException) {
             throw $this->denied();
         } catch (VaultHealthThrottledException $exception) {

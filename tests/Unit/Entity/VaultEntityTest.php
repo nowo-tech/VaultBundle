@@ -26,7 +26,7 @@ final class VaultEntityTest extends TestCase
 
         self::assertSame(VaultItemType::Login, $item->getItemType());
         self::assertSame('cipher', $item->getCiphertext());
-        self::assertSame($user, $item->getCreator());
+        self::assertSame($user, $item->getOwner()->getUser());
         self::assertSame($folder, $item->getFolder());
         self::assertFalse($item->isDeleted());
 
@@ -52,7 +52,7 @@ final class VaultEntityTest extends TestCase
 
         self::assertSame('Child', $folder->getName());
         self::assertSame($parent, $folder->getParent());
-        self::assertSame($user, $folder->getCreator());
+        self::assertSame($user, $folder->getOwner()->getUser());
         self::assertNotNull($folder->getCreatedAt());
         self::assertNotNull($folder->getUpdatedAt());
 
@@ -117,7 +117,7 @@ final class VaultEntityTest extends TestCase
         $tag  = new VaultTag('personal', $user);
 
         self::assertSame('personal', $tag->getName());
-        self::assertSame($user, $tag->getCreator());
+        self::assertSame($user, $tag->getOwner()->getUser());
         self::assertNotNull($tag->getCreatedAt());
         self::assertSame([], iterator_to_array($tag->getItems()));
     }

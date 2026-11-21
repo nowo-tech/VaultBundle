@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Tests\Integration;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultItem;
 use Nowo\VaultBundle\Enum\VaultItemType;
@@ -65,7 +66,7 @@ final class VaultAcceptedUserClassesIntegrationTest extends KernelTestCase
         self::assertInstanceOf(VaultItemCreator::class, $creator);
 
         $item = $creator->create(VaultItemType::Login, 'Bank', $wrapper, ['password' => 'p']);
-        self::assertInstanceOf(User::class, $item->getCreator(), 'Replaced by a user_class reference at persist.');
+        self::assertInstanceOf(User::class, $item->getOwner()->getUser(), 'Replaced by a user_class reference at persist.');
         self::assertSame((string) $id, $item->getCreatorId());
 
         $this->em->clear();
@@ -82,9 +83,11 @@ final class VaultAcceptedUserClassesIntegrationTest extends KernelTestCase
         $folders = self::getContainer()->get(VaultFolderService::class);
         self::assertInstanceOf(VaultFolderService::class, $folders);
         $folder = new VaultFolder('Work', (string) $this->alice->getId());
-        $this->em->persist($folder);
-        $this->em->flush();
-        $this->em->clear();
+        $vault  = self::getContainer()->get(VaultEntityManager::class);
+        self::assertInstanceOf(VaultEntityManager::class, $vault);
+        $vault->persist($folder);
+        $vault->flush();
+        $vault->clear();
 
         self::assertSame(['Work'], array_map(static fn (VaultFolder $f): string => $f->getName(), $folders->listForCreator($this->alice)));
         self::assertSame((string) $this->alice->getId(), $folders->listForCreator($this->alice)[0]->getCreatorId());

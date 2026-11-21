@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Ui;
 
+use LogicException;
 use Nowo\UiKitBundle\View\Label;
 use Throwable;
 use Twig\Environment;
 
-use function trigger_deprecation;
+use function sprintf;
 
 /**
  * Page plumbing of the UiKit page contract (REQ-UI-003): the page templates (`web_ui.templates.<page>` overrides
- * them), the layout the manage pages extend (`web_ui.layout_template`, null = `nowo_ui_kit.layouts.admin`) and the
- * deprecated bridge around a 1.x layout (no UiKit canonical blocks), the share UI switch and the host note template
- * (1.18.0). Configuration only: no request state, safe in worker mode.
+ * them), the layout the manage pages extend (`web_ui.layout_template`, null = `nowo_ui_kit.layouts.admin`), the share
+ * UI switch and the host note template (1.18.0). Configuration only: no request state, safe in worker mode.
+ *
+ * Since 2.0 a configured layout must render the UiKit canonical blocks: the 1.x bridge around a layout that renders
+ * `{% block body %}` was removed, and such a layout fails the page with a {@see LogicException} that says what to do.
  */
 final readonly class VaultPages
 {
@@ -23,9 +26,6 @@ final readonly class VaultPages
 
     /** Translation domain of the bundle labels (REQ-I18N-003). */
     public const DOMAIN = 'NowoVaultBundle';
-
-    /** BC bridge around a 1.x layout that renders `{% block body %}` (removed in 2.0). */
-    public const LEGACY_LAYOUT_BRIDGE = '@NowoVaultBundle/vault/_legacy_layout.html.twig';
 
     /** Form theme of the item form when nowo-tech/tag-input-bundle is installed (tag container markup). */
     public const ITEM_FORM_THEME = '@NowoVaultBundle/Form/vault_item_form_theme.html.twig';
@@ -57,9 +57,6 @@ final readonly class VaultPages
 
     /** A layout that defines this block renders the UiKit canonical blocks. */
     private const CANONICAL_BLOCK = 'nowo_ui_page_header';
-
-    /** Canonical blocks a 1.x layout may already render (the bridge skips them). */
-    private const LEGACY_HOST_BLOCKS = ['nowo_ui_flashes', 'nowo_ui_styles', 'nowo_ui_scripts'];
 
     /**
      * Keeps the layout, the page templates, the share UI switch and the host note template.
@@ -103,8 +100,9 @@ final readonly class VaultPages
     }
 
     /**
-     * Layout the scaffolds extend (`page.layout`): `web_ui.layout_template`, the legacy bridge for a 1.x layout, else
-     * null (UiKit `nowo_ui_layout.admin`).
+     * Layout the scaffolds extend (`page.layout`): `web_ui.layout_template`, else null (UiKit `nowo_ui_layout.admin`).
+     *
+     * @throws LogicException when the configured layout does not render the UiKit canonical blocks (a 1.x layout)
      */
     public function layout(): ?string
     {
@@ -112,12 +110,15 @@ final readonly class VaultPages
             return null;
         }
 
-        return $this->legacy($this->layoutTemplate) !== null ? self::LEGACY_LAYOUT_BRIDGE : $this->layoutTemplate;
+        if ($this->isLegacy($this->layoutTemplate)) {
+            throw new LogicException(sprintf('The layout "%s" (nowo_vault.web_ui.layout_template) does not render the UiKit canonical blocks (nowo_ui_page_header, nowo_ui_content, ...). The bridge around 1.x layouts was removed in 2.0 (deprecated since 1.15): render the canonical blocks, extend @NowoUiKit/layout/admin.html.twig, or set nowo_vault.web_ui.layout_template to null to use nowo_ui_kit.layouts.admin. See UPGRADING.md "To 2.0.0".', $this->layoutTemplate));
+        }
+
+        return $this->layoutTemplate;
     }
 
     /**
-     * Page variables plus the shared ones: the 1.x layout wrapped by the deprecated bridge and the canonical blocks
-     * it already renders.
+     * Page variables plus the shared ones (the host note slot and the share UI switch).
      *
      * @param array<string, mixed> $vars page variables
      *
@@ -125,11 +126,7 @@ final readonly class VaultPages
      */
     public function context(array $vars): array
     {
-        $legacy = $this->layoutTemplate !== null && $this->layoutTemplate !== '' ? $this->legacy($this->layoutTemplate, false) : null;
-
         return $vars + [
-            'nowo_vault_legacy_layout' => $legacy,
-            'nowo_vault_legacy_blocks' => $this->hostBlocks($legacy),
             // 1.18.0: the host note slot (vault_host_note block) and the share UI switch of the templates.
             'nowo_vault_host_note_template' => $this->hostNoteTemplate !== '' ? $this->hostNoteTemplate : null,
             'nowo_vault_sharing_enabled'    => $this->sharingEnabled,
@@ -137,51 +134,19 @@ final readonly class VaultPages
     }
 
     /**
-     * Canonical blocks a 1.x layout defines itself (the bridge does not render them a second time).
-     *
-     * @return list<string>
+     * Whether the configured layout is a 1.x layout: it loads and does not define the UiKit canonical blocks. A layout
+     * that cannot be loaded is left to Twig (the page fails with Twig's own error).
      */
-    private function hostBlocks(?string $legacy): array
-    {
-        if ($legacy === null || !$this->twig instanceof Environment) {
-            return [];
-        }
-
-        $template = $this->twig->load($legacy);
-        $context  = $this->twig->getGlobals();
-        $blocks   = [];
-        foreach (self::LEGACY_HOST_BLOCKS as $block) {
-            if ($template->hasBlock($block, $context)) {
-                $blocks[] = $block;
-            }
-        }
-
-        return $blocks;
-    }
-
-    /**
-     * The configured layout when it is a 1.x layout (it does not define the UiKit canonical blocks), else null.
-     */
-    private function legacy(string $layout, bool $deprecate = true): ?string
+    private function isLegacy(string $layout): bool
     {
         if (!$this->twig instanceof Environment) {
-            return null;
+            return false;
         }
 
         try {
-            $canonical = $this->twig->load($layout)->hasBlock(self::CANONICAL_BLOCK, $this->twig->getGlobals());
+            return !$this->twig->load($layout)->hasBlock(self::CANONICAL_BLOCK, $this->twig->getGlobals());
         } catch (Throwable) {
-            return null;
+            return false;
         }
-
-        if ($canonical) {
-            return null;
-        }
-
-        if ($deprecate) {
-            trigger_deprecation('nowo-tech/vault-bundle', '1.15', 'The layout "%s" does not render the UiKit canonical blocks (nowo_ui_page_header, nowo_ui_content, ...); it is wrapped in a deprecated bridge. Render the canonical blocks (or extend @NowoUiKit/layout/admin.html.twig) or set nowo_vault.web_ui.layout_template to null to use nowo_ui_kit.layouts.admin; see docs/UPGRADING.md.', $layout);
-        }
-
-        return $layout;
     }
 }
