@@ -19,7 +19,6 @@
 - [Events](#events)
 - [Lists and pagination](#lists-and-pagination)
 - [Twig overrides](#twig-overrides)
-  - [Forms in templates (REQ-TWIG-005)](#forms-in-templates-req-twig-005)
 - [Translations](#translations)
 - [Standard Symfony host](#standard-symfony-host)
 - [DDD / hexagonal host](#ddd--hexagonal-host)
@@ -70,7 +69,7 @@ Listen to `VaultEvents::GRANT_LIST_QUERY` to limit which users and teams appear 
 that do not offer sharing yet, e.g. before a `GRANT_LIST_QUERY` listener exists. See
 [CONFIGURATION](CONFIGURATION.md#sharing-sharing).
 
-Team membership is resolved via `VaultTeamMembershipResolverInterface` (configure `nowo_vault.team_membership_resolver`).
+Team membership is resolved via `VaultTeamMembershipProviderInterface` (configure `nowo_vault.team_membership_resolver`).
 
 ## Scope vaults
 
@@ -259,7 +258,7 @@ decrypts each examined password, so it is limited to one per viewer and owner pe
 directly, for example for the personal vault:
 
 ```php
-$report = $healthReporter->forPersonalVault($user);   // VaultHealthReporterInterface
+$report = $healthReporter->reportForPersonalVault(VaultUserRef::ofId($userId)); // VaultHealthReportProviderInterface
 foreach ($report->items as $result) {                  // VaultHealthItemResult: flags, never a value
     // $result->itemId, $result->weak, $result->weakReasons, $result->reuseGroup, $result->old, $result->breached
 }
@@ -302,34 +301,39 @@ never scope items) from `/tools/vault/export`, after a fresh re-authentication t
 the hook:
 
 ```php
-final class ReauthChecker implements VaultReauthenticationCheckerInterface
+final class ReauthChecker implements VaultReauthenticationProviderInterface
 {
-    public function getProof(UserInterface $user, Request $request, string $purpose): ?VaultReauthProof
+    public function proofFor(VaultReauthContext $context): ?VaultReauthProof
     {
-        $step = $this->reauthStore->latest($user, $request->getSession(), $purpose); // your re-auth step, not the login
+        $userId = $context->user?->id;      // VaultUserRef of the signed-in user ($context->user->user() is your user object)
+        if ($userId === null) {
+            return null;
+        }
+        // Your re-auth step (not the login), bound to the session: $context->sessionBinding() is hash('sha256', session id).
+        $step = $this->reauthStore->latest($userId, $context->sessionBinding(), $context->purpose);
         if ($step === null || $step->used) {
             return null;
         }
 
         return new VaultReauthProof(
             $step->id,
-            (string) $user->getId(),
-            $purpose,                       // 'nowo_vault.personal_export'
+            $userId,
+            $context->purpose,              // 'nowo_vault.personal_export'
             $step->verifiedAt,              // when the factors below were verified in that step
             $step->factors,                 // e.g. ['password', 'totp']
-            $this->mfa->isEnrolled($user),  // read from the store, not from the session
-            hash('sha256', $request->getSession()->getId()),
+            $this->mfa->isEnrolled($userId), // read from the store, not from the session
+            $context->sessionBinding(),
         );
     }
 
-    public function consume(VaultReauthProof $proof): void
+    public function consumeProof(VaultReauthProof $proof): void
     {
         $this->reauthStore->markUsed($proof->proofId);
     }
 
-    public function getReauthenticationUrl(Request $request, string $purpose, string $returnTo): string
+    public function reauthenticationUrl(VaultReauthContext $context, string $returnTo): string
     {
-        return $this->urls->generate('app_reauth', ['purpose' => $purpose, 'return' => $returnTo]);
+        return $this->urls->generate('app_reauth', ['purpose' => $context->purpose, 'return' => $returnTo]);
     }
 }
 ```
@@ -370,7 +374,7 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 Since 1.19.0 every hook event that carries the user also gives it as a framework-free `VaultUserRef`
 (`getUserRef()` / `getUserId()`; `getViewerRef()`, `getActorRef()`, `getGrantedByRef()`, `getListSubjectRef()` on the
 list, policy and share events) and the ids of its resources (`getItemId()`, `getFolderId()`, `getOwnerKey()`,
-`VaultItemListResultEvent::getItemIds()`). The `UserInterface` getters are deprecated (removed in 2.0).
+`VaultItemListResultEvent::getItemIds()`). The `UserInterface` getters were removed in 2.0 (deprecated since 1.19).
 
 ## Lists and pagination
 
@@ -420,7 +424,6 @@ Registration: `TwigPathsPass` prepends `templates/bundles/NowoVaultBundle/` (whe
 | `vault/share.html.twig` | Share form + current grants of an item or folder — `page/form` (+ aside table) |
 | `vault/runtime_config.html.twig` | Database-backed runtime configuration — `page/settings` |
 | `vault/_password_generator.html.twig` | Password generator body (UiKit `dialog` partial) |
-| `vault/_legacy_layout.html.twig` | Deprecated bridge around a 1.x layout (removed in 2.0) |
 | `Form/vault_item_form_theme.html.twig` | Tag input container of the item form (with `nowo-tech/tag-input-bundle`) |
 
 Data blocks, view-model fields and the page → scaffold map: [TEMPLATES.md](TEMPLATES.md).
@@ -489,8 +492,6 @@ the vault user.
 nowo_vault:
     user_class: App\Entity\User
     encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
-    database:
-        private_entity_manager: true   # 1.19.0, recommended: the vault never flushes your entity manager
 ```
 
 If your security user is not that entity (a JWT user, a wrapper, a read model carrying the entity id), list its class:
@@ -503,10 +504,10 @@ nowo_vault:
 ```
 
 Customise access with services named in the configuration (`security.access_checker`, `team_membership_resolver`,
-`scopes.access_resolver`, `export.reauth_checker`, `health.policy_resolver`, `health.breach_checker`). Since 1.19.0
-implement the framework-free interfaces (`VaultAccessPolicyInterface`, `VaultTeamMembershipProviderInterface`,
-`VaultScopeAccessProviderInterface`, `VaultReauthenticationProviderInterface`); a service implementing only the
-deprecated 1.18 interface keeps working with a deprecation. Inside your adapter `$ref->user()` is your security user.
+`scopes.access_resolver`, `export.reauth_checker`, `health.policy_resolver`, `health.breach_checker`): they implement
+the framework-free interfaces (`VaultAccessPolicyInterface`, `VaultTeamMembershipProviderInterface`,
+`VaultScopeAccessProviderInterface`, `VaultReauthenticationProviderInterface`; the 1.x interfaces taking
+`UserInterface` were removed in 2.0). Inside your adapter `$ref->user()` is your security user.
 
 ```php
 final readonly class TeamsFromMyDirectory implements VaultTeamMembershipProviderInterface
@@ -520,13 +521,12 @@ final readonly class TeamsFromMyDirectory implements VaultTeamMembershipProvider
 }
 ```
 
-**Writes and your unit of work.** With `database.private_entity_manager: true` the vault reads and writes its rows
-through its own entity manager on the connection of `database.entity_manager`: a vault write never flushes your
-pending changes and a failed vault write never closes your manager. Load vault rows through the vault repositories and
-services (not through your own manager), change them through the vault services, and reference them by id from your
-entities (see [UPGRADING](UPGRADING.md#private-entity-manager-opt-in)). A transaction you open on the connection
-includes the vault's rows. Unset, the vault keeps the 1.18 behaviour (it flushes `database.entity_manager`, a
-deprecation tells you so).
+**Writes and your unit of work.** The vault reads and writes its rows through its own entity manager on the
+connection of `database.entity_manager`: a vault write never flushes your pending changes and a failed vault write
+never closes your manager. Load vault rows through the vault repositories and services (not through your own
+manager), change them through the vault services, and reference them by id from your entities, or with
+`$yourEntityManager->getReference(VaultItem::class, $id)` (see [UPGRADING](UPGRADING.md#private-manager-only)). A
+transaction you open on the connection includes the vault's rows.
 
 React to vault activity through the id-only events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`,
 `ITEM_REVEALED`, `PERSONAL_DATA_ERASED`; see [Events](#events)).
@@ -543,7 +543,6 @@ nowo_vault:
     user_class: App\Infrastructure\Security\SecurityUser   # its getId() is stored
     user_mapping: id                                         # string user columns, no relation, no foreign key
     database:
-        private_entity_manager: true                         # the vault's own unit of work
         mapping_type: xml                                    # the shipped XML mapping (or register_mapping: false)
     security:
         access_checker: App\Infrastructure\Vault\VaultAccess
@@ -623,7 +622,7 @@ With `user_mapping: id`:
   zero-width / format, space or other default-ignorable character (such users are refused, never trimmed, normalised
   or truncated; the relation mapping keeps the 1.16 rules); `5` and `"5"` are the same user, `"05"` and
   `"UserA"` / `"usera"` are not. Normalise ids in your own user model if you need case-insensitive identities;
-- the entities return a `VaultUserId` (`getId()`) for `getCreator()`, `getCreatedBy()` and `VaultExtensionToken::getUser()`;
+- the entities return a `VaultUserId` (`getId()`) for `getOwner()->getUser()`, `getCreatedBy()` and `VaultExtensionToken::getUser()`;
   prefer the id accessors (`getCreatorId()`, `getCreatedById()`, `getUserId()`) in your code;
 - deleting a user deletes nothing in the vault: call `VaultPersonalDataEraserInterface::erase($userId)` from your
   "user deleted" handler (see [Personal data](#personal-data)).

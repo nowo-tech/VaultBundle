@@ -89,7 +89,7 @@ security:
         - { path: ^/tools/vault, roles: ROLE_USER }
 ```
 
-See [Configuration](CONFIGURATION.md) for `VaultAccessCheckerInterface` and [Access control events](examples/AccessControl.md) for team/grant/read-only integration via Symfony events.
+See [Configuration](CONFIGURATION.md) for `VaultAccessPolicyInterface` and [Access control events](examples/AccessControl.md) for team/grant/read-only integration via Symfony events.
 
 ## Assets
 

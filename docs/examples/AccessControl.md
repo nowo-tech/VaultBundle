@@ -7,9 +7,7 @@ VaultBundle mirrors the YopassBundle event pattern. Default access is **creator-
 - [Events](#events)
 - [Grant list (share picker)](#grant-list-share-picker)
 - [Read-only mode](#read-only-mode)
-  - [Behaviour](#behaviour)
 - [Scope vaults](#scope-vaults)
-  - [Approving an access request](#approving-an-access-request)
 - [Re-authentication for the decrypted export](#re-authentication-for-the-decrypted-export)
 - [Grants API](#grants-api)
 - [Shared items view](#shared-items-view)
@@ -77,7 +75,7 @@ final class VaultReadOnlyListener
     public function __invoke(VaultItemReadOnlyEvent $event): void
     {
         // Example: shared items from another team are view-only
-        if ($this->teamPolicy->isViewOnlyShare($event->getUser(), $event->getItem())) {
+        if ($this->teamPolicy->isViewOnlyShare($event->getUserId(), $event->getItemId())) {
             $event->markReadOnly();
         }
     }
@@ -104,26 +102,25 @@ request, who belongs to a scope and with which baseline permission:
 ```php
 namespace App\Vault;
 
-use App\Entity\User;
 use App\Repository\ProjectMemberRepository;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
-use Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
 
-final readonly class ProjectScopeAccessResolver implements VaultScopeAccessResolverInterface
+final readonly class ProjectScopeAccessResolver implements VaultScopeAccessProviderInterface
 {
     public function __construct(private ProjectMemberRepository $members)
     {
     }
 
-    public function resolve(UserInterface $user, string $scope): ?VaultScopeAccess
+    public function scopeAccessOf(VaultUserRef $user, string $scope): ?VaultScopeAccess
     {
-        if (!$user instanceof User || !str_starts_with($scope, 'project-')) {
+        if ($user->id === null || !str_starts_with($scope, 'project-')) {
             return null;                                   // never emit user-* keys: personal vaults are not scopes
         }
 
-        $role = $this->members->roleOf($user, substr($scope, 8));
+        $role = $this->members->roleOf($user->id, substr($scope, 8));
 
         return match ($role) {
             null      => null,                             // not a member: nothing, grants included
@@ -158,7 +155,7 @@ temporary grants (`grants.temporary`). Veto special cases with a `GRANT_POLICY_C
 #[AsEventListener(event: VaultEvents::GRANT_POLICY_CHECK)]
 public function onPolicy(VaultGrantPolicyCheckEvent $event): void
 {
-    if ($event->getGranteeType() === GranteeType::Team && $this->isOwnTeam($event->getActor(), $event->getGranteeId())) {
+    if ($event->getGranteeType() === GranteeType::Team && $this->isOwnTeam($event->getActorId(), $event->getGranteeId())) {
         $event->deny('own_team');
     }
 }
@@ -166,9 +163,9 @@ public function onPolicy(VaultGrantPolicyCheckEvent $event): void
 
 ## Re-authentication for the decrypted export
 
-`export.enabled` needs a `VaultReauthenticationCheckerInterface` service (`export.reauth_checker`). Build the proof from
+`export.enabled` needs a `VaultReauthenticationProviderInterface` service (`export.reauth_checker`). Build the proof from
 your re-authentication step only (password, then TOTP / WebAuthn when the user has MFA), bind it to the session id
-(after regenerating it), and never return it again once `consume()` ran. A full example is in
+(after regenerating it), and never return it again once `consumeProof()` ran. A full example is in
 [USAGE](../USAGE.md#decrypted-export); the obligations are in [SECURITY](../SECURITY.md#personal-data-and-decrypted-export-1160).
 
 ```yaml
@@ -186,14 +183,15 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 
-$grantService->grant(
+$result = $grantService->grantAs(
+    $owner,                      // the actor: re-checked (may Share the item now)
     VaultResourceType::Item,
     $item->getId(),
     GranteeType::Team,
     'team-sales',
     VaultPermission::Read,
-    $creator,
-);
+);                               // VaultGrantResult::Created / Updated / Unchanged; refusals throw VaultGrantRefusedException
+$grantService->revokeAs($owner, $grant);
 ```
 
 A `VaultPermission::Read` grant already limits writes at the ACL layer. Use **read-only events** when you need view access with **dynamic rules** (team policy, audit mode, temporary lock) without persisting a grant.

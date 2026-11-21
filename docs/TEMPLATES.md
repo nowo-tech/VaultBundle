@@ -56,7 +56,7 @@ the generator dialog).
 | Decrypted export | `count`, `formats`, `includeAttachments`, `routes` |
 | Runtime configuration | `routes`, `runtimeConfigRoute`, `dbUpdatedAt`, `hasDbEncryptionKey`, `hasYamlEncryptionKey`, `canStoreEncryptionKey`, `showOneTimeKeyWarning`, `form` |
 
-Every page also receives `nowo_vault_legacy_layout` / `nowo_vault_legacy_blocks` (the deprecated 1.x layout bridge) and, since 1.18.0, `nowo_vault_sharing_enabled` (`sharing.enabled`) and `nowo_vault_host_note_template` (`web_ui.host_note_template`).
+Every page also receives, since 1.18.0, `nowo_vault_sharing_enabled` (`sharing.enabled`) and `nowo_vault_host_note_template` (`web_ui.host_note_template`). The 1.x bridge variables `nowo_vault_legacy_layout` / `nowo_vault_legacy_blocks` were removed in 2.0.
 
 ## Unique pages
 
@@ -67,15 +67,16 @@ None: every page extends a scaffold.
 | Partial | Role |
 | --- | --- |
 | `vault/_password_generator.html.twig` | Password generator body, rendered through the UiKit `dialog` partial (`<dialog id="vault-password-generator">`) |
-| `vault/_legacy_layout.html.twig` | Deprecated bridge around a 1.x layout without the UiKit canonical blocks (removed in 2.0) |
 | `ui/_row_actions.html.twig` | 1.18.0: UiKit `row_actions` partial of `NowoVaultBundle` (registered only with `web_ui.destructive_actions_in_menu`): delegates to the host / kit partial and draws the actions marked `data-vault-row-menu` (Move to trash) in a kebab menu (`menu` partial, icon `more`) |
 | `Form/vault_item_form_theme.html.twig` | Tag container of the item form when `nowo-tech/tag-input-bundle` is installed (`FormPage::formThemes`) |
 
 ## Layout
 
 `nowo_vault.web_ui.layout_template` (default `null`) is passed to the scaffolds as `page.layout`; null uses
-`nowo_ui_kit.layouts.admin`. A layout that does not define the UiKit canonical blocks (a 1.x layout rendering
-`{% block body %}`) is wrapped in `vault/_legacy_layout.html.twig` with a deprecation.
+`nowo_ui_kit.layouts.admin`. The layout must render the UiKit canonical blocks (`nowo_ui_page_header`, `nowo_ui_content`,
+…). Since 2.0 a layout that does not define them (a 1.x layout rendering `{% block body %}`) fails the page with a
+`LogicException` naming the layout and what to do: the bridge `vault/_legacy_layout.html.twig` (deprecated since 1.15)
+was removed.
 
 ## Per-page overrides
 

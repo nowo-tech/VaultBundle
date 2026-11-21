@@ -5,6 +5,7 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 ## Table of contents
 
 - [Required](#required)
+- [Host users (1.17.0)](#host-users-1170)
 - [Database](#database)
 - [Conflict answers (`conflict_response`)](#conflict-answers-conflict_response)
 - [Sharing (`sharing`)](#sharing-sharing)
@@ -16,18 +17,10 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 - [Pagination](#pagination)
 - [Clock and logger](#clock-and-logger)
 - [Manage Web UI (`web_ui`)](#manage-web-ui-web_ui)
-  - [Layout and project chrome](#layout-and-project-chrome)
-  - [CSS stack, icons and row actions](#css-stack-icons-and-row-actions)
-  - [Per-page templates](#per-page-templates)
-  - [Deprecated keys (1.15)](#deprecated-keys-115)
 - [CSRF protection](#csrf-protection)
 - [Firewall](#firewall)
 - [Database-backed runtime configuration](#database-backed-runtime-configuration)
-  - [YAML-only (bootstrap — never stored in DB)](#yaml-only-bootstrap--never-stored-in-db)
-  - [DB-eligible (optional overrides in `{table_prefix}_settings`)](#db-eligible-optional-overrides-in-table_prefix_settings)
-  - [Updating from your application](#updating-from-your-application)
 - [Browser extension](#browser-extension)
-  - [Purging expired tokens](#purging-expired-tokens)
 - [Scope vaults (`scopes`)](#scope-vaults-scopes)
 - [Temporary grants (`grants.temporary`)](#temporary-grants-grantstemporary)
 - [Catalogue (`catalogue`)](#catalogue-catalogue)
@@ -65,8 +58,8 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 | `table_prefix` | `vault_` | Prefix for vault tables (`vault_items`, `vault_folders`, `vault_grants`, `vault_tags`, `vault_item_tag`, `vault_settings`) |
 | `database.driver` | `doctrine_orm` | Persistence driver (`doctrine_mongodb` is reserved — **not implemented yet**) |
 | `database.platform` | `postgresql` | Documented platform (`mongodb` is **planned**; only PostgreSQL/MySQL/SQLite are supported today) |
-| `database.entity_manager` | `default` | Doctrine ORM entity manager that maps the vault entities. Since 1.19.0 with `private_entity_manager: true`, the source of the vault's private manager (its connection, mapping configuration, event manager and SQL filters); the vault never flushes, clears or resets it. A name Doctrine does not know fails the build |
-| `database.private_entity_manager` | unset (= `false`, deprecated) | 1.19.0. `true` (recommended, the only mode in 2.0): the vault reads and writes its rows through its own private entity manager on the connection of `entity_manager`, so a vault write never flushes your pending changes and a failed vault write never closes your manager (REQ-ARCH-001 rule 6). Unset or `false`: the 1.18 behaviour (the vault flushes `entity_manager` on its own writes), with a deprecation. See [UPGRADING](UPGRADING.md#private-entity-manager-opt-in) before turning it on |
+| `database.entity_manager` | `default` | Doctrine ORM entity manager that maps the vault entities: the source of the vault's private manager (its connection, mapping configuration, event manager and SQL filters); the vault never flushes, clears or resets it. A name Doctrine does not know fails the build |
+| `database.private_entity_manager` | `true` | **No effect since 2.0** (deprecated, removed in 3.0): the vault always reads and writes its rows through its own private entity manager on the connection of `entity_manager`, so a vault write never flushes your pending changes and a failed vault write never closes your manager (REQ-ARCH-001 rule 6). `false` (the 1.18 wiring) fails the build. See [UPGRADING](UPGRADING.md#private-manager-only) |
 | `database.mapping_type` | `attribute` | 1.19.0. `xml` maps the entities from `src/Resources/config/doctrine/*.orm.xml` (same tables, columns, indexes and constraints) |
 | `database.register_mapping` | `true` | 1.19.0. `false`: the bundle does not prepend its mapping; map `Nowo\VaultBundle\Entity` yourself (e.g. from the shipped XML on a dedicated manager, then set `entity_manager` to it) |
 | `database.conditional_mapping` | `false` | 1.18.0: `true` maps `{table_prefix}_settings` only with `config_storage.enabled` and `{table_prefix}_extension_tokens` only with `browser_extension.enabled`; the tables of a disabled feature are hidden from the schema tools (never created, never dropped). See [UPGRADING](UPGRADING.md#existing-settings-and-token-tables-conditional-mapping) |
@@ -74,7 +67,6 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 ```yaml
 nowo_vault:
     database:
-        private_entity_manager: true   # 1.19.0: the vault never flushes your entity manager
         conditional_mapping: true      # no vault_settings / vault_extension_tokens while their features are off
 ```
 
@@ -119,14 +111,13 @@ Templates read the switch as `nowo_vault_sharing_enabled`.
 
 **Existing grants stay active.** With `sharing.enabled: false` owners no longer see which items are shared (no badge)
 and cannot revoke a grant from the UI, yet every existing grant keeps giving access. Revoke the grants you do not want
-**before** turning sharing off, or revoke them from your code with `VaultGrantService::revokeAs()` (or
-`VaultGrantService::revoke()`).
+**before** turning sharing off, or revoke them from your code with `VaultGrantService::revokeAs()`.
 
 ## Security
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `security.access_checker` | null | Custom service id implementing `VaultAccessPolicyInterface` (1.19.0, framework-free) or the deprecated `VaultAccessCheckerInterface` (asked as in 1.18, deprecation); a service implementing neither fails the build. See [Standard Symfony host](#standard-symfony-host) |
+| `security.access_checker` | null | Custom service id implementing `VaultAccessPolicyInterface` (framework-free); a service that does not implement it (or still implements the `VaultAccessCheckerInterface` removed in 2.0) fails the build. See [Standard Symfony host](#standard-symfony-host) |
 | `security.admin_roles` | `[ROLE_ADMIN]` | Bypass feature checks |
 | `security.access_roles` | `[ROLE_USER]` | Open manage UI (hosts may set `ROLE_ADMIN` for admin-only) |
 | `security.create_roles` | `[ROLE_USER]` | Create items/folders |
@@ -147,7 +138,7 @@ An empty role list never grants access (the default checker denies it). When **e
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `team_membership_resolver` | null | Service implementing `VaultTeamMembershipProviderInterface` (1.19.0) or the deprecated `VaultTeamMembershipResolverInterface`; null = no teams |
+| `team_membership_resolver` | null | Service implementing `VaultTeamMembershipProviderInterface`; null = no teams |
 
 ## Attachments
 
@@ -175,7 +166,7 @@ nowo_vault:
 
 ## Routes
 
-All routes are configurable under `nowo_vault.routes` and `nowo_vault.browser_extension.routes` (`path` + `name` per key; see `Configuration.php` defaults) and `web_ui.path_prefix` (formerly `route_prefix`) is prepended to every path. Import them once with the loader type `nowo_vault` (see [INSTALLATION.md](INSTALLATION.md)).
+All routes are configurable under `nowo_vault.routes` and `nowo_vault.browser_extension.routes` (`path` + `name` per key; see `Configuration.php` defaults) and `web_ui.path_prefix` is prepended to every path. Import them once with the loader type `nowo_vault` (see [INSTALLATION.md](INSTALLATION.md)).
 
 Each controller action declares its route with a Symfony `#[Route]` attribute (REQ-SF-004): HTTP methods, requirements, the default path / name and the configuration key (`options: {nowo_vault_route: <key>}`). The `nowo_vault` loader reads those attributes and applies the configured `path` / `name`, so the attribute defaults equal the configuration defaults and existing overrides keep working. Do **not** import `vendor/nowo-tech/vault-bundle/src/Controller/` as an `attribute` resource: that would register the routes a second time with the default paths, ignoring your configuration.
 
@@ -212,7 +203,7 @@ The manage pages follow the UiKit page contract (REQ-UI-003): each page extends 
 |--------|---------|-------------|
 | `web_ui.enabled` | `true` | Register the manage UI routes (home, items, shared, trash, item forms, sharing, runtime config). `false` keeps only the browser-extension API |
 | `web_ui.path_prefix` | `''` | Prefix prepended to every vault route path (manage UI and browser-extension API), e.g. `/admin` |
-| `web_ui.layout_template` | `null` | Layout the pages extend. `null` = `nowo_ui_kit.layouts.admin` (recommended). A 1.x layout without the UiKit canonical blocks is wrapped in a deprecated bridge |
+| `web_ui.layout_template` | `null` | Layout the pages extend. `null` = `nowo_ui_kit.layouts.admin` (recommended). It must render the UiKit canonical blocks: since 2.0 a 1.x layout without them fails the page with a `LogicException` (the bridge was removed) |
 | `web_ui.host_note_template` | `null` | 1.18.0: Twig template included under the page header of the home and the items list (block `vault_host_note`; variables `page`, `routes`), e.g. a link to another tool. No `templates` override needed |
 | `web_ui.destructive_actions_in_menu` | `false` | 1.18.0: *Move to trash* of the item rows becomes the last (danger) item of a UiKit kebab menu after the inline actions; same confirm dialog |
 | `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`, `scope_items`, `catalogue` (1.16.0). Unknown page ids are rejected |
@@ -301,16 +292,16 @@ nowo_vault:
             items: 'vault/items.html.twig'   # extends '@!NowoVaultBundle/vault/items.html.twig', overrides one data block
 ```
 
-### Deprecated keys (1.15)
+### Keys removed in 2.0
 
-Mapped onto `web_ui` before validation with a deprecation (removed in 2.0). Canonical keys set in the same file win.
+Deprecated since 1.15; setting one fails the build with the key to set instead.
 
-| Deprecated | Replacement |
+| Removed | Replacement |
 | --- | --- |
 | `route_prefix` | `web_ui.path_prefix` |
-| `templates.layout` | `web_ui.layout_template` (the 1.x default `@NowoVaultBundle/layout.html.twig` maps to `null`) |
-| `templates.<page>` | `web_ui.templates.<page>` (`templates.index` → `home`; values equal to the bundle defaults are dropped) |
-| `css_framework` | `nowo_ui_kit.css_framework` (+ `icon_set`). When set, it is copied there unless the host set those keys; the Twig global `nowo_vault_css_framework` stays (deprecated) |
+| `templates.layout` | `web_ui.layout_template` (`null` = `nowo_ui_kit.layouts.admin`) |
+| `templates.<page>` | `web_ui.templates.<page>` (`templates.index` → `home`) |
+| `css_framework` | `nowo_ui_kit.css_framework` (+ `icon_set`); the Twig global `nowo_vault_css_framework` was removed too |
 
 ## CSRF protection
 
@@ -323,7 +314,7 @@ extension) sets `web_ui.enabled: false`.
 
 ## Firewall
 
-Document `nowo_vault.firewall` in your `security.yaml`. Protect manage routes with host `access_control` (and keep `allow_unauthenticated: false` in production). Feature checks use `VaultAccessCheckerInterface` inside the controllers.
+Document `nowo_vault.firewall` in your `security.yaml`. Protect manage routes with host `access_control` (and keep `allow_unauthenticated: false` in production). Feature checks ask `VaultAccessPolicyInterface` inside the controllers.
 
 ## Database-backed runtime configuration
 
@@ -353,7 +344,6 @@ When `enabled: true`, Doctrine creates/uses `{table_prefix}_settings` (default `
 | `security.access_checker` | DI service id |
 | `team_membership_resolver` | DI service id |
 | `routes`, `web_ui.*`, `dashboard_route`, `firewall` | Routing and UI bootstrap |
-| `css_framework` | Deprecated look-and-feel hint (Twig global) |
 | `security.*_roles` | Role lists (not `access_checker`) |
 
 When storing `encryption_key` in the database, install `nowo-tech/doctrine-encrypt-bundle` and configure a bootstrap Halite/Defuse key (`DOCTRINE_ENCRYPT_KEY` or secret file). The column `vault_settings.encryption_key` is encrypted at rest via `#[Encrypted]`. Without that bundle the key is **not** stored in the database: `VaultRuntimeConfigWriter` refuses it, the runtime config screen shows a warning, and `nowo:vault:reencrypt --persist-new-key` exits before re-encrypting.
@@ -462,7 +452,7 @@ instead of a user. YAML only (never editable from the runtime-config screen).
 | Option | Default | Description |
 |--------|---------|-------------|
 | `scopes.enabled` | `false` | Registers the scope routes and allows scope rows |
-| `scopes.access_resolver` | `null` | Service id implementing `Nowo\VaultBundle\Security\VaultScopeAccessResolverInterface`. **Required** when enabled (the container fails to compile otherwise) |
+| `scopes.access_resolver` | `null` | Service id implementing `Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface`. **Required** when enabled (the container fails to compile otherwise) |
 
 ```yaml
 nowo_vault:
@@ -550,7 +540,7 @@ Since 1.16.0. YAML only.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `health.enabled` | `false` | Registers the `health` route (`/tools/vault/scopes/{scope}/health`). Needs `scopes.enabled`. `VaultHealthReporterInterface` works without it (e.g. `forPersonalVault()` from a host page) |
+| `health.enabled` | `false` | Registers the `health` route (`/tools/vault/scopes/{scope}/health`). Needs `scopes.enabled`. `VaultHealthReportProviderInterface` works without it (e.g. `reportForPersonalVault()` from a host page) |
 | `health.max_items` | `2000` | Login items above which a report is refused (`VaultHealthTooLargeException`, 413 on the route) |
 | `health.cache_ttl` | `0` | Seconds a report is cached per viewer; `0` = never. Only the flags, titles and group numbers are cached, never a value or a fingerprint |
 | `health.min_interval_seconds` | `10` | One **computed** report per viewer and owner per window (429 + `Retry-After` on the route, `VaultHealthThrottledException` for direct calls); `0` = no limit. Every computed report decrypts each examined password and may call the breach checker once per password |
@@ -574,7 +564,7 @@ Since 1.16.0. YAML only. Off by default; when enabled the container fails to com
 | Option | Default | Description |
 |--------|---------|-------------|
 | `export.enabled` | `false` | Registers `personal_export` (`GET /tools/vault/export`) and `personal_export_download` (`POST`) |
-| `export.reauth_checker` | `null` | Service id implementing `Nowo\VaultBundle\Security\VaultReauthenticationCheckerInterface`. **Required** when enabled; there is no default implementation |
+| `export.reauth_checker` | `null` | Service id implementing `Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface`. **Required** when enabled; there is no default implementation |
 | `export.reauth_max_age` | `300` | Seconds a re-authentication stays fresh (1–900, checked against the bundle clock; 30 s of clock skew tolerated) |
 | `export.accepted_primary_factors` | `[password]` | Primary factors accepted in the proof (add `sso_reauth` for SSO-only users re-authenticated with `prompt=login`) |
 | `export.accepted_mfa_factors` | `[totp, webauthn]` | Required when the proof says MFA is enrolled. Recovery codes are not accepted by default |
@@ -600,23 +590,23 @@ for the host obligations.
 ## Standard Symfony host
 
 Zero configuration beyond `user_class` (your Doctrine user entity) and `encryption_key`: attribute mapping, Doctrine
-relations to your users table, your security user as the vault user. Recommended since 1.19.0:
+relations to your users table, your security user as the vault user, and the vault's own private entity manager (it
+never flushes yours):
 
 ```yaml
 nowo_vault:
     user_class: App\Entity\User
     encryption_key: '%env(VAULT_ENCRYPTION_KEY)%'
-    database:
-        private_entity_manager: true
 ```
 
 The host services named by `security.access_checker`, `team_membership_resolver`, `scopes.access_resolver` and
-`export.reauth_checker` may implement the 1.19 framework-free interfaces (`VaultAccessPolicyInterface`,
-`VaultTeamMembershipProviderInterface`, `VaultScopeAccessProviderInterface`, `VaultReauthenticationProviderInterface`)
-or, until 2.0, the deprecated ones. How the bundle picks one (and what a decorator of a deprecated interface does) is in
-[UPGRADING](UPGRADING.md#framework-free-ports); the mode chosen for each port is the container parameter
-`nowo_vault.port.<access_checker|team_membership|scope_access|reauthentication|user_locator|health_reporter>.mode`
-(`policy`, `legacy` or `both`).
+`export.reauth_checker` implement the framework-free interfaces (`VaultAccessPolicyInterface`,
+`VaultTeamMembershipProviderInterface`, `VaultScopeAccessProviderInterface`, `VaultReauthenticationProviderInterface`;
+the 1.x interfaces taking `UserInterface` / `Request` were removed in 2.0, see
+[UPGRADING](UPGRADING.md#ports)). You may alias an interface to your service instead of configuring it; the user
+lookup and the health report are replaced that way (`VaultUserDirectoryInterface`,
+`VaultHealthReportProviderInterface`). A service, alias or decorator that does not implement the interface fails the
+build.
 
 ## DDD / hexagonal host
 
@@ -628,7 +618,6 @@ nowo_vault:
     user_class: App\Infrastructure\Security\SecurityUser
     user_mapping: id
     database:
-        private_entity_manager: true
         mapping_type: xml            # or register_mapping: false and map the XML yourself
     security:
         access_checker: App\Infrastructure\Vault\VaultAccess          # VaultAccessPolicyInterface
@@ -639,7 +628,4 @@ nowo_vault:
 # config/services.yaml
 Nowo\VaultBundle\Support\VaultUserDirectoryInterface: '@App\Infrastructure\Vault\VaultUserDirectory'
 ```
-
-A host service that implements only the 1.19 interface gets no deprecated alias, so nothing of the 1.18 API appears in
-your container for that port.
 

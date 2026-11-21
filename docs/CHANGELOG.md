@@ -59,9 +59,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: **2.0.0** (major, REQ-ARCH-001 rules 1, 3 and 6). Only what 1.x deprecated is removed; see
+[UPGRADING](UPGRADING.md#unreleased). Encryption, key rotation, re-authentication, reveal limits and every access
+decision are unchanged.
+
+### Removed
+
+- **`database.private_entity_manager: false` and the 1.18 wiring** (deprecated since 1.19.0): the vault no longer reads
+  and writes its rows through the application's manager named by `database.entity_manager`, never flushes the
+  application's pending changes and never resets that manager after a failed write. `false` fails the container build.
+  `VaultWriteUnit` (internal) runs on the private manager only.
+- **The six deprecated host ports and their service aliases** (deprecated since 1.19.0):
+  `Security\VaultAccessCheckerInterface`, `Security\VaultTeamMembershipResolverInterface`,
+  `Security\VaultScopeAccessResolverInterface`, `Security\VaultReauthenticationCheckerInterface`,
+  `Support\VaultUserLocatorInterface`, `Service\VaultHealthReporterInterface`. The internal gates ask only the
+  framework-free twins; the "both are asked, the weaker answer wins" bridge for decorators of the deprecated access
+  ports, the legacy gate modes (`Port\VaultPortMode`) and their three build notices are removed. The built-ins
+  implement only the twins (their `canAccess()` / `getTeamIdsForUser()` / `resolve()` / `find()` / `forScope()` /
+  `forPersonalVault()` methods are gone).
+- **The `UserInterface` members of the hook events** (deprecated since 1.19.0): `getUser()` of the item, folder,
+  read-only, field-reveal, catalogue and health events; `getViewer()`, `getListSubject()`, `setListSubject()` of
+  `VaultItemListQueryEvent`; `getViewer()` of `VaultItemListResultEvent`; `getActor()` of `VaultGrantPolicyCheckEvent`;
+  `getGrantedBy()` of `VaultGrantListQueryEvent`; `VaultBrowserExtensionAuthResult::success()` and `getUser()`.
+- **`VaultItem::getCreator()`, `VaultFolder::getCreator()`, `VaultTag::getCreator()`, `VaultGrantService::grant()` and
+  `revoke()`** (deprecated since 1.16.0, owner answer Q1).
+- **The 1.15 configuration keys** `route_prefix`, `templates.*` and `css_framework` (each fails the build with the key
+  to set instead), **the Twig global `nowo_vault_css_framework`** (class `Twig\VaultExtension`), the container
+  parameter `nowo_vault.css_framework`, the copy of `css_framework` to `nowo_ui_kit`, **the 1.x layout bridge**
+  `vault/_legacy_layout.html.twig` and the page variables `nowo_vault_legacy_layout` / `nowo_vault_legacy_blocks`.
+
 ### Changed
 
+- **The private entity manager is the only mode** (REQ-ARCH-001 rule 6). `database.private_entity_manager: true` is
+  accepted as a no-op with a deprecation (removed in 3.0, owner answer Q4); unset no longer raises a notice.
+- **A removed host-facing path fails the container build** with a message naming what to do: a service behind a port
+  whose class does not implement the framework-free interface or still implements a removed one (it cannot be loaded),
+  a service registered under, aliased to or decorating a removed port id, an application class registered by resource
+  discovery (`#[AsAlias]`, `#[AsDecorator]`) that still implements a removed port (`RemovedPortsPass`), and a decorator
+  of a port without its interface.
+- **A layout without the UiKit canonical blocks** (`web_ui.layout_template`) fails the page with a `LogicException`
+  that says what to do, instead of being wrapped by the removed bridge.
+- CI runs on the `1.x` maintenance branch too.
 - Demo: runs in UiKit's demo platform shell (`nowo-tech/ui-kit-bundle` ^2.60; shared top bar, aside, page header and section cards; no demo stylesheet or `<style>`). Demo only, no bundle change.
+
+### Security
+
+- 1.x receives security fixes for 6 months after 2.0.0: fixes rated Moderate and above are backported to the last
+  1.x minor; Low ones are fixed in 2.x only (SECURITY.md).
 
 ## [1.21.2] - 2026-11-20
 
