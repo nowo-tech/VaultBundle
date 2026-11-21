@@ -32,7 +32,6 @@ use Nowo\VaultBundle\Support\VaultUserClassPolicy;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Ddd\OtherDomainUser;
-use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use PHPUnit\Framework\Attributes\Group;
 use stdClass;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
@@ -142,11 +141,11 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         $expired   = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' expired', self::BOB, 'ciphertext'));
         $lookAlike = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' lookalike', self::BOB, 'ciphertext'));
         $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' unshared', self::BOB, 'ciphertext'));
-        GrantSeeder::grant($this, VaultResourceType::Item, $direct, GranteeType::User, self::ALICE);
-        GrantSeeder::grant($this, VaultResourceType::Item, $team, GranteeType::Team, 'team-1');
-        GrantSeeder::grant($this, VaultResourceType::Folder, $folder->getId(), GranteeType::User, self::ALICE);
-        GrantSeeder::grant($this, VaultResourceType::Item, $expired, GranteeType::User, self::ALICE, new DateTimeImmutable('-1 hour'));
-        GrantSeeder::grant($this, VaultResourceType::Item, $lookAlike, GranteeType::User, 'VTSK-ALICE');
+        $this->grant(VaultResourceType::Item, $direct, GranteeType::User, self::ALICE);
+        $this->grant(VaultResourceType::Item, $team, GranteeType::Team, 'team-1');
+        $this->grant(VaultResourceType::Folder, $folder->getId(), GranteeType::User, self::ALICE);
+        $this->grant(VaultResourceType::Item, $expired, GranteeType::User, self::ALICE, new DateTimeImmutable('-1 hour'));
+        $this->grant(VaultResourceType::Item, $lookAlike, GranteeType::User, 'VTSK-ALICE');
         $this->teamIds[self::ALICE] = ['team-1'];
         $this->actAs(self::ALICE, self::VIEWER_A);
 
@@ -167,8 +166,8 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         $grantsOnly = $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' b granted', 'proj-b', null, 'ciphertext'));
         $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' b other', 'proj-b', null, 'ciphertext'));
         $outsider = $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' c', 'proj-c', null, 'ciphertext'));
-        GrantSeeder::grant($this, VaultResourceType::Item, $grantsOnly, GranteeType::User, self::ALICE);
-        GrantSeeder::grant($this, VaultResourceType::Item, $outsider, GranteeType::User, self::ALICE);
+        $this->grant(VaultResourceType::Item, $grantsOnly, GranteeType::User, self::ALICE);
+        $this->grant(VaultResourceType::Item, $outsider, GranteeType::User, self::ALICE);
         $this->members[self::ALICE] = ['proj-a' => new VaultScopeAccess(VaultPermission::Read), 'proj-b' => new VaultScopeAccess(null)];
         $this->searchScopes(['proj-a', 'proj-b', 'proj-c']);
         $this->actAs(self::ALICE, self::VIEWER_A);
@@ -360,7 +359,7 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' own', self::ALICE, 'ciphertext', $folder));
         $shared = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' shared', self::BOB, 'ciphertext'));
         $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' scope', 'proj-a', null, 'ciphertext', $this->persistFolder(VaultFolder::forScope('Ops', 'proj-a', null))));
-        GrantSeeder::grant($this, VaultResourceType::Item, $shared, GranteeType::Team, 'team-1');
+        $this->grant(VaultResourceType::Item, $shared, GranteeType::Team, 'team-1');
         $this->teamIds[self::ALICE] = ['team-1'];
         $this->members[self::ALICE] = ['proj-a' => new VaultScopeAccess(VaultPermission::Read)];
         $this->searchScopes(['proj-a']);
@@ -420,16 +419,16 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
         self::assertTrue($before->exactTotal);
 
         $bobFolder = $this->persistFolder(new VaultFolder('Bob shared', self::BOB));
-        GrantSeeder::grant($this, VaultResourceType::Folder, $bobFolder->getId(), GranteeType::User, self::ALICE);
+        $this->grant(VaultResourceType::Folder, $bobFolder->getId(), GranteeType::User, self::ALICE);
         for ($row = 0; $row < 7; ++$row) {
             $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' divorce foreign ' . $row, 'proj-x', null, 'ciphertext'));
             $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' divorce named ' . $row, 'proj-named', null, 'ciphertext'));
             $this->persistItem(VaultItem::forScope(VaultItemType::Login, $marker . ' divorce grants-only ' . $row, 'proj-g', null, 'ciphertext'));
             $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' divorce carol ' . $row, 'vtsk-carol', 'ciphertext', $bobFolder));
             $expired = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' divorce expired ' . $row, self::BOB, 'ciphertext'));
-            GrantSeeder::grant($this, VaultResourceType::Item, $expired, GranteeType::User, self::ALICE, new DateTimeImmutable('-1 minute'));
+            $this->grant(VaultResourceType::Item, $expired, GranteeType::User, self::ALICE, new DateTimeImmutable('-1 minute'));
             $lookAlike = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' divorce lookalike ' . $row, 'VTSK-ALICE', 'ciphertext'));
-            GrantSeeder::grant($this, VaultResourceType::Item, $lookAlike, GranteeType::User, 'vtsk-alice ');
+            $this->grant(VaultResourceType::Item, $lookAlike, GranteeType::User, 'vtsk-alice ');
             $this->persistItem((new VaultItem(VaultItemType::Login, $marker . ' divorce trash ' . $row, self::ALICE, 'ciphertext'))->markDeleted());
         }
         $this->members[self::ALICE] = ['proj-g' => new VaultScopeAccess(null)];

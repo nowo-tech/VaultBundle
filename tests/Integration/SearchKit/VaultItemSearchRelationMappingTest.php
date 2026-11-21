@@ -15,7 +15,6 @@ use Nowo\VaultBundle\Enum\GranteeType;
 use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Tests\App\Entity\User;
-use Nowo\VaultBundle\Tests\Support\GrantSeeder;
 use PHPUnit\Framework\Attributes\Group;
 
 use function array_map;
@@ -80,7 +79,7 @@ final class VaultItemSearchRelationMappingTest extends VaultItemSearchTestCase
         $shared        = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' shared', $this->ownerValue($bob), 'ciphertext', $folder));
         $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' private', $this->ownerValue($bob), 'ciphertext', $folder));
         $own = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' own', $this->ownerValue($alice), 'ciphertext', $this->persistFolder(new VaultFolder('Mine', $this->ownerValue($alice)))));
-        GrantSeeder::grant($this, VaultResourceType::Item, $shared, GranteeType::User, $alice);
+        $this->grant(VaultResourceType::Item, $shared, GranteeType::User, $alice);
         $this->actAs($alice, self::VIEWER_A);
 
         $group = $this->provider()->search($this->query($marker));
@@ -107,7 +106,7 @@ final class VaultItemSearchRelationMappingTest extends VaultItemSearchTestCase
         for ($row = 0; $row < 4; ++$row) {
             $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' carol ' . $row, $this->ownerValue($carol), 'ciphertext', $folder));
         }
-        GrantSeeder::grant($this, VaultResourceType::Folder, $folder->getId(), GranteeType::User, $alice);
+        $this->grant(VaultResourceType::Folder, $folder->getId(), GranteeType::User, $alice);
         $this->actAs($alice, self::VIEWER_A);
 
         $group = (new EntitySearchProvider($this->searchDefinition(maxCandidates: 2)))->search($this->query($marker));
@@ -130,7 +129,7 @@ final class VaultItemSearchRelationMappingTest extends VaultItemSearchTestCase
         }
         foreach (['Ops', "\u{00D6}ps", 'ops ', 'OPS', 'oPs', "\u{00F6}ps"] as $row => $lookAlike) {
             $shared = $this->persistItem(new VaultItem(VaultItemType::Login, $marker . ' team ' . $row, $this->ownerValue($bob), 'ciphertext'));
-            GrantSeeder::grant($this, VaultResourceType::Item, $shared, GranteeType::Team, $lookAlike);
+            $this->grant(VaultResourceType::Item, $shared, GranteeType::Team, $lookAlike);
         }
         $this->teamIds[$alice] = ['ops'];
         $this->actAs($alice, self::VIEWER_A);

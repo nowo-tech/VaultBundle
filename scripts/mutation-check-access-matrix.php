@@ -6,8 +6,8 @@ declare(strict_types=1);
 // of the decision path at a time, runs the matrix, restores the file. Every mutation must be "killed".
 // Usage (bundle root, in the PHP container): php scripts/mutation-check-access-matrix.php
 $m = [
-    ['src/Port/VaultAccessCheckerGate.php', 'return $this->policy->allowsAccess(VaultUserRefs::fromNullableUser($user)) === true;', 'return $this->policy->allowsAccess(VaultUserRefs::fromNullableUser($user)) !== true;'],
-    ['src/Port/VaultAccessCheckerGate.php', 'return $this->policy->allowsCreate(VaultUserRefs::fromNullableUser($user)) === true;', 'return $this->policy->allowsAccess(VaultUserRefs::fromNullableUser($user)) === true;'],
+    ['src/Port/VaultAccessCheckerGate.php', 'return $this->policy->allowsAccess(VaultUserRefs::fromNullableUser($user));', 'return !$this->policy->allowsAccess(VaultUserRefs::fromNullableUser($user));'],
+    ['src/Port/VaultAccessCheckerGate.php', 'return $this->policy->allowsCreate(VaultUserRefs::fromNullableUser($user));', 'return $this->policy->allowsAccess(VaultUserRefs::fromNullableUser($user));'],
     ['src/Port/VaultTeamMembershipGate.php', 'return $this->policy->teamIdsOf(VaultUserRefs::fromUser($user));', 'return [];'],
     ['src/Port/VaultScopeAccessGate.php', 'return $this->policy->scopeAccessOf(VaultUserRefs::fromUser($user), $scope);', 'return $this->policy->scopeAccessOf(VaultUserRefs::fromUser($user), \'org-1\');'],
     ['src/Support/VaultUserRefs.php', 'return new VaultUserRef($id, $user->getUserIdentifier(), $user->getRoles(), $user);', 'return new VaultUserRef($id, $user->getUserIdentifier(), $user->getRoles(), null);'],
