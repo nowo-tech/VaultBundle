@@ -47,7 +47,7 @@ use function sprintf;
  *
  * Since 2.0 the deprecated twins are gone: a service behind a port whose class does not implement the interface, or
  * cannot be loaded (a class that still implements a removed interface cannot), fails the build, and so does a
- * decorator whose class does not implement it. The removed ids themselves are refused by {@see RemovedPortsPass}. A
+ * decorator whose class does not implement it. The removed ids themselves are handled by {@see RemovedPortsPass}. A
  * class unknown before compilation (factory, synthetic) is not checked here (its gate refuses it when built).
  *
  * Runs before optimization: the application's aliases and decorators are loaded, decorators are not applied yet.

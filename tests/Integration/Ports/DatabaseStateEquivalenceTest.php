@@ -136,6 +136,9 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         $ids   = self::seedVault($container, $users);
         $id    = static fn (string $name): string => (string) UserIdResolver::getId($users[$name]);
         $alice = $users['alice'];
+        // Relation mapping: the users are rows of the application's manager; no vault write may add or remove one.
+        $countUsers   = static fn (): ?int => $byId ? null : (int) self::hostManager($container)->getConnection()->fetchOne('SELECT COUNT(*) FROM users');
+        $usersAtStart = $countUsers();
 
         $items           = $container->get(VaultItemRepositoryInterface::class);
         $updater         = $container->get(VaultItemUpdater::class);
@@ -177,6 +180,10 @@ final class DatabaseStateEquivalenceTest extends KernelTestCase
         $export = $exporter->export($id('alice'));
         $eraser->erase($id('frank'));
         $erased = $eraser->erase($id('alice'));
+        self::assertSame($usersAtStart, $countUsers(), 'the vault never writes the application\'s users');
+        if (!$byId) {
+            self::assertSame(count($users), $usersAtStart);
+        }
 
         return [['written' => $beforeErasure, 'erased' => $this->dump($container, $users)], json_encode([$this->normaliseExport($export), get_object_vars($erased)], JSON_THROW_ON_ERROR)];
     }

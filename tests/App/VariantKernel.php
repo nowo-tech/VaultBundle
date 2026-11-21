@@ -10,6 +10,9 @@ use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\VaultBundle\DependencyInjection\Compiler\RemovedPortsPass;
 use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
+use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
+use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
+use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
 use Nowo\VaultBundle\Service\VaultHealthReportProviderInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface;
@@ -19,9 +22,11 @@ use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\EventSubscriber\VaultEventRecorderSubscriber;
+use Nowo\VaultBundle\Tests\App\Ports\HostHealthReports;
 use Nowo\VaultBundle\Tests\App\Ports\PolicyHostPorts;
 use Nowo\VaultBundle\Tests\App\Ports\PortsUserDirectory;
 use Nowo\VaultBundle\Tests\App\Ports\PortsUserDirectoryV119;
+use Nowo\VaultBundle\Tests\App\Security\TestReauthChecker;
 use Nowo\VaultBundle\Tests\App\Worker\NoopServicesResetter;
 use Nowo\VaultBundle\Tests\Support\Removed\LegacyAccessChecker;
 use Nowo\VaultBundle\VaultBundle;
@@ -42,6 +47,7 @@ use function array_values;
 use function count;
 use function explode;
 use function in_array;
+use function preg_match;
 use function substr;
 use function ucfirst;
 
@@ -63,10 +69,28 @@ use const PHP_VERSION_ID;
  * - 2.0 removed paths, each of which must fail the build: `_rmchecker` (`security.access_checker` names a class that
  *   still implements the removed access port), `_rmalias` (the application aliases the removed user locator id),
  *   `_rmaccess` / `_rmlocator` / `_rmscope` (application classes that still implement a removed port, registered by
- *   resource discovery with `#[AsDecorator]` / `#[AsAlias]`) and `_pemfalse` (`database.private_entity_manager: false`).
+ *   resource discovery with `#[AsDecorator]` / `#[AsAlias]`) and `_pemfalse` (`database.private_entity_manager: false`);
+ * - `_compat<mode><port>` (2.0, audit VT200-M1): the application keeps the 1.x wiring of a removed port id with a class
+ *   that implements the framework-free twin: `alias` (an alias of the removed id), `def` (a service registered under
+ *   the removed id) or `conflict` (an alias of the removed id plus an alias of the twin to another service). Ports:
+ *   `access`, `team`, `scope`, `reauth`, `locator`, `health`. The twin is reachable as the public `test.compat`.
  */
 final class VariantKernel extends BaseKernel
 {
+    /**
+     * `_compat<mode><port>` variants: port => [removed id, twin, a host class implementing the twin, its service id].
+     *
+     * @var array<string, array{0: string, 1: class-string, 2: class-string, 3: string}>
+     */
+    public const COMPAT_PORTS = [
+        'access'  => ['Nowo\\VaultBundle\\Security\\VaultAccessCheckerInterface', VaultAccessPolicyInterface::class, PolicyHostPorts::class, 'app.vault_ports'],
+        'team'    => ['Nowo\\VaultBundle\\Security\\VaultTeamMembershipResolverInterface', VaultTeamMembershipProviderInterface::class, PolicyHostPorts::class, 'app.vault_ports'],
+        'scope'   => ['Nowo\\VaultBundle\\Security\\VaultScopeAccessResolverInterface', VaultScopeAccessProviderInterface::class, PolicyHostPorts::class, 'app.vault_ports'],
+        'reauth'  => ['Nowo\\VaultBundle\\Security\\VaultReauthenticationCheckerInterface', VaultReauthenticationProviderInterface::class, TestReauthChecker::class, 'app.compat_service'],
+        'locator' => [RemovedPortsPass::USER_LOCATOR, VaultUserDirectoryInterface::class, PortsUserDirectoryV119::class, 'app.compat_service'],
+        'health'  => ['Nowo\\VaultBundle\\Service\\VaultHealthReporterInterface', VaultHealthReportProviderInterface::class, HostHealthReports::class, 'app.compat_service'],
+    ];
+
     private string $mapping;
 
     private string $ports;
@@ -78,6 +102,9 @@ final class VariantKernel extends BaseKernel
     private readonly int $denyStatus;
 
     private readonly ?string $removed;
+
+    /** @var array{0: string, 1: string}|null [mode, port] of a `_compat<mode><port>` variant */
+    private readonly ?array $compat;
 
     public function __construct(string $environment, bool $debug)
     {
@@ -92,6 +119,13 @@ final class VariantKernel extends BaseKernel
         $this->denyStatus                = in_array('404', $parts, true) ? 404 : 403;
         $removed                         = array_values(array_intersect($parts, ['rmchecker', 'rmalias', 'rmaccess', 'rmlocator', 'rmscope', 'pemfalse']));
         $this->removed                   = $removed[0] ?? null;
+        $compat                          = null;
+        foreach ($parts as $part) {
+            if (preg_match('/^compat(alias|def|conflict)(access|team|scope|reauth|locator|health)$/D', $part, $match) === 1) {
+                $compat = [$match[1], $match[2]];
+            }
+        }
+        $this->compat = $compat;
     }
 
     public function registerBundles(): iterable
@@ -118,8 +152,9 @@ final class VariantKernel extends BaseKernel
         $worker  = $this->worker;
         $deny    = $this->denyStatus;
         $removed = $this->removed;
+        $compat  = $this->compat;
         $url     = $this->server ? '%env(VAULT_TEST_DATABASE_URL)%' : 'sqlite:///%kernel.cache_dir%/variant.db';
-        $loader->load(static function (ContainerBuilder $container) use ($byId, $xml, $ports, $worker, $url, $deny, $removed): void {
+        $loader->load(static function (ContainerBuilder $container) use ($byId, $xml, $ports, $worker, $url, $deny, $removed, $compat): void {
             $orm = ['naming_strategy' => 'doctrine.orm.naming_strategy.underscore_number_aware'] + (PHP_VERSION_ID >= 80400 ? ['enable_native_lazy_objects' => true] : []);
             if (!$byId) {
                 $orm['mappings'] = ['TestUser' => ['type' => 'attribute', 'dir' => '%kernel.project_dir%/Entity', 'prefix' => 'Nowo\\VaultBundle\\Tests\\App\\Entity', 'is_bundle' => false]];
@@ -152,6 +187,27 @@ final class VariantKernel extends BaseKernel
                 'pemfalse'  => $vault['database']['private_entity_manager'] = false,
                 default     => null,
             };
+            if ($compat !== null) {
+                [$id, $twin, $class, $service] = self::COMPAT_PORTS[$compat[1]];
+                if ($compat[0] === 'def') {
+                    $container->register($id, $class);
+                    $service = $id;
+                    if ($compat[1] === 'scope') {
+                        // The configured resolver is the service under the removed id (one service behind the port).
+                        $vault['scopes']['access_resolver'] = $id;
+                    }
+                } else {
+                    if (!$container->hasDefinition($service)) {
+                        $container->register($service, $class);
+                    }
+                    $container->setAlias($id, $service);
+                }
+                if ($compat[0] === 'conflict') {
+                    $container->register('app.compat_other', $class);
+                    $container->setAlias($twin, 'app.compat_other');
+                }
+                $container->setAlias('test.compat', $twin)->setPublic(true);
+            }
             $container->loadFromExtension('nowo_vault', $vault);
             if ($removed === 'rmchecker') {
                 $container->register('app.legacy_checker', LegacyAccessChecker::class);

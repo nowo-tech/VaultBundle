@@ -201,10 +201,24 @@ What fails the container build, with a message naming the service and the interf
 - a class that still implements a removed interface (it cannot be loaded), whether named by the configuration or
   registered by resource discovery (`#[AsAlias]`, `#[AsDecorator]`). A class that implemented both
   interfaces must drop the removed one;
-- a service registered under, aliased to or decorating a removed interface id (e.g. your
-  `Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@App\…'` alias). In 1.x that alias picked your lookup; it is
-  never ignored silently;
+- a service registered under or aliased to a removed interface id (e.g. your
+  `Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@App\…'` alias) whose class does **not** implement the twin,
+  or whose class cannot be known before compilation (a factory). In 1.x that alias picked your lookup; it is never
+  ignored silently;
+- a decorator of a removed interface id;
 - a decorator of a port (of the interface or of the service behind it) whose class does not implement the interface.
+
+**Your alias of a removed id, when the class already implements the twin** (the 1.17 way to replace the user lookup,
+kept by many 1.19 hosts whose class moved to the twin): it keeps working until 3.0. The vault aliases the twin to that
+service and raises a deprecation when the container is built (`bin/console debug:container --deprecations`):
+
+> The service id "Nowo\VaultBundle\Support\VaultUserLocatorInterface" was removed in 2.0; the vault uses
+> "App\Directory" (which implements "Nowo\VaultBundle\Support\VaultUserDirectoryInterface") through that interface.
+> Alias "Nowo\VaultBundle\Support\VaultUserDirectoryInterface" instead (the old id is accepted until 3.0).
+
+Rename the alias (or the service id) to the twin to clear it. The same holds for a service registered under a removed
+id. When you alias the twin as well, both must name the same service: two different services fail the build (keep
+only the alias of the twin).
 
 **Decorators.** The 1.19 bridge that asked a decorator of a deprecated access port *together with* the 1.19 interface
 ("both are asked, the weaker answer wins") is removed: decorate the framework-free interface instead (for example
@@ -247,6 +261,7 @@ The keys deprecated since 1.15 fail the container build with the key to set inst
 | `nowo_vault.templates.<page>` | `nowo_vault.web_ui.templates.<page>` (`index` → `home`) |
 | `nowo_vault.css_framework` | `nowo_ui_kit.css_framework` / `icon_set` (no longer copied there by the vault) |
 | Twig global `nowo_vault_css_framework` (class `Twig\VaultExtension`) | `nowo_ui_kit.css_framework` |
+| Container parameter `nowo_vault.css_framework` | `nowo_ui_kit.css_framework` |
 | `vault/_legacy_layout.html.twig` (the bridge around a 1.x layout) and the page variables `nowo_vault_legacy_layout` / `nowo_vault_legacy_blocks` | a layout that renders the UiKit canonical blocks |
 
 **Layouts.** `web_ui.layout_template: null` (the default) renders the pages in `nowo_ui_kit.layouts.admin`, as before.
@@ -260,6 +275,8 @@ fails with a `LogicException` that says what to do (it never renders an empty pa
 | --- | --- | --- |
 | `database.private_entity_manager: false` (the 1.18 wiring on `database.entity_manager`) | 1.19.0 | none: the private manager ([Private manager only](#private-manager-only)) |
 | The six ports and their service aliases ([Ports](#ports)) | 1.19.0 | their framework-free twins |
+| Your alias of (or service under) a removed port id | 1.19.0 | alias the twin; with a class that implements the twin the old id still works with a deprecation until 3.0 ([Ports](#ports)) |
+| Container parameter `nowo_vault.private_entity_manager` | 1.19.0 | none (always the private manager) |
 | The event and result user members ([Events](#events)) | 1.19.0 | the `…Ref()` / `…Id()` accessors |
 | `VaultItem::getCreator()`, `VaultFolder::getCreator()`, `VaultTag::getCreator()` | 1.16.0 | `getOwner()` (`getUser()`, `getScope()`, `key()`), `getCreatorId()`, or `getCreatedBy()` (audit creator) |
 | `VaultGrantService::grant()` / `revoke()` | 1.16.0 | `grantAs($actor, …, ?$expiresAt)` / `revokeAs($actor, $grant)` (they re-check that the actor may Share) |
@@ -268,6 +285,8 @@ fails with a `LogicException` that says what to do (it never renders an empty pa
 ### Kept
 
 - `database.private_entity_manager: true` is accepted (no effect, deprecated since 2.0, removed in 3.0); remove it.
+- Your alias of, or service under, a removed port id whose class implements the twin is accepted (deprecated since
+  2.0, removed in 3.0); alias the twin instead.
 - `database.entity_manager` keeps naming the source manager of the private one (connection, mapping, listeners, SQL
   filters).
 - The id rules: byte-for-byte user ids in `user_mapping: id` (1.19.3) and the cross-class owner checks (1.17) are

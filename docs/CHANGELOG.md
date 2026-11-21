@@ -68,7 +68,8 @@ decision are unchanged.
 - **`database.private_entity_manager: false` and the 1.18 wiring** (deprecated since 1.19.0): the vault no longer reads
   and writes its rows through the application's manager named by `database.entity_manager`, never flushes the
   application's pending changes and never resets that manager after a failed write. `false` fails the container build.
-  `VaultWriteUnit` (internal) runs on the private manager only.
+  The container parameter `nowo_vault.private_entity_manager` is removed. `VaultWriteUnit` (internal) runs on the
+  private manager only.
 - **The six deprecated host ports and their service aliases** (deprecated since 1.19.0):
   `Security\VaultAccessCheckerInterface`, `Security\VaultTeamMembershipResolverInterface`,
   `Security\VaultScopeAccessResolverInterface`, `Security\VaultReauthenticationCheckerInterface`,
@@ -94,9 +95,12 @@ decision are unchanged.
   accepted as a no-op with a deprecation (removed in 3.0, owner answer Q4); unset no longer raises a notice.
 - **A removed host-facing path fails the container build** with a message naming what to do: a service behind a port
   whose class does not implement the framework-free interface or still implements a removed one (it cannot be loaded),
-  a service registered under, aliased to or decorating a removed port id, an application class registered by resource
-  discovery (`#[AsAlias]`, `#[AsDecorator]`) that still implements a removed port (`RemovedPortsPass`), and a decorator
-  of a port without its interface.
+  a decorator of a removed port id, a service registered under or aliased to a removed port id whose class does not
+  implement the twin, an application class registered by resource discovery (`#[AsAlias]`, `#[AsDecorator]`) that
+  still implements a removed port (`RemovedPortsPass`), and a decorator of a port without its interface.
+- **Your alias of (or service under) a removed port id keeps working when its class implements the twin** (audit
+  VT200-M1; the 1.17 way to replace the user lookup): the twin is aliased to that service with a build-time
+  deprecation (removed in 3.0). An alias of the twin to another service fails the build.
 - **A layout without the UiKit canonical blocks** (`web_ui.layout_template`) fails the page with a `LogicException`
   that says what to do, instead of being wrapped by the removed bridge.
 - CI runs on the `1.x` maintenance branch too.
