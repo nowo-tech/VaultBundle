@@ -201,10 +201,13 @@ What fails the container build, with a message naming the service and the interf
 - a class that still implements a removed interface (it cannot be loaded), whether named by the configuration or
   registered by resource discovery (`#[AsAlias]`, `#[AsDecorator]`). A class that implemented both
   interfaces must drop the removed one;
-- a service registered under or aliased to a removed interface id (e.g. your
-  `Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@App\…'` alias) whose class does **not** implement the twin,
-  or whose class cannot be known before compilation (a factory). In 1.x that alias picked your lookup; it is never
-  ignored silently;
+- an alias of a removed interface id (e.g. your `Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@App\…'`
+  alias) whose class does **not** implement the twin, or whose class cannot be known before compilation (a factory).
+  In 1.x that alias picked your lookup; it is never ignored silently;
+- a service **registered under** a removed interface id (e.g. `Nowo\VaultBundle\Security\VaultAccessCheckerInterface:
+  { class: App\VaultAccess }`). 1.21 replaced that definition with its own alias of the id, so it never served the
+  port: the built-in did. Using it now would change who gets access, so the build fails instead: alias the twin to it
+  if you want it to serve the port, or remove it;
 - a decorator of a removed interface id;
 - a decorator of a port (of the interface or of the service behind it) whose class does not implement the interface.
 
@@ -216,9 +219,9 @@ service and raises a deprecation when the container is built (`bin/console debug
 > "App\Directory" (which implements "Nowo\VaultBundle\Support\VaultUserDirectoryInterface") through that interface.
 > Alias "Nowo\VaultBundle\Support\VaultUserDirectoryInterface" instead (the old id is accepted until 3.0).
 
-Rename the alias (or the service id) to the twin to clear it. The same holds for a service registered under a removed
-id. When you alias the twin as well, both must name the same service: two different services fail the build (keep
-only the alias of the twin).
+Rename the alias to the twin to clear it. This applies to aliases only: a service registered under a removed id fails
+the build (see above). When you alias the twin as well, both must name the same service: two different services fail
+the build (keep only the alias of the twin).
 
 **Decorators.** The 1.19 bridge that asked a decorator of a deprecated access port *together with* the 1.19 interface
 ("both are asked, the weaker answer wins") is removed: decorate the framework-free interface instead (for example
@@ -275,7 +278,8 @@ fails with a `LogicException` that says what to do (it never renders an empty pa
 | --- | --- | --- |
 | `database.private_entity_manager: false` (the 1.18 wiring on `database.entity_manager`) | 1.19.0 | none: the private manager ([Private manager only](#private-manager-only)) |
 | The six ports and their service aliases ([Ports](#ports)) | 1.19.0 | their framework-free twins |
-| Your alias of (or service under) a removed port id | 1.19.0 | alias the twin; with a class that implements the twin the old id still works with a deprecation until 3.0 ([Ports](#ports)) |
+| Your alias of a removed port id | 1.19.0 | alias the twin; with a class that implements the twin the old alias still works with a deprecation until 3.0 ([Ports](#ports)) |
+| A service registered under a removed port id (never used by 1.21: the built-in served the port) | 1.19.0 | the build fails: alias the twin to it to use it, or remove it ([Ports](#ports)) |
 | Container parameter `nowo_vault.private_entity_manager` | 1.19.0 | none (always the private manager) |
 | The event and result user members ([Events](#events)) | 1.19.0 | the `…Ref()` / `…Id()` accessors |
 | `VaultItem::getCreator()`, `VaultFolder::getCreator()`, `VaultTag::getCreator()` | 1.16.0 | `getOwner()` (`getUser()`, `getScope()`, `key()`), `getCreatorId()`, or `getCreatedBy()` (audit creator) |
@@ -285,8 +289,8 @@ fails with a `LogicException` that says what to do (it never renders an empty pa
 ### Kept
 
 - `database.private_entity_manager: true` is accepted (no effect, deprecated since 2.0, removed in 3.0); remove it.
-- Your alias of, or service under, a removed port id whose class implements the twin is accepted (deprecated since
-  2.0, removed in 3.0); alias the twin instead.
+- Your alias of a removed port id whose class implements the twin is accepted (deprecated since 2.0, removed in 3.0);
+  alias the twin instead.
 - `database.entity_manager` keeps naming the source manager of the private one (connection, mapping, listeners, SQL
   filters).
 - The id rules: byte-for-byte user ids in `user_mapping: id` (1.19.3) and the cross-class owner checks (1.17) are

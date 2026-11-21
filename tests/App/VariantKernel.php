@@ -72,7 +72,7 @@ use const PHP_VERSION_ID;
  *   resource discovery with `#[AsDecorator]` / `#[AsAlias]`) and `_pemfalse` (`database.private_entity_manager: false`);
  * - `_compat<mode><port>` (2.0, audit VT200-M1): the application keeps the 1.x wiring of a removed port id with a class
  *   that implements the framework-free twin: `alias` (an alias of the removed id), `def` (a service registered under
- *   the removed id) or `conflict` (an alias of the removed id plus an alias of the twin to another service). Ports:
+ *   the removed id: refused, audit VT200-M2) or `conflict` (an alias of the removed id plus an alias of the twin to another service). Ports:
  *   `access`, `team`, `scope`, `reauth`, `locator`, `health`. The twin is reachable as the public `test.compat`.
  */
 final class VariantKernel extends BaseKernel

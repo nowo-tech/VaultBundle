@@ -24,13 +24,15 @@ use function trigger_deprecation;
 /**
  * The six host ports removed in 2.0 (deprecated since 1.19, REQ-ARCH-001 rule 3).
  *
- * - **Accepted with a deprecation (until 3.0):** the application aliases a removed id, or registers a service under it
- *   (the documented 1.17 way to replace the user lookup, e.g. `Nowo\VaultBundle\Support\VaultUserLocatorInterface:
- *   '@App\Directory'`), and the class behind it implements the framework-free twin. The twin is aliased to that service
- *   (as 1.21 asked it), unless the application aliases the twin to the same service already; if it aliases the twin to
- *   another service, the build fails (keep only one).
- * - **Refused (the build fails):** the class behind the removed id does not implement the twin (or cannot be known
- *   before compilation); a decorator of a removed id; an application class that still implements a removed interface.
+ * - **Accepted with a deprecation (until 3.0):** the application aliases a removed id (the documented 1.17 way to
+ *   replace the user lookup, e.g. `Nowo\VaultBundle\Support\VaultUserLocatorInterface: '@App\Directory'`) and the
+ *   class behind it implements the framework-free twin. The twin is aliased to that service (as 1.21 asked it), unless
+ *   the application aliases the twin to the same service already; if it aliases the twin to another service, the build
+ *   fails (keep only one).
+ * - **Refused (the build fails):** a service registered under a removed id (1.21 overwrote it with its own alias, so the
+ *   built-in served the port: using it now would change who gets access without a word); an alias whose class does
+ *   not implement the twin (or cannot be known before compilation); a decorator of a removed id; an application class
+ *   that still implements a removed interface.
  *   Such a class cannot be loaded: when it is registered by resource discovery (e.g. with `#[AsAlias]` or
  *   `#[AsDecorator]`), Symfony keeps its definition with only a loading error and would later remove it as unused,
  *   without a word (a dropped access decorator would widen access). A class that still implements a removed interface
@@ -69,17 +71,14 @@ final class RemovedPortsPass implements CompilerPassInterface
     {
         foreach (self::REMOVED_PORTS as $port => $twin) {
             $problems = [];
-            $target   = null;
             if ($container->hasAlias($port)) {
-                $target = (string) $container->getAlias($port);
-            } elseif ($container->hasDefinition($port)) {
-                $target = $port;
-            }
-            if ($target !== null) {
-                $problem = $this->acceptAsTwin($container, $port, $twin, $target);
+                $problem = $this->acceptAsTwin($container, $port, $twin, (string) $container->getAlias($port));
                 if ($problem !== null) {
                     $problems[] = $problem;
                 }
+            } elseif ($container->hasDefinition($port)) {
+                // 1.21 replaced this definition with its own alias of the id: the built-in served the port.
+                $problems[] = sprintf('a service is registered under it, which 1.21 did not use (the built-in served the port): alias "%s" to it to use it, or remove it', $twin);
             }
             foreach ($container->getDefinitions() as $id => $definition) {
                 if (($definition->getDecoratedService()[0] ?? null) === $port) {
@@ -96,7 +95,7 @@ final class RemovedPortsPass implements CompilerPassInterface
     }
 
     /**
-     * An alias of, or a service under, a removed id whose class implements the twin: the twin is aliased to it (a 2.x
+     * An alias of a removed id whose class implements the twin: the twin is aliased to it (a 2.x
      * deprecation). Returns why it cannot be accepted, or null.
      */
     private function acceptAsTwin(ContainerBuilder $container, string $port, string $twin, string $target): ?string
@@ -104,7 +103,7 @@ final class RemovedPortsPass implements CompilerPassInterface
         $service = $this->resolve($container, $target);
         $class   = $this->classOf($container, $service);
         if ($class === null || $container->getReflectionClass($class, false)?->implementsInterface($twin) !== true) {
-            return sprintf('"%s" is registered under it or aliased to it, and its class does not implement "%s": make it implement "%s" and alias that interface instead', $service, $twin, $twin);
+            return sprintf('it is aliased to "%s", whose class does not implement "%s": make it implement "%s" and alias that interface instead', $service, $twin, $twin);
         }
 
         if ($container->hasAlias($twin) || $container->hasDefinition($twin)) {

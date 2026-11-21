@@ -95,12 +95,14 @@ decision are unchanged.
   accepted as a no-op with a deprecation (removed in 3.0, owner answer Q4); unset no longer raises a notice.
 - **A removed host-facing path fails the container build** with a message naming what to do: a service behind a port
   whose class does not implement the framework-free interface or still implements a removed one (it cannot be loaded),
-  a decorator of a removed port id, a service registered under or aliased to a removed port id whose class does not
-  implement the twin, an application class registered by resource discovery (`#[AsAlias]`, `#[AsDecorator]`) that
+  a decorator of a removed port id, a service registered under a removed port id, an alias of a removed port id whose
+  class does not implement the twin, an application class registered by resource discovery (`#[AsAlias]`, `#[AsDecorator]`) that
   still implements a removed port (`RemovedPortsPass`), and a decorator of a port without its interface.
-- **Your alias of (or service under) a removed port id keeps working when its class implements the twin** (audit
-  VT200-M1; the 1.17 way to replace the user lookup): the twin is aliased to that service with a build-time
-  deprecation (removed in 3.0). An alias of the twin to another service fails the build.
+- **Your alias of a removed port id keeps working when its class implements the twin** (audit VT200-M1; the 1.17 way
+  to replace the user lookup): the twin is aliased to that service with a build-time deprecation (removed in 3.0). An
+  alias of the twin to another service fails the build. A service registered under a removed id fails the build
+  (audit VT200-M2): 1.21 never used it (its own alias of the id replaced it and the built-in served the port), so
+  adopting it would change access; alias the twin to it, or remove it.
 - **A layout without the UiKit canonical blocks** (`web_ui.layout_template`) fails the page with a `LogicException`
   that says what to do, instead of being wrapped by the removed bridge.
 - CI runs on the `1.x` maintenance branch too.

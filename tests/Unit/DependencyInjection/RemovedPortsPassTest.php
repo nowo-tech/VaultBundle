@@ -45,24 +45,24 @@ final class RemovedPortsPassTest extends TestCase
         $container->register('app.service', stdClass::class);
         $container->setAlias($port, 'app.service');
 
-        $this->assertFails($container, $port, $twin, ['"app.service" is registered under it or aliased to it, and its class does not implement "' . $twin . '": make it implement']);
+        $this->assertFails($container, $port, $twin, ['it is aliased to "app.service", whose class does not implement "' . $twin . '": make it implement']);
 
         $unknown = new ContainerBuilder();
         $unknown->register('app.factory', stdClass::class)->setFactory('app_factory');
         $unknown->setAlias($port, 'app.factory');
-        $this->assertFails($unknown, $port, $twin, ['"app.factory" is registered under it or aliased to it'], 'a class unknown before compilation is never accepted');
+        $this->assertFails($unknown, $port, $twin, ['it is aliased to "app.factory"'], 'a class unknown before compilation is never accepted');
 
         $missing = new ContainerBuilder();
         $missing->setAlias($port, 'app.missing');
-        $this->assertFails($missing, $port, $twin, ['"app.missing" is registered under it or aliased to it'], 'an alias of a service that does not exist is never accepted');
+        $this->assertFails($missing, $port, $twin, ['it is aliased to "app.missing"'], 'an alias of a service that does not exist is never accepted');
     }
 
     /**
-     * Audit VT200-M1: the 1.x wiring of a removed id with a class implementing the twin keeps working until 3.0.
+     * Audit VT200-M1: an alias of a removed id (the 1.17 way) with a class implementing the twin keeps working until 3.0.
      */
     #[Test]
     #[DataProvider('removedPorts')]
-    public function anAliasOrAServiceUnderARemovedIdWithTheTwinIsAcceptedWithADeprecation(string $port, string $twin): void
+    public function anAliasOfARemovedIdWithTheTwinIsAcceptedWithADeprecation(string $port, string $twin): void
     {
         $class = $this->twinClass($twin);
 
@@ -75,10 +75,12 @@ final class RemovedPortsPassTest extends TestCase
         self::assertCount(1, $messages);
         self::assertSame(sprintf('Since nowo-tech/vault-bundle 2.0: The service id "%s" was removed in 2.0; the vault uses "app.directory" (which implements "%s") through that interface. Alias "%s" instead (the old id is accepted until 3.0).', $port, $twin, $twin), $messages[0]);
 
+        // Audit VT200-M2: a service registered under the removed id was never used by 1.21 (its own alias of the id
+        // replaced it, the built-in served the port): adopting it now would change access. The build fails.
         $service = new ContainerBuilder();
         $service->register($port, $class);
-        $this->deprecations(static fn () => (new RemovedPortsPass())->process($service));
-        self::assertSame($port, (string) $service->getAlias($twin));
+        $this->assertFails($service, $port, $twin, ['a service is registered under it, which 1.21 did not use (the built-in served the port): alias "' . $twin . '" to it to use it, or remove it']);
+        self::assertFalse($service->hasAlias($twin), 'never adopted');
 
         // The application aliases the twin to the same service already: kept as it is.
         $same = new ContainerBuilder();
@@ -110,7 +112,7 @@ final class RemovedPortsPassTest extends TestCase
         $container->register($port, stdClass::class);
         $container->register('app.audit', stdClass::class)->setDecoratedService($port);
 
-        $this->assertFails($container, $port, $twin, ['"' . $port . '" is registered under it or aliased to it', '"app.audit" decorates it: decorate "' . $twin . '" instead']);
+        $this->assertFails($container, $port, $twin, ['a service is registered under it, which 1.21 did not use (the built-in served the port): alias "' . $twin . '" to it to use it, or remove it', '"app.audit" decorates it: decorate "' . $twin . '" instead']);
     }
 
     /**
