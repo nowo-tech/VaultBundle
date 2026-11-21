@@ -376,6 +376,14 @@ Since 1.19.0 every hook event that carries the user also gives it as a framework
 list, policy and share events) and the ids of its resources (`getItemId()`, `getFolderId()`, `getOwnerKey()`,
 `VaultItemListResultEvent::getItemIds()`). The `UserInterface` getters were removed in 2.0 (deprecated since 1.19).
 
+The change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`) are dispatched after the commit. Since
+2.1.0 that holds inside your own transaction too: when the vault writes while your code has a transaction open on the
+vault's connection (the vault's unit is then a savepoint), the events wait for your commit and are dropped if you roll
+back (a rolled-back savepoint drops the events written inside it). Committed events are dispatched at the next idle
+point: the next vault change outside a transaction, or the end of the request, Messenger message or console command,
+never inside the commit call. This needs doctrine/dbal 4 (the connection hook); with DBAL 3 the events are dispatched
+when the vault's unit ends, as in 2.0.
+
 ## Lists and pagination
 
 The items, shared and trash pages are paginated (`?page=N`, `nowo_vault.pagination.per_page`, default 50; see [CONFIGURATION.md](CONFIGURATION.md#pagination)). Own / folder / tag / trash lists page in the database (Doctrine `Paginator`, tags fetch-joined, so the page costs a constant number of queries); shared items are loaded through the grant ids and sliced in PHP; search results stay capped at 50 and are not paginated. A custom `VaultItemRepositoryInterface` keeps working: implement `VaultItemPaginatorInterface` to page in the database, otherwise the lister slices the full list. Items returned by a `VaultEvents::ITEM_LIST_QUERY` override are used as given (your listener owns paging).
@@ -597,6 +605,68 @@ The ports you implement or call:
 | `Support\VaultUserDirectoryInterface` | user id → `?VaultUserRef` | alias |
 | `Service\VaultHealthReportProviderInterface` | `VaultUserRef` → `VaultHealthReport` | you call it |
 | `Service\VaultPersonalDataEraserInterface` / `…ExporterInterface` | user id | you call them |
+| `Service\VaultItemCommandsInterface`, `…FolderCommandsInterface`, `…GrantCommandsInterface`, `…TagCommandsInterface` | `VaultUserRef` + ids → views (2.1.0) | you call them |
+| `Service\VaultItemQueryInterface` | `VaultItemCriteria` / ids → `VaultItemPage` / `VaultItemView` (2.1.0) | you call it |
+| `Service\VaultAccessCheckInterface` | `VaultUserRef` + id + `VaultAccessAction` → bool (2.1.0) | you call it |
+
+### Host ports by id (2.1.0)
+
+Your application layer writes, reads and checks vault data without touching an entity, a `UserInterface` or DQL. Every
+port takes a `VaultUserRef` (usually `VaultUserRef::ofId($userId)`, looked up again through your directory) and ids, and
+returns read models from `Nowo\VaultBundle\View` (`VaultItemView`, `VaultFolderView`, `VaultGrantView`,
+`VaultItemPage`) that carry ids, scalars and dates only: never a payload value, the ciphertext or a secret hash.
+
+```php
+use Nowo\VaultBundle\Dto\VaultItemCriteria;
+use Nowo\VaultBundle\Enum\VaultItemType;
+use Nowo\VaultBundle\Event\VaultAccessAction;
+use Nowo\VaultBundle\Service\VaultAccessCheckInterface;
+use Nowo\VaultBundle\Service\VaultItemCommandsInterface;
+use Nowo\VaultBundle\Service\VaultItemQueryInterface;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
+
+final readonly class SeedOrganisationVault
+{
+    public function __construct(
+        private VaultItemCommandsInterface $items,
+        private VaultItemQueryInterface $query,
+        private VaultAccessCheckInterface $access,
+    ) {}
+
+    public function __invoke(string $userId, string $orgKey): ?string
+    {
+        $actor = VaultUserRef::ofId($userId);
+        if ($this->query->count(VaultItemCriteria::forScope($orgKey)->withTitle('Wi-Fi')) > 0) {
+            return null;
+        }
+
+        $item = $this->items->createInScope($actor, $orgKey, VaultItemType::SecureNote, 'Wi-Fi', ['notes' => '…'], null, ['office']);
+
+        return $this->access->canAccessItem($actor, $item->id, VaultAccessAction::Edit) ? $item->id : null;
+    }
+}
+```
+
+- **Commands** (`VaultItemCommandsInterface`: `create`, `createInScope`, `update`, `move`, `retag`, `moveToTrash`,
+  `restore`, `purge`; `VaultFolderCommandsInterface`: `create`, `createInScope`, `rename`, `moveToTrash`, `restore`,
+  `purge`; `VaultGrantCommandsInterface`: `grant`, `revoke`, `listForResource`; `VaultTagCommandsInterface`: `delete`)
+  re-check the actor's access at the call with the same rules as the vault pages, run in one vault write unit (one
+  transaction; a savepoint inside yours) and emit the usual change events. A refusal is one
+  `VaultAccessDeniedException` whether the actor is unknown, the resource does not exist or access is denied (an id
+  never confirms that a resource exists); a folder of another owner is a `VaultOwnerException`; sharing rules answer
+  `VaultGrantRefusedException` with its reason code; a lock conflict leaves as `TransientStorageFailure` (retry).
+  `update()` takes the `editToken` of the view you read and refuses with `VaultItemChangedException` a save that would
+  overwrite a change saved meanwhile. The payload you pass replaces the stored one as a whole.
+- **Query** (`VaultItemQueryInterface`: `find`, `count`, `findById`, `findByIds`) is a system read with no access check:
+  filter by owner (`VaultItemCriteria::forUser($id)`, `forScope($key)` or `forOwnerKey('user:…' | 'scope:…')`), type,
+  folder (or none), tag, exact title (byte for byte), title fragment, trash state, sort and page (at most 500 rows).
+  Decide what a user may see with your own rules or with the access port first.
+- **Access** (`VaultAccessCheckInterface`: `canAccessItem`, `canAccessFolder`, `isItemReadOnly`, `itemPermissions`,
+  `scopeAccess`) answers `false` / null for an unknown user or resource.
+
+The entity / `UserInterface` signatures of `VaultItemCreator`, `VaultItemUpdater`, `VaultFolderService`,
+`VaultTagService`, `VaultTrashService`, `VaultGrantService::grantAs()` / `revokeAs()` and `VaultAccessGuard` stay for the
+vault's own pages and standard hosts; they are deprecated for host code and become internal in 3.0.
 
 Your directory is the only source of trust for users known by id: the identity and role names the vault uses come
 from its answer, and it must answer null for a user who must not use the vault (unknown, disabled, locked, another

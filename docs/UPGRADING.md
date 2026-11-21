@@ -98,6 +98,29 @@
 
 ## Unreleased
 
+From **2.0.0** (target 2.1.0, minor):
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+Nothing to change: no configuration, schema, template or signature changes.
+
+- **New id-based ports** for a DDD / hexagonal host: `VaultItemCommandsInterface`, `VaultFolderCommandsInterface`,
+  `VaultGrantCommandsInterface`, `VaultTagCommandsInterface`, `VaultItemQueryInterface` and
+  `VaultAccessCheckInterface` (see [USAGE](USAGE.md#host-ports-by-id-210)). Move host code that builds or reads vault
+  entities (`VaultItem::forScope()`, `getRepository(VaultItem::class)`, DQL over the vault tables) to them; seed and
+  sync commands are the typical case.
+- **Deprecated for host code** (removal from the public API in 3.0): the entity / `UserInterface` signatures of
+  `VaultItemCreator`, `VaultItemUpdater::update()`, `VaultFolderService`, `VaultTagService::syncItemTags()` /
+  `deleteForCreator()`, `VaultTrashService`, `VaultGrantService::grantAs()` / `revokeAs()` and the `VaultAccessGuard`
+  checks. No runtime deprecation is triggered.
+- **Event timing inside your transaction** (doctrine/dbal 4): if your code opens a transaction on the vault's
+  connection and calls the vault inside it, the change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`,
+  `GRANT_*`) now arrive after your commit (at the next vault change outside a transaction or at the end of the request,
+  message or command) and never when you roll back. A listener that relied on running inside that transaction must
+  now open its own. Outside your transactions nothing changes.
+
 ## To 2.0.0
 
 From **1.21.2**:

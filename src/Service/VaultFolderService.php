@@ -41,6 +41,9 @@ final readonly class VaultFolderService
      *
      * @throws VaultAccessDeniedException when the actor may not create in the scope
      * @throws VaultOwnerException when the parent belongs to another owner
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultFolderCommandsInterface::createInScope()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function createInScope(UserInterface $actor, string $name, string $scope, ?VaultFolder $parent = null): VaultFolder
     {
@@ -76,6 +79,9 @@ final readonly class VaultFolderService
 
     /**
      * Creates and persists a folder.
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultFolderCommandsInterface::create()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function create(string $name, object $creator, ?VaultFolder $parent = null): VaultFolder
     {
@@ -88,6 +94,9 @@ final readonly class VaultFolderService
 
     /**
      * Renames and persists a folder.
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultFolderCommandsInterface::rename()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function rename(VaultFolder $folder, string $name): VaultFolder
     {

@@ -73,6 +73,9 @@ final readonly class VaultGrantService
      * temporary grant never replaces or upgrades a permanent one (Q-O6).
      *
      * @throws VaultGrantRefusedException with a reason code when a check fails
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultGrantCommandsInterface::grant()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function grantAs(
         UserInterface $actor,
@@ -134,6 +137,9 @@ final readonly class VaultGrantService
      * @throws VaultGrantRefusedException when the actor may not Share the resource
      *
      * @return bool false when the grant was already gone (revoked or purged meanwhile)
+     *
+     * @deprecated since 2.1.0: host code calls {@see VaultGrantCommandsInterface::revoke()} (ids and VaultUserRef, views returned); in 3.0
+     *             this entity / UserInterface signature becomes internal to the bundle
      */
     public function revokeAs(UserInterface $actor, VaultGrant $grant): bool
     {

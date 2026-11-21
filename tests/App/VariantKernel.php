@@ -13,11 +13,17 @@ use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
 use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
+use Nowo\VaultBundle\Service\VaultAccessCheckInterface;
+use Nowo\VaultBundle\Service\VaultFolderCommandsInterface;
+use Nowo\VaultBundle\Service\VaultGrantCommandsInterface;
 use Nowo\VaultBundle\Service\VaultHealthReportProviderInterface;
+use Nowo\VaultBundle\Service\VaultItemCommandsInterface;
+use Nowo\VaultBundle\Service\VaultItemQueryInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporterInterface;
+use Nowo\VaultBundle\Service\VaultTagCommandsInterface;
 use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Entity\User;
@@ -240,7 +246,12 @@ final class VariantKernel extends BaseKernel
             $container->setAlias('test.personal_data_exporter', VaultPersonalDataExporter::class)->setPublic(true);
             $container->setAlias('test.personal_data_eraser', VaultPersonalDataEraser::class)->setPublic(true);
             // The 1.19 ports a host calls, reachable by the tests.
-            foreach ([VaultPersonalDataEraserInterface::class, VaultPersonalDataExporterInterface::class, VaultHealthReportProviderInterface::class] as $port) {
+            foreach ([
+                VaultPersonalDataEraserInterface::class, VaultPersonalDataExporterInterface::class, VaultHealthReportProviderInterface::class,
+                // 2.1.0 host ports (ids and VaultUserRef).
+                VaultItemCommandsInterface::class, VaultFolderCommandsInterface::class, VaultGrantCommandsInterface::class,
+                VaultTagCommandsInterface::class, VaultItemQueryInterface::class, VaultAccessCheckInterface::class,
+            ] as $port) {
                 $container->setAlias('test.port.' . $port, $port)->setPublic(true);
             }
             if ($ports === 'new') {

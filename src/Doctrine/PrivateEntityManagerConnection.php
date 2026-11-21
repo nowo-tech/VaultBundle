@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Doctrine;
 
 use Doctrine\DBAL\Driver\Connection;
 use Doctrine\DBAL\Driver\Middleware\AbstractConnectionMiddleware;
+use Nowo\VaultBundle\Internal\DeferredVaultEventDispatcher;
 use Throwable;
 
 use function preg_match;
@@ -14,7 +15,8 @@ use function strtolower;
 
 /**
  * Reports rolled-back transactions and savepoints (with their nesting level), released savepoints, commits and failed
- * commits to {@see VaultEntityManager}, which decides whether its identity map is stale (audit NJ-2).
+ * commits to {@see VaultEntityManager}, which decides whether its identity map is stale (audit NJ-2), and (2.1.0) to
+ * {@see DeferredVaultEventDispatcher}, which holds the vault's change notifications until the application's commit.
  *
  * @internal
  */
@@ -38,6 +40,7 @@ final class PrivateEntityManagerConnection extends AbstractConnectionMiddleware
     public function __construct(
         Connection $connection,
         private readonly VaultEntityManager $entityManager,
+        private readonly ?DeferredVaultEventDispatcher $events = null,
     ) {
         parent::__construct($connection);
     }
@@ -51,10 +54,12 @@ final class PrivateEntityManagerConnection extends AbstractConnectionMiddleware
             parent::commit();
         } catch (Throwable $exception) {
             $this->entityManager->connectionRolledBack(1);
+            $this->events?->connectionRolledBack(1);
 
             throw $exception;
         }
         $this->entityManager->connectionCommitted();
+        $this->events?->connectionCommitted();
     }
 
     /**
@@ -66,6 +71,7 @@ final class PrivateEntityManagerConnection extends AbstractConnectionMiddleware
             parent::rollBack();
         } finally {
             $this->entityManager->connectionRolledBack(1);
+            $this->events?->connectionRolledBack(1);
         }
     }
 
@@ -77,9 +83,12 @@ final class PrivateEntityManagerConnection extends AbstractConnectionMiddleware
         $result = parent::exec($sql);
         if (preg_match(self::SAVEPOINT_ROLLBACK, $sql, $match) === 1 && !str_starts_with(strtolower($match[1]), self::VAULT_SAVEPOINT)) {
             // A savepoint of unknown level (opened by the application itself): treated as undoing everything pending.
-            $this->entityManager->connectionRolledBack(preg_match(self::NESTED, $match[1], $level) === 1 ? (int) $level[1] : null);
+            $rolledBack = preg_match(self::NESTED, $match[1], $level) === 1 ? (int) $level[1] : null;
+            $this->entityManager->connectionRolledBack($rolledBack);
+            $this->events?->connectionRolledBack($rolledBack);
         } elseif (preg_match(self::SAVEPOINT_RELEASE, $sql, $match) === 1 && preg_match(self::NESTED, $match[1], $level) === 1) {
             $this->entityManager->savepointReleased((int) $level[1]);
+            $this->events?->savepointReleased((int) $level[1]);
         }
 
         return $result;

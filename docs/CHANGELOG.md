@@ -60,6 +60,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: **2.1.0** (minor, additive: DDD-host checklist B1, B4, B7, B8; REQ-ARCH-001 rules 1, 3 and 7). Nothing is
+removed and no signature changes; see [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **Id-based command ports** (B1): `Service\VaultItemCommandsInterface` (`create`, `createInScope`, `update` with an
+  optional edit token, `move`, `retag`, `moveToTrash`, `restore`, `purge`), `Service\VaultFolderCommandsInterface`
+  (`create`, `createInScope`, `rename`, `moveToTrash`, `restore`, `purge`), `Service\VaultGrantCommandsInterface`
+  (`grant`, `revoke`, `listForResource`) and `Service\VaultTagCommandsInterface` (`delete`). They take a `VaultUserRef`
+  (a reference by id is looked up again through the user directory) and ids, re-check access at the call with the
+  rules of the vault pages, run in one vault write unit and return read models.
+- **Read models** `View\VaultItemView` (metadata and the edit token, never a payload value or the ciphertext),
+  `View\VaultFolderView`, `View\VaultGrantView` and `View\VaultItemPage`.
+- **Item query port** (B7): `Service\VaultItemQueryInterface` (`find`, `count`, `findById`, `findByIds`) over
+  `Dto\VaultItemCriteria` (owner by user id, scope key or owner key; type, folder or no folder, tag, exact title,
+  title fragment, trash state via `Enum\VaultTrashFilter`, sort via `Enum\VaultItemSort`, page of at most 500). A
+  system read on the vault's private manager: no access check, ids and exact titles compared byte for byte.
+- **Access checks by id** (B8): `Service\VaultAccessCheckInterface` (`canAccessItem`, `canAccessFolder`,
+  `isItemReadOnly`, `itemPermissions`, `scopeAccess`) for a `VaultUserRef` and resource ids, with the decisions of
+  `VaultAccessGuard`.
+- `VaultItemUpdater::move()` (internal to the item command port).
+
+### Changed
+
+- **Change events after the application's commit** (B4, REQ-ARCH-001 rule 7): when the vault writes inside a
+  transaction your code opened on the vault's connection (the vault's unit is then a savepoint), `ITEM_CHANGED`,
+  `FOLDER_CHANGED`, `TAG_CHANGED` and `GRANT_*` now wait for your outermost commit instead of firing when the vault's
+  unit ends; a rollback (or a rolled-back savepoint around the write) drops them. Committed events are dispatched at
+  the next idle point (the next vault change outside a transaction, or the end of the request, message or command),
+  never inside the commit call. doctrine/dbal 4 only; with DBAL 3 nothing changes. Worker mode: what is held is
+  released or dropped at every boundary and emptied at the next main request.
+
+### Deprecated
+
+- For host code, the entity / `UserInterface` signatures of `VaultItemCreator::create()` / `createInScope()`,
+  `VaultItemUpdater::update()`, `VaultFolderService::create()` / `createInScope()` / `rename()`,
+  `VaultTagService::syncItemTags()` / `deleteForCreator()`, the `VaultTrashService` methods,
+  `VaultGrantService::grantAs()` / `revokeAs()` and `VaultAccessGuard::canAccessItem()` / `canAccessFolder()` /
+  `isItemReadOnly()` / `resolvePermissionMap()` / `resolveScopeAccess()`: use the id-based ports above. They keep working
+  and become internal to the bundle in 3.0.
+
 ## [2.0.0] - 2026-11-21
 
 Target: **2.0.0** (major, REQ-ARCH-001 rules 1, 3 and 6). Only what 1.x deprecated is removed; see

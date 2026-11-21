@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Doctrine;
 use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\Connection;
 use Doctrine\DBAL\Driver\Middleware\AbstractDriverMiddleware;
+use Nowo\VaultBundle\Internal\DeferredVaultEventDispatcher;
 
 /**
  * Wraps the driver connections of the private entity manager's connection ({@see PrivateEntityManagerMiddleware}).
@@ -21,6 +22,7 @@ final class PrivateEntityManagerDriver extends AbstractDriverMiddleware
     public function __construct(
         Driver $driver,
         private readonly VaultEntityManager $entityManager,
+        private readonly ?DeferredVaultEventDispatcher $events = null,
     ) {
         parent::__construct($driver);
     }
@@ -30,6 +32,6 @@ final class PrivateEntityManagerDriver extends AbstractDriverMiddleware
      */
     public function connect(array $params): Connection
     {
-        return new PrivateEntityManagerConnection(parent::connect($params), $this->entityManager);
+        return new PrivateEntityManagerConnection(parent::connect($params), $this->entityManager, $this->events);
     }
 }
