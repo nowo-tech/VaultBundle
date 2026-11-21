@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.1.0] - 2026-11-21](#210---2026-11-21)
 - [[2.0.0] - 2026-11-21](#200---2026-11-21)
 - [[1.21.2] - 2026-11-20](#1212---2026-11-20)
 - [[1.21.1] - 2026-11-20](#1211---2026-11-20)
@@ -60,8 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-21
+
 Target: **2.1.0** (minor, additive: DDD-host checklist B1, B4, B7, B8; REQ-ARCH-001 rules 1, 3 and 7). Nothing is
-removed, no signature or default behaviour changes; see [UPGRADING](UPGRADING.md#unreleased).
+removed, no signature or default behaviour changes; see [UPGRADING](UPGRADING.md#to-210).
 
 ### Added
 
@@ -102,6 +105,8 @@ removed, no signature or default behaviour changes; see [UPGRADING](UPGRADING.md
   `VaultGrantService::grantAs()` / `revokeAs()` and `VaultAccessGuard::canAccessItem()` / `canAccessFolder()` /
   `isItemReadOnly()` / `resolvePermissionMap()` / `resolveScopeAccess()`: use the id-based ports above. They keep working
   and become internal to the bundle in 3.0.
+
+[2.1.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.1.0
 
 ## [2.0.0] - 2026-11-21
 
@@ -1383,7 +1388,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.1.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
