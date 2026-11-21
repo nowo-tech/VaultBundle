@@ -6,7 +6,7 @@ namespace Nowo\VaultBundle\Service;
 
 use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
-use Doctrine\DBAL\Platforms\SQLServerPlatform;
+use Doctrine\DBAL\Platforms\SQLitePlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use InvalidArgumentException;
@@ -20,6 +20,7 @@ use Nowo\VaultBundle\Internal\VaultViews;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\View\VaultItemPage;
 use Nowo\VaultBundle\View\VaultItemView;
+use Throwable;
 
 use function array_keys;
 use function array_slice;
@@ -43,8 +44,9 @@ use function str_replace;
  * SQL paging (2.1.1, audit YF-D1): when the database itself compares the owner byte for byte and there is no exact
  * title filter, the page is read with SQL LIMIT/OFFSET and the total with SQL COUNT instead of one row per candidate:
  * a scope owner (scope keys are `[a-z0-9_-]` only), or the id mapping whose live `creator_id` column compares exactly
- * (MySQL `utf8mb4_0900_bin`, MariaDB `utf8mb4_nopad_bin`, a deterministic PostgreSQL collation, SQLite; SQL Server
- * pads, so never). The page's owners are still re-checked with `===` in PHP; a page row that fails
+ * (MySQL `utf8mb4_0900_bin`, MariaDB `utf8mb4_nopad_bin`, a deterministic PostgreSQL collation outside a transaction,
+ * SQLite; SQL Server, Oracle and other platforms never). The page and the total are two statements (the total is
+ * skipped on a short last page): without a transaction around them, a concurrent write may land between them. The page's owners are still re-checked with `===` in PHP; a page row that fails
  * the re-check (a column altered by hand) sends the call to the exact path above, so a query never returns fewer
  * exact results than the exact path. Everything else (relation mapping, an exact title) keeps the exact path.
  *
@@ -54,10 +56,10 @@ use function str_replace;
 final readonly class VaultItemQuery implements VaultItemQueryInterface
 {
     /** The collation of one column of the current MySQL / MariaDB database (table, column). */
-    private const MYSQL_COLLATION_SQL = 'SELECT COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?';
+    private const MYSQL_COLLATION_SQL = "SELECT COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? AND DATA_TYPE = 'varchar'";
 
-    /** Whether the collation of one PostgreSQL column (table on the search path, column) is deterministic. */
-    private const POSTGRESQL_DETERMINISTIC_SQL = 'SELECT c.collisdeterministic FROM pg_attribute a JOIN pg_collation c ON c.oid = a.attcollation WHERE a.attrelid = to_regclass(?) AND a.attname = ? AND NOT a.attisdropped';
+    /** Whether one PostgreSQL column (table on the search path, column) is varchar / text with a deterministic collation. */
+    private const POSTGRESQL_DETERMINISTIC_SQL = "SELECT c.collisdeterministic AND a.atttypid IN ('varchar'::regtype, 'text'::regtype) FROM pg_attribute a JOIN pg_collation c ON c.oid = a.attcollation WHERE a.attrelid = to_regclass(?) AND a.attname = ? AND NOT a.attisdropped";
 
     /**
      * @param EntityManagerInterface $entityManager the vault's private manager
@@ -223,24 +225,37 @@ final readonly class VaultItemQuery implements VaultItemQueryInterface
 
     /**
      * Whether the live `creator_id` column compares byte for byte, read on every call (no memo: worker mode, and a
-     * column migrated meanwhile is seen at once). MySQL / MariaDB: the column has a binary NO PAD collation in
-     * `information_schema` (installs that never migrated to it keep the exact path). PostgreSQL: the column's collation
-     * is deterministic. SQL Server's binary collations ignore trailing spaces: never. SQLite and Oracle compare exactly
-     * by default. An unknown column answers no.
+     * column migrated meanwhile is seen at once):
+     * - MySQL / MariaDB: a `varchar` column with a binary NO PAD collation in `information_schema` (installs that never
+     *   migrated to it keep the exact path);
+     * - PostgreSQL: a `varchar` or `text` column (not `char(n)`, `citext` or a domain) with a deterministic collation,
+     *   and no open transaction: a failed catalog read would abort the host's transaction (25P02), so inside one the
+     *   exact path is used without asking;
+     * - SQLite: trusted (BINARY by default; the bundle never maps another collation). A column altered by hand to
+     *   NOCASE / RTRIM is not seen: the page re-check still falls back, but `count()` and a full page's total would
+     *   include the look-alike rows;
+     * - SQL Server (binary collations ignore trailing spaces), Oracle and any other platform: never.
+     *
+     * Any error while asking (missing table, no catalog access) answers no: the exact path.
      */
     private function creatorColumnIsExact(): bool
     {
-        $connection = $this->entityManager->getConnection();
-        $platform   = $connection->getDatabasePlatform();
-        $metadata   = $this->entityManager->getClassMetadata(VaultItem::class);
-        $where      = [$metadata->getTableName(), $metadata->getColumnName('creator')];
+        try {
+            $connection = $this->entityManager->getConnection();
+            $platform   = $connection->getDatabasePlatform();
+            $metadata   = $this->entityManager->getClassMetadata(VaultItem::class);
+            $where      = [$metadata->getTableName(), $metadata->getColumnName('creator')];
 
-        return match (true) {
-            $platform instanceof SQLServerPlatform     => false,
-            $platform instanceof AbstractMySQLPlatform => in_array($connection->fetchOne(self::MYSQL_COLLATION_SQL, $where), [ExactCollation::MYSQL_NOPAD, ExactCollation::MARIADB_NOPAD], true),
-            $platform instanceof PostgreSQLPlatform    => in_array($connection->fetchOne(self::POSTGRESQL_DETERMINISTIC_SQL, $where), [true, 't', 1, '1'], true),
-            default                                    => true,
-        };
+            return match (true) {
+                $platform instanceof SQLitePlatform        => true,
+                $platform instanceof AbstractMySQLPlatform => in_array($connection->fetchOne(self::MYSQL_COLLATION_SQL, $where), [ExactCollation::MYSQL_NOPAD, ExactCollation::MARIADB_NOPAD], true),
+                $platform instanceof PostgreSQLPlatform    => !$connection->isTransactionActive()
+                    && in_array($connection->fetchOne(self::POSTGRESQL_DETERMINISTIC_SQL, $where), [true, 't', 1, '1'], true),
+                default => false,
+            };
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**

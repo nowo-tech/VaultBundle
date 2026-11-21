@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Tests\Unit\Service;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Platforms\DB2Platform;
 use Doctrine\DBAL\Platforms\MariaDBPlatform;
 use Doctrine\DBAL\Platforms\MySQL80Platform;
 use Doctrine\DBAL\Platforms\OraclePlatform;
@@ -23,6 +24,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
+use RuntimeException;
 
 /**
  * 2.1.1 (audit YF-D1): with the id mapping, SQL pages and counts only when the live `creator_id` column compares byte
@@ -44,9 +46,13 @@ final class VaultItemQueryExactColumnTest extends TestCase
         yield 'PostgreSQL deterministic (t)' => [new PostgreSQLPlatform(), 't', true, 'pg_collation'];
         yield 'PostgreSQL nondeterministic' => [new PostgreSQLPlatform(), false, false, 'pg_collation'];
         yield 'PostgreSQL nondeterministic (f)' => [new PostgreSQLPlatform(), 'f', false, 'pg_collation'];
+        yield 'PostgreSQL char(n) or citext column' => [new PostgreSQLPlatform(), false, false, 'atttypid'];
+        yield 'PostgreSQL unknown column' => [new PostgreSQLPlatform(), false, false, 'pg_collation'];
+        yield 'MySQL char(n) column' => [new MySQL80Platform(), false, false, "DATA_TYPE = 'varchar'"];
         yield 'SQL Server pads' => [new SQLServerPlatform(), null, false, null];
         yield 'SQLite' => [new SQLitePlatform(), null, true, null];
-        yield 'Oracle' => [new OraclePlatform(), null, true, null];
+        yield 'Oracle: unknown here, exact path' => [new OraclePlatform(), null, false, null];
+        yield 'DB2: unknown here, exact path' => [new DB2Platform(), null, false, null];
     }
 
     #[Test]
@@ -60,6 +66,49 @@ final class VaultItemQueryExactColumnTest extends TestCase
             ->with(self::stringContains((string) $asked), ['vault_items', 'creator_id'])
             ->willReturn($answer);
 
+        self::assertSame($exact, $this->exactInSql($connection));
+    }
+
+    /**
+     * Audit YL-L2: inside a transaction PostgreSQL is not asked (a failed catalog read would abort the host's
+     * transaction, 25P02); the exact path is used.
+     */
+    #[Test]
+    public function postgreSqlInsideATransactionKeepsTheExactPath(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getDatabasePlatform')->willReturn(new PostgreSQLPlatform());
+        $connection->method('isTransactionActive')->willReturn(true);
+        $connection->expects(self::never())->method('fetchOne');
+
+        self::assertFalse($this->exactInSql($connection));
+    }
+
+    /**
+     * Audit YL-L2: a catalog read that fails (no access, missing table) answers the exact path, never an error.
+     */
+    #[Test]
+    #[DataProvider('askingPlatforms')]
+    public function aFailingCatalogReadKeepsTheExactPath(AbstractPlatform $platform): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getDatabasePlatform')->willReturn($platform);
+        $connection->expects(self::once())->method('fetchOne')->willThrowException(new RuntimeException('permission denied for pg_attribute'));
+
+        self::assertFalse($this->exactInSql($connection));
+    }
+
+    /**
+     * @return iterable<string, array{0: AbstractPlatform}>
+     */
+    public static function askingPlatforms(): iterable
+    {
+        yield 'MySQL' => [new MySQL80Platform()];
+        yield 'PostgreSQL' => [new PostgreSQLPlatform()];
+    }
+
+    private function exactInSql(Connection $connection): bool
+    {
         $metadata = new ClassMetadata(VaultItem::class);
         $metadata->setPrimaryTable(['name' => 'vault_items']);
         $metadata->mapField(['fieldName' => 'creator', 'columnName' => 'creator_id', 'type' => 'string']);
@@ -70,7 +119,6 @@ final class VaultItemQueryExactColumnTest extends TestCase
         $users = $this->createMock(VaultUserReferenceResolverInterface::class);
         $users->method('mapsById')->willReturn(true);
 
-        $exactInSql = new ReflectionMethod(VaultItemQuery::class, 'exactInSql');
-        self::assertSame($exact, $exactInSql->invoke(new VaultItemQuery($manager, $users), VaultItemCriteria::forUser('alice')));
+        return (bool) (new ReflectionMethod(VaultItemQuery::class, 'exactInSql'))->invoke(new VaultItemQuery($manager, $users), VaultItemCriteria::forUser('alice'));
     }
 }

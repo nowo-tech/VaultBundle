@@ -178,6 +178,48 @@ final class ItemQuerySqlPagingKernelTest extends KernelTestCase
     }
 
     /**
+     * Audit YL-L1/L2: a fixed-width column (`char(n)`, a hand-made change) keeps the exact path on MySQL / MariaDB /
+     * PostgreSQL, and PostgreSQL is not asked inside an open transaction (a failed catalog read would abort it).
+     */
+    #[Test]
+    public function aFixedWidthColumnOrAPostgreSqlTransactionKeepsTheExactPath(): void
+    {
+        $this->bootVariant('private_id_new');
+        $alice = $this->ref('alice');
+        for ($n = 0; $n < 3; ++$n) {
+            $this->items()->create($alice, VaultItemType::Login, 'Mine ' . $n, self::PAYLOAD);
+        }
+
+        $connection = $this->vaultManager()->getConnection();
+        $platform   = $connection->getDatabasePlatform();
+        $sql        = $this->query();
+        $user       = VaultItemCriteria::forUser($this->id('alice'));
+        self::assertTrue($this->pagesInSql($sql, $user), 'the mapped column is exact');
+
+        $connection->beginTransaction();
+        try {
+            self::assertSame(!$platform instanceof PostgreSQLPlatform, $this->pagesInSql($sql, $user), 'inside a transaction');
+            self::assertSame(3, $sql->count($user));
+        } finally {
+            $connection->rollBack();
+        }
+
+        if ($platform instanceof AbstractMySQLPlatform) {
+            $collation = $connection->fetchOne("SELECT COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vault_items' AND COLUMN_NAME = 'creator_id'");
+            $connection->executeStatement('ALTER TABLE vault_items MODIFY creator_id CHAR(128) CHARACTER SET utf8mb4 COLLATE ' . $collation . ' DEFAULT NULL');
+        } elseif ($platform instanceof PostgreSQLPlatform) {
+            $connection->executeStatement('ALTER TABLE vault_items ALTER COLUMN creator_id TYPE CHAR(128)');
+        }
+        $this->vaultManager()->clear();
+
+        self::assertSame($platform instanceof SQLitePlatform, $this->pagesInSql($sql, $user), 'char(n): exact path (SQLite has no fixed width)');
+        foreach (VaultItemSort::cases() as $sort) {
+            $c = $user->sortedBy($sort)->page(0, 2);
+            self::assertSame($this->summary($this->exactQuery()->find($c)), $this->summary($sql->find($c)), $sort->name);
+        }
+    }
+
+    /**
      * Three items of bob's moved onto look-alikes of alice's id: upper case, an accent, a trailing space.
      */
     private function storeLookAlikes(): int

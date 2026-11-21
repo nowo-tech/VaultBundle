@@ -68,7 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   candidate of the owner (O(owner size), about 100k rows for a large scope). Only where the database compares the
   owner byte for byte and there is no exact-title filter: a scope owner, or the id mapping when the live `creator_id`
   column has the binary NO PAD collation (MySQL `utf8mb4_0900_bin`, MariaDB `utf8mb4_nopad_bin`, read from
-  `information_schema` on every call), a deterministic collation (PostgreSQL) or is on SQLite. The page's owners are
+  `information_schema` on every call, `varchar` only), a deterministic collation on a `varchar` / `text` column
+  (PostgreSQL, outside a transaction: a failed catalog read would abort it) or is on SQLite. Any other platform and a
+  failing catalog read keep the exact path (audit YL-L1, YL-L2). The page and the total are two statements. The page's owners are
   still re-checked with `===` in PHP, and a row that fails the re-check answers through the exact path. The relation
   mapping, an exact title, SQL Server and a column without its binary collation keep the exact path; both paths return
   the same items, pages and totals (tests with look-alike rows on MySQL, MariaDB and PostgreSQL).
