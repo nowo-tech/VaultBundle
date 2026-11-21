@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.0.0](#to-200)
   - [Before you upgrade](#before-you-upgrade)
   - [Private manager only](#private-manager-only)
   - [Ports](#ports)
@@ -96,6 +97,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 2.0.0
+
+From **1.21.2**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 From **1.21.x** (major):
 
