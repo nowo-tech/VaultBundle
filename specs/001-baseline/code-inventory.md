@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/vault-bundle`  
-**Last audited**: 2026-11-20 (v1.21.0)
+**Last audited**: 2026-11-22 (v2.1.1)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -132,9 +132,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Security/NullVaultTeamMembershipResolver.php` | Team membership resolver | FR-SEC-006 |
 | `Security/RuntimeKeyVaultPayloadCryptographer.php` | Payload encryption | FR-CRYPT-001 |
 | `Security/SodiumVaultPayloadCryptographer.php` | Payload encryption | FR-CRYPT-001 |
-| `Security/VaultAccessCheckerInterface.php` | Access checker contract | FR-SEC-001 |
 | `Security/VaultPayloadCryptographerInterface.php` | Cryptographer contract | FR-CRYPT-001 |
-| `Security/VaultTeamMembershipResolverInterface.php` | Team membership contract | FR-SEC-006 |
 | `Service/VaultAccessGuard.php` | Access guard + events | FR-SEC-001 |
 | `Service/VaultPayloadReencryptionResult.php` | Re-encryption result DTO | FR-CRYPT-003 |
 | `Service/VaultPayloadReencryptionService.php` | Payload re-encryption | FR-CRYPT-003 |
@@ -207,8 +205,8 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Resources/views/vault/_legacy_layout.html.twig` | Deprecated bridge around a 1.x layout (REQ-UI-003) | FR-VIEW-001 |
 | `Resources/views/vault/_password_generator.html.twig` | Password generator body (UiKit dialog) | FR-VIEW-005 |
+| `Resources/views/vault/_new_item_dialog.html.twig` | New item dialog (UiKit) | FR-VIEW-005 |
 | `Resources/views/vault/home.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/item_form.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/items.html.twig` | Manage UI template | FR-VIEW-005 |
@@ -221,7 +219,6 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Twig/VaultExtension.php` | Deprecated `nowo_vault_css_framework` Twig global | FR-VIEW-002 |
 | `Ui/VaultPages.php` | Layout / legacy bridge of the UiKit page contract (REQ-UI-003) | FR-VIEW-001 |
 | `Ui/VaultPageFactory.php` | UiKit view models of the manage pages (REQ-UI-003) | FR-VIEW-005 |
 
@@ -236,7 +233,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Repository/VaultScopeTagRepositoryInterface.php` | Scope tag queries | FR-SCOPE-001 |
 | `Service/VaultScopeItemLister.php` | Scope items visible to one member | FR-SCOPE-001 |
 | `Security/VaultScopeAccess.php` | Standing of a user in a scope | FR-SCOPE-001 |
-| `Security/VaultScopeAccessResolverInterface.php` | Scope host hook (deprecated in 1.19) | FR-SCOPE-001 |
 | `Security/NullVaultScopeAccessResolver.php` | Default: no scope membership | FR-SCOPE-001 |
 | `Security/RequestScopedScopeAccessCache.php` | Per-request membership memo | FR-SCOPE-001 |
 | `ValueObject/VaultOwner.php` | Owner of a row: user or scope key | FR-SCOPE-001 |
@@ -294,7 +290,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Service/VaultHealthReporter.php` | Server-side health report | FR-HEALTH-001 |
-| `Service/VaultHealthReporterInterface.php` | Health report port (deprecated in 1.19) | FR-HEALTH-001 |
 | `Service/VaultHealthReportProviderInterface.php` | Framework-free health report port (1.19) | FR-HEALTH-001 |
 | `Dto/VaultHealthItemResult.php` | Flags of one login item | FR-HEALTH-001 |
 | `Dto/VaultHealthReport.php` | Health of one owner for one viewer | FR-HEALTH-001 |
@@ -321,7 +316,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Event/VaultItemsExportedEvent.php` | ITEMS_EXPORTED before the first byte | FR-GDPR-001 |
 | `Security/VaultReauthProof.php` | Host re-authentication proof | FR-GDPR-001 |
 | `Security/VaultReauthProofValidator.php` | Proof checked on the bundle clock | FR-GDPR-001 |
-| `Security/VaultReauthenticationCheckerInterface.php` | Re-authentication hook (deprecated in 1.19) | FR-GDPR-001 |
 | `DependencyInjection/Compiler/ExportLockFactoryPass.php` | Fails on an unknown export.lock_factory | FR-GDPR-001 |
 | `Service/VaultPersonalDataEraser.php` | GDPR erasure of one user | FR-GDPR-001 |
 | `Service/VaultPersonalDataEraserInterface.php` | Erasure port by id (1.19) | FR-GDPR-001 |
@@ -343,7 +337,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Support/VaultUserReferenceResolverInterface.php` | User reference port | FR-USER-001 |
 | `Support/VaultUserClassPolicy.php` | Accepted classes and usable ids | FR-USER-001 |
 | `Support/VaultUserLocator.php` | Loads a host user by id | FR-USER-001 |
-| `Support/VaultUserLocatorInterface.php` | User locator port (deprecated in 1.19) | FR-USER-001 |
 | `ValueObject/VaultUserId.php` | User known only by id | FR-USER-001 |
 
 ## Framework-free host ports (1.19, REQ-ARCH-001)
@@ -362,10 +355,10 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Support/VaultUserRefResolver.php` | Trusted user for a reference | FR-PORT-001 |
 | `Support/VaultUserRefs.php` | Symfony user <-> VaultUserRef | FR-PORT-001 |
 | `DependencyInjection/Compiler/VaultPortsPass.php` | Wires the ports behind the gates | FR-PORT-002 |
-| `Port/VaultPortMode.php` | legacy | port | both | FR-PORT-002 |
 | `Port/VaultAccessCheckerGate.php` | Access gate (fail closed) | FR-PORT-002 |
 | `Port/VaultHealthReporterGate.php` | Health report gate | FR-PORT-002 |
 | `Port/VaultReauthenticationGate.php` | Re-authentication gate | FR-PORT-002 |
+| `DependencyInjection/Compiler/RemovedPortsPass.php` | Accepts or refuses services still wired to the six ports removed in 2.0 | FR-PORT-003 |
 | `Port/VaultScopeAccessGate.php` | Scope access gate (weaker answer wins) | FR-PORT-002 |
 | `Port/VaultTeamMembershipGate.php` | Team membership gate (intersection) | FR-PORT-002 |
 | `Port/VaultUserLocatorGate.php` | User locator gate | FR-PORT-002 |
@@ -408,6 +401,35 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Form/VaultRuntimeConfigType.php` | Runtime configuration page | FR-FORM-001 |
 | `Resources/views/ui/_row_actions.html.twig` | Row actions partial (UiKit) | FR-VIEW-005 |
 
+## Host commands, queries and id access (2.1, DDD-host checklist B1, B7, B8)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Dto/VaultItemCriteria.php` | Item query criteria (owner, filters, sort, page) | FR-QRY-001 |
+| `Enum/VaultItemSort.php` | Item query order | FR-QRY-001 |
+| `Enum/VaultTrashFilter.php` | Active, trashed or both | FR-QRY-001 |
+| `Service/VaultItemQueryInterface.php` | Item read port | FR-QRY-001 |
+| `Service/VaultItemQuery.php` | Item read port on the private manager | FR-QRY-001 |
+| `Internal/VaultViews.php` | Builds the read models from entities | FR-QRY-001 |
+| `View/VaultItemView.php` | Item read model, no payload | FR-QRY-001 |
+| `View/VaultItemPage.php` | One page of item views | FR-QRY-001 |
+| `View/VaultFolderView.php` | Folder read model | FR-CMD-001 |
+| `View/VaultGrantView.php` | Grant read model | FR-CMD-001 |
+| `Service/VaultAccessCheckInterface.php` | Access checks by id (port) | FR-ACC-001 |
+| `Service/VaultIdAccessChecker.php` | Default access checks by id | FR-ACC-001 |
+| `Service/VaultItemCommandsInterface.php` | Item write port | FR-CMD-001 |
+| `Service/VaultItemCommands.php` | Default item write port | FR-CMD-001 |
+| `Service/VaultFolderCommandsInterface.php` | Folder write port | FR-CMD-001 |
+| `Service/VaultFolderCommands.php` | Default folder write port | FR-CMD-001 |
+| `Service/VaultGrantCommandsInterface.php` | Sharing write port | FR-CMD-001 |
+| `Service/VaultGrantCommands.php` | Default sharing write port | FR-CMD-001 |
+| `Service/VaultTagCommandsInterface.php` | Tag write port | FR-CMD-001 |
+| `Service/VaultTagCommands.php` | Default tag write port | FR-CMD-001 |
+| `Internal/VaultCommandsTrait.php` | Shared steps of the command services | FR-CMD-001 |
+| `Internal/VaultRowLock.php` | Row load by exact id with FOR UPDATE | FR-CMD-001 |
+| `Internal/VaultTransactionLevelInterface.php` | Transaction nesting level of the vault connection | FR-EVT-005 |
+| `Internal/DeferredVaultEventBoundaryListener.php` | Request / message / command boundaries of held notifications | FR-EVT-005 |
+
 ## Coverage summary
 
 | Category | Files | Mapped |
@@ -415,11 +437,11 @@ This file proves that **every production source artifact** under `src/` is refer
 | Bundle & DI | 10 | 10 |
 | CLI | 2 | 2 |
 | Controllers | 4 | 4 |
-| Persistence | 19 | 19 |
+| Persistence | 21 | 21 |
 | Forms | 3 | 3 |
 | Domain models | 9 | 9 |
 | Application services | 34 | 34 |
-| Security | 11 | 11 |
+| Security | 9 | 9 |
 | Browser extension | 8 | 8 |
 | Routing | 1 | 1 |
 | Persistence integration | 5 | 5 |
@@ -428,17 +450,18 @@ This file proves that **every production source artifact** under `src/` is refer
 | Symfony config | 1 | 1 |
 | Translations | 7 | 7 |
 | Twig views | 9 | 9 |
-| Twig integration | 3 | 3 |
-| Scope vaults (1.16) | 14 | 14 |
+| Twig integration | 2 | 2 |
+| Scope vaults (1.16) | 13 | 13 |
 | Temporary grants and grant policy (1.16) | 8 | 8 |
 | Metadata catalogue (1.16) | 7 | 7 |
 | Reveal, copy and attachments (1.16) | 15 | 15 |
-| Password health (1.16) | 16 | 16 |
-| Personal data and decrypted export (1.16) | 15 | 15 |
-| User mapping and accepted user classes (1.17) | 11 | 11 |
+| Password health (1.16) | 15 | 15 |
+| Personal data and decrypted export (1.16) | 14 | 14 |
+| User mapping and accepted user classes (1.17) | 10 | 10 |
 | Framework-free host ports (1.19, REQ-ARCH-001) | 22 | 22 |
+| Host commands, queries and id access (2.1) | 24 | 24 |
 | Private entity manager, XML mapping and conditional mapping (1.18-1.19) | 20 | 20 |
 | Forms and views (REQ-TWIG-005 / REQ-UI-003) | 5 | 5 |
-| **Total production sources** | **267** | **267** |
+| **Total production sources** | **284** | **284** |
 
-Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 267.
+Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 284.
