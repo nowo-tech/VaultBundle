@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.2.1] - 2026-11-22](#221---2026-11-22)
 - [[2.2.0] - 2026-11-22](#220---2026-11-22)
 - [[2.1.1] - 2026-11-22](#211---2026-11-22)
 - [[2.1.0] - 2026-11-21](#210---2026-11-21)
@@ -63,9 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-22
+
 ### Fixed
 
 - Translations: `vault.form.email` is now "Correo electrónico" (es) and "E-mail" (it) instead of the English "Email". `TranslationCatalogueTest` also fails now on a non-es value identical to the Spanish one (longer than 12 characters) unless allow-listed per locale as genuinely shared, and on stale entries of that allow-list. 
+
+[2.2.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.2.1
 
 ## [2.2.0] - 2026-11-22
 
@@ -1435,7 +1440,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.2.1...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
