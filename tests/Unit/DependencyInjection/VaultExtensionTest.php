@@ -429,6 +429,7 @@ final class VaultExtensionTest extends TestCase
         self::assertTrue($default->getParameter('nowo_vault.sharing.enabled'));
         self::assertNull($default->getParameter('nowo_vault.web_ui.host_note_template'));
         self::assertFalse($default->getParameter('nowo_vault.web_ui.destructive_actions_in_menu'));
+        self::assertSame('buttons', $default->getParameter('nowo_vault.web_ui.header_actions'));
         self::assertSame([], $default->getParameter('nowo_vault.unmapped_entity_classes'));
         self::assertSame([], $default->getParameter('nowo_vault.unmapped_tables'));
 
@@ -436,12 +437,13 @@ final class VaultExtensionTest extends TestCase
         (new VaultExtension())->load([self::BASE_CONFIG + [
             'table_prefix' => 'pw_',
             'sharing'      => ['enabled' => false],
-            'web_ui'       => ['host_note_template' => 'vault/_note.html.twig', 'destructive_actions_in_menu' => true],
+            'web_ui'       => ['host_note_template' => 'vault/_note.html.twig', 'destructive_actions_in_menu' => true, 'header_actions' => 'page_actions'],
             'database'     => ['conditional_mapping' => true],
         ]], $container);
         self::assertFalse($container->getParameter('nowo_vault.sharing.enabled'));
         self::assertSame('vault/_note.html.twig', $container->getParameter('nowo_vault.web_ui.host_note_template'));
         self::assertTrue($container->getParameter('nowo_vault.web_ui.destructive_actions_in_menu'));
+        self::assertSame('page_actions', $container->getParameter('nowo_vault.web_ui.header_actions'));
         self::assertSame([VaultSettings::class, VaultExtensionToken::class], $container->getParameter('nowo_vault.unmapped_entity_classes'));
         self::assertSame(['pw_settings', 'pw_extension_tokens'], $container->getParameter('nowo_vault.unmapped_tables'));
 

@@ -125,7 +125,11 @@ vault:
         copy: Kopieren
         copied: Kopiert
         download_attachment: Anhang herunterladen
+    new_item:
+        title: "Elementtyp wählen"
+        description: "Wählen Sie die Art des Eintrags, den Sie erstellen möchten."
     action:
+        new_item: "Neues Element"
         open: Öffnen
         save: Speichern
         cancel: Abbrechen

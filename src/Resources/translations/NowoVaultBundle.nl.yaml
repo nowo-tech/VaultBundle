@@ -125,7 +125,11 @@ vault:
         copy: Kopiëren
         copied: Gekopieerd
         download_attachment: Bijlage downloaden
+    new_item:
+        title: "Kies het itemtype"
+        description: "Kies het type invoer dat je wilt maken."
     action:
+        new_item: "Nieuw item"
         open: Openen
         save: Opslaan
         cancel: Annuleren

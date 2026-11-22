@@ -1,0 +1,25 @@
+{#
+  Item type chooser (2.2, `web_ui.header_actions: page_actions`): the UiKit `dialog` partial opened by the single
+  "New item" header action (View\Action with dialogId vault-new-item-dialog). The body lists one create link per item
+  type (View\Action list, same data-testid hooks as the per-type header buttons of the default mode).
+  Variables: choices (list<View\Action>, VaultPageFactory::newItemChoices()), bundle. Prints nothing without choices.
+#}
+{% trans_default_domain 'NowoVaultBundle' %}
+{% set _b = bundle|default(null) %}
+{% if choices|default([]) is not empty %}
+    {% set _body %}
+        <p class="{{ nowo_ui_class('muted', _b) }}">{{ 'vault.new_item.description'|trans }}</p>
+        <ul class="vault-new-item-types" role="list" data-testid="vault-new-item-types">
+            {% for action in choices %}
+                <li>{{ include(nowo_ui_partial('action', _b), {action: action, context: 'toolbar', display: 'text', bundle: _b, nowo_ui_page_type: nowo_ui_page_type|default(null)}, false) }}</li>
+            {% endfor %}
+        </ul>
+    {% endset %}
+    {{ include(nowo_ui_partial('dialog', _b), {
+        id: constant('Nowo\\VaultBundle\\Ui\\VaultPages::NEW_ITEM_DIALOG'),
+        title: 'vault.new_item.title'|trans,
+        body: _body,
+        bundle: _b,
+        attr: {'data-testid': 'vault-new-item-dialog'},
+    }, false) }}
+{% endif %}

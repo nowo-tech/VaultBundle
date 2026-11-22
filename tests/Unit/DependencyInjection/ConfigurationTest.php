@@ -23,7 +23,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame('vault_', $config['table_prefix']);
         self::assertArrayNotHasKey('css_framework', $config);
         self::assertTrue($config['database']['private_entity_manager'], 'no effect since 2.0');
-        self::assertSame(['enabled' => true, 'path_prefix' => '', 'layout_template' => null, 'destructive_actions_in_menu' => false, 'host_note_template' => null, 'templates' => []], $config['web_ui']);
+        self::assertSame(['enabled' => true, 'path_prefix' => '', 'layout_template' => null, 'destructive_actions_in_menu' => false, 'header_actions' => 'buttons', 'host_note_template' => null, 'templates' => []], $config['web_ui']);
         // 1.18.0 defaults keep the 1.17 behaviour.
         self::assertSame(['enabled' => true], $config['sharing']);
         self::assertFalse($config['database']['conditional_mapping']);

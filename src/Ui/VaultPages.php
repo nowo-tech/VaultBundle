@@ -37,6 +37,13 @@ final readonly class VaultPages
     public const ROW_MENU_ATTRIBUTE = 'data-vault-row-menu';
 
     /** UiKit `row_actions` partial of the vault pages (`nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.row_actions`). */
+    public const HEADER_ACTIONS_BUTTONS = 'buttons';
+
+    public const HEADER_ACTIONS_PAGE_ACTIONS = 'page_actions';
+
+    /** Id of the item type chooser dialog (`web_ui.header_actions: page_actions`). */
+    public const NEW_ITEM_DIALOG = 'vault-new-item-dialog';
+
     public const ROW_ACTIONS_PARTIAL = '@NowoVaultBundle/ui/_row_actions.html.twig';
 
     /** Page ids accepted by `web_ui.templates` (page id => default template). */
@@ -70,7 +77,18 @@ final readonly class VaultPages
         private ?string $hostNoteTemplate = null,
         /** 1.18.0 `web_ui.destructive_actions_in_menu`: Move to trash goes to the end of the row's kebab menu. */
         private bool $destructiveActionsInMenu = false,
+        /** 2.2 `web_ui.header_actions`: `buttons` (default) or `page_actions` (one New item entry opening the type chooser). */
+        private string $headerActions = self::HEADER_ACTIONS_BUTTONS,
     ) {
+    }
+
+    /**
+     * Whether the header create actions are one "New item" entry for the page-actions menu (`web_ui.header_actions:
+     * page_actions`) instead of one button per item type.
+     */
+    public function headerActionsInPageMenu(): bool
+    {
+        return $this->headerActions === self::HEADER_ACTIONS_PAGE_ACTIONS;
     }
 
     /**

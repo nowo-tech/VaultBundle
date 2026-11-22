@@ -214,6 +214,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->setParameter('nowo_vault.settings_table', $settingsTable);
         $container->setParameter('nowo_vault.extension_tokens_table', $extensionTokensTable);
         $container->setParameter('nowo_vault.web_ui.host_note_template', $config['web_ui']['host_note_template']);
+        $container->setParameter('nowo_vault.web_ui.header_actions', $config['web_ui']['header_actions']);
         $container->setParameter('nowo_vault.web_ui.destructive_actions_in_menu', (bool) $config['web_ui']['destructive_actions_in_menu']);
         $container->setParameter('nowo_vault.sharing.enabled', (bool) $config['sharing']['enabled']);
         // 1.18.0 database.conditional_mapping: the entities / tables of disabled features (ConditionalMappingPass).

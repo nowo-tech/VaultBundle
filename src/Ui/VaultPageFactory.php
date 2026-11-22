@@ -110,17 +110,7 @@ final readonly class VaultPageFactory
         ?string $activeFolder,
         ?string $dashboardRoute,
     ): ListPage {
-        $create = [];
-        foreach (VaultItemType::cases() as $type) {
-            $create[] = new Action(
-                'create',
-                VaultPages::label('vault.type.' . $type->value),
-                $this->url($routes['item_new']['name'], array_filter(['type' => $type->value, 'folder' => $activeFolder], static fn (?string $v): bool => $v !== null && $v !== '')),
-                icon: 'create',
-                variant: 'secondary',
-                attributes: ['data-testid' => 'vault-new-' . $type->value],
-            );
-        }
+        $create = $this->createActions($this->itemTypeActions($routes, null, $activeFolder));
 
         return new ListPage(
             header: new PageHeader(
@@ -128,6 +118,7 @@ final readonly class VaultPageFactory
                 VaultPages::label('vault.home.items.description'),
                 $create,
                 back: $this->homeBack($routes, $dashboardRoute),
+                actionsLayout: $this->pages->headerActionsInPageMenu() ? 'split' : 'toolbar',
             ),
             columns: [
                 new Column('type', VaultPages::label('vault.list.type'), priority: 2),
@@ -139,7 +130,7 @@ final readonly class VaultPageFactory
             filters: $searchForm,
             rowActions: fn (VaultItem $item): array => $this->itemActions($routes, $item, $readOnlyMap, $trashForms),
             pagination: $pagination,
-            empty: new EmptyState(null, VaultPages::label('vault.empty.items')),
+            empty: new EmptyState(null, VaultPages::label('vault.empty.items'), $this->pages->headerActionsInPageMenu() ? $this->newItemAction('primary') : null),
             filtersClearHref: $this->url($routes['items']['name'], array_filter(['folder' => $activeFolder], static fn (?string $v): bool => $v !== null && $v !== '')),
             bundle: VaultPages::BUNDLE,
             layout: $this->pages->layout(),
@@ -148,6 +139,75 @@ final readonly class VaultPageFactory
             filtersSubmit: new Action('filter', VaultPages::label('vault.action.search'), icon: 'filter'),
             filtersClear: new Action('cancel', VaultPages::label('vault.search.clear')),
         );
+    }
+
+    /**
+     * One create link per item type (kept in the active folder); with `scope`, the scope vault's create route.
+     *
+     * @param array<string, array{path: string, name: string}> $routes
+     *
+     * @return list<Action>
+     */
+    public function itemTypeActions(array $routes, ?string $scope, ?string $activeFolder): array
+    {
+        $actions = [];
+        foreach (VaultItemType::cases() as $type) {
+            $params = ['type' => $type->value, 'folder' => $activeFolder];
+            if ($scope !== null) {
+                $params = ['scope' => $scope] + $params;
+            }
+            $actions[] = new Action(
+                'create',
+                VaultPages::label('vault.type.' . $type->value),
+                $this->url($routes[$scope === null ? 'item_new' : 'scope_item_new']['name'], array_filter($params, static fn (?string $v): bool => $v !== null && $v !== '')),
+                icon: 'create',
+                variant: 'secondary',
+                attributes: ['data-testid' => ($scope === null ? 'vault-new-' : 'vault-scope-new-') . $type->value],
+            );
+        }
+
+        return $actions;
+    }
+
+    /**
+     * 2.2 (`web_ui.header_actions: page_actions`): the single "New item" entry that opens the item type chooser dialog
+     * ({@see VaultPages::NEW_ITEM_DIALOG}); `primary` for the empty state, `secondary` for the page-actions menu.
+     */
+    public function newItemAction(string $variant = 'secondary'): Action
+    {
+        return new Action(
+            'create',
+            VaultPages::label('vault.action.new_item'),
+            icon: 'create',
+            variant: $variant,
+            attributes: ['data-testid' => 'vault-new-item'],
+            dialogId: VaultPages::NEW_ITEM_DIALOG,
+        );
+    }
+
+    /**
+     * The links the type chooser dialog lists: the per-type create links with `page_actions`, none by default (the
+     * header then carries the buttons and the pages print no dialog).
+     *
+     * @param list<Action> $typeActions {@see self::itemTypeActions()}
+     *
+     * @return list<Action>
+     */
+    public function newItemChoices(array $typeActions): array
+    {
+        return $this->pages->headerActionsInPageMenu() ? $typeActions : [];
+    }
+
+    /**
+     * The header create actions: one button per item type, or the one "New item" entry with `page_actions`.
+     *
+     * @param list<Action> $typeActions
+     *
+     * @return list<Action>
+     */
+    private function createActions(array $typeActions): array
+    {
+        return $this->pages->headerActionsInPageMenu() ? [$this->newItemAction()] : $typeActions;
     }
 
     /**
@@ -356,19 +416,7 @@ final readonly class VaultPageFactory
         bool $canCreate,
         ?string $activeFolder,
     ): ListPage {
-        $create = [];
-        if ($canCreate) {
-            foreach (VaultItemType::cases() as $type) {
-                $create[] = new Action(
-                    'create',
-                    VaultPages::label('vault.type.' . $type->value),
-                    $this->url($routes['scope_item_new']['name'], array_filter(['scope' => $scope, 'type' => $type->value, 'folder' => $activeFolder], static fn (?string $v): bool => $v !== null && $v !== '')),
-                    icon: 'create',
-                    variant: 'secondary',
-                    attributes: ['data-testid' => 'vault-scope-new-' . $type->value],
-                );
-            }
-        }
+        $create = $canCreate ? $this->createActions($this->itemTypeActions($routes, $scope, $activeFolder)) : [];
 
         return new ListPage(
             header: new PageHeader(
@@ -376,6 +424,7 @@ final readonly class VaultPageFactory
                 VaultPages::label('vault.scope.items.description', ['%scope%' => $scope]),
                 $create,
                 back: new BackLink($this->url($routes['index']['name']), VaultPages::label('vault.title'), 'vault-back'),
+                actionsLayout: $this->pages->headerActionsInPageMenu() ? 'split' : 'toolbar',
             ),
             columns: [
                 new Column('type', VaultPages::label('vault.list.type'), priority: 2),
@@ -387,7 +436,7 @@ final readonly class VaultPageFactory
             filters: $searchForm,
             rowActions: fn (VaultItem $item): array => $this->scopeItemActions($routes, $item, $permissions[$item->getId()] ?? null, $trashForms),
             pagination: $pagination,
-            empty: new EmptyState(null, VaultPages::label('vault.empty.items')),
+            empty: new EmptyState(null, VaultPages::label('vault.empty.items'), $canCreate && $this->pages->headerActionsInPageMenu() ? $this->newItemAction('primary') : null),
             filtersClearHref: $this->url($routes['scope_items']['name'], ['scope' => $scope]),
             bundle: VaultPages::BUNDLE,
             layout: $this->pages->layout(),

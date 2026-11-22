@@ -32,7 +32,7 @@
         </header>
         <div class="{{ nowo_ui_class('card_body', _b) }}">
             {% if grants is empty %}
-                <p class="{{ nowo_ui_class('empty', _b) }}">{{ 'vault.access.empty'|trans }}</p>
+                {{ include(nowo_ui_partial('empty', _b), {empty: {title: null, message: 'vault.access.empty'|trans, action: null}, bundle: _b, region: 'empty'}, false) }}
             {% else %}
                 {% embed nowo_ui_partial('table', _b) with {table: grantsTable, bundle: _b} %}
                     {% block nowo_ui_table_row %}

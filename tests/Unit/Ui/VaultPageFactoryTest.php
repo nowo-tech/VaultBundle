@@ -120,6 +120,36 @@ final class VaultPageFactoryTest extends TestCase
         self::assertFalse((new VaultPages())->destructiveActionsInMenu());
     }
 
+    public function testPageActionsModeReplacesTheTypeButtonsWithOneNewItemEntry(): void
+    {
+        $factory = PageFixtures::factory(new VaultPages(headerActions: 'page_actions'));
+        $routes  = PageFixtures::routes();
+        $items   = $factory->items($routes, [], [], [], new FormView(), null, 'f1', null);
+        $scope   = $factory->scopeItems($routes, 'org-1', [], [], [], new FormView(), null, true, 'f1');
+        $none    = $factory->scopeItems($routes, 'org-1', [], [], [], new FormView(), null, false, null);
+
+        self::assertTrue((new VaultPages(headerActions: 'page_actions'))->headerActionsInPageMenu());
+        self::assertFalse((new VaultPages())->headerActionsInPageMenu());
+        foreach ([$items, $scope] as $page) {
+            self::assertSame('split', $page->header->actionsLayout);
+            self::assertCount(1, $page->header->actions);
+            self::assertSame('vault-new-item-dialog', $page->header->actions[0]->dialogId);
+            self::assertSame('vault.action.new_item', $this->labelKey($page->header->actions[0]->label));
+            self::assertSame('primary', $page->empty?->action?->resolvedVariant());
+        }
+        self::assertSame([], $none->header->actions, 'A member without create gets no entry.');
+        self::assertNull($none->empty?->action);
+
+        $choices = $factory->newItemChoices($factory->itemTypeActions($routes, 'org-1', 'f1'));
+        self::assertCount(8, $choices);
+        self::assertStringContainsString('nowo_vault_scope_item_new', (string) $choices[0]->href);
+        self::assertStringContainsString('type=login', (string) $choices[0]->href);
+        self::assertStringContainsString('folder=f1', (string) $choices[0]->href);
+        self::assertSame('vault-scope-new-login', $choices[0]->attributes['data-testid']);
+        self::assertSame([], $this->factory->newItemChoices($this->factory->itemTypeActions($routes, null, null)), 'Default mode: no chooser.');
+        self::assertCount(8, $this->factory->items($routes, [], [], [], new FormView(), null, null, null)->header->actions);
+    }
+
     public function testFolderAndTagActionsArePostsBehindAConfirm(): void
     {
         $user    = new TestUser();
