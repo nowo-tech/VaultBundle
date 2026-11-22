@@ -314,7 +314,7 @@ final class VaultItemSearchIdMappingTest extends VaultItemSearchTestCase
                 return true;
             }
 
-            public function reference(object $user): object|string
+            public function reference(object $user): string
             {
                 return 'someone-else';
             }
