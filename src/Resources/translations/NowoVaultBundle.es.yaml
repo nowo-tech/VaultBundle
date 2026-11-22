@@ -96,7 +96,7 @@ vault:
         secret_stored_placeholder: "Valor guardado oculto. Déjalo vacío para conservarlo."
         clear_secrets: "Borrar valores guardados"
         full_name: Nombre completo
-        email: Email
+        email: Correo electrónico
         phone: Teléfono
         address1: Dirección línea 1
         address2: Dirección línea 2

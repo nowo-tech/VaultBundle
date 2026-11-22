@@ -63,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Translations: `vault.form.email` is now "Correo electrónico" (es) and "E-mail" (it) instead of the English "Email". `TranslationCatalogueTest` also fails now on a non-es value identical to the Spanish one (longer than 12 characters) unless allow-listed per locale as genuinely shared, and on stale entries of that allow-list. 
+
 ## [2.2.0] - 2026-11-22
 
 ### Added
