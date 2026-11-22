@@ -125,7 +125,11 @@ vault:
         copy: Copier
         copied: Copié
         download_attachment: Télécharger la pièce jointe
+    new_item:
+        title: "Choisir le type d'élément"
+        description: "Choisissez le type d'entrée à créer."
     action:
+        new_item: "Nouvel élément"
         open: Ouvrir
         save: Enregistrer
         cancel: Annuler

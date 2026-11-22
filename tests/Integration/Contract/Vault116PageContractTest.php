@@ -7,6 +7,7 @@ namespace Nowo\VaultBundle\Tests\Integration\Contract;
 use Nowo\UiKitBundle\Test\PageContractTestCase;
 use Nowo\UiKitBundle\Test\PageFixture;
 use Nowo\VaultBundle\Tests\Support\PageFixtures;
+use Nowo\VaultBundle\Ui\VaultPages;
 
 /**
  * REQ-UI-003 page contract of the pages added in 1.16.0 (scope vault list, catalogue, health, export, share page with temporary grants).
@@ -19,6 +20,7 @@ final class Vault116PageContractTest extends PageContractTestCase
     {
         yield 'scope items' => new PageFixture('@NowoVaultBundle/vault/scope_items.html.twig', PageFixtures::scopeItems());
         yield 'scope items (empty, no create)' => new PageFixture('@NowoVaultBundle/vault/scope_items.html.twig', PageFixtures::scopeItems(true));
+        yield 'scope items (header actions in the page-actions menu)' => new PageFixture('@NowoVaultBundle/vault/scope_items.html.twig', PageFixtures::scopeItems(false, PageFixtures::factory(new VaultPages(headerActions: 'page_actions'))));
         yield 'catalogue' => new PageFixture('@NowoVaultBundle/vault/catalogue.html.twig', PageFixtures::catalogue());
         yield 'catalogue (empty)' => new PageFixture('@NowoVaultBundle/vault/catalogue.html.twig', PageFixtures::catalogue(true));
         yield 'health' => new PageFixture('@NowoVaultBundle/vault/health.html.twig', PageFixtures::health());

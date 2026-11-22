@@ -175,6 +175,7 @@ services:
             $sharingEnabled: '%nowo_vault.sharing.enabled%'
             $hostNoteTemplate: '%nowo_vault.web_ui.host_note_template%'
             $destructiveActionsInMenu: '%nowo_vault.web_ui.destructive_actions_in_menu%'
+            $headerActions: '%nowo_vault.web_ui.header_actions%'
 
     # Form Kit injects FormOptionsMerger into tagged form types (FormOptionsMergerInjectorCompilerPass).
     Nowo\VaultBundle\Form\:

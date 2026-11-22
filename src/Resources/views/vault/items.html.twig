@@ -117,4 +117,10 @@
     </td>
 {% endblock %}
 
+{#- 2.2 (web_ui.header_actions: page_actions): the item type chooser opened by the "New item" header action -#}
+{% block nowo_ui_modals %}
+    {{ parent() }}
+    {{ include('@NowoVaultBundle/vault/_new_item_dialog.html.twig', {choices: newItemChoices|default([]), bundle: page.bundle}) }}
+{% endblock %}
+
 {% block nowo_ui_scripts %}{{ parent() }}<script type="module" src="{{ asset('vault.js', 'nowo_vault') }}"></script>{% endblock %}

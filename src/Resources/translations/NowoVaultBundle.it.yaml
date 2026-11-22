@@ -125,7 +125,11 @@ vault:
         copy: Copia
         copied: Copiato
         download_attachment: Scarica allegato
+    new_item:
+        title: "Scegli il tipo di elemento"
+        description: "Scegli il tipo di voce che vuoi creare."
     action:
+        new_item: "Nuovo elemento"
         open: Apri
         save: Salva
         cancel: Annulla

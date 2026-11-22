@@ -32,6 +32,13 @@ Authenticated users open the vault at `/tools/vault` (configurable via `nowo_vau
 - **Trash** — soft-deleted items (restore or purge)
 - **Password generator** — sidebar modal + inline on login forms
 
+**Header create actions.** By default the items lists show one *+ type* button per item type. With
+`nowo_vault.web_ui.header_actions: page_actions` (UiKit 2.21+) they show a single *New item* entry in the page-actions
+menu instead; it opens a UiKit dialog (`vault-new-item-dialog`) with one create link per type (active folder kept),
+and the empty items list offers the same entry. A host with the compact header
+(`nowo_ui_kit.header.compact_actions: bar`) reads the same `PageHeader::$actions`. The dialog needs JavaScript to open
+(UiKit's dialog script, loaded by the UiKit layouts); the per-type URLs (`/tools/vault/items/new/{type}`) are unchanged.
+
 ## Item types
 
 | Type | Purpose |

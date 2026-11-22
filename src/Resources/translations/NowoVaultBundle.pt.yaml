@@ -125,7 +125,11 @@ vault:
         copy: Copiar
         copied: Copiado
         download_attachment: Transferir anexo
+    new_item:
+        title: "Escolher o tipo de item"
+        description: "Escolha o tipo de entrada que pretende criar."
     action:
+        new_item: "Novo item"
         open: Abrir
         save: Guardar
         cancel: Cancelar

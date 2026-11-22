@@ -62,6 +62,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `web_ui.header_actions` (`buttons` | `page_actions`, default `buttons`): with `page_actions` the items list (and the scope items list) has one *New item* entry (a UiKit `View\Action` in the page-actions menu, UiKit split header, never a filled button) instead of one *+ type* button per item type. The entry opens a UiKit dialog (`vault-new-item-dialog`) that lists one create link per type, with the same `data-testid` hooks (`vault-new-<type>`, `vault-scope-new-<type>`) and the active folder kept. The empty items list offers the same entry as its action. With the UiKit compact header and `compact_actions: bar` the host reads `page.header.actions` (the one entry) for its top-bar menu and no second menu is rendered; the dialog stays in the page. Needs UiKit 2.21+; the dialog needs UiKit's dialog script (loaded by the UiKit layouts). Behind an option because it replaces eight links with a dialog that needs JavaScript to open, which is more than a presentation change. New: `VaultPages::headerActionsInPageMenu()`, `VaultPageFactory::itemTypeActions()` / `newItemAction()` / `newItemChoices()`, `vault/_new_item_dialog.html.twig`, translation keys `vault.action.new_item`, `vault.new_item.title`, `vault.new_item.description` in the seven shipped locales.
+
+### Changed
+
+- The *Share* page's empty grants list renders through UiKit's `empty` partial (one sentence) instead of a bordered paragraph. The other lists (items, shared, trash, catalogue, health) already used `empty` with a single sentence. Texts are unchanged.
+
 ### Fixed
 
 - A new `TranslationCatalogueTest` fails on missing keys and on non-en values identical to English of any length unless allow-listed per locale (acronyms, protocols, loanwords, true cognates), and on stale allow-list entries.

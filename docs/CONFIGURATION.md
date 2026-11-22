@@ -223,6 +223,7 @@ The manage pages follow the UiKit page contract (REQ-UI-003): each page extends 
 | `web_ui.layout_template` | `null` | Layout the pages extend. `null` = `nowo_ui_kit.layouts.admin` (recommended). It must render the UiKit canonical blocks: since 2.0 a 1.x layout without them fails the page with a `LogicException` (the bridge was removed) |
 | `web_ui.host_note_template` | `null` | 1.18.0: Twig template included under the page header of the home and the items list (block `vault_host_note`; variables `page`, `routes`), e.g. a link to another tool. No `templates` override needed |
 | `web_ui.destructive_actions_in_menu` | `false` | 1.18.0: *Move to trash* of the item rows becomes the last (danger) item of a UiKit kebab menu after the inline actions; same confirm dialog |
+| `web_ui.header_actions` | `buttons` | `buttons`: one *+ type* button per item type in the header of the items lists. `page_actions`: one *New item* entry in the page-actions menu (UiKit split header) that opens a dialog with the type chooser; the empty list offers it too. UiKit 2.21+ |
 | `web_ui.templates.<page>` | `{}` | Per-page template override: `home`, `items`, `item_form`, `trash`, `shared`, `share`, `runtime_config`, `scope_items`, `catalogue` (1.16.0). Unknown page ids are rejected |
 
 ```yaml
