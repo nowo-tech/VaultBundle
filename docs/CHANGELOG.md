@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.2.0] - 2026-11-22](#220---2026-11-22)
 - [[2.1.1] - 2026-11-22](#211---2026-11-22)
 - [[2.1.0] - 2026-11-21](#210---2026-11-21)
 - [[2.0.0] - 2026-11-21](#200---2026-11-21)
@@ -62,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-22
+
 ### Added
 
 - `web_ui.header_actions` (`buttons` | `page_actions`, default `buttons`): with `page_actions` the items list (and the scope items list) has one *New item* entry (a UiKit `View\Action` in the page-actions menu, UiKit split header, never a filled button) instead of one *+ type* button per item type. The entry opens a UiKit dialog (`vault-new-item-dialog`) that lists one create link per type, with the same `data-testid` hooks (`vault-new-<type>`, `vault-scope-new-<type>`) and the active folder kept. The empty items list offers the same entry as its action. With the UiKit compact header and `compact_actions: bar` the host reads `page.header.actions` (the one entry) for its top-bar menu and no second menu is rendered; the dialog stays in the page. Needs UiKit 2.21+; the dialog needs UiKit's dialog script (loaded by the UiKit layouts). Behind an option because it replaces eight links with a dialog that needs JavaScript to open, which is more than a presentation change. New: `VaultPages::headerActionsInPageMenu()`, `VaultPageFactory::itemTypeActions()` / `newItemAction()` / `newItemChoices()`, `vault/_new_item_dialog.html.twig`, translation keys `vault.action.new_item`, `vault.new_item.title`, `vault.new_item.description` in the seven shipped locales.
@@ -73,6 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - A new `TranslationCatalogueTest` fails on missing keys and on non-en values identical to English of any length unless allow-listed per locale (acronyms, protocols, loanwords, true cognates), and on stale allow-list entries.
+
+[2.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.2.0
 
 ## [2.1.1] - 2026-11-22
 
@@ -1426,7 +1431,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.2.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
