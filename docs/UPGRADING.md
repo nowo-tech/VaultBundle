@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.3.0](#to-230)
 - [To 2.2.1](#to-221)
 - [To 2.2.0](#to-220)
 - [To 2.1.1](#to-211)
@@ -101,6 +102,14 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 2.3.0
+
+From **2.2.1**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 ```bash
 composer update nowo-tech/vault-bundle nowo-tech/ui-kit-bundle

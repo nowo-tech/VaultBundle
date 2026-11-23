@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.3.0] - 2026-11-23](#230---2026-11-23)
 - [[2.2.1] - 2026-11-22](#221---2026-11-22)
 - [[2.2.0] - 2026-11-22](#220---2026-11-22)
 - [[2.1.1] - 2026-11-22](#211---2026-11-22)
@@ -64,12 +65,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-23
+
 ### Changed
 
 - Lazy dialogs (symfony-beacon rule 2026-11-23, "every dialog loads its content on demand"): the vault lists no longer print one confirm `<dialog>` (title, message, POST form + CSRF) per row. Every vault table (items, shared, trash, scope items, grants of the share page) now prints ONE shared confirm dialog (UiKit 2.68 `confirm_shared`, id `nowo-ui-table-confirm`) filled from the row toggle when it opens, and the folder / tag chips of the items list share one more (`vault-chips-confirm`). Each row keeps its own hidden POST form, target and CSRF token; CSRF checks, access checks and the REQ-RUNTIME-003 transactions are unchanged, and no secret value reaches the page (the toggles carry the same title / message texts the per-row dialogs showed). Items list with 50 rows, 3 folders and 2 tags: 55 confirm dialogs → 2, 288,782 → 246,759 bytes. New bundle `table` partial `@NowoVaultBundle/ui/_table.html.twig` (`VaultPages::TABLE_PARTIAL`, prepended as `nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.table`; it extends the host / kit `table` partial with `confirm_shared` on, a host value wins); the vault `row_actions` partial forwards `confirm_shared` to its kebab menu. Requires `nowo-tech/ui-kit-bundle` `^2.68`.
 
 - Rector (`make rector-dry` passes again): `VaultSearchScopesEvent::valid()` (private) is a regular method; two test helpers were tidied. `rector.php` skips `ArrayToFirstClassCallableRector` for `src/Doctrine/ExactCollation.php` (the `is_callable([$connection, 'getServerVersion'])` probe targets a method doctrine/dbal 3 keeps private). No behaviour change.
 - CI: new `release-gates` job runs the four release gates (`make rector-dry`, `validate-phpdoc`, `validate-translations`, `check-twig-extra`) in full mode, so a gate failure shows on the PR instead of at release time (CI only, no change to shipped code).
+
+[2.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.3.0
 
 ## [2.2.1] - 2026-11-22
 
@@ -1447,7 +1452,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.2.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.3.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
