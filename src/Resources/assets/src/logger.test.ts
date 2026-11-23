@@ -44,10 +44,10 @@ describe('createBundleLogger', () => {
         logger.warn('warn');
         logger.error(err);
 
-        expect(spies.debug.mock.calls[0].slice(2)).toEqual(['{"a":1}', 'text', null]);
+        expect(spies.debug.mock.calls[0]?.slice(2)).toEqual(['{"a":1}', 'text', null]);
         expect(spies.debug.mock.calls[0][0]).toContain('[Vault]');
-        expect(spies.info.mock.calls[0].slice(2)).toEqual(['info']);
-        expect(spies.warn.mock.calls[0].slice(2)).toEqual(['warn']);
+        expect(spies.info.mock.calls[0]?.slice(2)).toEqual(['info']);
+        expect(spies.warn.mock.calls[0]?.slice(2)).toEqual(['warn']);
         expect(spies.error.mock.calls[0][2]).toBe(err);
 
         logger.setDebug(false);
