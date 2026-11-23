@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.4.0] - 2026-11-23](#240---2026-11-23)
 - [[2.3.0] - 2026-11-23](#230---2026-11-23)
 - [[2.2.1] - 2026-11-22](#221---2026-11-22)
 - [[2.2.0] - 2026-11-22](#220---2026-11-22)
@@ -65,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-23
+
 ### Changed
 
 - **Console**: `vault.js` now logs one line on load, `📦 [vault] script loaded, build: 2026-11-23 14:05 UTC` (a readable UTC build time; the line never had a build value before). The time comes from the committed `build-info.json` (`{sourceHash, builtAt}`): the source hash stays the change detector, `builtAt` is reused while the sources are unchanged and renewed only when they change, so rebuilding unchanged sources never rewrites the committed assets (no wall-clock stamp, no git date).
@@ -72,6 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Console**: quiet switch for the script-loaded line: `<html data-nowo-console="quiet">` or `globalThis.NOWO_CONSOLE = 'quiet'` prints nothing. The default is unchanged.
+
+[2.4.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.4.0
 
 ## [2.3.0] - 2026-11-23
 
@@ -1460,7 +1465,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.4.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
