@@ -32,6 +32,9 @@ test.describe('Vault demo', () => {
 
   test('moving an item to the trash asks for confirmation in a dialog', async ({ page }) => {
     await page.goto('/tools/vault/items');
+    // Lazy dialogs: ONE shared confirm dialog for the whole table, filled from the row toggle when it opens.
+    await expect(page.locator('dialog#nowo-ui-table-confirm[data-nowo-confirm-shared]')).toHaveCount(1);
+    await expect(page.locator('table dialog')).toHaveCount(0);
     const row = page.locator('tr', { hasText: 'Demo broad login' }).first();
     await row.getByRole('button', { name: 'Move to trash' }).click();
     const dialog = page.locator('dialog[open]');

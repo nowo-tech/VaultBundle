@@ -4,7 +4,8 @@
 
   Actions carrying the data-vault-row-menu attribute (VaultPages::ROW_MENU_ATTRIBUTE, set on "Move to trash" with
   nowo_vault.web_ui.destructive_actions_in_menu) are drawn as items of a kebab menu (the UiKit `menu` partial, icon
-  "more") after the other actions; they keep their POST form and confirm dialog. Without such actions every variable
+  "more") after the other actions; they keep their POST form and confirm dialog (the table's shared confirm dialog
+  with `confirm_shared`, forwarded to the menu). Without such actions every variable
   is passed unchanged to the host / kit `row_actions` partial, so the output is the kit's.
 #}
 {% set _t = nowo_ui_theme|default(null) %}
@@ -34,6 +35,7 @@
             menu_items: true,
             align: 'end',
             confirm_external: confirm_external|default(false),
+            confirm_shared: confirm_shared|default(null),
             attr: {'data-testid': 'vault-row-menu'},
             bundle: bundle|default(null),
             nowo_ui_page_type: nowo_ui_page_type|default(null),

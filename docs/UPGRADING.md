@@ -102,6 +102,22 @@
 
 ## Unreleased
 
+```bash
+composer update nowo-tech/vault-bundle nowo-tech/ui-kit-bundle
+```
+
+- **Lazy dialogs: one confirm dialog per table.** The vault lists print ONE shared confirm dialog per table (UiKit
+  2.68 `confirm_shared`, id `nowo-ui-table-confirm`) and one for the folder / tag chips (`vault-chips-confirm`)
+  instead of one `<dialog>` per row. `nowo-tech/ui-kit-bundle` must be `^2.68`. Check host tests and overrides that
+  rely on the per-row markup:
+  - a row toggle's `data-nowo-confirm-target` is the shared id, not `confirmId()`; the row's POST form (target + CSRF)
+    sits hidden next to its toggle (`data-nowo-confirm-form` names it) instead of inside a per-row dialog;
+  - a host override of the UiKit `action`, `row_actions` or `menu` partials (global or for `NowoVaultBundle`) must
+    handle and forward `confirm_shared` (UiKit 2.68), or the toggles open nothing;
+  - the bundle now prepends `nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.table:
+    '@NowoVaultBundle/ui/_table.html.twig'` (it extends your global `table` partial). To keep the per-row dialogs,
+    set that key to your own partial or to `'@NowoUiKitBundle/partials/_table.html.twig'`.
+
 ## To 2.2.1
 
 From **2.2.0**:

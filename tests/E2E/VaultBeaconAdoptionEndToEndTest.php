@@ -112,11 +112,11 @@ final class VaultBeaconAdoptionEndToEndTest extends WebTestCase
         $trash = $menu->filterXPath('descendant-or-self::*[contains(concat(" ", normalize-space(@class), " "), " nowo-ui-action--delete ")]');
         self::assertCount(1, $trash, 'Move to trash is inside the menu.');
         self::assertStringContainsString('Move to trash', $trash->text());
-        $confirmId = $trash->attr('data-nowo-confirm-target');
-        self::assertNotNull($confirmId, 'The trash item opens its confirm dialog.');
-        $dialog = $items->filterXPath('//*[@id="' . $confirmId . '"]');
-        self::assertCount(1, $dialog, 'The confirm dialog is on the page.');
-        self::assertCount(1, $dialog->filterXPath('descendant-or-self::form[@action="/tools/vault/items/' . $item->getId() . '/trash"]'));
+        // Lazy dialogs: the menu item opens the table's ONE shared confirm dialog and submits the row's own form.
+        self::assertSame('nowo-ui-table-confirm', $trash->attr('data-nowo-confirm-target'), 'The trash item opens the shared confirm dialog.');
+        self::assertCount(1, $items->filterXPath('//dialog[@id="nowo-ui-table-confirm"][@data-nowo-confirm-shared]'), 'The confirm dialog is on the page.');
+        $formId = (string) $trash->attr('data-nowo-confirm-form');
+        self::assertCount(1, $items->filterXPath('//form[@id="' . $formId . '"][@action="/tools/vault/items/' . $item->getId() . '/trash"]'));
         self::assertCount(0, $items->filterXPath('//*[@data-testid="vault-row-actions"]/*[contains(@class, "nowo-ui-row-actions")]//*[contains(@class, "nowo-ui-action--delete")]'), 'No inline trash button.');
         self::assertGreaterThan(0, $items->filterXPath('//*[@data-testid="vault-row-actions"]//*[contains(@class, "nowo-ui-action--view")]')->count());
 
