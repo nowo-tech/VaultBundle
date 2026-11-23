@@ -22,6 +22,7 @@
 - [Translations](#translations)
 - [Standard Symfony host](#standard-symfony-host)
 - [DDD / hexagonal host](#ddd--hexagonal-host)
+- [Browser console](#browser-console)
 
 ## Manage UI
 
@@ -747,3 +748,7 @@ With `user_mapping: id`:
 - replace how users are turned into stored values by aliasing `VaultUserReferenceResolverInterface`;
 - the services are stateless and work in FrankenPHP worker mode with the kernel kept alive and not reset (see
   [FRANKENPHP-WORKER-AUDIT](FRANKENPHP-WORKER-AUDIT.md)).
+
+## Browser console
+
+The bundle's script logs one line when it loads (`📦 [vault] script loaded, build: 2026-11-23 14:05 UTC`) so a developer can tell which build a page runs. To silence it, set `<html data-nowo-console="quiet">` or `globalThis.NOWO_CONSOLE = 'quiet'` before the script loads; nothing is printed then. The default is unchanged.

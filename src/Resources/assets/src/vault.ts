@@ -10,6 +10,13 @@
 import './vault.css';
 import { fetchGeneratedPassword, readGeneratorOptionsFromDom } from './vault-password-client';
 import { bindRevealButtons, bindStrengthFeedback } from './vault-reveal';
+import { createBundleLogger } from './logger';
+
+declare const __VAULT_BUILD_TIME__: string;
+
+createBundleLogger('vault', {
+    buildTime: typeof __VAULT_BUILD_TIME__ !== 'undefined' ? __VAULT_BUILD_TIME__ : undefined,
+}).scriptLoaded();
 
 /** Endpoint and CSRF token of the generator, read from its dialog. */
 export interface GeneratorConfig {
