@@ -855,12 +855,17 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ]);
         }
 
-        if ($container->hasExtension('nowo_ui_kit') && $this->destructiveActionsInMenu($container)) {
-            // 1.18.0 web_ui.destructive_actions_in_menu: the vault row_actions partial (delegates to the host / kit
-            // partial; draws the actions marked with VaultPages::ROW_MENU_ATTRIBUTE in a kebab menu). A host value for
-            // this bundle partial wins.
+        if ($container->hasExtension('nowo_ui_kit')) {
+            // Lazy dialogs: the vault `table` partial (extends the host / kit partial) prints ONE shared confirm dialog
+            // per table instead of one per row (UiKit 2.68 confirm_shared). 1.18.0 web_ui.destructive_actions_in_menu:
+            // the vault row_actions partial (delegates to the host / kit partial; draws the actions marked with
+            // VaultPages::ROW_MENU_ATTRIBUTE in a kebab menu). A host value for these bundle partials wins.
+            $partials = ['table' => VaultPages::TABLE_PARTIAL];
+            if ($this->destructiveActionsInMenu($container)) {
+                $partials['row_actions'] = VaultPages::ROW_ACTIONS_PARTIAL;
+            }
             $container->prependExtensionConfig('nowo_ui_kit', [
-                'theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => ['row_actions' => VaultPages::ROW_ACTIONS_PARTIAL]]]],
+                'theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => $partials]]],
             ]);
         }
     }

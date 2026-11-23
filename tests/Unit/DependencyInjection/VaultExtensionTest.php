@@ -309,8 +309,11 @@ final class VaultExtensionTest extends TestCase
         self::assertSame('NowoVaultBundle', $formKit['profiles']['vault']['translation_domain']);
         self::assertTrue($formKit['profiles']['vault']['convention_requires_translation']);
 
-        // REQ-UI-003: the CSS stack is inherited from nowo_ui_kit; the vault seeds nothing there.
-        self::assertSame([], $container->getExtensionConfig('nowo_ui_kit'));
+        // REQ-UI-003: the CSS stack is inherited from nowo_ui_kit; the vault seeds only its shared-confirm table partial.
+        self::assertSame(
+            [['theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => ['table' => VaultPages::TABLE_PARTIAL]]]]]],
+            $container->getExtensionConfig('nowo_ui_kit'),
+        );
         self::assertSame(['class' => 'nowo-ui-input'], $formKit['profiles']['vault']['defaults']['attr']);
     }
 
@@ -408,7 +411,11 @@ final class VaultExtensionTest extends TestCase
         $container->prependExtensionConfig('nowo_vault', ['web_ui' => []]);
 
         (new VaultExtension())->prepend($container);
-        self::assertSame([], $container->getExtensionConfig('nowo_ui_kit'), 'The last value (false) wins.');
+        self::assertSame(
+            [['theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => ['table' => VaultPages::TABLE_PARTIAL]]]]]],
+            $container->getExtensionConfig('nowo_ui_kit'),
+            'The last value (false) wins: only the shared-confirm table partial.',
+        );
 
         $on = new ContainerBuilder();
         $on->registerExtension($this->fakeExtension('nowo_ui_kit'));
@@ -417,7 +424,7 @@ final class VaultExtensionTest extends TestCase
 
         (new VaultExtension())->prepend($on);
         self::assertSame(
-            ['theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => ['row_actions' => VaultPages::ROW_ACTIONS_PARTIAL]]]]],
+            ['theme' => ['bundles' => [VaultPages::BUNDLE => ['partials' => ['table' => VaultPages::TABLE_PARTIAL, 'row_actions' => VaultPages::ROW_ACTIONS_PARTIAL]]]]],
             $on->getExtensionConfig('nowo_ui_kit')[0],
         );
     }

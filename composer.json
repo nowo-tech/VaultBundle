@@ -39,7 +39,7 @@
         "nowo-tech/form-kit-bundle": "^2.16",
         "nowo-tech/transaction-contract": "^1.0",
         "nowo-tech/transaction-doctrine": "^1.8.1",
-        "nowo-tech/ui-kit-bundle": "^2.17.3",
+        "nowo-tech/ui-kit-bundle": "^2.68",
         "php": ">=8.2 <8.6",
         "psr/clock": "^1.0",
         "psr/log": "^2.0 || ^3.0",

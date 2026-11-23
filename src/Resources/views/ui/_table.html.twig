@@ -1,0 +1,12 @@
+{#
+  Table of the vault pages (lazy dialogs): UiKit `table` partial for NowoVaultBundle
+  (nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.table, prepended by the bundle; a host value wins).
+
+  It extends the host / kit `table` partial (so an `embed` keeps overriding its blocks) and turns `confirm_shared` on
+  unless the caller passes it: row actions with a Confirm (Move to trash, Purge, Revoke access) open ONE shared confirm
+  dialog per table, filled from the row toggle when it opens, instead of printing one dialog (title, message, POST
+  form + CSRF) per row. Each row keeps its own hidden POST form, target and CSRF token. Pass `confirm_shared: false` to
+  get the per-row dialogs back (UiKit 2.67 markup).
+#}
+{% extends nowo_ui_theme|default(null) ? nowo_ui_theme.partial('table') : '@NowoUiKitBundle/partials/_table.html.twig' %}
+{% set confirm_shared = confirm_shared ?? true %}

@@ -5,7 +5,7 @@
   list<VaultItem>; row actions View / Share / Edit / Trash (POST + CSRF FormView behind a Confirm; read-only items:
   View only); Pagination (nowo_vault.pagination.per_page, none while searching); EmptyState vault.empty.items).
   Also: routes, folders, tags, folderForm (VaultFolderCreateType), folderActions (folder id => Share / Trash actions),
-  tagActions (tag id => Delete action), activeFolder, activeTag, searchQuery, readOnlyMap, grantCounts.
+  tagActions (tag id => Delete action; folder and tag chips share ONE confirm dialog, `vault-chips-confirm`), activeFolder, activeTag, searchQuery, readOnlyMap, grantCounts.
   Data blocks filled: nowo_ui_list_filters (folders and tags panels, then the default search region),
   nowo_ui_list_row (cells). 1.18.0: block vault_host_note under the page header (web_ui.host_note_template); the
   Shared badge and the Share actions are left out with sharing.enabled false.
@@ -27,6 +27,9 @@
 
 {% block nowo_ui_list_filters %}
     {% set _b = page.bundle %}
+    {#- lazy dialogs: the Trash folder / Delete tag chips open ONE shared confirm dialog (rendered in nowo_ui_modals),
+        each chip keeps its own hidden POST form (target + CSRF) -#}
+    {% set _chips_confirm = 'vault-chips-confirm' %}
     {% set _active_folder = activeFolder|default(null) %}
     {% set _active_tag = activeTag|default(null) %}
     {% set _q = searchQuery|default('') %}
@@ -53,7 +56,7 @@
                     <li class="vault-chip" data-testid="vault-folder">
                         <a class="{{ nowo_ui_class(_active_folder == folder.id ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.items.name, {folder: folder.id}) }}"{% if _active_folder == folder.id %} aria-current="page"{% endif %}>{{ folder.name }}</a>
                         {% for action in folderActions[folder.id]|default([]) %}
-                            {{ include(nowo_ui_partial('action', _b), {action: action, context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
+                            {{ include(nowo_ui_partial('action', _b), {action: action, context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type, confirm_shared: {id: _chips_confirm, row: 'f' ~ loop.parent.loop.index}}, false) }}
                         {% endfor %}
                     </li>
                 {% endfor %}
@@ -76,7 +79,7 @@
                         <li class="vault-chip" data-testid="vault-tag">
                             <a class="{{ nowo_ui_class(_active_tag == tag.id ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.items.name, _base|merge({tag: tag.id})) }}"{% if _active_tag == tag.id %} aria-current="page"{% endif %}>{{ tag.name }}</a>
                             {% if tagActions[tag.id] is defined %}
-                                {{ include(nowo_ui_partial('action', _b), {action: tagActions[tag.id], context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type}, false) }}
+                                {{ include(nowo_ui_partial('action', _b), {action: tagActions[tag.id], context: 'row', bundle: _b, nowo_ui_page_type: nowo_ui_page_type, confirm_shared: {id: _chips_confirm, row: 't' ~ loop.index}}, false) }}
                             {% endif %}
                         </li>
                     {% endfor %}
@@ -120,6 +123,10 @@
 {#- 2.2 (web_ui.header_actions: page_actions): the item type chooser opened by the "New item" header action -#}
 {% block nowo_ui_modals %}
     {{ parent() }}
+    {#- the one confirm dialog of the folder and tag chips (filled from the chip toggle when it opens) -#}
+    {% if folderActions|default([]) is not empty or tagActions|default([]) is not empty %}
+        {{ include(nowo_ui_partial('confirm_shared', page.bundle), {id: 'vault-chips-confirm', bundle: page.bundle, nowo_ui_page_type: nowo_ui_page_type|default(null)}, false) }}
+    {% endif %}
     {{ include('@NowoVaultBundle/vault/_new_item_dialog.html.twig', {choices: newItemChoices|default([]), bundle: page.bundle}) }}
 {% endblock %}
 

@@ -46,6 +46,15 @@ final readonly class VaultPages
 
     public const ROW_ACTIONS_PARTIAL = '@NowoVaultBundle/ui/_row_actions.html.twig';
 
+    /**
+     * UiKit `table` partial of the vault pages (`nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.table`): extends
+     * the host / kit partial with `confirm_shared` on, so a list prints one confirm dialog, not one per row.
+     */
+    public const TABLE_PARTIAL = '@NowoVaultBundle/ui/_table.html.twig';
+
+    /** Id of the shared confirm dialog of the folder and tag chips of the items list (one dialog for every chip). */
+    public const CHIPS_CONFIRM_DIALOG = 'vault-chips-confirm';
+
     /** Page ids accepted by `web_ui.templates` (page id => default template). */
     public const TEMPLATES = [
         'home'           => '@NowoVaultBundle/vault/home.html.twig',
