@@ -64,7 +64,7 @@ final class VaultSearchScopesEvent extends Event
      */
     public function limitTo(array $scopes): void
     {
-        $valid = self::valid($scopes);
+        $valid = $this->valid($scopes);
         // @igor-ignore - Per-dispatch event object; not shared worker state.
         $this->only = $this->only === null ? $valid : array_values(array_intersect($this->only, $valid));
     }
@@ -77,7 +77,7 @@ final class VaultSearchScopesEvent extends Event
     public function exclude(array $scopes): void
     {
         // @igor-ignore - Per-dispatch event object; not shared worker state.
-        $this->excluded = self::valid([...$this->excluded, ...$scopes]);
+        $this->excluded = $this->valid([...$this->excluded, ...$scopes]);
     }
 
     /**
@@ -135,7 +135,7 @@ final class VaultSearchScopesEvent extends Event
      *
      * @return list<string>
      */
-    private static function valid(array $scopes): array
+    private function valid(array $scopes): array
     {
         $valid = [];
         foreach ($scopes as $scope) {

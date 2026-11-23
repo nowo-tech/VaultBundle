@@ -64,6 +64,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Rector (`make rector-dry` passes again): `VaultSearchScopesEvent::valid()` (private) is a regular method; two test helpers were tidied. `rector.php` skips `ArrayToFirstClassCallableRector` for `src/Doctrine/ExactCollation.php` (the `is_callable([$connection, 'getServerVersion'])` probe targets a method doctrine/dbal 3 keeps private). No behaviour change.
+- CI: new `release-gates` job runs the four release gates (`make rector-dry`, `validate-phpdoc`, `validate-translations`, `check-twig-extra`) in full mode, so a gate failure shows on the PR instead of at release time (CI only, no change to shipped code).
+
 ## [2.2.1] - 2026-11-22
 
 ### Fixed

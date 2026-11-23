@@ -55,7 +55,7 @@ final class VaultUserIdColumnsTest extends TestCase
 
             public function log(mixed $level, string|Stringable $message, array $context = []): void
             {
-                $this->records[] = (string) $level . ' ' . strtr((string) $message, ['{version}' => (string) ($context['version'] ?? '')]);
+                $this->records[] = $level . ' ' . strtr((string) $message, ['{version}' => (string) ($context['version'] ?? '')]);
             }
         };
         foreach ([VaultItem::class => 'creator', VaultExtensionToken::class => 'user'] as $class => $field) {
