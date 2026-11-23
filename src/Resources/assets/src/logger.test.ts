@@ -14,7 +14,7 @@ describe('createBundleLogger', () => {
         createBundleLogger('Vault', { buildTime: '' }).scriptLoaded();
 
         expect(log).toHaveBeenCalledTimes(3);
-        expect(log.mock.calls[0][0]).toContain('[Vault] script loaded, build time: %c2026-10-29');
+        expect(log.mock.calls[0][0]).toContain('[Vault] script loaded, build: %c2026-10-29');
         expect(log.mock.calls[1][0]).toContain('[Vault] script loaded');
         expect(log.mock.calls[1]).toHaveLength(2);
         expect(log.mock.calls[2]).toHaveLength(2);
