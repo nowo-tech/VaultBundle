@@ -97,6 +97,8 @@ As an integrator, I hook list/access events to enforce custom team rules.
 - **FR-UTIL-001**: Support utilities (`UserIdResolver`, `Uuid` value object).
 - **FR-SEC-003**: CSRF validation on every state-changing manage action (`VaultCsrfTrait`).
 - **FR-UI-001**: `VaultManageController` serves the manage Web UI (items, folders, shares, trash).
+- **FR-VIEW-010** (2.3, lazy dialogs): the extension prepends `nowo_ui_kit.theme.bundles.NowoVaultBundle.partials.table` = `VaultPages::TABLE_PARTIAL` (`ui/_table.html.twig`, extends the host / kit `table` partial with `confirm_shared` on; a host value wins), so every vault table (items, shared, trash, scope items, share grants) prints ONE shared confirm dialog instead of one per row; the folder and tag chips of the items list share one more (`vault-chips-confirm`). Each row keeps its own hidden POST form, target and CSRF token and no secret value reaches the page. Needs ui-kit ^2.68.
+- **FR-UI-013** (REQ-ASSETS-005): `vault.ts` prints one `📦 [vault] script loaded, build: <date> UTC` console line through `logger.ts` (readable build label); `<html data-nowo-console="quiet">` or `globalThis.NOWO_CONSOLE = 'quiet'` silences it, and the level methods are no-ops unless debug is on.
 - **FR-VIEW-001**: `layout.html.twig` and `vault/base.html.twig` page shell (extends the controller layout, UiKit, REQ-UI-001).
 - **FR-VIEW-002**: `VaultExtension` exposes the manage Web UI globals to Twig.
 - **FR-BUILD-001**: Vite builds `Resources/public/vault.js` / `vault.css` from `Resources/assets/src/` (documented as outputs, not orphan files).
@@ -127,7 +129,7 @@ As an integrator, I hook list/access events to enforce custom team rules.
 
 ## Success Criteria
 
-- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (256/256 mapped, audited 2026-11-16 on v1.19.3; 5 co-located `*.test.ts` excluded).
+- **SC-001**: 100% of production files in `src/` appear in [`code-inventory.md`](code-inventory.md) with requirement IDs (285/285 mapped, audited 2026-11-27 on v2.4.0; 7 co-located `*.test.ts` excluded).
 - **SC-002**: Configuration keys in `docs/CONFIGURATION.md` match `Configuration.php`.
 - **SC-003**: `composer qa` / `make release-check` pass in CI (PHPUnit, PHPStan, Vitest where applicable).
 - **SC-004**: No Packagist-visible behavior change without spec, inventory, and test updates.

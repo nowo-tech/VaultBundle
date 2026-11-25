@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/vault-bundle`  
-**Last audited**: 2026-11-22 (v2.1.1)
+**Last audited**: 2026-11-27 (v2.4.0)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -179,7 +179,7 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Resources/assets/src/logger.ts` | Frontend logger | FR-UI-012 |
+| `Resources/assets/src/logger.ts` | Frontend logger: `scriptLoaded()` banner with build label, quiet switch (`data-nowo-console`, `NOWO_CONSOLE`), debug-gated levels (REQ-ASSETS-005) | FR-UI-012, FR-UI-013 |
 | `Resources/public/vault.css` | Built frontend asset | FR-BUILD-001 |
 | `Resources/public/vault.js` | Built frontend asset | FR-BUILD-001 |
 
@@ -209,7 +209,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/vault/_new_item_dialog.html.twig` | New item dialog (UiKit) | FR-VIEW-005 |
 | `Resources/views/vault/home.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/item_form.html.twig` | Manage UI template | FR-VIEW-005 |
-| `Resources/views/vault/items.html.twig` | Manage UI template | FR-VIEW-005 |
+| `Resources/views/vault/items.html.twig` | Manage UI template; the folder and tag chips share one confirm dialog (`vault-chips-confirm`) | FR-VIEW-005, FR-VIEW-010 |
 | `Resources/views/vault/runtime_config.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/share.html.twig` | Manage UI template | FR-VIEW-005 |
 | `Resources/views/vault/shared.html.twig` | Manage UI template | FR-VIEW-005 |
@@ -219,7 +219,8 @@ This file proves that **every production source artifact** under `src/` is refer
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Ui/VaultPages.php` | Layout / legacy bridge of the UiKit page contract (REQ-UI-003) | FR-VIEW-001 |
+| `Ui/VaultPages.php` | Layout / legacy bridge of the UiKit page contract (REQ-UI-003); constants `TABLE_PARTIAL` (the bundle `table` partial) and `CHIPS_CONFIRM_DIALOG` (id of the one confirm dialog of the folder / tag chips) | FR-VIEW-001, FR-VIEW-010 |
+| `Resources/views/ui/_table.html.twig` | UiKit `table` partial of the vault pages: extends the host / kit partial with `confirm_shared` on unless the caller passes it, so row actions with a Confirm (move to trash, purge, revoke access) share ONE confirm dialog per table; each row keeps its own hidden POST form and CSRF token | FR-VIEW-010 |
 | `Ui/VaultPageFactory.php` | UiKit view models of the manage pages (REQ-UI-003) | FR-VIEW-005 |
 
 ## Scope vaults (1.16)
@@ -450,7 +451,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | Symfony config | 1 | 1 |
 | Translations | 7 | 7 |
 | Twig views | 9 | 9 |
-| Twig integration | 2 | 2 |
+| Twig integration | 3 | 3 |
 | Scope vaults (1.16) | 13 | 13 |
 | Temporary grants and grant policy (1.16) | 8 | 8 |
 | Metadata catalogue (1.16) | 7 | 7 |
@@ -462,6 +463,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | Host commands, queries and id access (2.1) | 24 | 24 |
 | Private entity manager, XML mapping and conditional mapping (1.18-1.19) | 20 | 20 |
 | Forms and views (REQ-TWIG-005 / REQ-UI-003) | 5 | 5 |
-| **Total production sources** | **284** | **284** |
+| **Total production sources** | **285** | **285** |
 
-Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 284.
+Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 285 (2026-11-27, v2.4.0).
