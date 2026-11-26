@@ -124,7 +124,7 @@ final class Vault250ServicesTest extends TestCase
     public function testTheCatalogueOwnerFilterNeverBindsAStandIn(): void
     {
         $directory = $this->createMock(VaultUserDirectoryInterface::class);
-        $directory->method('findUser')->willReturnCallback(static fn (string $id): ?VaultUserRef => VaultUserRef::ofId($id, 'alice'));
+        $directory->method('findUser')->willReturnCallback(static fn (string $id): VaultUserRef => VaultUserRef::ofId($id, 'alice'));
         $refusing = $this->createMock(VaultUserReferenceResolverInterface::class);
         $refusing->method('mapsById')->willReturn(false);
         $refusing->method('reference')->willThrowException(new AccessDeniedException());
