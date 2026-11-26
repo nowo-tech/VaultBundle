@@ -9,6 +9,7 @@ All options under `nowo_vault` in `config/packages/nowo_vault.yaml`.
 - [Database](#database)
 - [Conflict answers (`conflict_response`)](#conflict-answers-conflict_response)
 - [Event timing (`events`)](#event-timing-events)
+- [Personal data and UserKit (`personal_data`)](#personal-data-and-userkit-personal_data)
 - [Sharing (`sharing`)](#sharing-sharing)
 - [Security](#security)
 - [Teams](#teams)
@@ -98,8 +99,8 @@ nowo_vault:
 
 ## Event timing (`events`)
 
-2.1.0 (REQ-ARCH-001 rule 7, opt-in). The change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`)
-always leave after the vault's own commit. This option decides what happens inside a transaction **your** code opened
+2.1.0 (REQ-ARCH-001 rule 7, opt-in). The change events (`ITEM_CHANGED`, `FOLDER_CHANGED`, `TAG_CHANGED`, `GRANT_*`;
+since 2.5.0 also `PERSONAL_DATA_ERASED` and `EXTENSION_TOKEN_REVOKED`) always leave after the vault's own commit. This option decides what happens inside a transaction **your** code opened
 on the vault's connection, where the vault's unit is only a savepoint.
 
 | Option | Default | Description |
@@ -110,6 +111,23 @@ on the vault's connection, where the vault's unit is only a savepoint.
 nowo_vault:
     events:
         after_host_commit: true
+```
+
+## Personal data and UserKit (`personal_data`)
+
+2.5.0. With nowo-tech/user-kit-bundle installed, the vault adds the eraser `vault` and the export section `vault` to
+UserKit's GDPR tools (UserKit's own `personal_data.enabled` must be on). See [USAGE](USAGE.md#with-userkit-250).
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `personal_data.user_kit` | `true` | Register the UserKit eraser and export provider when UserKit is installed (nothing is registered without it). `false` when your application already calls `VaultPersonalDataEraserInterface` / `VaultPersonalDataExporterInterface` itself: a provider of yours with the section key `vault` would make UserKit's export fail (duplicate section). |
+| `personal_data.batch_size` | `500` | Ids per statement of the UserKit erasure (1 to 5000). |
+
+```yaml
+nowo_vault:
+    personal_data:
+        user_kit: true
+        batch_size: 500
 ```
 
 ## Sharing (`sharing`)

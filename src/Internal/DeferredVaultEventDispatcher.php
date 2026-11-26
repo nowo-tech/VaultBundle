@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Internal;
 
 use Nowo\VaultBundle\Doctrine\PrivateEntityManagerConnection;
+use Nowo\VaultBundle\Event\VaultExtensionTokenRevokedEvent;
 use Nowo\VaultBundle\Event\VaultFolderChangeEvent;
 use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultItemChangeEvent;
+use Nowo\VaultBundle\Event\VaultPersonalDataErasedEvent;
 use Nowo\VaultBundle\Event\VaultTagChangeEvent;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -21,7 +23,7 @@ use function max;
 
 /**
  * The event dispatcher of the vault's write services. It holds the change notifications (ITEM_CHANGED, FOLDER_CHANGED,
- * TAG_CHANGED, GRANT_*) until the data they describe is committed (REQ-ARCH-001 rule 7, REQ-RUNTIME-003 rule 1); every
+ * TAG_CHANGED, GRANT_*, and since 2.5.0 PERSONAL_DATA_ERASED and EXTENSION_TOKEN_REVOKED) until the data they describe is committed (REQ-ARCH-001 rule 7, REQ-RUNTIME-003 rule 1); every
  * other event (access checks, vetoes, list queries) is dispatched at once, since its listeners answer the caller.
  *
  * - **Vault write unit** (1.20, {@see deferWhile()}): the notifications of the unit are queued and released once the
@@ -49,6 +51,9 @@ final class DeferredVaultEventDispatcher implements EventDispatcherInterface, Re
         VaultFolderChangeEvent::class,
         VaultTagChangeEvent::class,
         VaultGrantChangeEvent::class,
+        // 2.5.0: an erasure that joined UserKit's (or the application's) transaction is announced after its commit.
+        VaultPersonalDataErasedEvent::class,
+        VaultExtensionTokenRevokedEvent::class,
     ];
 
     /** @var list<array{object, string|null}> notifications of the running vault unit */
@@ -64,6 +69,9 @@ final class DeferredVaultEventDispatcher implements EventDispatcherInterface, Re
 
     private bool $releasing = false;
 
+    /** Depth of {@see holdForHostWhile()} calls (2.5.0): notifications are held for the application's commit. */
+    private int $forcedHold = 0;
+
     /**
      * @param VaultTransactionLevelInterface|null $levels the vault connection's nesting level; null when the connection
      *                                                    does not report its commits (nothing is then held)
@@ -72,7 +80,32 @@ final class DeferredVaultEventDispatcher implements EventDispatcherInterface, Re
         private readonly EventDispatcherInterface $inner,
         private readonly ?VaultTransactionLevelInterface $levels = null,
         private readonly ?LoggerInterface $logger = null,
+        /** `events.after_host_commit` (2.1.0); without it only {@see holdForHostWhile()} holds (2.5.0). */
+        private readonly bool $holdForHost = true,
     ) {
+    }
+
+    /**
+     * Runs the work with every notification it dispatches held for the application's outermost commit, whatever
+     * `events.after_host_commit` says (2.5.0, audit ZCM-L1: the personal-data erasure that joined UserKit's transaction).
+     * Without the connection hook (doctrine/dbal 3) nothing can be held: the notifications leave at once.
+     *
+     * @template T
+     *
+     * @param callable(): T $work
+     *
+     * @return T
+     */
+    public function holdForHostWhile(callable $work): mixed
+    {
+        // @igor-ignore - Per-call depth counter, always restored in finally.
+        ++$this->forcedHold;
+        try {
+            return $work();
+        } finally {
+            // @igor-ignore - Per-call depth counter, always restored in finally.
+            $this->forcedHold = max(0, $this->forcedHold - 1);
+        }
     }
 
     public function dispatch(object $event, ?string $eventName = null): object
@@ -88,7 +121,7 @@ final class DeferredVaultEventDispatcher implements EventDispatcherInterface, Re
             return $event;
         }
 
-        $level = $this->level();
+        $level = $this->holdingLevel();
         if ($level > 0) {
             // @igor-ignore - Held until the application's commit; dropped on rollback and at every boundary.
             $this->held[] = [$level, $event, $eventName];
@@ -135,7 +168,7 @@ final class DeferredVaultEventDispatcher implements EventDispatcherInterface, Re
             $queue = $this->queue;
             // @igor-ignore - Held only while a write unit runs; emptied when it ends and at every boundary.
             $this->queue = [];
-            $level       = $this->level();
+            $level       = $this->holdingLevel();
             if ($level > 0) {
                 foreach ($queue as [$event, $eventName]) {
                     // @igor-ignore - Held until the application's commit; dropped on rollback and at every boundary.
@@ -218,6 +251,8 @@ final class DeferredVaultEventDispatcher implements EventDispatcherInterface, Re
         // @igor-ignore - Held only while a write unit runs; emptied when it ends and at every boundary.
         $this->queue = [];
         $this->depth = 0;
+        // @igor-ignore - Per-call depth counter, always restored in finally.
+        $this->forcedHold = 0;
         $this->dropHeld();
         // @igor-ignore - Held until the application's commit; dropped on rollback and at every boundary.
         $this->held = [];
@@ -263,6 +298,14 @@ final class DeferredVaultEventDispatcher implements EventDispatcherInterface, Re
         }
         // @igor-ignore - Held until the application's commit; dropped on rollback and at every boundary.
         $this->held = [];
+    }
+
+    /**
+     * The transaction level to hold a notification at, or 0 to dispatch it now.
+     */
+    private function holdingLevel(): int
+    {
+        return $this->holdForHost || $this->forcedHold > 0 ? $this->level() : 0;
     }
 
     private function level(): int

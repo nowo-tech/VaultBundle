@@ -14,6 +14,7 @@
 - [Reveal, copy and attachments](#reveal-copy-and-attachments)
 - [Password health](#password-health)
 - [Personal data](#personal-data)
+  - [With UserKit (2.5.0)](#with-userkit-250)
 - [Decrypted export](#decrypted-export)
 - [Read-only access](#read-only-access)
 - [Events](#events)
@@ -22,6 +23,8 @@
 - [Translations](#translations)
 - [Standard Symfony host](#standard-symfony-host)
 - [DDD / hexagonal host](#ddd--hexagonal-host)
+- [Item limits (2.5.0)](#item-limits-250)
+- [Browser extension tokens per user (2.5.0)](#browser-extension-tokens-per-user-250)
 - [Browser console](#browser-console)
 
 ## Manage UI
@@ -142,6 +145,16 @@ attachment) is shown or loaded. Offer *Request access* by overriding the row blo
 The block receives `entry` (`VaultCatalogueEntry`) only. Your approval flow then calls `VaultGrantService::grantAs()`
 (see [Temporary grants](#temporary-grants)). Hosts that render their own catalogue call `VaultCatalogue::page()`.
 Scope admins can keep an item out of the catalogue with *Hide from the catalogue* (access does not change).
+
+**Creator filter (2.5.0).** `VaultCatalogueQuery::$ownerId` keeps the items one person created (the vault user id: the
+string form of the host user's `getId()`, compared exactly). The page has *Everyone* / *Created by me* chips and accepts
+`?owner=<id>` from your own links (shown as *Selected person*; the page never shows another person's name or id).
+Items of an erased creator match no owner. A blank, unknown, malformed or over-long id (more than 128 characters)
+gives an empty page, never an error:
+
+```php
+$page = $catalogue->page($viewer, 'org-1', new VaultCatalogueQuery(ownerId: (string) $creator->getId()));
+```
 
 ## Header search (SearchKit)
 
@@ -302,6 +315,33 @@ Grants the user gave on scope resources are kept (their grantees keep access) wi
 and folders the user created stay with the scope. Listen to `PERSONAL_DATA_ERASED` (counts) and `GRANT_REVOKED`
 (reason `erasure`) for your audit trail.
 
+Every erasure step has its export section (`VaultPersonalDataExporter::ERASURE_SECTIONS`; 2.5.0 adds
+`grants_on_personal` and `scope_folders_created`). Called inside a transaction your code opened on the vault's
+connection, the erasure joins it (no transaction or savepoint of its own): your commit or rollback decides for all of
+it. Its `GRANT_REVOKED` and `PERSONAL_DATA_ERASED` then wait for your outermost commit and are dropped on rollback,
+whatever `events.after_host_commit` says (doctrine/dbal 4; on DBAL 3 they leave at once).
+
+### With UserKit (2.5.0)
+
+With nowo-tech/user-kit-bundle installed, the vault registers itself in UserKit's GDPR tools; nothing to wire:
+
+- eraser `vault` (priority 180, before your identity eraser at 100 or below) → `VaultPersonalDataEraserInterface::erase()`
+  with the string form of the user's `getId()`;
+- export section `vault` (priority -50) → the metadata of `VaultPersonalDataExporterInterface::export()`, one
+  sub-section per erasure step (never a value, a ciphertext, a token or a hash).
+
+UserKit runs its erasers in one transaction: on the same connection the vault erasure joins it, so a later eraser that
+fails rolls the vault rows back too, and its events wait for UserKit's commit. UserKit's `personal_data.enabled` must
+be on. Turn the bridges off when you erase and export the vault yourself (a provider of yours with the section key
+`vault` would make UserKit's export fail with a duplicate-section error):
+
+```yaml
+nowo_vault:
+    personal_data:
+        user_kit: false     # default true (registered when UserKit is installed)
+        batch_size: 500     # ids per statement of the erasure
+```
+
 ## Decrypted export
 
 With `export.enabled`, a user downloads a decrypted copy of their **personal** vault (never items shared with them,
@@ -372,7 +412,9 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 | `HEALTH_ACCESS_CHECK` | Grant or deny a scope health report (1.16.0) |
 | `HEALTH_REPORT_GENERATED` | A health report was produced (1.16.0; actor, owner key, counts only) |
 | `ITEMS_EXPORTED` | A decrypted personal export is about to stream (1.16.0; actor, count, format, factors; throw = refuse) |
-| `PERSONAL_DATA_ERASED` | A user's vault data was erased (1.16.0; user id, counts) |
+| `PERSONAL_DATA_ERASED` | A user's vault data was erased (1.16.0; user id, counts; 2.5.0: inside UserKit's (or your) transaction it waits for the outermost commit and is dropped on rollback, doctrine/dbal 4) |
+| `ITEM_CREATE_CHECK` | Refuse a new item, e.g. a plan's item limit (2.5.0; ids, type, lazy locked `itemCount()`; see [Item limits](#item-limits-250)) |
+| `EXTENSION_TOKEN_REVOKED` | Extension tokens revoked through `VaultExtensionTokenCommandsInterface` (2.5.0; user id, token ids, reason; after the commit) |
 | `GRANT_POLICY_CHECK` | Veto a grant in `grantAs()` with a reason code (1.16.0) |
 | `GRANT_CREATED`, `GRANT_UPDATED`, `GRANT_REVOKED`, `GRANT_EXPIRED` | Grant audit trail (`VaultGrantChangeEvent`: ids, permission, expiry, actor, reason; after the flush) |
 | `ITEM_CHANGED` | Item activity (`VaultItemChangeEvent`: created, updated, trashed, restored, purged, moved; `secretChanged`) |
@@ -748,6 +790,45 @@ With `user_mapping: id`:
 - replace how users are turned into stored values by aliasing `VaultUserReferenceResolverInterface`;
 - the services are stateless and work in FrankenPHP worker mode with the kernel kept alive and not reset (see
   [FRANKENPHP-WORKER-AUDIT](FRANKENPHP-WORKER-AUDIT.md)).
+
+## Item limits (2.5.0)
+
+Every new item (the personal and scope *New item* pages, `VaultItemCommandsInterface::create()` /
+`createInScope()`) first dispatches `VaultEvents::ITEM_CREATE_CHECK` (`VaultItemCreateCheckEvent`). Without a listener
+nothing is limited. A plan limit:
+
+```php
+#[AsEventListener(event: VaultEvents::ITEM_CREATE_CHECK)]
+public function __invoke(VaultItemCreateCheckEvent $event): void
+{
+    $limit = $this->plans->vaultItemLimit($event->getOwnerKey()); // 'user:<id>' or 'scope:<key>'
+    if ($limit !== null && $event->itemCount() >= $limit) {
+        $event->deny('plan_limit');
+    }
+}
+```
+
+- The event carries ids only: owner key, owner user id or scope, actor id, item type; never the title or a value.
+- `itemCount()` counts the owner's stored items, trash included, once per event and only when called. Inside the
+  item's write unit it is serialised per owner (PostgreSQL advisory lock, `SELECT … FOR UPDATE` elsewhere), so two
+  creations racing for the last place never both pass (see [CONCURRENCY.md](CONCURRENCY.md#item-limits)).
+- A refusal shows the form again (422) with a generic message, nothing written; the commands throw
+  `VaultItemCreateDeniedException` (`getReason()`: your code, `[a-z0-9_.-]`, at most 64 characters).
+
+## Browser extension tokens per user (2.5.0)
+
+`VaultExtensionTokenCommandsInterface` lists and revokes one user's extension tokens, for an *Account → Security* page:
+
+```php
+$tokens = $this->vaultTokens->listForUser(VaultUserRef::ofId((string) $user->getId())); // list<VaultExtensionTokenView>
+$this->vaultTokens->revoke($ref, $tokenId);   // false: not one of this user's tokens (also: unknown or already gone)
+$this->vaultTokens->revokeAll($ref);          // sign out every device; returns how many
+```
+
+Views hold the id and the dates (created, expires, last used), never the token or its hash. Another user's token id
+answers `false`, like an unknown id. A revocation emits `EXTENSION_TOKEN_REVOKED` (`VaultExtensionTokenRevokedEvent`:
+user id, token ids, reason `revoked` / `revoked_all`) after the commit. The bundle renders no page for it: protect your
+own revoke action with CSRF.
 
 ## Browser console
 

@@ -135,4 +135,16 @@ final class VaultEvents
      * (1.21.0, {@see VaultSearchScopesEvent}; none without a listener; membership is checked for each named scope).
      */
     public const SEARCH_SCOPES = 'nowo_vault.search_scopes';
+
+    /**
+     * Before a new item is written (2.5.0, {@see VaultItemCreateCheckEvent}): deny to refuse it (e.g. a plan's item
+     * limit). Default: allowed.
+     */
+    public const ITEM_CREATE_CHECK = 'nowo_vault.item_create_check';
+
+    /**
+     * After a browser extension token was revoked through the token port (2.5.0, {@see VaultExtensionTokenRevokedEvent}):
+     * ids and dates only, never the token or its hash.
+     */
+    public const EXTENSION_TOKEN_REVOKED = 'nowo_vault.extension_token_revoked';
 }

@@ -19,8 +19,12 @@ use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Event\VaultCatalogueAccessCheckEvent;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
+use Nowo\VaultBundle\Support\UserIdResolver;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use SortDirection;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -36,7 +40,8 @@ use function trim;
 /**
  * Metadata-only catalogue of a scope vault (1.16.0, gap 3): which items exist, so a member can request access. Built
  * from scalar DQL selects, so no `VaultItem` (and no ciphertext) is ever hydrated: id, title, type, scope tag names,
- * owner scope and the date (not time) of the last change of every active item that is not `catalogue_hidden`.
+ * owner scope and the date (not time) of the last change of every active item that is not `catalogue_hidden`. Filters:
+ * title search, type, scope tag and (2.5.0) the creator (`VaultCatalogueQuery::$ownerId`).
  * Constant number of queries per page (entries, count, tags, grants).
  */
 final readonly class VaultCatalogue
@@ -52,6 +57,8 @@ final readonly class VaultCatalogue
         private VaultAccessGuard $accessGuard,
         private EventDispatcherInterface $eventDispatcher,
         private ?string $managerName = null,
+        private ?VaultUserLocatorGate $userLocator = null,
+        private ?VaultUserReferenceResolverInterface $users = null,
     ) {
     }
 
@@ -77,11 +84,16 @@ final readonly class VaultCatalogue
         $perPage = max(1, $query->perPage);
         $page    = max(1, $query->page);
         $em      = $this->em();
+        $owner   = $this->owner($query->ownerId);
+        if ($owner === false) {
+            // An owner the vault cannot store (too long, blank, unknown user): nobody's items match.
+            return new VaultCataloguePage([], 0, $page, $perPage);
+        }
 
-        $total = (int) $this->filtered($em, $scope, $query)->select('COUNT(i.id)')->getQuery()->getSingleScalarResult();
+        $total = (int) $this->filtered($em, $scope, $query, $owner)->select('COUNT(i.id)')->getQuery()->getSingleScalarResult();
 
         /** @var list<array{id: string, title: string, itemType: string|VaultItemType, updatedAt: DateTimeInterface, folderId: string|null, folderScope: string|null}> $rows */
-        $rows = $this->filtered($em, $scope, $query)
+        $rows = $this->filtered($em, $scope, $query, $owner)
             ->select('i.id AS id', 'i.title AS title', 'i.itemType AS itemType', 'i.updatedAt AS updatedAt', 'f.id AS folderId', 'f.ownerScope AS folderScope')
             ->leftJoin('i.folder', 'f')
             ->orderBy('i.updatedAt', SortDirection::Descending)
@@ -120,9 +132,43 @@ final readonly class VaultCatalogue
     }
 
     /**
+     * The value bound for the owner filter (2.5.0): null without a filter, false when nothing can match. With the id
+     * mapping the id itself (a string column with the binary collation, REQ-SEC-006); with the relation mapping the
+     * reference of the user the directory finds for exactly that id, so a malformed id never reaches an integer or UUID
+     * column and a directory that answers references without user objects works (audit ZCM-L3).
+     */
+    private function owner(?string $ownerId): object|string|false|null
+    {
+        if ($ownerId === null) {
+            return null;
+        }
+        if ($ownerId === '' || trim($ownerId) === '' || mb_strlen($ownerId) > VaultCatalogueQuery::MAX_OWNER_ID_LENGTH) {
+            return false;
+        }
+        if ($this->users?->mapsById() === true) {
+            return $ownerId;
+        }
+
+        $user = $this->userLocator?->find($ownerId);
+        if (!$user instanceof UserInterface || UserIdResolver::getId($user) !== $ownerId) {
+            return false;
+        }
+        if (!$this->users instanceof VaultUserReferenceResolverInterface) {
+            return $user;
+        }
+
+        // Audit ZCM-L3: bind what the vault stores (getReference(user_class, id)), never the directory's stand-in.
+        try {
+            return $this->users->reference($user);
+        } catch (AccessDeniedException) {
+            return false;
+        }
+    }
+
+    /**
      * Base query of the visible rows (active, not hidden, filters applied); select added by the caller.
      */
-    private function filtered(EntityManagerInterface $em, string $scope, VaultCatalogueQuery $query): QueryBuilder
+    private function filtered(EntityManagerInterface $em, string $scope, VaultCatalogueQuery $query, object|string|null $owner = null): QueryBuilder
     {
         $qb = $em->createQueryBuilder()
             ->from(VaultItem::class, 'i')
@@ -138,6 +184,9 @@ final readonly class VaultCatalogue
         }
         if ($query->type instanceof VaultItemType) {
             $qb->andWhere('i.itemType = :type')->setParameter('type', $query->type);
+        }
+        if ($owner !== null) {
+            $qb->andWhere('i.createdBy = :owner')->setParameter('owner', $owner);
         }
         if (is_string($query->tagId) && $query->tagId !== '') {
             $qb->innerJoin('i.tags', 'ft', 'WITH', 'ft.id = :tagId AND ft.ownerScope = :scope')->setParameter('tagId', $query->tagId);

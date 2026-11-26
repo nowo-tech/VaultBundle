@@ -180,6 +180,7 @@ vault:
         purge: Eliminar permanentemente este elemento?
         revoke_access: Remover esta permissão de acesso?
     flash:
+        item_create_denied: 'Não pode adicionar esta entrada: atingiu o limite do seu plano ou a sua organização não o permite.'
         item_created: Elemento guardado.
         item_updated: Elemento atualizado.
         item_changed: "Outra pessoa guardou este elemento depois de o abrir. As suas alterações não foram guardadas: este é o elemento atual, aplique-as novamente."
@@ -232,6 +233,10 @@ vault:
         access: Acesso
         has_access: Tem acesso
         empty: Sem entradas no catálogo.
+        owner_filter: 'Criado por'
+        owner_any: 'Todos'
+        owner_mine: 'Criados por mim'
+        owner_other: 'Pessoa selecionada'
     export:
         title: 'Exportar o meu cofre'
         description: 'Transfira uma cópia desencriptada do seu cofre pessoal.'

@@ -138,6 +138,17 @@ services:
         arguments:
             $managerName: '%nowo_vault.entity_manager%'
 
+    # 2.5.0: ITEM_CREATE_CHECK (plan item limits) on the vault's private manager (registry set by the extension).
+    Nowo\VaultBundle\Service\VaultItemCreateGate:
+        arguments:
+            $managerName: '%nowo_vault.entity_manager%'
+
+    # 2.5.0: per-user list / revoke of browser extension tokens (Account → Security).
+    Nowo\VaultBundle\Service\VaultExtensionTokenCommands:
+        arguments:
+            $managerName: '%nowo_vault.entity_manager%'
+    Nowo\VaultBundle\Service\VaultExtensionTokenCommandsInterface: '@Nowo\VaultBundle\Service\VaultExtensionTokenCommands'
+
     Nowo\VaultBundle\Service\VaultGrantService:
         arguments:
             $temporary: '%nowo_vault.grants.temporary%'

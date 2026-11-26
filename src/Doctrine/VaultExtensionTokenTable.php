@@ -123,6 +123,17 @@ final readonly class VaultExtensionTokenTable
     }
 
     /**
+     * Deletes one token row by id (2.5.0, the token port's revoke while the entity is not mapped); returns 0 or 1. Only
+     * called with an id {@see rowsForUser()} just read, so the table exists.
+     */
+    public function deleteById(EntityManagerInterface $em, string $id): int
+    {
+        $connection = $em->getConnection();
+
+        return (int) VaultSavepoint::write($connection, fn (): int|string => $connection->executeStatement('DELETE FROM ' . $this->tableName . ' WHERE id = ?', [$id]), $em);
+    }
+
+    /**
      * Deletes the tokens expired at `$now`; returns how many (0 without the table).
      */
     public function deleteExpired(EntityManagerInterface $em, DateTimeImmutable $now): int

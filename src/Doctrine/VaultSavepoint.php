@@ -64,7 +64,13 @@ final class VaultSavepoint
         try {
             $result = $write();
         } catch (Throwable $exception) {
-            $connection->rollbackSavepoint($name);
+            try {
+                $connection->rollbackSavepoint($name);
+            } catch (Throwable) {
+                // 2.5.0: after a MySQL / MariaDB deadlock or lock wait timeout the server already rolled back the whole
+                // transaction and dropped the savepoint ("SAVEPOINT … does not exist"). The original failure is the one
+                // the caller must see (its error code makes it a retryable conflict); the rollback error would hide it.
+            }
 
             throw $exception;
         }
