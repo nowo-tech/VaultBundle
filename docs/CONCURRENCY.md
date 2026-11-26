@@ -171,6 +171,11 @@ and is refused.
   (`pg_advisory_xact_lock(hashtextextended('nowo_vault.item_create:<owner key>', 0))`, released at commit or rollback),
   then a plain count, which sees what the previous holder committed. It also covers an owner with **no** stored item
   (audit ZCM-L4), and it locks no item row, so a count never blocks an edit.
+  **Isolation level (audit ZCM-v-I1):** the count after the lock assumes READ COMMITTED (the PostgreSQL default), where
+  each statement sees what the previous holder committed. A host that runs the item creation inside a REPEATABLE READ
+  (or SERIALIZABLE) transaction reads from a snapshot taken before the lock, so two creations racing for the last place
+  can both pass and the limit can be exceeded. Run item creation under READ COMMITTED when a limit listener is
+  registered.
 - **MySQL / MariaDB (and other platforms):** the ids of the owner's stored items are read twice with
   `SELECT … FOR UPDATE`: the first read waits for a creation in flight (row and gap locks), the second counts what it
   committed (only a locking read sees rows committed after the transaction's first plain read). Two first creations
