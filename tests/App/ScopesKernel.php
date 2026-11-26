@@ -7,6 +7,8 @@ namespace Nowo\VaultBundle\Tests\App;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
+use Nowo\VaultBundle\Service\VaultExtensionTokenCommandsInterface;
+use Nowo\VaultBundle\Service\VaultItemCommandsInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Tests\App\Clock\StaticTestClock;
@@ -65,6 +67,9 @@ final class ScopesKernel extends BaseKernel
             // Host-facing services no bundle code uses: kept (and reachable) through public test aliases.
             $container->setAlias('test.personal_data_exporter', VaultPersonalDataExporter::class)->setPublic(true);
             $container->setAlias('test.personal_data_eraser', VaultPersonalDataEraser::class)->setPublic(true);
+            // 2.5.0 host ports.
+            $container->setAlias('test.item_commands', VaultItemCommandsInterface::class)->setPublic(true);
+            $container->setAlias('test.extension_token_commands', VaultExtensionTokenCommandsInterface::class)->setPublic(true);
             $container->register('test.mock_clock', StaticTestClock::class)->setPublic(true);
             $container->setAlias(ClockInterface::class, 'test.mock_clock')->setPublic(true);
 

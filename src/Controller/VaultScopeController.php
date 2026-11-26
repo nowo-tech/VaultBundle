@@ -17,6 +17,7 @@ use Nowo\VaultBundle\Enum\VaultPermission;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
 use Nowo\VaultBundle\Exception\VaultHealthThrottledException;
 use Nowo\VaultBundle\Exception\VaultHealthTooLargeException;
+use Nowo\VaultBundle\Exception\VaultItemCreateDeniedException;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
 use Nowo\VaultBundle\Form\VaultItemFormType;
@@ -32,10 +33,12 @@ use Nowo\VaultBundle\Service\VaultFolderService;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Service\VaultScopeItemLister;
 use Nowo\VaultBundle\Service\VaultTagService;
+use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Ui\VaultPageFactory;
 use Nowo\VaultBundle\Ui\VaultPages;
 use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -168,9 +171,12 @@ final class VaultScopeController extends AbstractController
         $tagId = $request->query->getString('tag') ?: null;
         $q     = trim($request->query->getString('q'));
         $page  = max(1, $request->query->getInt('page', 1));
+        // 2.5.0: creator filter (a vault user id; the "Created by me" chip passes the viewer's own id).
+        $owner = $request->query->getString('owner') ?: null;
+        $me    = UserIdResolver::getId($user);
 
         try {
-            $result = $this->catalogueService()->page($user, $scope, new VaultCatalogueQuery($q !== '' ? $q : null, $type, $tagId, $page, $this->cataloguePerPage));
+            $result = $this->catalogueService()->page($user, $scope, new VaultCatalogueQuery($q !== '' ? $q : null, $type, $tagId, $page, $this->cataloguePerPage, $owner));
         } catch (VaultAccessDeniedException) {
             throw $this->denied();
         }
@@ -179,17 +185,19 @@ final class VaultScopeController extends AbstractController
         $pages  = $this->pages();
         $search = $this->createForm(VaultItemSearchType::class, ['q' => $q], [
             'action'  => $this->generateUrl($routes['catalogue']['name'], ['scope' => $scope]),
-            'filters' => ['tag' => $tagId, 'type' => $type?->value],
+            'filters' => ['tag' => $tagId, 'type' => $type?->value, 'owner' => $owner],
         ])->createView();
 
         return $this->render($this->templates()['catalogue'], $pages->context([
-            'page'        => $pages->catalogue($routes, $scope, $result, $search, $pages->pagination($routes['catalogue']['name'], $page, $result->perPage, $result->total, ['scope' => $scope, 'q' => $q, 'type' => $type?->value, 'tag' => $tagId])),
+            'page'        => $pages->catalogue($routes, $scope, $result, $search, $pages->pagination($routes['catalogue']['name'], $page, $result->perPage, $result->total, ['scope' => $scope, 'q' => $q, 'type' => $type?->value, 'tag' => $tagId, 'owner' => $owner])),
             'scope'       => $scope,
             'catalogue'   => $result,
             'tags'        => $this->tagService->listForScope($scope),
             'itemTypes'   => VaultItemType::cases(),
             'activeType'  => $type?->value,
             'activeTag'   => $tagId,
+            'activeOwner' => $owner,
+            'viewerId'    => $me,
             'searchQuery' => $q,
             'routes'      => $routes,
         ]));
@@ -256,15 +264,20 @@ final class VaultScopeController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             // The folder choices are the scope's folders: another owner's folder is an invalid submission (422).
             $payload = $this->withAttachment($data->toPayload(), $itemType, $request);
-            // 1.20: the item, its catalogue flag and its tags in one transaction.
-            $this->inWriteUnit(function () use ($user, $itemType, $data, $scope, $payload): void {
-                $item = $this->itemCreator->createInScope($user, $itemType, $data->title, $scope, $payload, $data->folder);
-                $item->setCatalogueHidden($data->catalogueHidden);
-                $this->tagService->syncItemTags($item, $user, $data->tags);
-            });
-            $this->addFlash('success', $this->translator->trans('vault.flash.item_created', [], 'NowoVaultBundle'));
+            try {
+                // 1.20: the item, its catalogue flag and its tags in one transaction.
+                $this->inWriteUnit(function () use ($user, $itemType, $data, $scope, $payload): void {
+                    $item = $this->itemCreator->createInScope($user, $itemType, $data->title, $scope, $payload, $data->folder);
+                    $item->setCatalogueHidden($data->catalogueHidden);
+                    $this->tagService->syncItemTags($item, $user, $data->tags);
+                });
+                $this->addFlash('success', $this->translator->trans('vault.flash.item_created', [], 'NowoVaultBundle'));
 
-            return $this->redirectToRoute($this->routes()['scope_items']['name'], ['scope' => $scope] + ($data->folder instanceof VaultFolder ? ['folder' => $data->folder->getId()] : []));
+                return $this->redirectToRoute($this->routes()['scope_items']['name'], ['scope' => $scope] + ($data->folder instanceof VaultFolder ? ['folder' => $data->folder->getId()] : []));
+            } catch (VaultItemCreateDeniedException) {
+                // 2.5.0: ITEM_CREATE_CHECK refused it (e.g. the plan's item limit): the form again, 422, nothing saved.
+                $form->addError(new FormError($this->translator->trans('vault.flash.item_create_denied', [], 'NowoVaultBundle')));
+            }
         }
 
         $routes = $this->routes();

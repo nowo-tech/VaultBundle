@@ -63,6 +63,10 @@
     {% if _read_only and not viewMode|default(false) %}
         <div class="{{ nowo_ui_class('flash_info', _b) }}" role="status" data-testid="vault-read-only">{{ 'vault.read_only.notice'|trans }}</div>
     {% endif %}
+    {# 2.5.0: errors of the whole form (an ITEM_CREATE_CHECK refusal, an invalid CSRF token), above the first field. #}
+    {% if form.vars.errors|length > 0 %}
+        <div class="{{ nowo_ui_class('flash_error', _b) }}" role="alert" data-testid="vault-form-errors">{{ form_errors(form) }}</div>
+    {% endif %}
 
     {{ form_row(form.title) }}
 

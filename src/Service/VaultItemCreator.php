@@ -11,11 +11,13 @@ use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultItemChangeEvent;
 use Nowo\VaultBundle\Exception\VaultAccessDeniedException;
+use Nowo\VaultBundle\Exception\VaultItemCreateDeniedException;
 use Nowo\VaultBundle\Exception\VaultOwnerException;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultPayloadCryptographerInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Support\UserIdResolver;
+use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -35,6 +37,8 @@ final readonly class VaultItemCreator
         private ?EventDispatcherInterface $eventDispatcher = null,
         private ?VaultAccessGuard $accessGuard = null,
         private ?ClockInterface $clock = null,
+        /** 2.5.0: ITEM_CREATE_CHECK (plan item limits); null = no check. */
+        private ?VaultItemCreateGate $createGate = null,
     ) {
     }
 
@@ -42,6 +46,8 @@ final readonly class VaultItemCreator
      * Encrypts the payload and persists a new personal item.
      *
      * @param array<string, mixed> $payload
+     *
+     * @throws VaultItemCreateDeniedException when an ITEM_CREATE_CHECK listener refuses the item (2.5.0)
      *
      * @deprecated since 2.1.0: host code calls {@see VaultItemCommandsInterface::create()} (ids and VaultUserRef, views returned); in 3.0
      *             this entity / UserInterface signature becomes internal to the bundle
@@ -53,6 +59,7 @@ final readonly class VaultItemCreator
         array $payload,
         ?VaultFolder $folder = null,
     ): VaultItem {
+        $this->createGate?->check($creator, VaultOwner::user($creator), $type);
         $ciphertext = $this->cryptographer->encrypt($payload);
         $item       = new VaultItem($type, $title, $creator, $ciphertext, $folder);
         $this->itemRepository->save($item);
@@ -69,6 +76,7 @@ final readonly class VaultItemCreator
      *
      * @throws VaultAccessDeniedException when the actor may not create in the scope
      * @throws VaultOwnerException when the folder belongs to another owner (or is trashed)
+     * @throws VaultItemCreateDeniedException when an ITEM_CREATE_CHECK listener refuses the item (2.5.0)
      *
      * @deprecated since 2.1.0: host code calls {@see VaultItemCommandsInterface::createInScope()} (ids and VaultUserRef, views returned); in 3.0
      *             this entity / UserInterface signature becomes internal to the bundle
@@ -90,6 +98,7 @@ final readonly class VaultItemCreator
             throw new VaultOwnerException('The folder belongs to another owner.');
         }
 
+        $this->createGate?->check($actor, VaultOwner::scope($scope), $type);
         $item = VaultItem::forScope($type, $title, $scope, $actor, $this->cryptographer->encrypt($payload), $folder);
         $this->itemRepository->save($item);
         $this->dispatchCreated($item, $actor);

@@ -180,6 +180,7 @@ vault:
         purge: Dit item permanent verwijderen?
         revoke_access: Deze toegangsmachtiging intrekken?
     flash:
+        item_create_denied: 'Je kunt dit item niet toevoegen: de limiet van je abonnement is bereikt of je organisatie staat het niet toe.'
         item_created: Item opgeslagen.
         item_updated: Item bijgewerkt.
         item_changed: "Iemand anders heeft dit item opgeslagen nadat je het opende. Je wijzigingen zijn niet opgeslagen: dit is het huidige item, breng ze opnieuw aan."
@@ -232,6 +233,10 @@ vault:
         access: Toegang
         has_access: Je hebt toegang
         empty: Geen items in de catalogus.
+        owner_filter: 'Gemaakt door'
+        owner_any: 'Iedereen'
+        owner_mine: 'Door mij gemaakt'
+        owner_other: 'Geselecteerde persoon'
     export:
         title: 'Mijn kluis exporteren'
         description: 'Download een ontsleutelde kopie van je persoonlijke kluis.'

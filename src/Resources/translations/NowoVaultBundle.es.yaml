@@ -180,6 +180,7 @@ vault:
         purge: ¿Eliminar permanentemente este elemento?
         revoke_access: ¿Quitar este permiso de acceso?
     flash:
+        item_create_denied: 'No puedes añadir esta entrada: has alcanzado el límite de tu plan o tu organización no lo permite.'
         item_created: Elemento guardado.
         item_updated: Elemento actualizado.
         item_changed: "Otra persona guardó este elemento después de que lo abrieras. Tus cambios no se guardaron: este es el elemento actual, vuelve a aplicarlos."
@@ -232,6 +233,10 @@ vault:
         access: Acceso
         has_access: Tienes acceso
         empty: No hay entradas en el catálogo.
+        owner_filter: 'Creado por'
+        owner_any: 'Todos'
+        owner_mine: 'Creados por mí'
+        owner_other: 'Persona seleccionada'
     export:
         title: 'Exportar mi bóveda'
         description: 'Descarga una copia descifrada de tu bóveda personal.'

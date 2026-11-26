@@ -22,7 +22,7 @@ final class ScopesKernelListeners implements EventSubscriberInterface
     private const EVENTS = [
         'ITEM_ACCESS_CHECK', 'ITEM_REVEALED', 'ITEM_COPIED', 'ITEM_ATTACHMENT_DOWNLOADED', 'ITEM_FIELD_REVEAL_CHECK',
         'REVEAL_THROTTLED', 'CATALOGUE_ACCESS_CHECK', 'HEALTH_ACCESS_CHECK', 'HEALTH_REPORT_GENERATED',
-        'ITEMS_EXPORTED', 'PERSONAL_DATA_ERASED',
+        'ITEMS_EXPORTED', 'PERSONAL_DATA_ERASED', 'ITEM_CREATE_CHECK', 'EXTENSION_TOKEN_REVOKED',
     ];
 
     /** @var array<string, array<int, list<callable>>> event name => priority => callables */

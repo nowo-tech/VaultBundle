@@ -9,11 +9,14 @@ use InvalidArgumentException;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\VaultBundle\DependencyInjection\Compiler\RemovedPortsPass;
+use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Security\VaultAccessPolicyInterface;
 use Nowo\VaultBundle\Security\VaultReauthenticationProviderInterface;
 use Nowo\VaultBundle\Security\VaultScopeAccessProviderInterface;
 use Nowo\VaultBundle\Security\VaultTeamMembershipProviderInterface;
 use Nowo\VaultBundle\Service\VaultAccessCheckInterface;
+use Nowo\VaultBundle\Service\VaultCatalogue;
+use Nowo\VaultBundle\Service\VaultExtensionTokenCommandsInterface;
 use Nowo\VaultBundle\Service\VaultFolderCommandsInterface;
 use Nowo\VaultBundle\Service\VaultGrantCommandsInterface;
 use Nowo\VaultBundle\Service\VaultHealthReportProviderInterface;
@@ -25,6 +28,7 @@ use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporterInterface;
 use Nowo\VaultBundle\Service\VaultTagCommandsInterface;
 use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
+use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
 use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\EventSubscriber\VaultEventRecorderSubscriber;
@@ -257,6 +261,9 @@ final class VariantKernel extends BaseKernel
                 // 2.1.0 host ports (ids and VaultUserRef).
                 VaultItemCommandsInterface::class, VaultFolderCommandsInterface::class, VaultGrantCommandsInterface::class,
                 VaultTagCommandsInterface::class, VaultItemQueryInterface::class, VaultAccessCheckInterface::class,
+                // 2.5.0: the token port, the catalogue, and what the tests need to seed tokens.
+                VaultExtensionTokenCommandsInterface::class, VaultCatalogue::class, VaultExtensionTokenRepositoryInterface::class,
+                VaultUserReferenceResolverInterface::class,
             ] as $port) {
                 $container->setAlias('test.port.' . $port, $port)->setPublic(true);
             }

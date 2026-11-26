@@ -29,11 +29,11 @@ final class VaultItemSearchType extends AbstractType
     use FormOptionsTrait;
 
     /**
-     * Adds the search field and the active folder / tag filters as hidden fields.
+     * Adds the search field and the active folder / tag / type / owner (2.5.0) filters as hidden fields.
      */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        foreach (['folder', 'tag', 'type'] as $filter) {
+        foreach (['folder', 'tag', 'type', 'owner'] as $filter) {
             $value = $options['filters'][$filter] ?? null;
             if (is_string($value) && $value !== '') {
                 $builder->add($filter, HiddenType::class, ['mapped' => false, 'data' => $value]);

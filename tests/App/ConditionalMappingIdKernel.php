@@ -8,6 +8,7 @@ use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
+use Nowo\VaultBundle\Service\VaultExtensionTokenCommandsInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
 use Nowo\VaultBundle\Support\VaultUserDirectoryInterface;
@@ -74,6 +75,7 @@ final class ConditionalMappingIdKernel extends BaseKernel
             $container->setAlias('test.personal_data_exporter', VaultPersonalDataExporter::class)->setPublic(true);
             $container->setAlias('test.personal_data_eraser', VaultPersonalDataEraser::class)->setPublic(true);
             $container->setAlias('test.extension_token_repository', VaultExtensionTokenRepositoryInterface::class)->setPublic(true);
+            $container->setAlias('test.extension_token_commands', VaultExtensionTokenCommandsInterface::class)->setPublic(true);
         });
     }
 

@@ -4,8 +4,9 @@
   vault; filters = VaultItemSearchType (title search, the active type / tag as hidden fields); columns title, type,
   tags, last change (date only), access; rows = list<VaultCatalogueEntry> (metadata only: never a payload field);
   Pagination; EmptyState).
-  Also: scope, catalogue (VaultCataloguePage), tags (scope tags), itemTypes, activeType, activeTag, searchQuery, routes.
-  Data blocks filled: nowo_ui_list_filters (type and tag chips, then the default search region), nowo_ui_list_row.
+  Also: scope, catalogue (VaultCataloguePage), tags (scope tags), itemTypes, activeType, activeTag, activeOwner (2.5.0,
+  the creator filter or null), viewerId (2.5.0), searchQuery, routes.
+  Data blocks filled: nowo_ui_list_filters (type, tag and creator chips, then the default search region), nowo_ui_list_row.
   Host block: vault_catalogue_row_actions, rendered in the access cell with `entry` (VaultCatalogueEntry) as its
   only variable; override it to offer "Request access" (the bundle renders no request UI and no secret link).
 #}
@@ -16,7 +17,7 @@
 
 {% block nowo_ui_list_filters %}
     {% set _b = page.bundle %}
-    {% set _base = {scope: scope, q: searchQuery|default('')}|filter(v => v) %}
+    {% set _base = {scope: scope, q: searchQuery|default(''), owner: activeOwner|default('')}|filter(v => v) %}
     <section class="{{ nowo_ui_class('card', _b) }} vault-panel" data-testid="vault-catalogue-types"{{ nowo_ui_attrs('card', _b) }}>
         <div class="{{ nowo_ui_class('card_body', _b) }}">
             <ul class="vault-chips" aria-label="{{ 'vault.list.type'|trans }}">
@@ -36,6 +37,24 @@
                             <a class="{{ nowo_ui_class(activeTag == tag.id ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.catalogue.name, _base|merge({tag: tag.id})|merge(activeType ? {type: activeType} : {})) }}"{% if activeTag == tag.id %} aria-current="page"{% endif %}>{{ tag.name }}</a>
                         </li>
                     {% endfor %}
+                </ul>
+            {% endif %}
+            {% if viewerId|default(null) is not null %}
+                {# 2.5.0: creator filter. "Created by me" passes the viewer's own id; a host link may pass another id (owner=…). #}
+                {% set _filters = {scope: scope, q: searchQuery|default('')}|filter(v => v)|merge(activeTag ? {tag: activeTag} : {})|merge(activeType ? {type: activeType} : {}) %}
+                {% set _owner = activeOwner|default(null) %}
+                <ul class="vault-chips" aria-label="{{ 'vault.catalogue.owner_filter'|trans }}" data-testid="vault-catalogue-owners">
+                    <li class="vault-chip">
+                        <a class="{{ nowo_ui_class(_owner is null ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.catalogue.name, _filters) }}"{% if _owner is null %} aria-current="page"{% endif %}>{{ 'vault.catalogue.owner_any'|trans }}</a>
+                    </li>
+                    <li class="vault-chip">
+                        <a class="{{ nowo_ui_class(_owner is same as(viewerId) ? 'btn_primary' : 'btn_secondary', _b) }}" href="{{ path(routes.catalogue.name, _filters|merge({owner: viewerId})) }}"{% if _owner is same as(viewerId) %} aria-current="page"{% endif %} data-testid="vault-catalogue-owner-mine">{{ 'vault.catalogue.owner_mine'|trans }}</a>
+                    </li>
+                    {% if _owner is not null and _owner is not same as(viewerId) %}
+                        <li class="vault-chip">
+                            <a class="{{ nowo_ui_class('btn_primary', _b) }}" href="{{ path(routes.catalogue.name, _filters|merge({owner: _owner})) }}" aria-current="page">{{ 'vault.catalogue.owner_other'|trans }}</a>
+                        </li>
+                    {% endif %}
                 </ul>
             {% endif %}
         </div>
