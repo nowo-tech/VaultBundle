@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.5.0] - 2026-11-26](#250---2026-11-26)
 - [[2.4.0] - 2026-11-23](#240---2026-11-23)
 - [[2.3.0] - 2026-11-23](#230---2026-11-23)
 - [[2.2.1] - 2026-11-22](#221---2026-11-22)
@@ -66,6 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-26
+
 ### Added
 
 - **UserKit GDPR bridges** (Beacon spec 185 FR-023): with nowo-tech/user-kit-bundle installed, the eraser `vault`
@@ -109,6 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Lost savepoint** (REQ-RUNTIME-003): a vault statement that failed inside your transaction after the server had
   already dropped its savepoint (MySQL / MariaDB deadlock) reported "SAVEPOINT … does not exist" instead of the deadlock,
   so the conflict was not recognised as retryable. The original failure is now rethrown.
+
+[2.5.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.5.0
 
 ## [2.4.0] - 2026-11-23
 
@@ -1509,7 +1514,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.5.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
