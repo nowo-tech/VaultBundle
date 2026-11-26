@@ -12,6 +12,7 @@
 - [Password health (1.16.0)](#password-health-1160)
 - [Personal data and decrypted export (1.16.0)](#personal-data-and-decrypted-export-1160)
 - [Catalogue leakage](#catalogue-leakage)
+- [Item limits and extension tokens (2.5.0)](#item-limits-and-extension-tokens-250)
 - [Logging](#logging)
 - [Accepted residuals (REQ-SEC-004)](#accepted-residuals-req-sec-004)
 - [Release checklist (12.4.1)](#release-checklist-1241)
@@ -131,6 +132,9 @@ Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time;
 | The exporter loads resources to decide the received-grant titles (SEC-004 FQ-I3) | Accepted deviation: for each received grant it loads the item or folder (ciphertext included, never decrypted or output) and asks the access guard, so the host's `ITEM_ACCESS_CHECK` / `FOLDER_ACCESS_CHECK` listeners run in whatever context calls the exporter (CLI, a queue worker for an access request): they must not depend on a request or a session there |
 | Parallel POSTs with one proof (SEC-004 FQ-I1) | With `export.lock_factory` (default `lock.factory`) the proof check, consume, used-proof list and cooldown run under a per-user lock; without symfony/lock the window is two requests of the same session, and an atomic host `consume()` closes it |
 | The eraser leaves orphans or relies on cascades | Explicit ordered deletes, one transaction per batch, tests over the six tables; grants given on scope resources are kept with `created_by_id = NULL` |
+| An erasure step has no export (REQ-DATA-004, 2.5.0) | `VaultPersonalDataExporter::ERASURE_SECTIONS` maps every `VaultErasureResult` key to its section; a parity test fails when a step is added without one. `grants_on_personal` never names the creator of a grant another person made |
+| UserKit erases half the account (2.5.0) | The `vault` eraser joins UserKit's transaction on the same connection: a later failing eraser rolls the vault rows back too; no savepoint, so a deadlock is never hidden behind a lost savepoint. On another connection the vault commits per chunk (idempotent; documented in CONCURRENCY.md) |
+| The UserKit export section leaks values (2.5.0) | Same metadata as the exporter (no value, ciphertext, token or hash; test with markers); the user id key is dropped |
 
 **Host obligations** for `VaultReauthenticationProviderInterface` (the bundle cannot verify them): list in `factors` only
 the factors verified in the re-auth step (never at login, never through remember-me or an SSO session reuse); read
@@ -154,7 +158,24 @@ is disclosed to every member with the `catalogue` flag:
    confirms nothing.
 6. **No URL leak.** `websites` stays encrypted and never reaches the catalogue.
 
+7. **Creator filter (2.5.0).** `?owner=<id>` tells a member which items a given person created (Beacon spec 185 shows
+   the owner in the catalogue). It discloses nothing beyond the scope's catalogue; the entries still carry no creator,
+   the page never shows another person's name or id, and an erased creator matches nothing. The id is compared exactly
+   (binary collation with `user_mapping: id`; with the relation mapping it is resolved through the user directory
+   first, so a malformed id never reaches an integer or UUID column).
+
 Accepted residual **R5**: catalogue metadata is disclosed to scope members, by design.
+
+## Item limits and extension tokens (2.5.0)
+
+| Threat | Control |
+| --- | --- |
+| A limit listener sees secrets | `ITEM_CREATE_CHECK` carries the owner key, ids and the type only; it runs before the payload is encrypted and never receives it |
+| Two creations race past a plan limit | `itemCount()` locks the owner's rows (`FOR UPDATE`, read twice) inside the write unit; residual for an owner with no row, documented with the fix (lock a host row) |
+| A refusal reason is reflected into the page | The reason is a validated code (`[a-z0-9_.-]{1,64}`) for host logs; the page shows a fixed translated message |
+| A user lists or revokes another user's extension tokens | The token port reads the user's tokens with an exact owner check (PHP `===` after the query) and deletes only those ids; another user's id, an unknown id and an id already gone all answer `false` |
+| Token secrets leave through the port or its event | Views and `EXTENSION_TOKEN_REVOKED` hold ids and dates only; the hash is never selected |
+
 
 ## Logging
 

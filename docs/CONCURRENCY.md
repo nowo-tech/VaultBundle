@@ -13,6 +13,7 @@ residual risks.
 - [What is not a conflict](#what-is-not-a-conflict)
 - [Host options](#host-options)
 - [Retries](#retries)
+- [Item limits](#item-limits)
 - [Tests and CI](#tests-and-ci)
 - [Residual risks](#residual-risks)
 
@@ -66,7 +67,8 @@ residual risks.
 | Share / grant change / revoke (`shareItem`, `shareFolder`, `revoke*Grant`, `VaultGrantService`) | One statement each; a revoke of every grant of a resource in `wrapInTransaction()` | Unique `(resource_type, resource_id, grantee_type, grantee_id)` with insert-or-catch (a concurrent grant becomes an update); conditional update / delete by id (a grant purged meanwhile is inserted again once, a revoke that deleted nothing emits no event) | Lock conflict: 409 `CONFLICT_001` / `CONFLICT_002` |
 | Runtime configuration save (`VaultRuntimeConfigController`, `VaultRuntimeConfigWriter`) | One flush (the settings row) | Last write wins (one admin screen) | Lock conflict: 409 `CONFLICT_001` / `CONFLICT_002` |
 | Browser extension login / logout / token touch (`/api/vault/extension/*`) | One flush each (one token row) | Random token hash with a unique key; `last_used_at` touched at most once every five minutes | Lock conflict: 409 JSON `{"error", "code"}` + `X-Conflict-Code` |
-| Personal data erasure (`VaultPersonalDataEraser`) | One transaction **per chunk** (grants, items, folders, tags, user references) | Delete / update by id | Rethrown to the caller (no HTTP route of the vault) |
+| Personal data erasure (`VaultPersonalDataEraser`) | One transaction **per chunk** (grants, items, folders, tags, user references); since 2.5.0, inside a transaction already open on the vault's connection (UserKit's erasure, your unit), every chunk **joins it** (no transaction or savepoint of its own) | Delete / update by id | Rethrown to the caller as it is (no HTTP route of the vault); a deadlock keeps its error code (no lost savepoint), the caller rolls back the whole erasure |
+| Extension token revoke (`VaultExtensionTokenCommandsInterface`, 2.5.0) | One write unit: one conditional `DELETE … WHERE id` per token of the user | Ids from an exact read of the user's tokens; a token deleted meanwhile counts as not revoked and emits nothing | `TransientStorageFailure` to the caller (retry) |
 | Payload re-encryption (`nowo:vault:reencrypt`) | One flush **per batch** | None: run it in a maintenance window ([residual risks](#residual-risks)) | Console error; the batches before it stay done and a re-run skips them |
 | Expired grants purge (`nowo:vault:grants:purge-expired`, `VaultGrantExpiryService`) | One conditional `DELETE … WHERE id AND expires_at <= now` per grant, in batches | Conditional delete: two purgers emit each GRANT_EXPIRED once; a grant extended meanwhile survives | Console error; run the command again |
 | Expired extension tokens purge (`nowo:vault:extension-tokens:purge`) | One bulk `DELETE` (in a savepoint inside an application transaction) | Delete by expiry | Console error; run the command again |
@@ -159,6 +161,20 @@ nowo_vault:
   the new key, the purges delete only what is still expired.
 - Principals are re-resolved on every request; nothing about the user is cached across requests (REQ-RUNTIME-002).
 
+## Item limits
+
+`ITEM_CREATE_CHECK` (2.5.0) runs inside the item's write unit, before anything is written. Its `itemCount()` reads the
+ids of the owner's stored items twice with `SELECT … FOR UPDATE`: the first read waits for a creation in flight for
+the same owner (it holds the same row locks), the second counts what that creation committed (on PostgreSQL a
+statement that waited still answers from its own start; on MySQL / MariaDB only a locking read sees rows committed
+after the transaction's first plain read). Two creations racing for the last place: the second waits, counts the first
+and is refused. On MySQL / MariaDB two creations that both take the gap lock of an owner can deadlock instead: one
+answers 409 `CONFLICT_001` and its retry is counted correctly.
+
+Residual: an owner with **no** stored item has no row to lock, so on PostgreSQL two first creations can both pass a
+limit of 1. When that matters, lock a row of your own in the listener before `itemCount()` (the account or plan row,
+`SELECT … FOR UPDATE` on the same connection): every creation of that account then waits for the previous one.
+
 ## Tests and CI
 
 - `tests/E2E/VaultConcurrencyDatabaseTest.php` (group `database`): two connections (a second connection of the test,
@@ -173,6 +189,11 @@ nowo_vault:
   - two requests creating the same new tag give one tag and the domain 409; saving again works.
 
   Every session sets `innodb_lock_wait_timeout` / `lock_timeout`, so a hang fails fast.
+- `tests/E2E/VaultCreateLimitDatabaseTest.php` (2.5.0, group `database`): a creation racing for the last place waits for
+  the other writer's commit, counts its item and is refused (422), on the three servers.
+- `tests/E2E/VaultUserKitDatabaseTest.php` (2.5.0, group `database`): the vault erasure joins UserKit's transaction; a
+  later failing eraser and a lock wait both leave every vault row and no open nesting level, the lock error is
+  reported as such, and the retry erases everything.
 - Unit and kernel tests: the conflict mapping (`VaultConflictListenerTest`: every lock-conflict SQLSTATE / code, 002
   after a commit, JSON shapes, unique violations and lost connections not mapped, host routes untouched), the commit
   tracking pass, the write unit (`VaultWriteUnitKernelTest`, including a unit that leaves the application's pending
@@ -195,6 +216,11 @@ nowo_vault:
   owner's folder and tags are never taken from the grantee's page (1.18, SEC-004).
 - **Inside your transaction.** When you call the vault inside your own transaction, the vault's unit is a savepoint:
   its notifications are dispatched when the savepoint is released, before your commit. If you then roll back, the
-  listeners have seen a change that did not happen.
+  listeners have seen a change that did not happen. The same holds for the erasure inside UserKit's transaction
+  (`GRANT_REVOKED`, `PERSONAL_DATA_ERASED`) unless `events.after_host_commit: true` (doctrine/dbal 4) holds them.
+- **Erasure on another connection.** When the vault's manager uses another connection than UserKit's user manager, the
+  vault erasure cannot join UserKit's transaction: it commits per chunk, and a later failing eraser does not bring the
+  vault rows back (running the erasure again is safe: it is idempotent).
+- **First item of an owner** under a plan limit: see [Item limits](#item-limits).
 - **Pending changes of your own.** The vault never flushes them (2.0): code that relied on a vault write to flush its
   own entities must flush them itself (see [UPGRADING](UPGRADING.md#private-manager-only)).

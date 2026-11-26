@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/vault-bundle`  
-**Last audited**: 2026-11-27 (v2.4.0)
+**Last audited**: 2026-11-26 (2.5.0)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 
@@ -266,6 +266,18 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Resources/views/vault/catalogue.html.twig` | Catalogue page | FR-CAT-001 |
 | `Form/VaultItemSearchType.php` | GET search form of the item lists | FR-CAT-001 |
 
+## Item limits and extension tokens per user (2.5.0)
+
+| Source file | Spec section | Requirement IDs |
+| --- | --- | --- |
+| `Event/VaultItemCreateCheckEvent.php` | ITEM_CREATE_CHECK (ids, type, lazy locked count) | FR-LIMIT-001 |
+| `Exception/VaultItemCreateDeniedException.php` | Refused creation (reason code) | FR-LIMIT-001 |
+| `Service/VaultItemCreateGate.php` | Dispatches the check, counts the owner's items with FOR UPDATE | FR-LIMIT-001 |
+| `Service/VaultExtensionTokenCommandsInterface.php` | Per-user token list / revoke port | FR-EXT-006 |
+| `Service/VaultExtensionTokenCommands.php` | Token port on the private manager | FR-EXT-006 |
+| `View/VaultExtensionTokenView.php` | Token read model (id and dates) | FR-EXT-006 |
+| `Event/VaultExtensionTokenRevokedEvent.php` | EXTENSION_TOKEN_REVOKED (ids, after the commit) | FR-EXT-006 |
+
 ## Reveal, copy and attachments (1.16)
 
 | Source file | Spec section | Requirement IDs |
@@ -324,6 +336,8 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Service/VaultPersonalDataExporterInterface.php` | Metadata export port by id (1.19) | FR-GDPR-001 |
 | `Dto/VaultErasureResult.php` | Rows touched by an erasure | FR-GDPR-001 |
 | `Event/VaultPersonalDataErasedEvent.php` | PERSONAL_DATA_ERASED | FR-GDPR-001 |
+| `Bridge/UserKit/VaultUserKitEraser.php` | UserKit eraser `vault` (2.5.0) | FR-GDPR-002 |
+| `Bridge/UserKit/VaultUserKitExportProvider.php` | UserKit export section `vault` (2.5.0) | FR-GDPR-002 |
 
 ## User mapping and accepted user classes (1.17)
 
@@ -455,14 +469,15 @@ This file proves that **every production source artifact** under `src/` is refer
 | Scope vaults (1.16) | 13 | 13 |
 | Temporary grants and grant policy (1.16) | 8 | 8 |
 | Metadata catalogue (1.16) | 7 | 7 |
+| Item limits and extension tokens per user (2.5.0) | 7 | 7 |
 | Reveal, copy and attachments (1.16) | 15 | 15 |
 | Password health (1.16) | 15 | 15 |
-| Personal data and decrypted export (1.16) | 14 | 14 |
+| Personal data and decrypted export (1.16) | 16 | 16 |
 | User mapping and accepted user classes (1.17) | 10 | 10 |
 | Framework-free host ports (1.19, REQ-ARCH-001) | 22 | 22 |
 | Host commands, queries and id access (2.1) | 24 | 24 |
 | Private entity manager, XML mapping and conditional mapping (1.18-1.19) | 20 | 20 |
 | Forms and views (REQ-TWIG-005 / REQ-UI-003) | 5 | 5 |
-| **Total production sources** | **285** | **285** |
+| **Total production sources** | **294** | **294** |
 
-Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 285 (2026-11-27, v2.4.0).
+Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 294 (2026-11-26, 2.5.0).
