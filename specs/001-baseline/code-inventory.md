@@ -273,6 +273,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | `Event/VaultItemCreateCheckEvent.php` | ITEM_CREATE_CHECK (ids, type, lazy locked count) | FR-LIMIT-001 |
 | `Exception/VaultItemCreateDeniedException.php` | Refused creation (reason code) | FR-LIMIT-001 |
 | `Service/VaultItemCreateGate.php` | Dispatches the check, counts the owner's items with FOR UPDATE | FR-LIMIT-001 |
+| `Support/VaultUserBinding.php` | User value bound to the user columns (reference, never a directory stand-in; audit ZCM-L3) | FR-GDPR-001 |
 | `Service/VaultExtensionTokenCommandsInterface.php` | Per-user token list / revoke port | FR-EXT-006 |
 | `Service/VaultExtensionTokenCommands.php` | Token port on the private manager | FR-EXT-006 |
 | `View/VaultExtensionTokenView.php` | Token read model (id and dates) | FR-EXT-006 |
@@ -469,7 +470,7 @@ This file proves that **every production source artifact** under `src/` is refer
 | Scope vaults (1.16) | 13 | 13 |
 | Temporary grants and grant policy (1.16) | 8 | 8 |
 | Metadata catalogue (1.16) | 7 | 7 |
-| Item limits and extension tokens per user (2.5.0) | 7 | 7 |
+| Item limits and extension tokens per user (2.5.0) | 8 | 8 |
 | Reveal, copy and attachments (1.16) | 15 | 15 |
 | Password health (1.16) | 15 | 15 |
 | Personal data and decrypted export (1.16) | 16 | 16 |
@@ -478,6 +479,6 @@ This file proves that **every production source artifact** under `src/` is refer
 | Host commands, queries and id access (2.1) | 24 | 24 |
 | Private entity manager, XML mapping and conditional mapping (1.18-1.19) | 20 | 20 |
 | Forms and views (REQ-TWIG-005 / REQ-UI-003) | 5 | 5 |
-| **Total production sources** | **294** | **294** |
+| **Total production sources** | **295** | **295** |
 
-Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 294 (2026-11-26, 2.5.0).
+Audit: `git ls-files src | grep -v '\.test\.ts$' | wc -l` → 295 (2026-11-26, 2.5.0).
