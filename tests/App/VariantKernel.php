@@ -36,6 +36,7 @@ use Nowo\VaultBundle\Tests\App\Ports\HostHealthReports;
 use Nowo\VaultBundle\Tests\App\Ports\PolicyHostPorts;
 use Nowo\VaultBundle\Tests\App\Ports\PortsUserDirectory;
 use Nowo\VaultBundle\Tests\App\Ports\PortsUserDirectoryV119;
+use Nowo\VaultBundle\Tests\App\Ports\RelationRefsUserDirectory;
 use Nowo\VaultBundle\Tests\App\Security\TestReauthChecker;
 use Nowo\VaultBundle\Tests\App\Worker\NoopServicesResetter;
 use Nowo\VaultBundle\Tests\Support\Removed\LegacyAccessChecker;
@@ -77,6 +78,7 @@ use const PHP_VERSION_ID;
  * - `_db`: the database server of VAULT_TEST_DATABASE_URL instead of a SQLite file;
  * - `_404`: `security.deny_status: 404`;
  * - `_ahc`: `events.after_host_commit: true` (2.1.0, opt-in);
+ * - `_refs`: relation mapping with a user directory that answers references by id only (2.5.0, audit ZCM-L3);
  * - 2.0 removed paths, each of which must fail the build: `_rmchecker` (`security.access_checker` names a class that
  *   still implements the removed access port), `_rmalias` (the application aliases the removed user locator id),
  *   `_rmaccess` / `_rmlocator` / `_rmscope` (application classes that still implement a removed port, registered by
@@ -114,6 +116,8 @@ final class VariantKernel extends BaseKernel
 
     private readonly bool $afterHostCommit;
 
+    private readonly bool $refsDirectory;
+
     private readonly ?string $removed;
 
     /** @var array{0: string, 1: string}|null [mode, port] of a `_compat<mode><port>` variant */
@@ -131,6 +135,7 @@ final class VariantKernel extends BaseKernel
         $this->server                    = in_array('db', $parts, true);
         $this->denyStatus                = in_array('404', $parts, true) ? 404 : 403;
         $this->afterHostCommit           = in_array('ahc', $parts, true);
+        $this->refsDirectory             = in_array('refs', $parts, true);
         $removed                         = array_values(array_intersect($parts, ['rmchecker', 'rmalias', 'rmaccess', 'rmlocator', 'rmscope', 'pemfalse']));
         $this->removed                   = $removed[0] ?? null;
         $compat                          = null;
@@ -168,8 +173,9 @@ final class VariantKernel extends BaseKernel
         $removed = $this->removed;
         $compat  = $this->compat;
         $ahc     = $this->afterHostCommit;
+        $refs    = $this->refsDirectory;
         $url     = $this->server ? '%env(VAULT_TEST_DATABASE_URL)%' : 'sqlite:///%kernel.cache_dir%/variant.db';
-        $loader->load(static function (ContainerBuilder $container) use ($byId, $xml, $ports, $worker, $url, $deny, $removed, $compat, $ahc): void {
+        $loader->load(static function (ContainerBuilder $container) use ($byId, $xml, $ports, $worker, $url, $deny, $removed, $compat, $ahc, $refs): void {
             $orm = ['naming_strategy' => 'doctrine.orm.naming_strategy.underscore_number_aware'] + (PHP_VERSION_ID >= 80400 ? ['enable_native_lazy_objects' => true] : []);
             if (!$byId) {
                 $orm['mappings'] = ['TestUser' => ['type' => 'attribute', 'dir' => '%kernel.project_dir%/Entity', 'prefix' => 'Nowo\\VaultBundle\\Tests\\App\\Entity', 'is_bundle' => false]];
@@ -241,6 +247,10 @@ final class VariantKernel extends BaseKernel
                 );
             }
 
+            if ($refs && !$byId) {
+                $container->register(RelationRefsUserDirectory::class, RelationRefsUserDirectory::class)->setAutowired(true);
+                $container->setAlias(VaultUserDirectoryInterface::class, RelationRefsUserDirectory::class);
+            }
             if ($byId) {
                 $container->register(PortsUserDirectory::class, PortsUserDirectory::class)->setPublic(true);
                 $container->register(PortsUserDirectoryV119::class, PortsUserDirectoryV119::class);

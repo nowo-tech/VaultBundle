@@ -23,6 +23,7 @@ use Nowo\VaultBundle\Event\VaultAccessAction;
 use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultFolderRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
+use Nowo\VaultBundle\Support\VaultUserBinding;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -91,8 +92,7 @@ final readonly class VaultPersonalDataExporter implements VaultPersonalDataExpor
     {
         $em   = $this->em();
         $user = $this->userLocator?->find($userId);
-        // 1.17.0: with the id mapping the user columns hold the id itself.
-        $who = $this->users?->mapsById() === true ? $userId : ($user ?? $userId);
+        $who  = VaultUserBinding::of($userId, $this->userLocator, $this->users);
 
         return [
             'user_id'         => $userId,

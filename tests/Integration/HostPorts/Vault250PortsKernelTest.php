@@ -15,6 +15,8 @@ use Nowo\VaultBundle\Exception\VaultItemCreateDeniedException;
 use Nowo\VaultBundle\Repository\VaultExtensionTokenRepositoryInterface;
 use Nowo\VaultBundle\Service\VaultCatalogue;
 use Nowo\VaultBundle\Service\VaultExtensionTokenCommandsInterface;
+use Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface;
+use Nowo\VaultBundle\Service\VaultPersonalDataExporterInterface;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Nowo\VaultBundle\Tests\App\VariantKernel;
 use Nowo\VaultBundle\View\VaultExtensionTokenView;
@@ -25,6 +27,7 @@ use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function array_column;
 use function array_map;
 use function assert;
 use function bin2hex;
@@ -53,6 +56,29 @@ final class Vault250PortsKernelTest extends KernelTestCase
     {
         yield 'relation mapping' => ['private_relation_new'];
         yield 'id mapping, XML' => ['private_idxml_new'];
+        // Audit ZCM-L3: relation mapping with a directory that answers references without user objects.
+        yield 'relation mapping, references-only directory' => ['private_relation_new_refs'];
+    }
+
+    #[Test]
+    public function aReferencesOnlyDirectoryWorksForTheEraserAndTheExporter(): void
+    {
+        $this->bootVariant('private_relation_new_refs');
+        $this->items()->create($this->ref('alice'), VaultItemType::Login, 'Mail', ['password' => 'REDACTED-TEST']);
+        $this->items()->createInScope($this->ref('alice'), 'org-1', VaultItemType::Login, 'Router', ['password' => 'REDACTED-TEST']);
+        $this->items()->create($this->ref('bob'), VaultItemType::Login, 'Bob', ['password' => 'REDACTED-TEST']);
+
+        $exporter = $this->container->get('test.port.' . VaultPersonalDataExporterInterface::class);
+        $eraser   = $this->container->get('test.port.' . VaultPersonalDataEraserInterface::class);
+        assert($exporter instanceof VaultPersonalDataExporterInterface && $eraser instanceof VaultPersonalDataEraserInterface);
+        $export = $exporter->export($this->id('alice'));
+        self::assertSame(['Mail'], array_column($export['items'], 'title'));
+        self::assertCount(1, $export['scope_items_created']);
+
+        $result = $eraser->erase($this->id('alice'));
+        self::assertSame(1, $result->items);
+        self::assertSame(1, $result->scopeItemsAnonymised);
+        self::assertSame(['Bob'], array_column($exporter->export($this->id('bob'))['items'], 'title'));
     }
 
     #[Test]

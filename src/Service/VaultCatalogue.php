@@ -24,6 +24,7 @@ use Nowo\VaultBundle\Security\VaultScopeAccess;
 use Nowo\VaultBundle\Support\UserIdResolver;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use SortDirection;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -133,7 +134,8 @@ final readonly class VaultCatalogue
     /**
      * The value bound for the owner filter (2.5.0): null without a filter, false when nothing can match. With the id
      * mapping the id itself (a string column with the binary collation, REQ-SEC-006); with the relation mapping the
-     * user the directory finds for exactly that id, so a malformed id never reaches an integer or UUID column.
+     * reference of the user the directory finds for exactly that id, so a malformed id never reaches an integer or UUID
+     * column and a directory that answers references without user objects works (audit ZCM-L3).
      */
     private function owner(?string $ownerId): object|string|false|null
     {
@@ -148,8 +150,19 @@ final readonly class VaultCatalogue
         }
 
         $user = $this->userLocator?->find($ownerId);
+        if (!$user instanceof UserInterface || UserIdResolver::getId($user) !== $ownerId) {
+            return false;
+        }
+        if (!$this->users instanceof VaultUserReferenceResolverInterface) {
+            return $user;
+        }
 
-        return $user instanceof UserInterface && UserIdResolver::getId($user) === $ownerId ? $user : false;
+        // Audit ZCM-L3: bind what the vault stores (getReference(user_class, id)), never the directory's stand-in.
+        try {
+            return $this->users->reference($user);
+        } catch (AccessDeniedException) {
+            return false;
+        }
     }
 
     /**
