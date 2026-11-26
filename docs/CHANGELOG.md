@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.5.1] - 2026-11-26](#251---2026-11-26)
 - [[2.5.0] - 2026-11-26](#250---2026-11-26)
 - [[2.4.0] - 2026-11-23](#240---2026-11-23)
 - [[2.3.0] - 2026-11-23](#230---2026-11-23)
@@ -67,10 +68,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-11-26
+
 ### Fixed
 
 - The `📦 [name] script loaded` console banner now prints once per page, even when the script is loaded twice: per-name once-guard (a `Set` on `globalThis`) in `logger.ts`, with a Vitest test and rebuilt assets (REQ-ASSETS-005).
 - **Item limit under REPEATABLE READ** (audit ZCM-v-I1, documented): the PostgreSQL plan-limit count after the advisory lock assumes READ COMMITTED; a host that runs item creation inside a REPEATABLE READ (or SERIALIZABLE) transaction reads its snapshot from before the lock and can exceed the limit. `docs/CONCURRENCY.md` now states the requirement.
+
+[2.5.1]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.5.1
 
 ## [2.5.0] - 2026-11-26
 
@@ -1519,7 +1524,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.5.1...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
