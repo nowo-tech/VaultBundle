@@ -279,6 +279,32 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
     }
 
     #[Test]
+    public function aLostSavepointNeverHidesTheOriginalFailure(): void
+    {
+        $connection = $this->privateManager()->getConnection();
+        $connection->beginTransaction();
+        try {
+            // 2.5.0: as after a MySQL deadlock, the server already dropped every savepoint (here: a rollback of the
+            // whole transaction behind DBAL's back), so the rollback to the savepoint fails; the caller still sees the
+            // statement's own failure, never "no such savepoint".
+            $failure = new RuntimeException('deadlock');
+            try {
+                VaultSavepoint::write($connection, static function () use ($connection, $failure): never {
+                    $connection->executeStatement('ROLLBACK');
+                    $connection->executeStatement('BEGIN');
+
+                    throw $failure;
+                });
+                self::fail('The failure must be rethrown.');
+            } catch (RuntimeException $caught) {
+                self::assertSame($failure, $caught);
+            }
+        } finally {
+            $connection->rollBack();
+        }
+    }
+
+    #[Test]
     public function theBuildRefusesAnUnknownSourceManagerAndWrapsOnlyItsConnection(): void
     {
         $container = new ContainerBuilder();
