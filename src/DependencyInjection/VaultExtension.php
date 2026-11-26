@@ -638,11 +638,14 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         // 2.1.0 (B4, opt-in `events.after_host_commit`): with the connection hook (doctrine/dbal 4) the notifications
         // also wait for the application's commit; the connection of the private manager reports it
         // (PrivateEntityManagerMiddleware). Off (the default until 3.0): the 2.0 timing.
-        $hook = $afterHostCommit && PrivateEntityManagerPass::supportsRollbackMiddleware();
+        // 2.5.0 (audit ZCM-L1): the hook is wired whenever DBAL 4 offers it, so the erasure that joins UserKit's
+        // transaction can hold its events for that commit; `after_host_commit` decides for the other notifications.
+        $hook = PrivateEntityManagerPass::supportsRollbackMiddleware();
         $container->setDefinition(DeferredVaultEventDispatcher::class, (new Definition(DeferredVaultEventDispatcher::class, [
             new Reference('event_dispatcher'),
             $hook ? new Reference(VaultEntityManager::class) : null,
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            $afterHostCommit,
         ]))
             ->addTag('kernel.reset', ['method' => 'reset']));
         $boundary = $container->setDefinition(DeferredVaultEventBoundaryListener::class, (new Definition(DeferredVaultEventBoundaryListener::class, [

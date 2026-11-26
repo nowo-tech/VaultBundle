@@ -10,6 +10,7 @@ use Nowo\UiKitBundle\NowoUiKitBundle;
 use Nowo\UserKitBundle\NowoUserKitBundle;
 use Nowo\UserKitBundle\PersonalData\PersonalDataErasureInterface;
 use Nowo\UserKitBundle\PersonalData\PersonalDataExporterInterface;
+use Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface;
 use Nowo\VaultBundle\Tests\App\Clock\StaticTestClock;
 use Nowo\VaultBundle\Tests\App\Entity\User;
 use Nowo\VaultBundle\Tests\App\PersonalData\FailingHostEraser;
@@ -26,7 +27,8 @@ use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
 
 /**
  * Test kernel variant (2.5.0): nowo-tech/user-kit-bundle with `personal_data.enabled` (built-in sections and erasers
- * off), the vault's UserKit bridges, scope vaults, `events.after_host_commit` and a failing host eraser at priority 0.
+ * off), the vault's UserKit bridges, scope vaults, the default `events.after_host_commit: false` and a failing host eraser at
+ * priority 0.
  * Environment `test_off` sets `nowo_vault.personal_data.user_kit: false`; environment `database` runs on
  * VAULT_TEST_DATABASE_URL. Public aliases `test.user_kit.eraser` and
  * `test.user_kit.exporter`.
@@ -51,9 +53,10 @@ final class UserKitKernel extends BaseKernel
         $loader->load($this->getProjectDir() . '/config/{packages}/*.{yaml,yml}', 'glob');
         $loader->load(function (ContainerBuilder $container): void {
             $container->loadFromExtension('nowo_vault', [
-                'scopes'        => ['enabled' => true, 'access_resolver' => TestScopeAccessResolver::class],
-                'security'      => ['allow_unlisted_grantees' => true],
-                'events'        => ['after_host_commit' => true],
+                'scopes'   => ['enabled' => true, 'access_resolver' => TestScopeAccessResolver::class],
+                'security' => ['allow_unlisted_grantees' => true],
+                // Audit ZCM-L1: the default (false); the joined erasure must hold its events anyway.
+                'events'        => ['after_host_commit' => false],
                 'personal_data' => ['user_kit' => $this->environment !== 'test_off', 'batch_size' => 2],
             ]);
             $container->loadFromExtension('nowo_user_kit', [
@@ -65,6 +68,7 @@ final class UserKitKernel extends BaseKernel
                 ->addTag('nowo_user_kit.personal_data.eraser', ['priority' => 0]);
             $container->setAlias('test.user_kit.eraser', PersonalDataErasureInterface::class)->setPublic(true);
             $container->setAlias('test.user_kit.exporter', PersonalDataExporterInterface::class)->setPublic(true);
+            $container->setAlias('test.personal_data_eraser_port', VaultPersonalDataEraserInterface::class)->setPublic(true);
             if ($this->environment === 'database') {
                 // REQ-RUNTIME-003: the same kernel on a database server (VAULT_TEST_DATABASE_URL, group "database").
                 $container->loadFromExtension('doctrine', ['dbal' => ['url' => '%env(VAULT_TEST_DATABASE_URL)%']]);

@@ -25,9 +25,11 @@ use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultPersonalDataErasedEvent;
+use Nowo\VaultBundle\Internal\DeferredVaultEventDispatcher;
 use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
+use Nowo\VaultBundle\Support\VaultUserBinding;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -62,7 +64,8 @@ use function max;
  * Since 2.5.0, when the vault's connection is already inside a transaction (UserKit's erasure through
  * {@see VaultUserKitEraser}, or your own unit), every batch joins it: no transaction
  * or savepoint of its own, so the caller's commit or rollback decides for the whole erasure. The change events go
- * through the vault's deferred dispatcher: with `events.after_host_commit` (doctrine/dbal 4) they wait for that commit.
+ * through the vault's deferred dispatcher and, on doctrine/dbal 4, always wait for that commit (dropped on rollback),
+ * whatever `events.after_host_commit` says. On doctrine/dbal 3 the connection reports no commit: they leave at once.
  */
 final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserInterface
 {
@@ -89,10 +92,23 @@ final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserI
      */
     public function erase(string $userId, int $batchSize = 500): VaultErasureResult
     {
-        $batchSize = max(1, $batchSize);
-        $em        = $this->em();
-        // 1.17.0: with the id mapping the user columns hold the id itself.
-        $who = $this->users?->mapsById() === true ? $userId : ($this->userLocator?->find($userId) ?? $userId);
+        $em = $this->em();
+        // 2.5.0 (audit ZCM-L1): joined to the caller's transaction, every notification of the erasure (GRANT_REVOKED,
+        // PERSONAL_DATA_ERASED) waits for its outermost commit and is dropped on rollback, whatever
+        // events.after_host_commit says (doctrine/dbal 4; see the class comment).
+        if ($em->getConnection()->isTransactionActive() && $this->eventDispatcher instanceof DeferredVaultEventDispatcher) {
+            return $this->eventDispatcher->holdForHostWhile(fn (): VaultErasureResult => $this->run($em, $userId, max(1, $batchSize)));
+        }
+
+        return $this->run($em, $userId, max(1, $batchSize));
+    }
+
+    /**
+     * @param int<1, max> $batchSize
+     */
+    private function run(EntityManagerInterface $em, string $userId, int $batchSize): VaultErasureResult
+    {
+        $who = VaultUserBinding::of($userId, $this->userLocator, $this->users);
 
         // 1.17.0 (LQ-V-M1): every step works on the ids of the user's rows. With the id mapping those ids are kept only
         // when the stored user id equals $userId byte for byte, whatever the column collation.

@@ -124,6 +124,7 @@ final class VaultUserKitEndToEndTest extends WebTestCase
         $eraser = self::getContainer()->get('test.user_kit.eraser');
         $keys   = $eraser->erase($this->managed($alice));
         self::assertSame([VaultUserKitEraser::KEY, 'host_identity'], $keys, 'The vault runs before the host identity eraser.');
+        self::assertSame([], $erased, 'Held through UserKit\'s commit, even with events.after_host_commit off (ZCM-L1).');
 
         $db = $this->em()->getConnection();
         self::assertFalse($db->isTransactionActive());
@@ -175,6 +176,44 @@ final class VaultUserKitEndToEndTest extends WebTestCase
         self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM vault_items WHERE creator_id = ?', [$id]));
     }
 
+    public function testAnErasureInsideAHostTransactionIsAnnouncedOnlyAfterTheCommit(): void
+    {
+        $this->bootClient();
+        [$alice] = $this->fixture();
+        $id      = (string) $alice->getId();
+        $events  = [];
+        foreach ([VaultEvents::PERSONAL_DATA_ERASED, VaultEvents::GRANT_REVOKED] as $name) {
+            self::getContainer()->get('event_dispatcher')->addListener($name, static function (object $event, string $eventName) use (&$events): void {
+                $events[] = $eventName;
+            });
+        }
+        $db     = $this->em()->getConnection();
+        $eraser = self::getContainer()->get('test.personal_data_eraser_port');
+
+        // Rollback: nothing is announced, the rows are back.
+        $db->beginTransaction();
+        self::assertSame(2, $eraser->erase($id)->items);
+        self::assertSame([], $events, 'Held while the transaction is open.');
+        $db->rollBack();
+        $this->terminate();
+        self::assertSame([], $events, 'A rolled-back erasure is never announced.');
+        self::assertSame(2, (int) $db->fetchOne('SELECT COUNT(*) FROM vault_items WHERE creator_id = ?', [$id]));
+
+        // Commit: announced once, after it (two grants revoked, then the erasure).
+        $db->beginTransaction();
+        $eraser->erase($id);
+        self::assertSame([], $events);
+        $db->commit();
+        $this->terminate();
+        self::assertSame([VaultEvents::GRANT_REVOKED, VaultEvents::GRANT_REVOKED, VaultEvents::GRANT_REVOKED, VaultEvents::PERSONAL_DATA_ERASED], $events);
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM vault_items WHERE creator_id = ?', [$id]));
+
+        // Outside a transaction (no hold needed): announced at once, as before 2.5.0.
+        $events = [];
+        $eraser->erase($id);
+        self::assertSame([VaultEvents::PERSONAL_DATA_ERASED], $events);
+    }
+
     public function testTheSwitchOffRegistersNoBridge(): void
     {
         self::bootKernel(['environment' => 'test_off', 'debug' => false]);
@@ -186,6 +225,11 @@ final class VaultUserKitEndToEndTest extends WebTestCase
 
         self::bootKernel();
         self::assertTrue(self::getContainer()->has(VaultUserKitEraser::class));
+    }
+
+    private function terminate(): void
+    {
+        self::getContainer()->get('event_dispatcher')->dispatch(new TerminateEvent(self::$kernel ?? self::fail(), new Request(), new Response()), 'kernel.terminate');
     }
 
     /**
