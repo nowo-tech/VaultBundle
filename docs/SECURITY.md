@@ -134,6 +134,7 @@ Accepted residuals added in 1.16.0: **R1** the in-flight request at revoke time;
 | The eraser leaves orphans or relies on cascades | Explicit ordered deletes, one transaction per batch, tests over the six tables; grants given on scope resources are kept with `created_by_id = NULL` |
 | An erasure step has no export (REQ-DATA-004, 2.5.0) | `VaultPersonalDataExporter::ERASURE_SECTIONS` maps every `VaultErasureResult` key to its section; a parity test fails when a step is added without one. `grants_on_personal` never names the creator of a grant another person made |
 | UserKit erases half the account (2.5.0) | The `vault` eraser joins UserKit's transaction on the same connection: a later failing eraser rolls the vault rows back too; no savepoint, so a deadlock is never hidden behind a lost savepoint. On another connection the vault commits per chunk (idempotent; documented in CONCURRENCY.md) |
+| Listeners told about an erasure that was rolled back (audit ZCM-L1) | Joined to UserKit's transaction, `GRANT_REVOKED` (reason `erasure`) and `PERSONAL_DATA_ERASED` are held until its outermost commit and dropped on rollback, whatever `events.after_host_commit` says (doctrine/dbal 4; on DBAL 3 the connection reports no commit) |
 | The UserKit export section leaks values (2.5.0) | Same metadata as the exporter (no value, ciphertext, token or hash; test with markers); the user id key is dropped |
 
 **Host obligations** for `VaultReauthenticationProviderInterface` (the bundle cannot verify them): list in `factors` only
@@ -171,7 +172,7 @@ Accepted residual **R5**: catalogue metadata is disclosed to scope members, by d
 | Threat | Control |
 | --- | --- |
 | A limit listener sees secrets | `ITEM_CREATE_CHECK` carries the owner key, ids and the type only; it runs before the payload is encrypted and never receives it |
-| Two creations race past a plan limit | `itemCount()` locks the owner's rows (`FOR UPDATE`, read twice) inside the write unit; residual for an owner with no row, documented with the fix (lock a host row) |
+| Two creations race past a plan limit | `itemCount()` is serialised per owner inside the write unit: a PostgreSQL advisory lock on the owner key (first item included), or a double `FOR UPDATE` read elsewhere (two first creations deadlock: 409, retry) |
 | A refusal reason is reflected into the page | The reason is a validated code (`[a-z0-9_.-]{1,64}`) for host logs; the page shows a fixed translated message |
 | A user lists or revokes another user's extension tokens | The token port reads the user's tokens with an exact owner check (PHP `===` after the query) and deletes only those ids; another user's id, an unknown id and an id already gone all answer `false` |
 | Token secrets leave through the port or its event | Views and `EXTENSION_TOKEN_REVOKED` hold ids and dates only; the hash is never selected |

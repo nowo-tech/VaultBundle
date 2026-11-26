@@ -82,7 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accepts `?owner=<id>`. Entries still carry no creator.
 - **Item limits** (FR-020): `VaultEvents::ITEM_CREATE_CHECK` (`VaultItemCreateCheckEvent`) before every new item (pages
   and `VaultItemCommandsInterface::create()` / `createInScope()`): ids and type only, `deny(<code>)`, and a lazy
-  `itemCount()` that locks the owner's items so two creations racing for the last place are serialised. A refusal
+  `itemCount()` serialised per owner (PostgreSQL: a transaction advisory lock on the owner key, which also covers an
+  owner's first item; other platforms: a double `SELECT … FOR UPDATE`), so two creations racing for the last place
+  never both pass. A refusal
   re-renders the form (422, generic message) or throws `VaultItemCreateDeniedException` to host code. No listener: no
   limit.
 - **Extension tokens per user** (FR-022): `VaultExtensionTokenCommandsInterface` (`listForUser()`, `revoke()`,
@@ -94,8 +96,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Personal data erasure inside an open transaction** joins it: no transaction or savepoint of its own per chunk, so
   the caller's (UserKit's) commit or rollback decides for the whole erasure. Outside a transaction it still commits per
-  chunk. `PERSONAL_DATA_ERASED` and the erasure's `GRANT_REVOKED` go through the deferred dispatcher: with
-  `events.after_host_commit: true` they wait for that commit and are dropped on rollback.
+  chunk. Joined, `PERSONAL_DATA_ERASED` and the erasure's `GRANT_REVOKED` always wait for the outermost commit and are
+  dropped on rollback, whatever `events.after_host_commit` says (doctrine/dbal 4: the connection hook is now wired
+  whenever DBAL offers it; on DBAL 3 they leave at once).
+- The personal-data eraser and exporter, and the catalogue creator filter, bind the user reference the user reference
+  resolver builds (`getReference(user_class, id)`) instead of the user directory's stand-in object, so a directory that
+  answers references without user objects works with the relation mapping.
 - Dev: nowo-tech/user-kit-bundle ^1.24 in require-dev (suggested for the GDPR bridges); dependency refresh.
 
 ### Fixed

@@ -163,17 +163,18 @@ nowo_vault:
 
 ## Item limits
 
-`ITEM_CREATE_CHECK` (2.5.0) runs inside the item's write unit, before anything is written. Its `itemCount()` reads the
-ids of the owner's stored items twice with `SELECT … FOR UPDATE`: the first read waits for a creation in flight for
-the same owner (it holds the same row locks), the second counts what that creation committed (on PostgreSQL a
-statement that waited still answers from its own start; on MySQL / MariaDB only a locking read sees rows committed
-after the transaction's first plain read). Two creations racing for the last place: the second waits, counts the first
-and is refused. On MySQL / MariaDB two creations that both take the gap lock of an owner can deadlock instead: one
-answers 409 `CONFLICT_001` and its retry is counted correctly.
+`ITEM_CREATE_CHECK` (2.5.0) runs inside the item's write unit, before anything is written. Its `itemCount()` is
+serialised per owner, so two creations racing for the last place never both pass: the second waits, counts the first
+and is refused.
 
-Residual: an owner with **no** stored item has no row to lock, so on PostgreSQL two first creations can both pass a
-limit of 1. When that matters, lock a row of your own in the listener before `itemCount()` (the account or plan row,
-`SELECT … FOR UPDATE` on the same connection): every creation of that account then waits for the previous one.
+- **PostgreSQL:** a transaction-scoped advisory lock on a stable hash of the owner key
+  (`pg_advisory_xact_lock(hashtextextended('nowo_vault.item_create:<owner key>', 0))`, released at commit or rollback),
+  then a plain count, which sees what the previous holder committed. It also covers an owner with **no** stored item
+  (audit ZCM-L4), and it locks no item row, so a count never blocks an edit.
+- **MySQL / MariaDB (and other platforms):** the ids of the owner's stored items are read twice with
+  `SELECT … FOR UPDATE`: the first read waits for a creation in flight (row and gap locks), the second counts what it
+  committed (only a locking read sees rows committed after the transaction's first plain read). Two first creations
+  of an owner both take the gap lock and deadlock instead: one answers 409 `CONFLICT_001` and its retry is counted.
 
 ## Tests and CI
 
@@ -190,7 +191,8 @@ limit of 1. When that matters, lock a row of your own in the listener before `it
 
   Every session sets `innodb_lock_wait_timeout` / `lock_timeout`, so a hang fails fast.
 - `tests/E2E/VaultCreateLimitDatabaseTest.php` (2.5.0, group `database`): a creation racing for the last place waits for
-  the other writer's commit, counts its item and is refused (422), on the three servers.
+  the other writer's commit, counts its item and is refused (422), on the three servers; on PostgreSQL also the first
+  item of an owner with no stored item (advisory lock).
 - `tests/E2E/VaultUserKitDatabaseTest.php` (2.5.0, group `database`): the vault erasure joins UserKit's transaction; a
   later failing eraser and a lock wait both leave every vault row and no open nesting level, the lock error is
   reported as such, and the retry erases everything.
@@ -216,11 +218,12 @@ limit of 1. When that matters, lock a row of your own in the listener before `it
   owner's folder and tags are never taken from the grantee's page (1.18, SEC-004).
 - **Inside your transaction.** When you call the vault inside your own transaction, the vault's unit is a savepoint:
   its notifications are dispatched when the savepoint is released, before your commit. If you then roll back, the
-  listeners have seen a change that did not happen. The same holds for the erasure inside UserKit's transaction
-  (`GRANT_REVOKED`, `PERSONAL_DATA_ERASED`) unless `events.after_host_commit: true` (doctrine/dbal 4) holds them.
+  listeners have seen a change that did not happen (unless `events.after_host_commit: true`). The personal-data
+  erasure is the exception since 2.5.0: when it joins your (or UserKit's) transaction, its `GRANT_REVOKED` and
+  `PERSONAL_DATA_ERASED` always wait for the outermost commit and are dropped on rollback, whatever that option says
+  (audit ZCM-L1). On doctrine/dbal 3 the connection reports no commit: they leave before it.
 - **Erasure on another connection.** When the vault's manager uses another connection than UserKit's user manager, the
   vault erasure cannot join UserKit's transaction: it commits per chunk, and a later failing eraser does not bring the
   vault rows back (running the erasure again is safe: it is idempotent).
-- **First item of an owner** under a plan limit: see [Item limits](#item-limits).
 - **Pending changes of your own.** The vault never flushes them (2.0): code that relied on a vault write to flush its
   own entities must flush them itself (see [UPGRADING](UPGRADING.md#private-manager-only)).

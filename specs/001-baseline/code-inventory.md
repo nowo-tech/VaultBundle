@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/vault-bundle`  
-**Last audited**: 2026-11-26 (2.5.0)
+**Last audited**: 2026-11-26 (2.5.0; the 2.4.0 stamp "2026-11-27" was a typo for 2026-11-23)
 
 This file proves that **every production source artifact** under `src/` is referenced by the baseline specification. Test-only files under `tests/` and `*.test.ts` under `src/` are out of Packagist scope. Built assets under `Resources/public/` are documented as Vite/build outputs.
 

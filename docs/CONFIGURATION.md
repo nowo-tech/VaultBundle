@@ -120,7 +120,7 @@ UserKit's GDPR tools (UserKit's own `personal_data.enabled` must be on). See [US
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `personal_data.user_kit` | `true` | Register the UserKit eraser and export provider when UserKit is installed (nothing is registered without it). `false` when your application already calls `VaultPersonalDataEraserInterface` / `VaultPersonalDataExporterInterface` itself. |
+| `personal_data.user_kit` | `true` | Register the UserKit eraser and export provider when UserKit is installed (nothing is registered without it). `false` when your application already calls `VaultPersonalDataEraserInterface` / `VaultPersonalDataExporterInterface` itself: a provider of yours with the section key `vault` would make UserKit's export fail (duplicate section). |
 | `personal_data.batch_size` | `500` | Ids per statement of the UserKit erasure (1 to 5000). |
 
 ```yaml

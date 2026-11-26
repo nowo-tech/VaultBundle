@@ -318,7 +318,8 @@ and folders the user created stay with the scope. Listen to `PERSONAL_DATA_ERASE
 Every erasure step has its export section (`VaultPersonalDataExporter::ERASURE_SECTIONS`; 2.5.0 adds
 `grants_on_personal` and `scope_folders_created`). Called inside a transaction your code opened on the vault's
 connection, the erasure joins it (no transaction or savepoint of its own): your commit or rollback decides for all of
-it. With `events.after_host_commit: true` (doctrine/dbal 4) its events wait for that commit.
+it. Its `GRANT_REVOKED` and `PERSONAL_DATA_ERASED` then wait for your outermost commit and are dropped on rollback,
+whatever `events.after_host_commit` says (doctrine/dbal 4; on DBAL 3 they leave at once).
 
 ### With UserKit (2.5.0)
 
@@ -330,8 +331,9 @@ With nowo-tech/user-kit-bundle installed, the vault registers itself in UserKit'
   sub-section per erasure step (never a value, a ciphertext, a token or a hash).
 
 UserKit runs its erasers in one transaction: on the same connection the vault erasure joins it, so a later eraser that
-fails rolls the vault rows back too. UserKit's `personal_data.enabled` must be on. Turn the bridges off when you erase
-and export the vault yourself:
+fails rolls the vault rows back too, and its events wait for UserKit's commit. UserKit's `personal_data.enabled` must
+be on. Turn the bridges off when you erase and export the vault yourself (a provider of yours with the section key
+`vault` would make UserKit's export fail with a duplicate-section error):
 
 ```yaml
 nowo_vault:
@@ -410,7 +412,7 @@ Listen to `VaultEvents::ITEM_READ_ONLY_RESOLVE` and call `$event->markReadOnly()
 | `HEALTH_ACCESS_CHECK` | Grant or deny a scope health report (1.16.0) |
 | `HEALTH_REPORT_GENERATED` | A health report was produced (1.16.0; actor, owner key, counts only) |
 | `ITEMS_EXPORTED` | A decrypted personal export is about to stream (1.16.0; actor, count, format, factors; throw = refuse) |
-| `PERSONAL_DATA_ERASED` | A user's vault data was erased (1.16.0; user id, counts; 2.5.0: held with the change events, so inside UserKit's transaction it waits for the commit with `events.after_host_commit`) |
+| `PERSONAL_DATA_ERASED` | A user's vault data was erased (1.16.0; user id, counts; 2.5.0: inside UserKit's (or your) transaction it waits for the outermost commit and is dropped on rollback, doctrine/dbal 4) |
 | `ITEM_CREATE_CHECK` | Refuse a new item, e.g. a plan's item limit (2.5.0; ids, type, lazy locked `itemCount()`; see [Item limits](#item-limits-250)) |
 | `EXTENSION_TOKEN_REVOKED` | Extension tokens revoked through `VaultExtensionTokenCommandsInterface` (2.5.0; user id, token ids, reason; after the commit) |
 | `GRANT_POLICY_CHECK` | Veto a grant in `grantAs()` with a reason code (1.16.0) |
@@ -808,8 +810,8 @@ public function __invoke(VaultItemCreateCheckEvent $event): void
 
 - The event carries ids only: owner key, owner user id or scope, actor id, item type; never the title or a value.
 - `itemCount()` counts the owner's stored items, trash included, once per event and only when called. Inside the
-  item's write unit it locks them (`SELECT … FOR UPDATE`), so two creations racing for the last place are serialised
-  (see [CONCURRENCY.md](CONCURRENCY.md#item-limits)).
+  item's write unit it is serialised per owner (PostgreSQL advisory lock, `SELECT … FOR UPDATE` elsewhere), so two
+  creations racing for the last place never both pass (see [CONCURRENCY.md](CONCURRENCY.md#item-limits)).
 - A refusal shows the form again (422) with a generic message, nothing written; the commands throw
   `VaultItemCreateDeniedException` (`getReason()`: your code, `[a-z0-9_.-]`, at most 64 characters).
 

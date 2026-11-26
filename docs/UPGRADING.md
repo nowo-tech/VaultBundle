@@ -110,9 +110,11 @@ From **2.4.0** (no BC break):
 composer update nowo-tech/vault-bundle
 ```
 
-- **UserKit hosts:** the vault now joins UserKit's GDPR erasure and export (eraser and section `vault`). If you wired
-  `VaultPersonalDataEraserInterface` / `VaultPersonalDataExporterInterface` into UserKit yourself, remove your adapters
-  or set `nowo_vault.personal_data.user_kit: false`, or the vault data is exported twice. UserKit's
+- **UserKit hosts:** the vault now joins UserKit's GDPR erasure and export (eraser and section `vault`). If you
+  already registered your own UserKit adapters for the vault, set `nowo_vault.personal_data.user_kit: false` (or remove
+  your adapters) **before** upgrading: an export provider of yours with the section key `vault` makes every UserKit
+  export fail with UserKit's `LogicException` "Duplicate personal data export section" (another key exports the vault
+  twice); your eraser would run a second, idempotent erasure. UserKit's
   `personal_data.enabled` must be on. Keep the vault's manager on the same connection as your user manager so that the
   erasure joins UserKit's transaction (see [CONCURRENCY](CONCURRENCY.md#residual-risks)).
 - **Your own erasure inside a transaction:** `VaultPersonalDataEraser::erase()` called while a transaction is open on
