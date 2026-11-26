@@ -180,6 +180,7 @@ vault:
         purge: Dieses Element dauerhaft löschen?
         revoke_access: Diese Zugriffsberechtigung entfernen?
     flash:
+        item_create_denied: 'Du kannst diesen Eintrag nicht hinzufügen: Das Limit deines Tarifs ist erreicht oder deine Organisation erlaubt es nicht.'
         item_created: Element gespeichert.
         item_updated: Element aktualisiert.
         item_changed: "Jemand anderes hat dieses Element gespeichert, nachdem Sie es geöffnet haben. Ihre Änderungen wurden nicht gespeichert: Dies ist das aktuelle Element, übernehmen Sie sie erneut."
@@ -232,6 +233,10 @@ vault:
         access: Zugriff
         has_access: Du hast Zugriff
         empty: Keine Einträge im Katalog.
+        owner_filter: 'Erstellt von'
+        owner_any: 'Alle'
+        owner_mine: 'Von mir erstellt'
+        owner_other: 'Ausgewählte Person'
     export:
         title: 'Meinen Tresor exportieren'
         description: 'Laden Sie eine entschlüsselte Kopie Ihres persönlichen Tresors herunter.'

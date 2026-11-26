@@ -180,6 +180,7 @@ vault:
         purge: Supprimer définitivement cet élément ?
         revoke_access: Retirer ce droit d'accès ?
     flash:
+        item_create_denied: 'Vous ne pouvez pas ajouter cette entrée : la limite de votre offre est atteinte ou votre organisation ne l''autorise pas.'
         item_created: Élément enregistré.
         item_updated: Élément mis à jour.
         item_changed: "Quelqu'un d'autre a enregistré cet élément après que vous l'avez ouvert. Vos modifications n'ont pas été enregistrées : voici l'élément actuel, appliquez-les à nouveau."
@@ -232,6 +233,10 @@ vault:
         access: Accès
         has_access: Vous avez accès
         empty: Aucune entrée dans le catalogue.
+        owner_filter: 'Créé par'
+        owner_any: 'Tout le monde'
+        owner_mine: 'Créées par moi'
+        owner_other: 'Personne sélectionnée'
     export:
         title: 'Exporter mon coffre-fort'
         description: 'Téléchargez une copie déchiffrée de votre coffre-fort personnel.'

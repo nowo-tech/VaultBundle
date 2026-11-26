@@ -25,6 +25,7 @@ use Nowo\VaultBundle\EventListener\VaultConflictListener;
 use Nowo\VaultBundle\Exception\VaultDecryptionFailedException;
 use Nowo\VaultBundle\Exception\VaultGrantRefusedException;
 use Nowo\VaultBundle\Exception\VaultItemChangedException;
+use Nowo\VaultBundle\Exception\VaultItemCreateDeniedException;
 use Nowo\VaultBundle\Exception\VaultRevealRefusedException;
 use Nowo\VaultBundle\Form\VaultActionType;
 use Nowo\VaultBundle\Form\VaultFolderCreateType;
@@ -59,6 +60,7 @@ use Nowo\VaultBundle\ValueObject\VaultOwner;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -364,17 +366,24 @@ final class VaultManageController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $payload = $this->mergeAttachmentIntoPayload($data->toPayload(), $itemType, $request);
-            // 1.20: the item and its tags in one transaction (a failed tag save leaves no item without its tags).
-            $this->inWriteUnit(function () use ($itemType, $data, $user, $payload): void {
-                $item = $this->itemCreator->create(
-                    $itemType,
-                    $data->title,
-                    $user,
-                    $payload,
-                    $data->folder,
-                );
-                $this->tagService->syncItemTags($item, $user, $data->tags);
-            });
+            try {
+                // 1.20: the item and its tags in one transaction (a failed tag save leaves no item without its tags).
+                $this->inWriteUnit(function () use ($itemType, $data, $user, $payload): void {
+                    $item = $this->itemCreator->create(
+                        $itemType,
+                        $data->title,
+                        $user,
+                        $payload,
+                        $data->folder,
+                    );
+                    $this->tagService->syncItemTags($item, $user, $data->tags);
+                });
+            } catch (VaultItemCreateDeniedException) {
+                // 2.5.0: ITEM_CREATE_CHECK refused it (e.g. the plan's item limit): the form again, 422, nothing saved.
+                $form->addError(new FormError($this->translator->trans('vault.flash.item_create_denied', [], 'NowoVaultBundle')));
+
+                return $this->renderItemPage($form, $itemType, null, false, false, $folders, $data->folder?->getId());
+            }
 
             $this->addFlash('success', $this->translator->trans('vault.flash.item_created', [], 'NowoVaultBundle'));
 

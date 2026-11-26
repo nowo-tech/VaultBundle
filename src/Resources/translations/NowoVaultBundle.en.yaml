@@ -180,6 +180,7 @@ vault:
         purge: Permanently delete this item?
         revoke_access: Remove this access grant?
     flash:
+        item_create_denied: 'You cannot add this entry: the limit of your plan is reached, or your organisation does not allow it.'
         item_created: Item saved.
         item_updated: Item updated.
         item_changed: "Someone else saved this item after you opened it. Your changes were not saved: this is the current item, apply them again."
@@ -232,6 +233,10 @@ vault:
         access: Access
         has_access: You have access
         empty: No entries in the catalogue.
+        owner_filter: 'Created by'
+        owner_any: 'Everyone'
+        owner_mine: 'Created by me'
+        owner_other: 'Selected person'
     export:
         title: 'Export my vault'
         description: 'Download a decrypted copy of your personal vault.'

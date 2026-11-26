@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Nowo\VaultBundle\Service;
 
+use Closure;
 use DateTimeImmutable;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ManyToManyOwningSideMapping;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
+use Nowo\VaultBundle\Bridge\UserKit\VaultUserKitEraser;
+use Nowo\VaultBundle\Doctrine\VaultEntityManager;
 use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
 use Nowo\VaultBundle\Dto\VaultErasureResult;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
@@ -22,9 +25,11 @@ use Nowo\VaultBundle\Enum\VaultResourceType;
 use Nowo\VaultBundle\Event\VaultEvents;
 use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultPersonalDataErasedEvent;
+use Nowo\VaultBundle\Internal\DeferredVaultEventDispatcher;
 use Nowo\VaultBundle\Port\VaultUserLocatorGate;
 use Nowo\VaultBundle\Repository\VaultGrantExpiryRepositoryInterface;
 use Nowo\VaultBundle\Repository\VaultGrantRepositoryInterface;
+use Nowo\VaultBundle\Support\VaultUserBinding;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -55,6 +60,12 @@ use function max;
  *
  * Then `PERSONAL_DATA_ERASED` (user id and counts). Idempotent: a second run counts zero. Call it **before** deleting
  * the user row. It writes with DQL / DBAL statements only (no flush of the host's unit of work).
+ *
+ * Since 2.5.0, when the vault's connection is already inside a transaction (UserKit's erasure through
+ * {@see VaultUserKitEraser}, or your own unit), every batch joins it: no transaction
+ * or savepoint of its own, so the caller's commit or rollback decides for the whole erasure. The change events go
+ * through the vault's deferred dispatcher and, on doctrine/dbal 4, always wait for that commit (dropped on rollback),
+ * whatever `events.after_host_commit` says. On doctrine/dbal 3 the connection reports no commit: they leave at once.
  */
 final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserInterface
 {
@@ -81,10 +92,23 @@ final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserI
      */
     public function erase(string $userId, int $batchSize = 500): VaultErasureResult
     {
-        $batchSize = max(1, $batchSize);
-        $em        = $this->em();
-        // 1.17.0: with the id mapping the user columns hold the id itself.
-        $who = $this->users?->mapsById() === true ? $userId : ($this->userLocator?->find($userId) ?? $userId);
+        $em = $this->em();
+        // 2.5.0 (audit ZCM-L1): joined to the caller's transaction, every notification of the erasure (GRANT_REVOKED,
+        // PERSONAL_DATA_ERASED) waits for its outermost commit and is dropped on rollback, whatever
+        // events.after_host_commit says (doctrine/dbal 4; see the class comment).
+        if ($em->getConnection()->isTransactionActive() && $this->eventDispatcher instanceof DeferredVaultEventDispatcher) {
+            return $this->eventDispatcher->holdForHostWhile(fn (): VaultErasureResult => $this->run($em, $userId, max(1, $batchSize)));
+        }
+
+        return $this->run($em, $userId, max(1, $batchSize));
+    }
+
+    /**
+     * @param int<1, max> $batchSize
+     */
+    private function run(EntityManagerInterface $em, string $userId, int $batchSize): VaultErasureResult
+    {
+        $who = VaultUserBinding::of($userId, $this->userLocator, $this->users);
 
         // 1.17.0 (LQ-V-M1): every step works on the ids of the user's rows. With the id mapping those ids are kept only
         // when the stored user id equals $userId byte for byte, whatever the column collation.
@@ -147,7 +171,7 @@ final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserI
                 ? $this->grantRepository->resolveOwnerKeys(array_map(static fn (VaultGrant $g): array => [$g->getResourceType(), $g->getResourceId()], $grants))
                 : [];
             // Conditional delete per row: an event only for the rows this call deleted (a concurrent revoke or purge wins).
-            $deleted = $em->wrapInTransaction(static function (EntityManagerInterface $em) use ($grants): array {
+            $deleted = $this->inBatch($em, static function (EntityManagerInterface $em) use ($grants): array {
                 $gone = [];
                 foreach ($grants as $grant) {
                     if ((int) $em->createQuery('DELETE FROM ' . VaultGrant::class . ' g WHERE g.id = :id')->setParameter('id', $grant->getId())->execute() === 1) {
@@ -185,7 +209,7 @@ final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserI
         $links                    = 0;
         $items                    = 0;
         foreach (array_chunk($itemIds, $batchSize) as $ids) {
-            [$l, $i] = $em->wrapInTransaction(static fn (EntityManagerInterface $em): array => [
+            [$l, $i] = $this->inBatch($em, static fn (EntityManagerInterface $em): array => [
                 (int) $em->getConnection()->executeStatement('DELETE FROM ' . $joinTable . ' WHERE ' . $itemColumn . ' IN (?)', [$ids], [ArrayParameterType::STRING]),
                 (int) $em->createQuery('DELETE FROM ' . VaultItem::class . ' i WHERE i.id IN (:ids)')->setParameter('ids', $ids)->execute(),
             ]);
@@ -229,7 +253,7 @@ final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserI
         $deleted = 0;
         for ($offset = 0; $offset < count($ordered); $offset += $batchSize) {
             $ids = array_slice($ordered, $offset, $batchSize);
-            $deleted += (int) $em->wrapInTransaction(static fn (EntityManagerInterface $em): int => (int) $em->createQuery('DELETE FROM ' . VaultFolder::class . ' f WHERE f.id IN (:ids)')->setParameter('ids', $ids)->execute());
+            $deleted += (int) $this->inBatch($em, static fn (EntityManagerInterface $em): int => (int) $em->createQuery('DELETE FROM ' . VaultFolder::class . ' f WHERE f.id IN (:ids)')->setParameter('ids', $ids)->execute());
         }
 
         return $deleted;
@@ -249,7 +273,7 @@ final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserI
         $links                     = 0;
         $tags                      = 0;
         foreach (array_chunk($tagIds, $batchSize) as $ids) {
-            [$l, $t] = $em->wrapInTransaction(static fn (EntityManagerInterface $em): array => [
+            [$l, $t] = $this->inBatch($em, static fn (EntityManagerInterface $em): array => [
                 (int) $em->getConnection()->executeStatement('DELETE FROM ' . $joinTable . ' WHERE ' . $tagColumn . ' IN (?)', [$ids], [ArrayParameterType::STRING]),
                 (int) $em->createQuery('DELETE FROM ' . VaultTag::class . ' t WHERE t.id IN (:ids)')->setParameter('ids', $ids)->execute(),
             ]);
@@ -337,7 +361,7 @@ final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserI
     {
         $total = 0;
         foreach (array_chunk($ids, $batchSize) as $chunk) {
-            $total += (int) $em->wrapInTransaction(static fn (EntityManagerInterface $em): int => (int) $em->createQuery('UPDATE ' . $class . ' r SET r.' . $field . ' = NULL WHERE r.id IN (:ids)')->setParameter('ids', $chunk)->execute());
+            $total += (int) $this->inBatch($em, static fn (EntityManagerInterface $em): int => (int) $em->createQuery('UPDATE ' . $class . ' r SET r.' . $field . ' = NULL WHERE r.id IN (:ids)')->setParameter('ids', $chunk)->execute());
         }
 
         return $total;
@@ -354,10 +378,37 @@ final readonly class VaultPersonalDataEraser implements VaultPersonalDataEraserI
     {
         $total = 0;
         foreach (array_chunk($ids, $batchSize) as $chunk) {
-            $total += (int) $em->wrapInTransaction(static fn (EntityManagerInterface $em): int => (int) $em->createQuery('DELETE FROM ' . $class . ' r WHERE r.id IN (:ids)')->setParameter('ids', $chunk)->execute());
+            $total += (int) $this->inBatch($em, static fn (EntityManagerInterface $em): int => (int) $em->createQuery('DELETE FROM ' . $class . ' r WHERE r.id IN (:ids)')->setParameter('ids', $chunk)->execute());
         }
 
         return $total;
+    }
+
+    /**
+     * Runs one batch (2.5.0): in its own transaction when none is open, or **inside the caller's open transaction**
+     * (UserKit's erasure, an application unit) with no transaction or savepoint of its own. Joining means a failure is
+     * rethrown as it is (a MySQL / MariaDB deadlock keeps its error code instead of a lost-savepoint error, and no
+     * nesting level is left behind) and the caller rolls back the whole erasure; its commit makes it final.
+     *
+     * @template T
+     *
+     * @param Closure(EntityManagerInterface): T $batch
+     *
+     * @return T
+     */
+    private function inBatch(EntityManagerInterface $em, Closure $batch): mixed
+    {
+        if (!$em->getConnection()->isTransactionActive()) {
+            return $em->wrapInTransaction($batch);
+        }
+
+        $result = $batch($em);
+        if ($em instanceof VaultEntityManager) {
+            // The rows now wait in the caller's transaction: a rollback of it replaces the private manager (NJV-1).
+            $em->noteWrite();
+        }
+
+        return $result;
     }
 
     private function now(): DateTimeImmutable

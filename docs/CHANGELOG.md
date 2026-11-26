@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.5.0] - 2026-11-26](#250---2026-11-26)
 - [[2.4.0] - 2026-11-23](#240---2026-11-23)
 - [[2.3.0] - 2026-11-23](#230---2026-11-23)
 - [[2.2.1] - 2026-11-22](#221---2026-11-22)
@@ -69,6 +70,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The `📦 [name] script loaded` console banner now prints once per page, even when the script is loaded twice: per-name once-guard (a `Set` on `globalThis`) in `logger.ts`, with a Vitest test and rebuilt assets (REQ-ASSETS-005).
+- **Item limit under REPEATABLE READ** (audit ZCM-v-I1, documented): the PostgreSQL plan-limit count after the advisory lock assumes READ COMMITTED; a host that runs item creation inside a REPEATABLE READ (or SERIALIZABLE) transaction reads its snapshot from before the lock and can exceed the limit. `docs/CONCURRENCY.md` now states the requirement.
+
+## [2.5.0] - 2026-11-26
+
+### Added
+
+- **UserKit GDPR bridges** (Beacon spec 185 FR-023): with nowo-tech/user-kit-bundle installed, the eraser `vault`
+  (priority 180, before host identity erasers) and the export section `vault` (priority -50) are registered
+  automatically and call `VaultPersonalDataEraserInterface` / `VaultPersonalDataExporterInterface` with the string form
+  of the user's `getId()`. New option `personal_data.user_kit` (default `true`; `false` registers nothing) and
+  `personal_data.batch_size` (default 500). Nothing is registered without UserKit.
+- **Export parity** (REQ-DATA-004): every erasure step now has its export section. `VaultPersonalDataExporter::export()`
+  adds `grants_on_personal` (every grant on the user's personal items and folders, without the creator of a grant made
+  by someone else) and `scope_folders_created`; `VaultPersonalDataExporter::ERASURE_SECTIONS` maps each
+  `VaultErasureResult` key to its section.
+- **Catalogue creator filter** (FR-011): `VaultCatalogueQuery::$ownerId` (exact id, at most 128 characters; a blank,
+  unknown or malformed id gives an empty page) and *Everyone* / *Created by me* chips on the catalogue page, which also
+  accepts `?owner=<id>`. Entries still carry no creator.
+- **Item limits** (FR-020): `VaultEvents::ITEM_CREATE_CHECK` (`VaultItemCreateCheckEvent`) before every new item (pages
+  and `VaultItemCommandsInterface::create()` / `createInScope()`): ids and type only, `deny(<code>)`, and a lazy
+  `itemCount()` serialised per owner (PostgreSQL: a transaction advisory lock on the owner key, which also covers an
+  owner's first item; other platforms: a double `SELECT … FOR UPDATE`), so two creations racing for the last place
+  never both pass. A refusal
+  re-renders the form (422, generic message) or throws `VaultItemCreateDeniedException` to host code. No listener: no
+  limit.
+- **Extension tokens per user** (FR-022): `VaultExtensionTokenCommandsInterface` (`listForUser()`, `revoke()`,
+  `revokeAll()`) with `VaultExtensionTokenView` (id and dates, never the hash) and `EXTENSION_TOKEN_REVOKED`
+  (`VaultExtensionTokenRevokedEvent`) after the commit. Another user's token id answers like an unknown one.
+- The item form shows errors of the whole form (a refused creation, an invalid CSRF token) above its first field.
+
+### Changed
+
+- **Personal data erasure inside an open transaction** joins it: no transaction or savepoint of its own per chunk, so
+  the caller's (UserKit's) commit or rollback decides for the whole erasure. Outside a transaction it still commits per
+  chunk. Joined, `PERSONAL_DATA_ERASED` and the erasure's `GRANT_REVOKED` always wait for the outermost commit and are
+  dropped on rollback, whatever `events.after_host_commit` says (doctrine/dbal 4: the connection hook is now wired
+  whenever DBAL offers it; on DBAL 3 they leave at once).
+- The personal-data eraser and exporter, and the catalogue creator filter, bind the user reference the user reference
+  resolver builds (`getReference(user_class, id)`) instead of the user directory's stand-in object, so a directory that
+  answers references without user objects works with the relation mapping.
+- Dev: nowo-tech/user-kit-bundle ^1.24 in require-dev (suggested for the GDPR bridges); dependency refresh.
+
+### Fixed
+
+- **Lost savepoint** (REQ-RUNTIME-003): a vault statement that failed inside your transaction after the server had
+  already dropped its savepoint (MySQL / MariaDB deadlock) reported "SAVEPOINT … does not exist" instead of the deadlock,
+  so the conflict was not recognised as retryable. The original failure is now rethrown.
+
+[2.5.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.5.0
 
 ## [2.4.0] - 2026-11-23
 
@@ -1469,7 +1519,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.5.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5

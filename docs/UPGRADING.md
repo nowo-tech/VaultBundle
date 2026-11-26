@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.5.0](#to-250)
 - [To 2.4.0](#to-240)
 - [To 2.3.0](#to-230)
 - [To 2.2.1](#to-221)
@@ -103,6 +104,37 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## Unreleased
+
+## To 2.5.0
+
+From **2.4.0**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+From **2.4.0** (no BC break):
+
+```bash
+composer update nowo-tech/vault-bundle
+```
+
+- **UserKit hosts:** the vault now joins UserKit's GDPR erasure and export (eraser and section `vault`). If you
+  already registered your own UserKit adapters for the vault, set `nowo_vault.personal_data.user_kit: false` (or remove
+  your adapters) **before** upgrading: an export provider of yours with the section key `vault` makes every UserKit
+  export fail with UserKit's `LogicException` "Duplicate personal data export section" (another key exports the vault
+  twice); your eraser would run a second, idempotent erasure. UserKit's
+  `personal_data.enabled` must be on. Keep the vault's manager on the same connection as your user manager so that the
+  erasure joins UserKit's transaction (see [CONCURRENCY](CONCURRENCY.md#residual-risks)).
+- **Your own erasure inside a transaction:** `VaultPersonalDataEraser::erase()` called while a transaction is open on
+  the vault's connection now writes inside it, without savepoints. A failure leaves your transaction to roll back (on
+  PostgreSQL it is aborted); do not commit after a failed erasure.
+- **GDPR export:** two new sections (`grants_on_personal`, `scope_folders_created`); consumers of the array that list
+  its keys should accept them.
+- **Item limits:** nothing changes until you listen to `ITEM_CREATE_CHECK`. Host code calling
+  `VaultItemCommandsInterface::create()` / `createInScope()` may then receive `VaultItemCreateDeniedException`.
+- **Templates:** an overridden `vault/catalogue.html.twig` receives `activeOwner` and `viewerId`; an overridden
+  `vault/item_form.html.twig` should render `form_errors(form)` to show a refused creation.
 
 ## To 2.4.0
 

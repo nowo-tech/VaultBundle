@@ -13,12 +13,17 @@ use Nowo\VaultBundle\Enum\VaultItemType;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Tests\App\ConditionalMappingIdKernel;
 use Nowo\VaultBundle\Tests\App\Ddd\DddUser;
+use Nowo\VaultBundle\Tests\App\Ddd\DddUserDirectory;
 use Nowo\VaultBundle\Tests\App\EventSubscriber\VaultEventRecorderSubscriber;
+use Nowo\VaultBundle\ValueObject\VaultUserRef;
+use Nowo\VaultBundle\View\VaultExtensionTokenView;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
+use function array_map;
 use function getenv;
 use function is_string;
+use function strtoupper;
 
 /**
  * NC2-1 (1.18.0): with database.conditional_mapping and the browser extension off, the token table is usually missing.
@@ -113,6 +118,32 @@ final class VaultConditionalMappingDatabaseTest extends KernelTestCase
 
         self::assertSame(['host-rows'], $connection->fetchFirstColumn('SELECT id FROM ' . self::HOST_TABLE));
         self::assertSame(['00000000-0000-4000-8000-000000000023'], $connection->fetchFirstColumn('SELECT id FROM vault_extension_tokens'), 'The case-colliding id is untouched.');
+    }
+
+    public function testTheTokenPortListsAndRevokesRowsOfAnEarlierReleaseByteExactly(): void
+    {
+        // 2.5.0: with the extension off and its entity unmapped, Account → Security still lists and revokes old rows.
+        $connection = $this->connection();
+        $date       = $connection->getDatabasePlatform() instanceof PostgreSQLPlatform ? 'TIMESTAMP(0) WITHOUT TIME ZONE' : 'DATETIME';
+        $tokens     = self::getContainer()->get('test.extension_token_commands');
+        self::assertSame([], $tokens->listForUser(VaultUserRef::ofId(DddUserDirectory::ALICE)), 'No table: nothing to list.');
+        self::assertFalse($tokens->revoke(VaultUserRef::ofId(DddUserDirectory::ALICE), '00000000-0000-4000-8000-000000000031'));
+
+        $connection->executeStatement('CREATE TABLE vault_extension_tokens (id VARCHAR(36) NOT NULL PRIMARY KEY, user_id VARCHAR(128) NOT NULL, created_at ' . $date . ' NOT NULL, expires_at ' . $date . ' NOT NULL, last_used_at ' . $date . ' NULL)');
+        foreach ([
+            ['00000000-0000-4000-8000-000000000031', DddUserDirectory::ALICE, '2020-01-01 00:00:00'],
+            ['00000000-0000-4000-8000-000000000032', DddUserDirectory::ALICE, '2020-01-02 00:00:00'],
+            ['00000000-0000-4000-8000-000000000033', strtoupper(DddUserDirectory::ALICE), '2020-01-01 00:00:00'],
+        ] as [$id, $user, $created]) {
+            $connection->insert('vault_extension_tokens', ['id' => $id, 'user_id' => $user, 'created_at' => $created, 'expires_at' => '2999-01-01 00:00:00']);
+        }
+
+        $alice = VaultUserRef::ofId(DddUserDirectory::ALICE);
+        self::assertSame(['00000000-0000-4000-8000-000000000031', '00000000-0000-4000-8000-000000000032'], array_map(static fn (VaultExtensionTokenView $t): string => $t->id, $tokens->listForUser($alice)));
+        self::assertFalse($tokens->revoke($alice, '00000000-0000-4000-8000-000000000033'), 'The case-colliding row is not hers.');
+        self::assertTrue($tokens->revoke($alice, '00000000-0000-4000-8000-000000000031'));
+        self::assertSame(1, $tokens->revokeAll($alice));
+        self::assertSame(['00000000-0000-4000-8000-000000000033'], $connection->fetchFirstColumn('SELECT id FROM vault_extension_tokens'));
     }
 
     private function em(): EntityManagerInterface

@@ -180,6 +180,7 @@ vault:
         purge: Eliminare definitivamente questo elemento?
         revoke_access: Rimuovere questo permesso di accesso?
     flash:
+        item_create_denied: 'Non puoi aggiungere questa voce: hai raggiunto il limite del tuo piano o la tua organizzazione non lo consente.'
         item_created: Elemento salvato.
         item_updated: Elemento aggiornato.
         item_changed: "Qualcun altro ha salvato questo elemento dopo che lo hai aperto. Le tue modifiche non sono state salvate: questo è l'elemento attuale, applicale di nuovo."
@@ -232,6 +233,10 @@ vault:
         access: Accesso
         has_access: Hai accesso
         empty: Nessuna voce nel catalogo.
+        owner_filter: 'Creato da'
+        owner_any: 'Tutti'
+        owner_mine: 'Creati da me'
+        owner_other: 'Persona selezionata'
     export:
         title: 'Esporta la mia cassaforte'
         description: 'Scarica una copia decifrata della tua cassaforte personale.'

@@ -66,6 +66,7 @@
         "igor-php/igor-php": "^0.10.0 || ^0.11.0",
         "nowo-tech/doctrine-encrypt-bundle": "^2.2",
         "nowo-tech/phpstan-frankenphp": "^1.0",
+        "nowo-tech/user-kit-bundle": "^1.24",
         "phpstan/extension-installer": "^1.0",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
@@ -116,6 +117,7 @@
         "nowo-tech/password-toggle-bundle": "Show/hide toggle for login password fields (used with password-strength-bundle).",
         "nowo-tech/search-kit-bundle": "Since 1.21: the SearchKit group vault_items (item names only) in the header search (SearchKit ^1.9, needs PHP 8.3 or later).",
         "nowo-tech/tag-input-bundle": "Tagify-powered multi-tag input for item labels.",
+        "nowo-tech/user-kit-bundle": "Since 2.5.0: the vault eraser and export section in UserKit's GDPR erasure and export (registered automatically; personal_data.user_kit).",
         "symfony/lock": "Makes the decrypted export's proof check, consume and cooldown atomic per user (export.lock_factory)."
     },
     "minimum-stability": "stable",
