@@ -11,6 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\VaultBundle\Doctrine\VaultExtensionTokenTable;
+use Nowo\VaultBundle\Dto\VaultErasureResult;
 use Nowo\VaultBundle\Entity\VaultExtensionToken;
 use Nowo\VaultBundle\Entity\VaultFolder;
 use Nowo\VaultBundle\Entity\VaultGrant;
@@ -25,6 +26,8 @@ use Nowo\VaultBundle\Repository\VaultItemRepositoryInterface;
 use Nowo\VaultBundle\Support\VaultUserReferenceResolverInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function array_chunk;
+use function array_column;
 use function array_map;
 use function preg_replace;
 
@@ -42,6 +45,26 @@ use const DATE_ATOM;
 final readonly class VaultPersonalDataExporter implements VaultPersonalDataExporterInterface
 {
     /**
+     * The export section that shows the rows of each erasure step (2.5.0, REQ-DATA-004: every eraser has its export),
+     * keyed like {@see VaultErasureResult::toArray()}.
+     */
+    public const ERASURE_SECTIONS = [
+        'grants_received'           => 'grants_received',
+        'grants_on_personal'        => 'grants_on_personal',
+        'grants_created_anonymised' => 'grants_given',
+        'item_tags'                 => 'items',
+        'items'                     => 'items',
+        'folders'                   => 'folders',
+        'tags'                      => 'tags',
+        'scope_items_anonymised'    => 'scope_items_created',
+        'scope_folders_anonymised'  => 'scope_folders_created',
+        'extension_tokens'          => 'extension_tokens',
+    ];
+
+    /** Resource ids per grant query. */
+    private const CHUNK = 500;
+
+    /**
      * Stores the Doctrine registry and the optional collaborators of the received-grant titles.
      */
     public function __construct(
@@ -58,10 +81,11 @@ final readonly class VaultPersonalDataExporter implements VaultPersonalDataExpor
     }
 
     /**
-     * JSON-serialisable sections: items, folders, tags, grants_received, grants_given, scope_items_created,
-     * extension_tokens.
+     * JSON-serialisable sections: items, folders, tags, grants_received, grants_given, grants_on_personal (2.5.0),
+     * scope_items_created, scope_folders_created (2.5.0), extension_tokens. Every erasure step has its section
+     * ({@see self::ERASURE_SECTIONS}).
      *
-     * @return array{user_id: string, items: list<array<string, mixed>>, folders: list<array<string, mixed>>, tags: list<array<string, mixed>>, grants_received: list<array<string, mixed>>, grants_given: list<array<string, mixed>>, scope_items_created: list<array<string, mixed>>, extension_tokens: list<array<string, mixed>>}
+     * @return array{user_id: string, items: list<array<string, mixed>>, folders: list<array<string, mixed>>, tags: list<array<string, mixed>>, grants_received: list<array<string, mixed>>, grants_given: list<array<string, mixed>>, grants_on_personal: list<array<string, mixed>>, scope_items_created: list<array<string, mixed>>, scope_folders_created: list<array<string, mixed>>, extension_tokens: list<array<string, mixed>>}
      */
     public function export(string $userId): array
     {
@@ -71,13 +95,17 @@ final readonly class VaultPersonalDataExporter implements VaultPersonalDataExpor
         $who = $this->users?->mapsById() === true ? $userId : ($user ?? $userId);
 
         return [
-            'user_id'             => $userId,
-            'items'               => $this->items($em, $who, $userId),
-            'folders'             => $this->rows($em, 'SELECT f.id AS id, f.name AS name, f.createdAt AS created_at, f.updatedAt AS updated_at, f.deletedAt AS deleted_at FROM ' . VaultFolder::class . ' f WHERE f.creator = :user AND f.ownerScope IS NULL ORDER BY f.createdAt ASC, f.id ASC', ['user' => $who], 'f.creator', $userId),
-            'tags'                => $this->rows($em, 'SELECT t.id AS id, t.name AS name, t.createdAt AS created_at FROM ' . VaultTag::class . ' t WHERE t.creator = :user AND t.ownerScope IS NULL ORDER BY t.name ASC', ['user' => $who], 't.creator', $userId),
-            'grants_received'     => $this->grantsReceived($em, $userId, $user),
-            'grants_given'        => $this->rows($em, 'SELECT g.resourceType AS resource_type, g.resourceId AS resource_id, g.granteeType AS grantee_type, g.granteeId AS grantee_id, g.permission AS permission, g.expiresAt AS expires_at, g.createdAt AS created_at FROM ' . VaultGrant::class . ' g WHERE g.createdBy = :user ORDER BY g.createdAt ASC, g.id ASC', ['user' => $who], 'g.createdBy', $userId),
+            'user_id'         => $userId,
+            'items'           => $this->items($em, $who, $userId),
+            'folders'         => $this->rows($em, 'SELECT f.id AS id, f.name AS name, f.createdAt AS created_at, f.updatedAt AS updated_at, f.deletedAt AS deleted_at FROM ' . VaultFolder::class . ' f WHERE f.creator = :user AND f.ownerScope IS NULL ORDER BY f.createdAt ASC, f.id ASC', ['user' => $who], 'f.creator', $userId),
+            'tags'            => $this->rows($em, 'SELECT t.id AS id, t.name AS name, t.createdAt AS created_at FROM ' . VaultTag::class . ' t WHERE t.creator = :user AND t.ownerScope IS NULL ORDER BY t.name ASC', ['user' => $who], 't.creator', $userId),
+            'grants_received' => $this->grantsReceived($em, $userId, $user),
+            'grants_given'    => $this->rows($em, 'SELECT g.resourceType AS resource_type, g.resourceId AS resource_id, g.granteeType AS grantee_type, g.granteeId AS grantee_id, g.permission AS permission, g.expiresAt AS expires_at, g.createdAt AS created_at FROM ' . VaultGrant::class . ' g WHERE g.createdBy = :user ORDER BY g.createdAt ASC, g.id ASC', ['user' => $who], 'g.createdBy', $userId),
+            // 2.5.0 (REQ-DATA-004 parity): who can reach the user's personal items and folders (erasure step 2).
+            'grants_on_personal'  => $this->grantsOnPersonal($em, $who, $userId),
             'scope_items_created' => $this->rows($em, 'SELECT i.id AS id, i.ownerScope AS owner_scope, i.createdAt AS created_at FROM ' . VaultItem::class . ' i WHERE i.createdBy = :user AND i.ownerScope IS NOT NULL ORDER BY i.createdAt ASC, i.id ASC', ['user' => $who], 'i.createdBy', $userId),
+            // 2.5.0 (REQ-DATA-004 parity): the scope folders the user created (erasure step 6 anonymises them).
+            'scope_folders_created' => $this->rows($em, 'SELECT f.id AS id, f.ownerScope AS owner_scope, f.createdAt AS created_at FROM ' . VaultFolder::class . ' f WHERE f.createdBy = :user AND f.ownerScope IS NOT NULL ORDER BY f.createdAt ASC, f.id ASC', ['user' => $who], 'f.createdBy', $userId),
             // 1.18.0 (NC-1): when the entity is not mapped (database.conditional_mapping, extension off), the rows an
             // earlier release left are read from the table.
             'extension_tokens' => $em->getMetadataFactory()->isTransient(VaultExtensionToken::class) ? $this->unmappedTokens($em, $userId) : $this->rows($em, 'SELECT t.createdAt AS created_at, t.expiresAt AS expires_at, t.lastUsedAt AS last_used_at FROM ' . VaultExtensionToken::class . ' t WHERE t.user = :user ORDER BY t.createdAt ASC', ['user' => $who], 't.user', $userId),
@@ -110,6 +138,31 @@ final readonly class VaultPersonalDataExporter implements VaultPersonalDataExpor
                 'secret_changed_at' => $item['secret_changed_at'],
                 'deleted_at'        => $item['deleted_at'],
             ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Every grant on the user's personal items and folders, whoever created it (2.5.0): resource, grantee, permission and
+     * dates; never the creator of a grant another person made.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function grantsOnPersonal(EntityManagerInterface $em, object|string $who, string $userId): array
+    {
+        $resources = [
+            VaultResourceType::Item->value   => array_column($this->rows($em, 'SELECT i.id AS id FROM ' . VaultItem::class . ' i WHERE i.creator = :user AND i.ownerScope IS NULL', ['user' => $who], 'i.creator', $userId), 'id'),
+            VaultResourceType::Folder->value => array_column($this->rows($em, 'SELECT f.id AS id FROM ' . VaultFolder::class . ' f WHERE f.creator = :user AND f.ownerScope IS NULL', ['user' => $who], 'f.creator', $userId), 'id'),
+        ];
+
+        $out = [];
+        foreach ($resources as $type => $ids) {
+            foreach (array_chunk($ids, self::CHUNK) as $chunk) {
+                foreach ($this->rows($em, 'SELECT g.resourceType AS resource_type, g.resourceId AS resource_id, g.granteeType AS grantee_type, g.granteeId AS grantee_id, g.permission AS permission, g.expiresAt AS expires_at, g.createdAt AS created_at FROM ' . VaultGrant::class . ' g WHERE g.resourceType = :type AND g.resourceId IN (:ids) ORDER BY g.createdAt ASC, g.id ASC', ['type' => VaultResourceType::from($type), 'ids' => $chunk]) as $row) {
+                    $out[] = $row;
+                }
+            }
         }
 
         return $out;

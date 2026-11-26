@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Nowo\VaultBundle\Internal;
 
 use Nowo\VaultBundle\Doctrine\PrivateEntityManagerConnection;
+use Nowo\VaultBundle\Event\VaultExtensionTokenRevokedEvent;
 use Nowo\VaultBundle\Event\VaultFolderChangeEvent;
 use Nowo\VaultBundle\Event\VaultGrantChangeEvent;
 use Nowo\VaultBundle\Event\VaultItemChangeEvent;
+use Nowo\VaultBundle\Event\VaultPersonalDataErasedEvent;
 use Nowo\VaultBundle\Event\VaultTagChangeEvent;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -21,7 +23,7 @@ use function max;
 
 /**
  * The event dispatcher of the vault's write services. It holds the change notifications (ITEM_CHANGED, FOLDER_CHANGED,
- * TAG_CHANGED, GRANT_*) until the data they describe is committed (REQ-ARCH-001 rule 7, REQ-RUNTIME-003 rule 1); every
+ * TAG_CHANGED, GRANT_*, and since 2.5.0 PERSONAL_DATA_ERASED and EXTENSION_TOKEN_REVOKED) until the data they describe is committed (REQ-ARCH-001 rule 7, REQ-RUNTIME-003 rule 1); every
  * other event (access checks, vetoes, list queries) is dispatched at once, since its listeners answer the caller.
  *
  * - **Vault write unit** (1.20, {@see deferWhile()}): the notifications of the unit are queued and released once the
@@ -49,6 +51,9 @@ final class DeferredVaultEventDispatcher implements EventDispatcherInterface, Re
         VaultFolderChangeEvent::class,
         VaultTagChangeEvent::class,
         VaultGrantChangeEvent::class,
+        // 2.5.0: an erasure that joined UserKit's (or the application's) transaction is announced after its commit.
+        VaultPersonalDataErasedEvent::class,
+        VaultExtensionTokenRevokedEvent::class,
     ];
 
     /** @var list<array{object, string|null}> notifications of the running vault unit */

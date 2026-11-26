@@ -9,6 +9,8 @@ use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
 use Nowo\TransactionDoctrine\WriteUnit\Dbal\CommitTrackingMiddleware;
 use Nowo\VaultBundle\Bridge\SearchKit\VaultSearchViewers;
+use Nowo\VaultBundle\Bridge\UserKit\VaultUserKitEraser;
+use Nowo\VaultBundle\Bridge\UserKit\VaultUserKitExportProvider;
 use Nowo\VaultBundle\BrowserExtension\DefaultVaultBrowserExtensionAuthenticator;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionAuthenticatorInterface;
 use Nowo\VaultBundle\BrowserExtension\VaultBrowserExtensionLoginRateLimiter;
@@ -69,6 +71,7 @@ use Nowo\VaultBundle\Security\VaultSecretAccessRateLimiter;
 use Nowo\VaultBundle\Service\VaultAccessCheckInterface;
 use Nowo\VaultBundle\Service\VaultAccessGuard;
 use Nowo\VaultBundle\Service\VaultCatalogue;
+use Nowo\VaultBundle\Service\VaultExtensionTokenCommands;
 use Nowo\VaultBundle\Service\VaultFolderCommands;
 use Nowo\VaultBundle\Service\VaultFolderCommandsInterface;
 use Nowo\VaultBundle\Service\VaultFolderService;
@@ -79,12 +82,15 @@ use Nowo\VaultBundle\Service\VaultHealthReporter;
 use Nowo\VaultBundle\Service\VaultIdAccessChecker;
 use Nowo\VaultBundle\Service\VaultItemCommands;
 use Nowo\VaultBundle\Service\VaultItemCommandsInterface;
+use Nowo\VaultBundle\Service\VaultItemCreateGate;
 use Nowo\VaultBundle\Service\VaultItemCreator;
 use Nowo\VaultBundle\Service\VaultItemQuery;
 use Nowo\VaultBundle\Service\VaultItemQueryInterface;
 use Nowo\VaultBundle\Service\VaultItemUpdater;
 use Nowo\VaultBundle\Service\VaultPersonalDataEraser;
+use Nowo\VaultBundle\Service\VaultPersonalDataEraserInterface;
 use Nowo\VaultBundle\Service\VaultPersonalDataExporter;
+use Nowo\VaultBundle\Service\VaultPersonalDataExporterInterface;
 use Nowo\VaultBundle\Service\VaultPersonalExportStreamer;
 use Nowo\VaultBundle\Service\VaultTagCommands;
 use Nowo\VaultBundle\Service\VaultTagCommandsInterface;
@@ -111,6 +117,7 @@ use Symfony\Component\Security\Core\User\UserCheckerInterface;
 
 use function array_key_exists;
 use function in_array;
+use function interface_exists;
 use function is_array;
 use function is_bool;
 use function is_string;
@@ -144,7 +151,16 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         VaultTrashService::class,
         VaultFolderService::class,
         VaultGrantService::class,
+        // 2.5.0: inside UserKit's erasure transaction its events wait for that commit (with events.after_host_commit).
+        VaultPersonalDataEraser::class,
+        VaultExtensionTokenCommands::class,
     ];
+
+    /** UserKit's eraser contract (optional dependency: a literal, so the bundle loads without it). */
+    public const USER_KIT_ERASER_INTERFACE = 'Nowo\\UserKitBundle\\PersonalData\\PersonalDataEraserInterface';
+
+    /** UserKit's export section contract. */
+    public const USER_KIT_EXPORT_PROVIDER_INTERFACE = 'Nowo\\UserKitBundle\\PersonalData\\PersonalDataExportProviderInterface';
 
     /** SearchKit's provider base (1.9), optional: a literal, so the bundle loads without it (PHP 8.2). */
     public const SEARCH_KIT_DEFINITION_CLASS = 'Nowo\\SearchKitBundle\\Provider\\Entity\\EntitySearchDefinition';
@@ -308,6 +324,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $this->registerWriteUnit($container, $emRef, (bool) $config['events']['after_host_commit']);
         $this->registerHostPorts($container, $emRef);
         $this->registerSearchKit($config['search_kit'], (bool) $config['scopes']['enabled'], $container, $emRef, $registryRef, $emName);
+        $this->registerUserKit($config['personal_data'], $container);
         $this->registerConflictAnswer($container, $config['conflict_response']);
 
         // 1.18.0 (NC-1): raw access to the token table while its entity is not mapped (conditional_mapping).
@@ -447,6 +464,34 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
             ->setArgument('$scopesEnabled', $scopesEnabled)
             ->setArgument('$maxCandidates', $searchKit['max_candidates'])
             ->addTag(self::SEARCH_KIT_DEFINITION_TAG, ['priority' => $searchKit['priority']]));
+    }
+
+    /**
+     * The UserKit eraser `vault` and export section `vault` (2.5.0), registered when nowo-tech/user-kit-bundle is
+     * installed and `personal_data.user_kit` is true. Tagged explicitly (not autoconfigured), so they also run when the
+     * host turned UserKit's autoconfiguration off; UserKit's own `personal_data.enabled` still decides whether its
+     * eraser and exporter run at all.
+     *
+     * @param array{user_kit: bool, batch_size: int} $personalData
+     */
+    private function registerUserKit(array $personalData, ContainerBuilder $container): void
+    {
+        // Rebuild the cached container when UserKit is installed or removed.
+        $container->addResource(new ClassExistenceResource(self::USER_KIT_ERASER_INTERFACE));
+        if (!$personalData['user_kit'] || !interface_exists(self::USER_KIT_ERASER_INTERFACE)) {
+            return;
+        }
+
+        $container->setDefinition(VaultUserKitEraser::class, (new Definition(VaultUserKitEraser::class, [
+            new Reference(VaultPersonalDataEraserInterface::class),
+            $personalData['batch_size'],
+        ]))->addTag('nowo_user_kit.personal_data.eraser', ['priority' => VaultUserKitEraser::PRIORITY]));
+        if (!interface_exists(self::USER_KIT_EXPORT_PROVIDER_INTERFACE)) {
+            return; // @codeCoverageIgnore
+        }
+        $container->setDefinition(VaultUserKitExportProvider::class, (new Definition(VaultUserKitExportProvider::class, [
+            new Reference(VaultPersonalDataExporterInterface::class),
+        ]))->addTag('nowo_user_kit.personal_data.export_provider', ['priority' => VaultUserKitExportProvider::PRIORITY]));
     }
 
     /**
@@ -704,7 +749,7 @@ final class VaultExtension extends Extension implements PrependExtensionInterfac
         $container->register(VaultManagerRegistry::class, VaultManagerRegistry::class)
             ->setArguments([new Reference('doctrine'), new Reference(VaultEntityManager::class), $emName]);
 
-        foreach ([VaultPersonalDataEraser::class, VaultPersonalDataExporter::class, VaultPersonalExportStreamer::class, VaultCatalogue::class, CheckDowngradeCommand::class] as $service) {
+        foreach ([VaultPersonalDataEraser::class, VaultPersonalDataExporter::class, VaultPersonalExportStreamer::class, VaultCatalogue::class, CheckDowngradeCommand::class, VaultItemCreateGate::class, VaultExtensionTokenCommands::class] as $service) {
             $container->getDefinition($service)->setArgument('$registry', new Reference(VaultManagerRegistry::class));
         }
         // The folder choices come from the private manager: the form reads their ids through it.
