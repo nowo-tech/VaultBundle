@@ -1,5 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBundleLogger } from './logger';
+
+// REQ-ASSETS-005: every test starts with an empty once-guard registry.
+beforeEach(() => {
+  delete (globalThis as { __nowoScriptBannerNames?: unknown }).__nowoScriptBannerNames;
+});
 
 describe('createBundleLogger', () => {
     afterEach(() => {
@@ -10,12 +15,12 @@ describe('createBundleLogger', () => {
         const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
         createBundleLogger('Vault', { buildTime: '2026-10-29' }).scriptLoaded();
-        createBundleLogger('Vault').scriptLoaded();
-        createBundleLogger('Vault', { buildTime: '' }).scriptLoaded();
+        createBundleLogger('Vault-b').scriptLoaded();
+        createBundleLogger('Vault-c', { buildTime: '' }).scriptLoaded();
 
         expect(log).toHaveBeenCalledTimes(3);
         expect(log.mock.calls[0][0]).toContain('[Vault] script loaded, build: %c2026-10-29');
-        expect(log.mock.calls[1][0]).toContain('[Vault] script loaded');
+        expect(log.mock.calls[1][0]).toContain('[Vault-b] script loaded');
         expect(log.mock.calls[1]).toHaveLength(2);
         expect(log.mock.calls[2]).toHaveLength(2);
     });

@@ -67,6 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The `📦 [name] script loaded` console banner now prints once per page, even when the script is loaded twice: per-name once-guard (a `Set` on `globalThis`) in `logger.ts`, with a Vitest test and rebuilt assets (REQ-ASSETS-005).
+- **Item limit under REPEATABLE READ** (audit ZCM-v-I1, documented): the PostgreSQL plan-limit count after the advisory lock assumes READ COMMITTED; a host that runs item creation inside a REPEATABLE READ (or SERIALIZABLE) transaction reads its snapshot from before the lock and can exceed the limit. `docs/CONCURRENCY.md` now states the requirement.
+
 ## [2.5.0] - 2026-11-26
 
 ### Added
