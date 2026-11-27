@@ -93,7 +93,7 @@
   - [Symfony 8 + Doctrine](#symfony-8--doctrine)
   - [Access control events](#access-control-events)
   - [FormKitBundle (admin forms)](#formkitbundle-admin-forms)
-- [Unreleased](#unreleased-1)
+- [Unreleased](#unreleased)
 - [To 1.4.6](#to-146)
 - [To 1.4.5](#to-145)
 - [To 1.4.4](#to-144)
@@ -105,6 +105,12 @@
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
 ## To 2.6.0
+
+From **2.5.1**:
+
+```bash
+composer update nowo-tech/vault-bundle
+```
 
 **Password generator dialog.** `vault/_password_generator.html.twig` is now the fragment the `password_generate` route answers for a
 remote dialog (root element `data-vault-password-modal` carrying the URL and the CSRF token, footer in `[data-nowo-ui-dialog-actions]`),

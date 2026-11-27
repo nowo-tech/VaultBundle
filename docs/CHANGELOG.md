@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.6.0] - 2026-11-27](#260---2026-11-27)
 - [[2.5.1] - 2026-11-26](#251---2026-11-26)
 - [[2.5.0] - 2026-11-26](#250---2026-11-26)
 - [[2.4.0] - 2026-11-23](#240---2026-11-23)
@@ -68,6 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-27
+
 ### Changed
 
 - **The password generator loads when it opens** (owner rule 2026-11-23, every dialog loads its content on demand). The vault
@@ -76,6 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `X-Nowo-Dialog: 1` with a first password already generated, a redirect to the vault home otherwise. `vault.js` binds its
   generator actions by delegation (no listener per element, none before the dialog opens). `generatorForm` is no longer passed to
   `home.html.twig`; the route now answers `GET` and `POST`.
+
+[2.6.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v2.6.0
 
 ## [2.5.1] - 2026-11-26
 
@@ -1533,7 +1538,7 @@ First stable release of **VaultBundle** — password and secrets vault for Symfo
 - Replaced Yopass share/E2E scaffolding with vault domain model
 - Documentation rewritten for vault use cases
 
-[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/nowo-tech/VaultBundle/compare/v2.6.0...HEAD
 [1.3.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.3.0
 [1.2.0]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.2.0
 [1.1.5]: https://github.com/nowo-tech/VaultBundle/releases/tag/v1.1.5
