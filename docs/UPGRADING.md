@@ -2,7 +2,7 @@
 
 ## Table of contents
 
-- [Unreleased](#unreleased)
+- [To 2.6.0](#to-260)
 - [To 2.5.1](#to-251)
 - [To 2.5.0](#to-250)
 - [To 2.4.0](#to-240)
@@ -104,7 +104,12 @@
   - [Twig Extra Bundle (REQ-TWIG-004)](#twig-extra-bundle-req-twig-004)
   - [Twig-CS-Fixer (maintainers)](#twig-cs-fixer-maintainers)
 
-## Unreleased
+## To 2.6.0
+
+**Password generator dialog.** `vault/_password_generator.html.twig` is now the fragment the `password_generate` route answers for a
+remote dialog (root element `data-vault-password-modal` carrying the URL and the CSRF token, footer in `[data-nowo-ui-dialog-actions]`),
+no longer a `<dialog>`; `vault/home.html.twig` includes UiKit's `remote_form_dialog` shell instead. A host that overrides either template
+takes the new shape; a host that maps `password_generate` to a route of its own must allow `GET` there. Rebuild `vault.js` if you build your own copy.
 
 ## To 2.5.1
 

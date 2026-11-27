@@ -61,14 +61,15 @@
         </header>
         <div class="{{ nowo_ui_class('card_body', _b) }}">
             <p class="{{ nowo_ui_class('card_intro', _b) }}">{{ 'vault.home.generator.description'|trans }}</p>
-            <button type="button" class="{{ nowo_ui_class('btn_primary', _b) }}" data-vault-password-generator data-nowo-ui-dialog-open="vault-password-generator" aria-haspopup="dialog" aria-controls="vault-password-generator">{{ 'vault.nav.password_generator'|trans }}</button>
+            {#- Owner rule 2026-11-23: the generator loads when it opens (the GET of password_generate, a fragment for the remote dialog). -#}
+            <button type="button" class="{{ nowo_ui_class('btn_primary', _b) }}" data-vault-password-generator {{ nowo_ui_html_attrs(nowo_ui_remote_form_opener('vault-password-generator', 'vault.generator.title'|trans, false, path(routes.password_generate.name))|merge({'aria-haspopup': 'dialog', 'aria-controls': 'vault-password-generator'})) }}>{{ 'vault.nav.password_generator'|trans }}</button>
         </div>
     </section>
 {% endblock %}
 
 {% block nowo_ui_modals %}
     {{ parent() }}
-    {{ include('@NowoVaultBundle/vault/_password_generator.html.twig', {bundle: page.bundle}) }}
+    {{ include(nowo_ui_partial('remote_form_dialog', page.bundle), {id: 'vault-password-generator', size: 'md', bundle: page.bundle, attr: {'data-testid': 'vault-password-generator'}}, false) }}
 {% endblock %}
 
 {% block nowo_ui_scripts %}{{ parent() }}<script type="module" src="{{ asset('vault.js', 'nowo_vault') }}"></script>{% endblock %}

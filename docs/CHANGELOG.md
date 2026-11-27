@@ -68,6 +68,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The password generator loads when it opens** (owner rule 2026-11-23, every dialog loads its content on demand). The vault
+  home prints one empty remote dialog (`vault-password-generator`) and an opener; the generator is now also the GET of the
+  `password_generate` route (`/tools/vault/password/generate`, same `access` feature as the POST): a fragment for
+  `X-Nowo-Dialog: 1` with a first password already generated, a redirect to the vault home otherwise. `vault.js` binds its
+  generator actions by delegation (no listener per element, none before the dialog opens). `generatorForm` is no longer passed to
+  `home.html.twig`; the route now answers `GET` and `POST`.
+
 ## [2.5.1] - 2026-11-26
 
 ### Fixed
