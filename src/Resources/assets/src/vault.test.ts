@@ -25,13 +25,15 @@ const URL = '/tools/vault/password/generate';
 const DIALOG_HTML = `
     <input name="vault_item_form[password]" value="">
     <button data-vault-password-generator>open</button>
-    <dialog data-vault-password-modal data-vault-password-url="${URL}" data-vault-password-csrf="${TOKEN}">
-        <form data-vault-password-form>
-            <input data-vault-password-output value="">
-            <button type="button" data-vault-password-regenerate>again</button>
-            <button type="button" data-vault-password-copy>copy</button>
-        </form>
-        <span data-vault-password-strength></span>
+    <dialog id="vault-password-generator" open>
+        <div data-vault-password-modal data-vault-password-url="${URL}" data-vault-password-csrf="${TOKEN}">
+            <form data-vault-password-form>
+                <input data-vault-password-output value="">
+                <button type="button" data-vault-password-regenerate>again</button>
+                <button type="button" data-vault-password-copy>copy</button>
+            </form>
+            <span data-vault-password-strength></span>
+        </div>
         <button data-vault-password-fill>fill</button>
     </dialog>
     <button data-vault-folder-toggle aria-expanded="false">folder</button>
@@ -57,42 +59,32 @@ describe('vault manage UI', () => {
         vi.useRealTimers();
     });
 
-    // Each import adds a DOMContentLoaded listener on the shared jsdom document: counts below are relative.
-    it('opens the dialog, generates, regenerates, copies, fills and closes', async () => {
-        vi.useFakeTimers();
+    // Each import adds listeners on the shared jsdom document: counts below are relative.
+    it('regenerates, copies, fills and closes from the content the dialog loaded', async () => {
         const writeText = vi.fn(async () => undefined);
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
         await boot(DIALOG_HTML);
 
-        const dialog = document.querySelector('[data-vault-password-modal]') as HTMLDialogElement;
+        const dialog = document.querySelector('#vault-password-generator') as HTMLDialogElement;
         const output = document.querySelector('[data-vault-password-output]') as HTMLInputElement;
         const field = document.querySelector('[name="vault_item_form[password]"]') as HTMLInputElement;
-
+        // The first password comes with the fragment; the opener no longer asks for one.
         (document.querySelector('[data-vault-password-generator]') as HTMLElement).click();
-        vi.runAllTimers();
         await flush();
-        expect(dialog.open).toBe(true);
-        expect(output.value).toBe(GENERATED);
-        expect(document.querySelector('[data-vault-password-strength]')?.textContent).toBe('strong');
-        expect(fetchMock).toHaveBeenCalledWith(URL, expect.objectContaining({ method: 'POST' }));
-        expect(fetchMock.mock.calls[0][1].headers['X-CSRF-Token']).toBe(TOKEN);
+        expect(fetchMock).not.toHaveBeenCalled();
 
-        // Already open (UiKit opened it): not opened twice.
-        const showModal = vi.spyOn(dialog, 'showModal');
-        (document.querySelector('[data-vault-password-generator]') as HTMLElement).click();
-        vi.runAllTimers();
-        expect(showModal).not.toHaveBeenCalled();
-
-        const callsBefore = fetchMock.mock.calls.length;
         (document.querySelector('[data-vault-password-regenerate]') as HTMLElement).click();
         await flush();
-        expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
+        expect(fetchMock).toHaveBeenCalledWith(URL, expect.objectContaining({ method: 'POST' }));
+        expect(fetchMock.mock.calls[0][1].headers['X-CSRF-Token']).toBe(TOKEN);
+        expect(output.value).toBe(GENERATED);
+        expect(document.querySelector('[data-vault-password-strength]')?.textContent).toBe('strong');
 
         (document.querySelector('[data-vault-password-copy]') as HTMLElement).click();
         await flush();
         expect(writeText).toHaveBeenCalledWith(GENERATED);
 
-        const submit = new Event('submit', { cancelable: true });
+        const submit = new Event('submit', { cancelable: true, bubbles: true });
         document.querySelector('[data-vault-password-form]')?.dispatchEvent(submit);
         expect(submit.defaultPrevented).toBe(true);
 
@@ -136,13 +128,12 @@ describe('vault manage UI', () => {
 
     it('tolerates missing optional elements', async () => {
         await boot(`
-            <button data-vault-password-generator>open</button>
-            <div data-vault-password-modal data-vault-password-url="${URL}"></div>
+            <div data-vault-password-modal data-vault-password-url="${URL}"><button data-vault-password-regenerate>again</button></div>
             <button data-vault-folder-toggle>folder</button>
             <form data-vault-folder-form hidden></form>
         `);
 
-        (document.querySelector('[data-vault-password-generator]') as HTMLElement).click();
+        (document.querySelector('[data-vault-password-regenerate]') as HTMLElement).click();
         (document.querySelector('[data-vault-folder-toggle]') as HTMLElement).click();
         await flush();
 
@@ -150,10 +141,10 @@ describe('vault manage UI', () => {
         expect(fetchMock.mock.calls.at(-1)?.[1].headers['X-CSRF-Token']).toBeUndefined();
     });
 
-    it('binds nothing without a dialog or a folder form', async () => {
-        await boot('<button data-vault-password-generator>open</button><button data-vault-folder-toggle>folder</button>');
+    it('binds nothing without the generator content or a folder form', async () => {
+        await boot('<button data-vault-password-regenerate>open</button><button data-vault-folder-toggle>folder</button>');
 
-        (document.querySelector('[data-vault-password-generator]') as HTMLElement).click();
+        (document.querySelector('[data-vault-password-regenerate]') as HTMLElement).click();
         (document.querySelector('[data-vault-folder-toggle]') as HTMLElement).click();
         await flush();
 

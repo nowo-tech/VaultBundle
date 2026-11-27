@@ -2,9 +2,8 @@
  * Vault manage UI: password generator dialog and folder form toggle.
  *
  * No inline script (CSP, REQ-UI-003): the generator endpoint URL and CSRF token are data attributes of the
- * generator <dialog> (data-vault-password-url / data-vault-password-csrf). The dialog itself is the UiKit `dialog`
- * partial: UiKit's nowo-ui-dialog.js opens / closes it; this script fills it (and opens it when the host layout does
- * not load the UiKit scripts).
+ * generator content (data-vault-password-url / data-vault-password-csrf), which UiKit's remote form dialog fetches when it opens
+ * (owner rule 2026-11-23); this script's listeners are delegated.
  */
 
 import './vault.css';
@@ -48,64 +47,58 @@ export async function generatePassword(dialog: HTMLElement | null): Promise<{ pa
     return fetchGeneratedPassword(config.url, readGeneratorOptionsFromDom(document), config.csrfToken);
 }
 
-/** Open the dialog after the click when no UiKit dialog script did it. */
-function ensureOpen(dialog: HTMLElement): void {
-    window.setTimeout(() => {
-        if (dialog instanceof HTMLDialogElement && !dialog.open && typeof dialog.showModal === 'function') {
-            dialog.showModal();
-        }
-    }, 0);
+/** The content of the generator dialog (it is loaded when the dialog opens: the root element carries the endpoint and the token). */
+function generatorRoot(): HTMLElement | null {
+    return document.querySelector('[data-vault-password-modal]') as HTMLElement | null;
 }
 
-/** Bind the generator dialog: refresh on open, regenerate, copy, fill the item password field. */
-function bindPasswordDialog(): void {
-    const dialog = document.querySelector('[data-vault-password-modal]') as HTMLElement | null;
-    if (!dialog) {
-        return;
+/** Ask the server for a new password with the options of the form and show it. */
+async function refresh(root: HTMLElement): Promise<void> {
+    const output = root.querySelector('[data-vault-password-output]') as HTMLInputElement | null;
+    const strength = root.querySelector('[data-vault-password-strength]') as HTMLElement | null;
+    const result = await generatePassword(root);
+    if (output) {
+        output.value = result.password;
     }
+    if (strength) {
+        strength.textContent = result.strength;
+    }
+}
 
-    const output = dialog.querySelector('[data-vault-password-output]') as HTMLInputElement | null;
-    const strength = dialog.querySelector('[data-vault-password-strength]') as HTMLElement | null;
-
-    const refresh = async (): Promise<void> => {
-        const result = await generatePassword(dialog);
-        if (output) {
-            output.value = result.password;
-        }
-        if (strength) {
-            strength.textContent = result.strength;
-        }
-    };
-
-    document.querySelectorAll('[data-vault-password-generator]').forEach((button) => {
-        button.addEventListener('click', () => {
-            ensureOpen(dialog);
-            void refresh();
-        });
-    });
-
-    // Browser-only form: never submitted (Enter in a field included).
-    dialog.querySelector('[data-vault-password-form]')?.addEventListener('submit', (event) => {
-        event.preventDefault();
-    });
-
-    dialog.querySelector('[data-vault-password-regenerate]')?.addEventListener('click', () => {
-        void refresh();
-    });
-
-    dialog.querySelector('[data-vault-password-copy]')?.addEventListener('click', async () => {
-        if (output?.value) {
-            await navigator.clipboard.writeText(output.value);
+/**
+ * Bind the generator dialog (owner rule 2026-11-23: its content is fetched when it opens, so every listener is delegated):
+ * regenerate, copy, fill the item password field; the form is never submitted.
+ */
+function bindPasswordDialog(): void {
+    document.addEventListener('submit', (event) => {
+        if (event.target instanceof Element && event.target.matches('[data-vault-password-form]')) {
+            event.preventDefault();
         }
     });
 
-    dialog.querySelector('[data-vault-password-fill]')?.addEventListener('click', () => {
-        const passwordField = document.querySelector('[name="vault_item_form[password]"]') as HTMLInputElement | null;
-        if (passwordField && output?.value) {
-            passwordField.value = output.value;
+    document.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const root = generatorRoot();
+        if (!target || !root) {
+            return;
         }
-        if (dialog instanceof HTMLDialogElement && dialog.open) {
-            dialog.close();
+        if (target.closest('[data-vault-password-regenerate]')) {
+            void refresh(root);
+        } else if (target.closest('[data-vault-password-copy]')) {
+            const output = root.querySelector('[data-vault-password-output]') as HTMLInputElement | null;
+            if (output?.value) {
+                void navigator.clipboard.writeText(output.value);
+            }
+        } else if (target.closest('[data-vault-password-fill]')) {
+            const output = root.querySelector('[data-vault-password-output]') as HTMLInputElement | null;
+            const passwordField = document.querySelector('[name="vault_item_form[password]"]') as HTMLInputElement | null;
+            if (passwordField && output?.value) {
+                passwordField.value = output.value;
+            }
+            const dialog = root.closest('dialog');
+            if (dialog instanceof HTMLDialogElement && dialog.open) {
+                dialog.close();
+            }
         }
     });
 }

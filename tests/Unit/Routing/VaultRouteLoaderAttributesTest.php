@@ -49,7 +49,7 @@ final class VaultRouteLoaderAttributesTest extends TestCase
         'tag_delete'          => ['deleteTag', ['POST'], ['id' => self::UUID]],
         'folder_share'        => ['shareFolder', ['GET', 'POST'], ['id' => self::UUID]],
         'folder_grant_revoke' => ['revokeFolderGrant', ['POST'], ['id' => self::UUID, 'grantId' => self::UUID]],
-        'password_generate'   => ['generatePassword', ['POST'], []],
+        'password_generate'   => ['generatePassword', ['GET', 'POST'], []],
         'item_reveal'         => ['revealItemField', ['POST'], ['id' => self::UUID, 'field' => '[a-zA-Z]{1,32}']],
     ];
 

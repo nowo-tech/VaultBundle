@@ -489,7 +489,7 @@ Registration: `TwigPathsPass` prepends `templates/bundles/NowoVaultBundle/` (whe
 | `vault/item_form.html.twig` | Create / edit / view form of one item — `page/form` (per-item-type layout) |
 | `vault/share.html.twig` | Share form + current grants of an item or folder — `page/form` (+ aside table) |
 | `vault/runtime_config.html.twig` | Database-backed runtime configuration — `page/settings` |
-| `vault/_password_generator.html.twig` | Password generator body (UiKit `dialog` partial) |
+| `vault/_password_generator.html.twig` | Password generator fragment (loaded when the remote dialog opens) |
 | `Form/vault_item_form_theme.html.twig` | Tag input container of the item form (with `nowo-tech/tag-input-bundle`) |
 
 Data blocks, view-model fields and the page → scaffold map: [TEMPLATES.md](TEMPLATES.md).

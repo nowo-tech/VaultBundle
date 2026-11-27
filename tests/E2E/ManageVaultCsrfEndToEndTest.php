@@ -116,6 +116,10 @@ final class ManageVaultCsrfEndToEndTest extends WebTestCase
 
         $crawler = $client->request('GET', '/tools/vault');
         self::assertResponseIsSuccessful();
+        // The generator form loads when its dialog opens (the GET of password_generate), not with the home page.
+        self::assertCount(0, $crawler->filterXPath('//input[@data-vault-password-output]'));
+        $crawler = $client->request('GET', '/tools/vault/password/generate', server: ['HTTP_X_NOWO_DIALOG' => '1', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest', 'HTTP_ACCEPT' => 'text/html']);
+        self::assertResponseIsSuccessful();
         self::assertCount(2, $crawler->filterXPath('//input[@type="radio"][@name="vault-gen-mode"]'));
         self::assertCount(1, $crawler->filterXPath('//input[@data-vault-password-output][@name=""]'));
         self::assertCount(1, $crawler->filterXPath('//input[@type="range"][@data-vault-password-length]'));
