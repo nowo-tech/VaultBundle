@@ -40,7 +40,7 @@
         "nowo-tech/transaction-contract": "^1.0",
         "nowo-tech/transaction-doctrine": "^1.8.1",
         "nowo-tech/ui-kit-bundle": "^2.68",
-        "php": ">=8.2 <8.6",
+        "php": ">=8.2 <8.7",
         "psr/clock": "^1.0",
         "psr/log": "^2.0 || ^3.0",
         "symfony/clock": "^7.4 || ^8.0",
