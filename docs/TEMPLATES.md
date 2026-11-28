@@ -66,7 +66,7 @@ None: every page extends a scaffold.
 
 | Partial | Role |
 | --- | --- |
-| `vault/_password_generator.html.twig` | Password generator body, rendered through the UiKit `dialog` partial (`<dialog id="vault-password-generator">`) |
+| `vault/_password_generator.html.twig` | Password generator fragment, answered by the GET of `password_generate` for UiKit's remote dialog (shell `vault-password-generator` on the home page) |
 | `ui/_row_actions.html.twig` | 1.18.0: UiKit `row_actions` partial of `NowoVaultBundle` (registered only with `web_ui.destructive_actions_in_menu`): delegates to the host / kit partial and draws the actions marked `data-vault-row-menu` (Move to trash) in a kebab menu (`menu` partial, icon `more`) |
 | `ui/_table.html.twig` | Lazy dialogs (UiKit `^2.68`): UiKit `table` partial of `NowoVaultBundle` (always registered; a host value wins): extends the host / kit `table` partial with `confirm_shared` on, so every vault table prints ONE shared confirm dialog (`nowo-ui-table-confirm`) instead of one per row; pass `confirm_shared: false` for the per-row dialogs |
 | `Form/vault_item_form_theme.html.twig` | Tag container of the item form when `nowo-tech/tag-input-bundle` is installed (`FormPage::formThemes`) |

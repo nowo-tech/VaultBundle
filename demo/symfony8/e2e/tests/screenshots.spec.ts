@@ -41,7 +41,7 @@ test.describe('Vault screenshots', () => {
   test('vault-generator — password generator dialog over the home page', async ({ page }) => {
     await page.goto('/tools/vault');
     await page.locator('button[data-vault-password-generator]').first().click();
-    const dialog = page.locator('dialog[data-vault-password-modal]');
+    const dialog = page.locator('dialog#vault-password-generator');
     await expect(dialog.locator('[data-vault-password-output]')).not.toHaveValue('');
     await expect(dialog.locator('[data-vault-password-strength]')).not.toBeEmpty();
     await waitForToolbar(page);

@@ -492,6 +492,33 @@ final class ManageVaultControllerEndToEndTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
     }
 
+    /** Owner rule 2026-11-23 (every dialog loads its content on demand): the generator is the GET of password_generate. */
+    public function testThePasswordGeneratorDialogIsAFragmentWithAFirstPassword(): void
+    {
+        [$client] = $this->loggedIn();
+
+        $crawler = $client->request('GET', '/tools/vault/password/generate', server: ['HTTP_X_NOWO_DIALOG' => '1', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest', 'HTTP_ACCEPT' => 'text/html']);
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('X-Nowo-Dialog', (string) $client->getResponse()->headers->get('Vary'));
+        self::assertStringNotContainsString('<html', (string) $client->getResponse()->getContent());
+        $root = $crawler->filterXPath('//*[@data-vault-password-modal]');
+        self::assertCount(1, $root);
+        self::assertSame('/tools/vault/password/generate', $root->attr('data-vault-password-url'));
+        self::assertNotEmpty($root->attr('data-vault-password-csrf'));
+        self::assertSame(20, mb_strlen((string) $crawler->filterXPath('//input[@data-vault-password-output]')->attr('value')));
+        self::assertCount(1, $crawler->filterXPath('//*[@data-nowo-ui-dialog-actions]//button[@data-vault-password-fill]'));
+
+        // Without the dialog header the browser goes to the vault.
+        $client->request('GET', '/tools/vault/password/generate');
+        self::assertResponseRedirects('/tools/vault');
+
+        // The vault home carries no generator form, only the empty shell and the opener.
+        $home = $client->request('GET', '/tools/vault');
+        self::assertCount(0, $home->filterXPath('//form[@data-vault-password-form]'));
+        self::assertCount(1, $home->filterXPath('//dialog[@id="vault-password-generator"][@data-nowo-ui-remote-form]'));
+        self::assertSame('/tools/vault/password/generate', $home->filterXPath('//*[@data-vault-password-generator]')->attr('data-nowo-ui-dialog-src'));
+    }
+
     public function testGeneratePasswordAcceptsJsonFormAndHeaderTokens(): void
     {
         [$client] = $this->loggedIn();

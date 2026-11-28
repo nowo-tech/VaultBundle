@@ -6,6 +6,7 @@ namespace Nowo\VaultBundle\Controller;
 
 use DateTimeImmutable;
 use InvalidArgumentException;
+use Nowo\UiKitBundle\Dialog\RemoteDialogResponder;
 use Nowo\VaultBundle\Config\VaultRuntimeConfigProvider;
 use Nowo\VaultBundle\Doctrine\VaultWriteUnit;
 use Nowo\VaultBundle\Dto\PasswordGeneratorOptions;
@@ -140,6 +141,8 @@ final class VaultManageController extends AbstractController
         private readonly bool $sharingEnabled = true,
         /** 1.20: one transaction per item save / folder trash (REQ-RUNTIME-003). */
         private readonly ?VaultWriteUnit $writeUnit = null,
+        /** 3.x: UiKit's remote dialog responder (the container's; the defaults without one). */
+        private readonly ?RemoteDialogResponder $remoteDialog = null,
     ) {
     }
 
@@ -865,12 +868,19 @@ final class VaultManageController extends AbstractController
     }
 
     /**
-     * Generates a password with the submitted options and returns it as JSON (CSRF protected).
+     * POST: generates a password with the submitted options and returns it as JSON (CSRF protected). GET (owner rule
+     * 2026-11-23, every dialog loads its content on demand): the password generator dialog, a fragment for UiKit's remote
+     * dialog (`X-Nowo-Dialog: 1`) with a first password already generated; any other GET goes to the vault home.
      */
-    #[Route(path: '/tools/vault/password/generate', name: 'nowo_vault_password_generate', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'password_generate'], methods: ['POST'])]
-    public function generatePassword(Request $request): JsonResponse
+    #[Route(path: '/tools/vault/password/generate', name: 'nowo_vault_password_generate', options: [VaultRouteLoader::ROUTE_KEY_OPTION => 'password_generate'], methods: ['GET', 'POST'])]
+    public function generatePassword(Request $request): Response
     {
         $this->denyUnlessFeature('access');
+
+        if ($request->isMethod(Request::METHOD_GET)) {
+            return $this->passwordGeneratorDialog($request);
+        }
+
         $this->denyUnlessValidCsrf('vault_password_generate', $request);
 
         /** @var array<string, mixed> $body */
@@ -882,6 +892,25 @@ final class VaultManageController extends AbstractController
             'password' => $password,
             'strength' => $this->passwordGenerator->estimateStrength($password),
         ]);
+    }
+
+    private function passwordGeneratorDialog(Request $request): Response
+    {
+        $responder = $this->remoteDialog ?? new RemoteDialogResponder();
+        if (!$responder->isDialog($request)) {
+            return $this->redirectToRoute($this->routes()['index']['name']);
+        }
+
+        $password = $this->passwordGenerator->generate(PasswordGeneratorOptions::fromArray(['mode' => 'characters', 'length' => 20]));
+        $response = $this->render('@NowoVaultBundle/vault/_password_generator.html.twig', [
+            'generatorForm' => $this->createForm(VaultPasswordGeneratorType::class)->createView(),
+            'password'      => $password,
+            'strength'      => $this->passwordGenerator->estimateStrength($password),
+            'routes'        => $this->routes(),
+            'bundle'        => VaultPages::BUNDLE,
+        ]);
+
+        return $responder->fragment($response);
     }
 
     /**
